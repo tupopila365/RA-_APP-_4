@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Animated, Dimensions, Image, ActivityIndicator } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import RAIcon from '../assets/icon.png';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function SplashScreen() {
   const fadeAnim = new Animated.Value(0);
@@ -28,7 +28,7 @@ export default function SplashScreen() {
 
   return (
     <LinearGradient
-      colors={['#000000', '#1a1a1a']}
+      colors={['#00B4E6', '#0090C0']}
       style={styles.container}
     >
       <Animated.View
@@ -46,7 +46,9 @@ export default function SplashScreen() {
           resizeMode="contain"
         />
         
-        {/* Yellow Loading Spinner */}
+        <Text style={styles.title}>Roads Authority</Text>
+        <Text style={styles.subtitle}>of Namibia</Text>
+        
         <View style={styles.spinnerContainer}>
           <ActivityIndicator size="large" color="#FFD700" />
         </View>
@@ -66,12 +68,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    width: width * 0.6,
-    height: width * 0.6,
-    marginBottom: 40,
+    width: width * 0.5,
+    height: width * 0.5,
+    marginBottom: 30,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 20,
+    letterSpacing: 1,
+  },
+  subtitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#FFD700',
+    marginTop: 5,
+    letterSpacing: 0.5,
   },
   spinnerContainer: {
-    marginTop: 20,
+    marginTop: 40,
   },
 });
 

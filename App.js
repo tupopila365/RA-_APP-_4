@@ -10,6 +10,7 @@ import * as Notifications from 'expo-notifications';
 import SplashScreen from './screens/SplashScreen';
 import HomeScreen from './screens/HomeScreen';
 import NewsScreen from './screens/NewsScreen';
+import NewsDetailScreen from './screens/NewsDetailScreen';
 import VacanciesScreen from './screens/VacanciesScreen';
 import TendersScreen from './screens/TendersScreen';
 import ChatbotScreen from './screens/ChatbotScreen';
@@ -30,6 +31,28 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+function NewsStack() {
+  const colorScheme = useColorScheme();
+  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: colors.primary,
+        },
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen name="NewsList" component={NewsScreen} options={{ title: 'News' }} />
+      <Stack.Screen name="NewsDetail" component={NewsDetailScreen} options={{ title: 'Article' }} />
+    </Stack.Navigator>
+  );
+}
 
 function MainTabs() {
   const colorScheme = useColorScheme();
@@ -83,7 +106,11 @@ function MainTabs() {
         component={HomeScreen}
         options={{ headerShown: false }}
       />
-      <Tab.Screen name="News" component={NewsScreen} />
+      <Tab.Screen 
+        name="News" 
+        component={NewsStack}
+        options={{ headerShown: false }}
+      />
       <Tab.Screen name="Vacancies" component={VacanciesScreen} />
       <Tab.Screen name="Tenders" component={TendersScreen} />
       <Tab.Screen 

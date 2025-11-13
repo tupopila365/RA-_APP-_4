@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ export default function VacanciesScreen() {
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
+  const [expandedVacancy, setExpandedVacancy] = useState(null);
 
   const filters = ['All', 'Full-time', 'Part-time', 'Bursaries', 'Internships'];
 
@@ -27,6 +28,22 @@ export default function VacanciesScreen() {
       department: 'Engineering',
       location: 'Windhoek',
       closingDate: '2024-02-15',
+      salary: 'N$45,000 - N$60,000 per month',
+      description: 'We are seeking an experienced Senior Civil Engineer to lead major road infrastructure projects. The ideal candidate will have extensive experience in highway design, project management, and team leadership.',
+      requirements: [
+        'Bachelor\'s degree in Civil Engineering',
+        'Minimum 8 years of experience',
+        'Professional Engineer registration',
+        'Project management certification',
+        'Strong leadership skills',
+      ],
+      responsibilities: [
+        'Lead design and implementation of road projects',
+        'Manage engineering teams',
+        'Ensure compliance with safety standards',
+        'Coordinate with stakeholders',
+        'Review technical drawings and specifications',
+      ],
     },
     {
       id: 2,
@@ -35,6 +52,20 @@ export default function VacanciesScreen() {
       department: 'Maintenance',
       location: 'Swakopmund',
       closingDate: '2024-02-20',
+      salary: 'N$8,000 - N$12,000 per month',
+      description: 'Join our maintenance team to ensure the quality and safety of road infrastructure in the Swakopmund region. This part-time position offers flexible working hours.',
+      requirements: [
+        'Diploma in Civil Engineering or related field',
+        'Valid driver\'s license',
+        '2+ years maintenance experience',
+        'Knowledge of road safety standards',
+      ],
+      responsibilities: [
+        'Conduct routine road inspections',
+        'Perform minor repairs and maintenance',
+        'Report major defects',
+        'Maintain equipment and tools',
+      ],
     },
     {
       id: 3,
@@ -43,6 +74,21 @@ export default function VacanciesScreen() {
       department: 'Education',
       location: 'Nationwide',
       closingDate: '2024-03-01',
+      salary: 'Full tuition + N$3,000 monthly allowance',
+      description: 'Roads Authority is offering bursaries to talented Namibian students pursuing engineering degrees. Recipients will receive full financial support and guaranteed employment upon graduation.',
+      requirements: [
+        'Namibian citizen',
+        'Grade 12 with Mathematics and Physical Science',
+        'Accepted into accredited engineering program',
+        'Minimum average of 65%',
+        'Demonstrate financial need',
+      ],
+      responsibilities: [
+        'Maintain academic performance (minimum 60%)',
+        'Complete vacation work at Roads Authority',
+        'Submit progress reports each semester',
+        'Commit to work for RA after graduation',
+      ],
     },
     {
       id: 4,
@@ -51,6 +97,21 @@ export default function VacanciesScreen() {
       department: 'IT',
       location: 'Windhoek',
       closingDate: '2024-02-25',
+      salary: 'N$4,500 per month',
+      description: 'Gain practical experience in IT systems management and software development. This 12-month internship provides hands-on training in a professional environment.',
+      requirements: [
+        'Currently studying IT, Computer Science, or related field',
+        'Basic programming knowledge',
+        'Good communication skills',
+        'Eager to learn',
+      ],
+      responsibilities: [
+        'Assist with system maintenance',
+        'Support software development projects',
+        'Help with user support',
+        'Document IT processes',
+        'Participate in team meetings',
+      ],
     },
     {
       id: 5,
@@ -59,6 +120,22 @@ export default function VacanciesScreen() {
       department: 'Projects',
       location: 'Windhoek',
       closingDate: '2024-02-18',
+      salary: 'N$35,000 - N$50,000 per month',
+      description: 'Lead and coordinate major infrastructure projects from inception to completion. The successful candidate will manage budgets, timelines, and stakeholder relationships.',
+      requirements: [
+        'Bachelor\'s degree in Engineering or Project Management',
+        '5+ years project management experience',
+        'PMP certification preferred',
+        'Strong analytical skills',
+        'Excellent communication abilities',
+      ],
+      responsibilities: [
+        'Plan and execute project strategies',
+        'Manage project budgets and resources',
+        'Coordinate with contractors and consultants',
+        'Monitor project progress and quality',
+        'Prepare reports for senior management',
+      ],
     },
   ]);
 
@@ -68,6 +145,10 @@ export default function VacanciesScreen() {
     const matchesFilter = selectedFilter === 'All' || vacancy.type === selectedFilter;
     return matchesSearch && matchesFilter;
   });
+
+  const toggleExpand = (id) => {
+    setExpandedVacancy(expandedVacancy === id ? null : id);
+  };
 
   const styles = getStyles(colors);
 
@@ -123,35 +204,83 @@ export default function VacanciesScreen() {
             <Text style={styles.emptyText}>No vacancies found</Text>
           </View>
         ) : (
-          filteredVacancies.map((vacancy) => (
-            <TouchableOpacity key={vacancy.id} style={styles.vacancyCard} activeOpacity={0.7}>
-              <View style={styles.vacancyHeader}>
-                <View style={[styles.typeBadge, { backgroundColor: colors.secondary + '20' }]}>
-                  <Text style={[styles.typeText, { color: colors.secondary }]}>
-                    {vacancy.type}
+          filteredVacancies.map((vacancy) => {
+            const isExpanded = expandedVacancy === vacancy.id;
+            return (
+              <TouchableOpacity 
+                key={vacancy.id} 
+                style={styles.vacancyCard} 
+                activeOpacity={0.7}
+                onPress={() => toggleExpand(vacancy.id)}
+              >
+                <View style={styles.vacancyHeader}>
+                  <View style={[styles.typeBadge, { backgroundColor: colors.secondary + '20' }]}>
+                    <Text style={[styles.typeText, { color: colors.secondary }]}>
+                      {vacancy.type}
+                    </Text>
+                  </View>
+                  <Ionicons 
+                    name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                    size={24} 
+                    color={colors.primary} 
+                  />
+                </View>
+                <Text style={styles.vacancyTitle}>{vacancy.title}</Text>
+                <View style={styles.vacancyDetails}>
+                  <View style={styles.detailItem}>
+                    <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
+                    <Text style={styles.detailText}>{vacancy.department}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
+                    <Text style={styles.detailText}>{vacancy.location}</Text>
+                  </View>
+                </View>
+                <View style={styles.closingDate}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.closingDateText, { color: colors.primary }]}>
+                    Closes: {vacancy.closingDate}
                   </Text>
                 </View>
-                <Ionicons name="bookmark-outline" size={20} color={colors.textSecondary} />
-              </View>
-              <Text style={styles.vacancyTitle}>{vacancy.title}</Text>
-              <View style={styles.vacancyDetails}>
-                <View style={styles.detailItem}>
-                  <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>{vacancy.department}</Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>{vacancy.location}</Text>
-                </View>
-              </View>
-              <View style={styles.closingDate}>
-                <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                <Text style={[styles.closingDateText, { color: colors.primary }]}>
-                  Closes: {vacancy.closingDate}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))
+
+                {isExpanded && (
+                  <View style={styles.expandedContent}>
+                    <View style={styles.divider} />
+                    
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Salary</Text>
+                      <Text style={styles.sectionText}>{vacancy.salary}</Text>
+                    </View>
+
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Description</Text>
+                      <Text style={styles.sectionText}>{vacancy.description}</Text>
+                    </View>
+
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Requirements</Text>
+                      {vacancy.requirements.map((req, index) => (
+                        <View key={index} style={styles.listItem}>
+                          <Text style={styles.bullet}>•</Text>
+                          <Text style={styles.listText}>{req}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Responsibilities</Text>
+                      {vacancy.responsibilities.map((resp, index) => (
+                        <View key={index} style={styles.listItem}>
+                          <Text style={styles.bullet}>•</Text>
+                          <Text style={styles.listText}>{resp}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -169,6 +298,7 @@ function getStyles(colors) {
       alignItems: 'center',
       backgroundColor: colors.card,
       margin: 15,
+      marginBottom: 10,
       borderRadius: 25,
       paddingHorizontal: 15,
       height: 50,
@@ -187,20 +317,21 @@ function getStyles(colors) {
       fontSize: 16,
     },
     filtersContainer: {
-      maxHeight: 50,
+      maxHeight: 60,
+      marginBottom: 5,
     },
     filtersContent: {
       paddingHorizontal: 15,
-      paddingVertical: 10,
+      paddingVertical: 5,
     },
     filterChip: {
       paddingHorizontal: 20,
-      paddingVertical: 8,
+      paddingVertical: 10,
       borderRadius: 20,
       backgroundColor: colors.card,
-      marginRight: 10,
       borderWidth: 1,
       borderColor: colors.border,
+      marginRight: 10,
     },
     filterText: {
       fontSize: 14,
@@ -277,6 +408,45 @@ function getStyles(colors) {
       fontSize: 16,
       color: colors.textSecondary,
       marginTop: 15,
+    },
+    expandedContent: {
+      marginTop: 15,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginBottom: 15,
+    },
+    section: {
+      marginBottom: 15,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    sectionText: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 22,
+    },
+    listItem: {
+      flexDirection: 'row',
+      marginBottom: 6,
+      paddingRight: 10,
+    },
+    bullet: {
+      fontSize: 14,
+      color: colors.primary,
+      marginRight: 8,
+      fontWeight: 'bold',
+    },
+    listText: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
     },
   });
 }

@@ -27,9 +27,14 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
   const [searchQuery, setSearchQuery] = useState('');
   const [showMessageOption, setShowMessageOption] = useState(false);
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   const handleNatisOnline = async () => {
     await WebBrowser.openBrowserAsync('https://online.ra.org.na/#/');
+  };
+
+  const handleERecruitment = async () => {
+    await WebBrowser.openBrowserAsync('https://ra.org.na/e-recruitment');
   };
 
   const posterBanners = [
@@ -63,48 +68,55 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     },
     {
       id: 2,
+      title: 'E-Recruitment',
+      icon: 'person-add-outline',
+      color: '#27AE60',
+      onPress: handleERecruitment,
+    },
+    {
+      id: 3,
       title: 'News',
       icon: 'newspaper-outline',
       color: '#FF6B6B',
       onPress: () => navigation?.navigate('News'),
     },
     {
-      id: 3,
+      id: 4,
       title: 'Vacancies',
       icon: 'briefcase-outline',
       color: '#4ECDC4',
       onPress: () => navigation?.navigate('Vacancies'),
     },
     {
-      id: 4,
+      id: 5,
       title: 'Tenders',
       icon: 'document-text-outline',
       color: '#FFD700',
       onPress: () => navigation?.navigate('Tenders'),
     },
     {
-      id: 5,
+      id: 6,
       title: 'RA Chatbot',
       icon: 'chatbubbles-outline',
       color: '#9B59B6',
       onPress: () => navigation?.navigate('More', { screen: 'Chatbot' }),
     },
     {
-      id: 6,
+      id: 7,
       title: 'FAQs',
       icon: 'help-circle-outline',
       color: '#E67E22',
       onPress: () => navigation?.navigate('More', { screen: 'FAQs' }),
     },
     {
-      id: 7,
+      id: 8,
       title: 'Find Offices',
       icon: 'location-outline',
       color: '#3498DB',
       onPress: () => navigation?.navigate('More', { screen: 'FindOffices' }),
     },
     {
-      id: 8,
+      id: 9,
       title: 'Settings',
       icon: 'settings-outline',
       color: '#95A5A6',
@@ -178,30 +190,25 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
               <Text style={styles.subtitleText}>Namibia</Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => {
-              // Handle search
-            }}
-          >
-            <Ionicons name="search" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color="#FFFFFF" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor="rgba(255, 255, 255, 0.7)"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.content}
+      >
         {/* Poster Banner Section */}
         <View style={styles.bannerContainer}>
           <ScrollView
@@ -211,6 +218,12 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
             decelerationRate="fast"
             pagingEnabled
             contentContainerStyle={styles.bannerScrollContent}
+            onScroll={(event) => {
+              const scrollPosition = event.nativeEvent.contentOffset.x;
+              const index = Math.round(scrollPosition / (width - 60 + 15));
+              setActiveBannerIndex(index);
+            }}
+            scrollEventThrottle={16}
           >
             {posterBanners.map((banner) => (
               <ImageBackground
@@ -226,26 +239,49 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
               </ImageBackground>
             ))}
           </ScrollView>
+          
+          {/* Pagination Dots */}
+          <View style={styles.paginationContainer}>
+            {posterBanners.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.paginationDot,
+                  activeBannerIndex === index && styles.paginationDotActive,
+                ]}
+              />
+            ))}
+          </View>
         </View>
 
         {/* Menu Grid */}
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Quick Access</Text>
           <View style={styles.menuGrid}>
-            {menuItems.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.menuItem}
-                onPress={item.onPress}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.menuIconContainer, { backgroundColor: item.color + '20' }]}>
-                  <Ionicons name={item.icon} size={32} color={item.color} />
-                </View>
-                <Text style={styles.menuItemText}>{item.title}</Text>
-              </TouchableOpacity>
-            ))}
+            {menuItems
+              .filter((item) => {
+                if (!searchQuery.trim()) return true;
+                return item.title.toLowerCase().includes(searchQuery.toLowerCase());
+              })
+              .map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.menuItem}
+                  onPress={item.onPress}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: item.color + '20' }]}>
+                    <Ionicons name={item.icon} size={32} color={item.color} />
+                  </View>
+                  <Text style={styles.menuItemText}>{item.title}</Text>
+                </TouchableOpacity>
+              ))}
           </View>
+          {searchQuery.trim() && menuItems.filter((item) => 
+            item.title.toLowerCase().includes(searchQuery.toLowerCase())
+          ).length === 0 && (
+            <Text style={styles.noResultsText}>No results found for "{searchQuery}"</Text>
+          )}
         </View>
       </ScrollView>
       <View style={styles.fabContainer}>
@@ -294,8 +330,8 @@ function getStyles(colors) {
       marginLeft: 12,
     },
     brandLogo: {
-      width: 56,
-      height: 56,
+      width: 70,
+      height: 70,
       resizeMode: 'contain',
     },
     welcomeText: {
@@ -348,6 +384,7 @@ function getStyles(colors) {
     },
     bannerContainer: {
       marginBottom: 30,
+      position: 'relative',
     },
     bannerScrollContent: {
       paddingRight: 20,
@@ -378,6 +415,25 @@ function getStyles(colors) {
       fontSize: 14,
       marginTop: 6,
       opacity: 0.9,
+    },
+    paginationContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 12,
+      gap: 8,
+    },
+    paginationDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.textSecondary,
+      opacity: 0.3,
+    },
+    paginationDotActive: {
+      backgroundColor: '#FFD700',
+      opacity: 1,
+      width: 24,
     },
     menuSection: {
       marginTop: 10,
@@ -419,6 +475,12 @@ function getStyles(colors) {
       fontWeight: '600',
       color: colors.text,
       textAlign: 'center',
+    },
+    noResultsText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 20,
     },
     fabContainer: {
       position: 'absolute',
