@@ -1,25 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   Dimensions,
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
+import { useApi } from '../hooks/useApi';
+import { newsService } from '../services/newsService';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorState } from '../components/ErrorState';
+import { EmptyState } from '../components/EmptyState';
+import { SearchInput } from '../components/SearchInput';
 
 const { width } = Dimensions.get('window');
 
-export default function NewsScreen({ navigation }) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const [refreshing, setRefreshing] = useState(false);
-
-  const [news] = useState([
+const mockNewsData = [
     {
       id: 1,
       title: 'Road Safety Campaign Launched Nationwide',
@@ -86,26 +86,73 @@ export default function NewsScreen({ navigation }) {
       readTime: 6,
       tags: ['employment', 'youth', 'training'],
     },
-  ]);
+];
+
+export default function NewsScreen({ navigation }) {
+  const { colors } = useTheme();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredNews, setFilteredNews] = useState([]);
+  
+  const { data: news = mockNewsData, loading, error, execute: refetchNews, retry } = useApi(
+    () => newsService.getNews().catch(() => mockNewsData),
+    { immediate: true, cacheKey: 'news' }
+  );
+
+  useEffect(() => {
+    const newsToFilter = news && news.length > 0 ? news : mockNewsData;
+    if (searchQuery.trim()) {
+      const filtered = newsToFilter.filter(item =>
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredNews(filtered);
+    } else {
+      setFilteredNews(newsToFilter);
+    }
+  }, [searchQuery, news]);
 
   const onRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1500);
+    refetchNews();
   };
 
   const styles = getStyles(colors);
 
+  if (loading && filteredNews.length === 0) {
+    return <LoadingSpinner fullScreen message="Loading news..." />;
+  }
+
+  if (error && filteredNews.length === 0) {
+    return (
+      <ErrorState
+        message={error.message || 'Failed to load news'}
+        onRetry={retry}
+        fullScreen
+      />
+    );
+  }
+
+  const newsToDisplay = filteredNews.length > 0 ? filteredNews : mockNewsData;
+
   return (
     <View style={styles.container}>
+      <SearchInput
+        placeholder="Search news..."
+        onSearch={setSearchQuery}
+        onClear={() => setSearchQuery('')}
+        style={styles.searchInput}
+        accessibilityLabel="Search news articles"
+        accessibilityHint="Type to filter news by title or category"
+      />
+
       {/* News List */}
       <ScrollView 
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+          <RefreshControl refreshing={loading} onRefresh={onRefresh} colors={[colors.primary]} />
         }
       >
-        {news.length > 0 ? (
-          news.map((item) => (
+        {newsToDisplay.length > 0 ? (
+          newsToDisplay.map((item) => (
             <TouchableOpacity 
               key={item.id} 
               style={styles.newsCard} 
@@ -129,10 +176,11 @@ export default function NewsScreen({ navigation }) {
             </TouchableOpacity>
           ))
         ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="newspaper-outline" size={64} color={colors.textSecondary} />
-            <Text style={styles.emptyStateText}>No news articles found</Text>
-          </View>
+          <EmptyState
+            message="No news articles found"
+            icon="newspaper-outline"
+            accessibilityLabel="No news available"
+          />
         )}
       </ScrollView>
     </View>
@@ -144,6 +192,10 @@ function getStyles(colors) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    searchInput: {
+      margin: 15,
+      marginBottom: 10,
     },
     content: {
       padding: 20,
@@ -199,17 +251,7 @@ function getStyles(colors) {
       fontWeight: '600',
       marginRight: 5,
     },
-    emptyState: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 60,
-    },
-    emptyStateText: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: colors.text,
-      marginTop: 15,
-    },
+
   });
 }
 

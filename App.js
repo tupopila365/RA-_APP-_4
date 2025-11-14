@@ -19,6 +19,9 @@ import FindOfficesScreen from './screens/FindOfficesScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import MoreMenuScreen from './screens/MoreMenuScreen';
 import { RATheme } from './theme/colors';
+import { AppProvider } from './context/AppContext';
+import { CacheProvider } from './context/CacheContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -167,10 +170,16 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <StatusBar style="light" />
-      <MainTabs />
-    </NavigationContainer>
+    <ErrorBoundary>
+      <AppProvider>
+        <CacheProvider>
+          <NavigationContainer>
+            <StatusBar style="light" />
+            <MainTabs />
+          </NavigationContainer>
+        </CacheProvider>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 

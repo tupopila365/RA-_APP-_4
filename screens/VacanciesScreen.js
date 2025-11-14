@@ -337,9 +337,10 @@ function getStyles(colors) {
       fontSize: 14,
       fontWeight: '600',
       color: colors.text,
+       flexWrap: 'wrap',
     },
     content: {
-      padding: 15,
+      padding: 25,
     },
     vacancyCard: {
       backgroundColor: colors.card,

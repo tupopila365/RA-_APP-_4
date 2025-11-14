@@ -5,16 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Dimensions,
-  useColorScheme,
   Image,
   ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
+import { SearchInput } from '../components/SearchInput';
 import RAIcon from '../assets/icon.png';
 import Poster1 from '../assets/poster-1.png';
 import Poster2 from '../assets/poster-2.png';
@@ -23,8 +22,7 @@ import Poster3 from '../assets/poster-3.png';
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation, showMenuOnly = false }) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [showMessageOption, setShowMessageOption] = useState(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
@@ -34,7 +32,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
   };
 
   const handleERecruitment = async () => {
-    await WebBrowser.openBrowserAsync('https://ra.org.na/e-recruitment');
+    await WebBrowser.openBrowserAsync('https://erec.ra.org.na/');
   };
 
   const posterBanners = [
@@ -193,16 +191,13 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
         </View>
 
         {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#FFFFFF" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search..."
-            placeholderTextColor="rgba(255, 255, 255, 0.7)"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+        <SearchInput
+          placeholder="Search..."
+          onSearch={setSearchQuery}
+          onClear={() => setSearchQuery('')}
+          accessibilityLabel="Search menu items"
+          accessibilityHint="Type to filter available menu options"
+        />
       </LinearGradient>
 
       <ScrollView 
@@ -351,31 +346,7 @@ function getStyles(colors) {
       opacity: 0.9,
       marginTop: 2,
     },
-    searchButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      borderRadius: 25,
-      paddingHorizontal: 15,
-      height: 50,
-    },
-    searchIcon: {
-      marginRight: 10,
-      color: '#FFFFFF',
-    },
-    searchInput: {
-      flex: 1,
-      color: '#FFFFFF',
-      fontSize: 16,
-    },
+
     scrollView: {
       flex: 1,
     },
