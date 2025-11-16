@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   View,
   Text,
@@ -240,9 +241,9 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
           
           {/* Pagination Dots */}
           <View style={styles.paginationContainer}>
-            {posterBanners.map((_, index) => (
+            {posterBanners.map((banner, index) => (
               <View
-                key={index}
+                key={banner.id}
                 style={[
                   styles.paginationDot,
                   activeBannerIndex === index && styles.paginationDotActive,
@@ -497,4 +498,9 @@ function getStyles(colors) {
     },
   });
 }
+
+HomeScreen.propTypes = {
+  navigation: PropTypes.object.isRequired,
+  showMenuOnly: PropTypes.bool,
+};
 

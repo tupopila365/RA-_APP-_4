@@ -10,6 +10,7 @@ import {
   Platform,
   useColorScheme,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 
@@ -59,11 +60,12 @@ export default function ChatbotScreen() {
   const styles = getStyles(colors);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={90}
-    >
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={110}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.messagesContainer}
@@ -124,7 +126,8 @@ export default function ChatbotScreen() {
           <Ionicons name="send" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -133,6 +136,10 @@ function getStyles(colors) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+     header: {
+      backgroundColor: colors.background,
+      paddingTop: 20,
     },
     messagesContainer: {
       padding: 20,

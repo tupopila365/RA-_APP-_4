@@ -36,6 +36,24 @@ Notifications.setNotificationHandler({
   }),
 });
 
+function getTabBarIcon(route, focused, color, size) {
+  let iconName;
+
+  if (route.name === 'Home') {
+    iconName = focused ? 'home' : 'home-outline';
+  } else if (route.name === 'News') {
+    iconName = focused ? 'newspaper' : 'newspaper-outline';
+  } else if (route.name === 'Vacancies') {
+    iconName = focused ? 'briefcase' : 'briefcase-outline';
+  } else if (route.name === 'Tenders') {
+    iconName = focused ? 'document-text' : 'document-text-outline';
+  } else if (route.name === 'More') {
+    iconName = focused ? 'menu' : 'menu-outline';
+  }
+
+  return <Ionicons name={iconName} size={size} color={color} />;
+}
+
 function NewsStack() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
@@ -69,23 +87,7 @@ function MainTabs() {
     <Tab.Navigator
       detachInactiveScreens={false}
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'News') {
-            iconName = focused ? 'newspaper' : 'newspaper-outline';
-          } else if (route.name === 'Vacancies') {
-            iconName = focused ? 'briefcase' : 'briefcase-outline';
-          } else if (route.name === 'Tenders') {
-            iconName = focused ? 'document-text' : 'document-text-outline';
-          } else if (route.name === 'More') {
-            iconName = focused ? 'menu' : 'menu-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
+        tabBarIcon: ({ focused, color, size }) => getTabBarIcon(route, focused, color, size),
         tabBarActiveTintColor: colors.secondary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
@@ -148,8 +150,8 @@ function MoreStack() {
         },
       }}
     >
-      <Stack.Screen 
-        name="MoreMenu" 
+      <Stack.Screen
+        name="MoreMenu"
         component={MoreMenuScreen}
         options={{ title: 'More' }}
       />
@@ -161,6 +163,32 @@ function MoreStack() {
   );
 }
 
+function RootStack() {
+  const colorScheme = useColorScheme();
+  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerBackTitleVisible: false,
+        gestureEnabled: true,
+        headerStyle: {
+          backgroundColor: colors.primary,
+        },
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen
+        name="MainTabs"
+        component={MainTabs}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  );
+}
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -189,7 +217,7 @@ export default function App() {
           <CacheProvider>
             <NavigationContainer>
               <StatusBar style="light" backgroundColor={colors.primary} />
-              <MainTabs />
+              <RootStack />
             </NavigationContainer>
           </CacheProvider>
         </AppProvider>

@@ -9,6 +9,7 @@ import {
   useColorScheme,
   Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 
@@ -102,7 +103,7 @@ export default function FindOfficesScreen() {
   const styles = getStyles(colors);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
@@ -195,7 +196,7 @@ export default function FindOfficesScreen() {
           ))
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -210,6 +211,7 @@ function getStyles(colors) {
       alignItems: 'center',
       backgroundColor: colors.card,
       margin: 15,
+      marginTop: 20,
       borderRadius: 25,
       paddingHorizontal: 15,
       height: 50,

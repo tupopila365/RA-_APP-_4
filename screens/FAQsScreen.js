@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   useColorScheme,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 
@@ -65,7 +66,7 @@ export default function FAQsScreen() {
   const styles = getStyles(colors);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Ionicons name="help-circle" size={48} color={colors.primary} />
@@ -99,7 +100,7 @@ export default function FAQsScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -108,6 +109,10 @@ function getStyles(colors) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+     header: {
+      backgroundColor: colors.background,
+      paddingTop: 20,
     },
     content: {
       padding: 20,
@@ -120,7 +125,7 @@ function getStyles(colors) {
       fontSize: 24,
       fontWeight: 'bold',
       color: colors.text,
-      marginTop: 15,
+      marginTop: 20,
       textAlign: 'center',
     },
     headerSubtitle: {

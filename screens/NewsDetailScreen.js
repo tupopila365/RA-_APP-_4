@@ -7,6 +7,7 @@ import {
   Dimensions,
   useWindowDimensions,
 } from 'react-native';
+import PropTypes from 'prop-types';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 
@@ -57,7 +58,7 @@ export default function NewsDetailScreen({ route }) {
               <Text style={styles.tagsLabel}>Tags:</Text>
               <View style={styles.tags}>
                 {article.tags.map((tag, index) => (
-                  <View key={index} style={styles.tag}>
+                  <View key={tag} style={styles.tag}>
                     <Text style={styles.tagText}>#{tag}</Text>
                   </View>
                 ))}
@@ -187,3 +188,7 @@ function getStyles(colors, screenWidth) {
     },
   });
 }
+
+NewsDetailScreen.propTypes = {
+  route: PropTypes.object.isRequired,
+};

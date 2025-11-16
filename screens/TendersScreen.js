@@ -9,6 +9,7 @@ import {
   useColorScheme,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 
@@ -99,51 +100,54 @@ export default function TendersScreen() {
   const styles = getStyles(colors);
 
   return (
-    <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search tenders..."
-          placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header with Search and Filters */}
+      <View style={styles.header}>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search tenders..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {/* Filters */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersContainer}
+          contentContainerStyle={styles.filtersContent}
+        >
+          {filters.map((filter) => (
+            <TouchableOpacity
+              key={filter}
+              style={[
+                styles.filterChip,
+                selectedFilter === filter && {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+              onPress={() => setSelectedFilter(filter)}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedFilter === filter && { color: '#FFFFFF' },
+                ]}
+              >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
-      {/* Filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filtersContainer}
-        contentContainerStyle={styles.filtersContent}
-      >
-        {filters.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterChip,
-              selectedFilter === filter && {
-                backgroundColor: colors.primary,
-              },
-            ]}
-            onPress={() => setSelectedFilter(filter)}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                selectedFilter === filter && { color: '#FFFFFF' },
-              ]}
-            >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
       {/* Tenders List */}
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={styles.contentScrollView} contentContainerStyle={styles.content}>
         {filteredTenders.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="document-text-outline" size={64} color={colors.textSecondary} />
@@ -164,16 +168,16 @@ export default function TendersScreen() {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.tenderTitle}>{tender.title}</Text>
-              <Text style={styles.tenderReference}>Ref: {tender.reference}</Text>
+              <Text style={styles.tenderTitle} numberOfLines={2} ellipsizeMode="tail">{tender.title}</Text>
+              <Text style={styles.tenderReference} numberOfLines={1} ellipsizeMode="tail">Ref: {tender.reference}</Text>
               <View style={styles.tenderDetails}>
                 <View style={styles.detailRow}>
                   <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>Closing: {tender.closingDate}</Text>
+                  <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">Closing: {tender.closingDate}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Ionicons name="cash-outline" size={16} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>Value: {tender.value}</Text>
+                  <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">Value: {tender.value}</Text>
                 </View>
               </View>
               <TouchableOpacity
@@ -181,13 +185,13 @@ export default function TendersScreen() {
                 onPress={() => handleDownload(tender)}
               >
                 <Ionicons name="download-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.downloadButtonText}>Download Document</Text>
+                <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail">Download Document</Text>
               </TouchableOpacity>
             </View>
           ))
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -197,11 +201,16 @@ function getStyles(colors) {
       flex: 1,
       backgroundColor: colors.background,
     },
+    header: {
+      backgroundColor: colors.background,
+      paddingTop: 20,
+    },
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
-      margin: 15,
+      marginHorizontal: 15,
+      marginBottom: 10,
       borderRadius: 25,
       paddingHorizontal: 15,
       height: 50,
@@ -220,7 +229,7 @@ function getStyles(colors) {
       fontSize: 16,
     },
     filtersContainer: {
-      maxHeight: 50,
+      marginBottom: 5,
     },
     filtersContent: {
       paddingHorizontal: 15,
@@ -243,8 +252,12 @@ function getStyles(colors) {
       color: colors.text,
       textAlign: 'center',
     },
+    contentScrollView: {
+      flex: 1,
+    },
     content: {
       padding: 15,
+      paddingBottom: 25,
     },
     tenderCard: {
       backgroundColor: colors.card,
@@ -256,6 +269,7 @@ function getStyles(colors) {
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
+      minHeight: 180,
     },
     tenderHeader: {
       flexDirection: 'row',

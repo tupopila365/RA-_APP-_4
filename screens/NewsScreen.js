@@ -8,7 +8,9 @@ import {
   Dimensions,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
 import { useTheme } from '../hooks/useTheme';
 import { useApi } from '../hooks/useApi';
 import { newsService } from '../services/newsService';
@@ -134,7 +136,7 @@ export default function NewsScreen({ navigation }) {
   const newsToDisplay = filteredNews.length > 0 ? filteredNews : mockNewsData;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <SearchInput
         placeholder="Search news..."
         onSearch={setSearchQuery}
@@ -183,9 +185,13 @@ export default function NewsScreen({ navigation }) {
           />
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
+
+NewsScreen.propTypes = {
+  navigation: PropTypes.object.isRequired,
+};
 
 function getStyles(colors) {
   return StyleSheet.create({
@@ -193,8 +199,13 @@ function getStyles(colors) {
       flex: 1,
       backgroundColor: colors.background,
     },
+     header: {
+      backgroundColor: colors.background,
+      paddingTop: 20,
+    },
     searchInput: {
       margin: 15,
+      marginTop: 20,
       marginBottom: 10,
     },
     content: {
@@ -254,4 +265,8 @@ function getStyles(colors) {
 
   });
 }
+
+NewsScreen.propTypes = {
+  navigation: PropTypes.object.isRequired,
+};
 

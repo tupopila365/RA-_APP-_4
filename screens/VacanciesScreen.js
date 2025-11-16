@@ -8,6 +8,7 @@ import {
   TextInput,
   useColorScheme,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 
@@ -153,51 +154,54 @@ export default function VacanciesScreen() {
   const styles = getStyles(colors);
 
   return (
-    <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search vacancies..."
-          placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header with Search and Filters */}
+      <View style={styles.header}>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search vacancies..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {/* Filters */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersContainer}
+          contentContainerStyle={styles.filtersContent}
+        >
+          {filters.map((filter) => (
+            <TouchableOpacity
+              key={filter}
+              style={[
+                styles.filterChip,
+                selectedFilter === filter && {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+              onPress={() => setSelectedFilter(filter)}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedFilter === filter && { color: '#FFFFFF' },
+                ]}
+              >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
-      {/* Filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filtersContainer}
-        contentContainerStyle={styles.filtersContent}
-      >
-        {filters.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterChip,
-              selectedFilter === filter && {
-                backgroundColor: colors.primary,
-              },
-            ]}
-            onPress={() => setSelectedFilter(filter)}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                selectedFilter === filter && { color: '#FFFFFF' },
-              ]}
-            >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
       {/* Vacancies List */}
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={styles.contentScrollView} contentContainerStyle={styles.content}>
         {filteredVacancies.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="briefcase-outline" size={64} color={colors.textSecondary} />
@@ -225,20 +229,20 @@ export default function VacanciesScreen() {
                     color={colors.primary} 
                   />
                 </View>
-                <Text style={styles.vacancyTitle}>{vacancy.title}</Text>
+                <Text style={styles.vacancyTitle} numberOfLines={2} ellipsizeMode="tail">{vacancy.title}</Text>
                 <View style={styles.vacancyDetails}>
                   <View style={styles.detailItem}>
                     <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
-                    <Text style={styles.detailText}>{vacancy.department}</Text>
+                    <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">{vacancy.department}</Text>
                   </View>
                   <View style={styles.detailItem}>
                     <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
-                    <Text style={styles.detailText}>{vacancy.location}</Text>
+                    <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">{vacancy.location}</Text>
                   </View>
                 </View>
                 <View style={styles.closingDate}>
                   <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                  <Text style={[styles.closingDateText, { color: colors.primary }]}>
+                  <Text style={[styles.closingDateText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail">
                     Closes: {vacancy.closingDate}
                   </Text>
                 </View>
@@ -249,20 +253,20 @@ export default function VacanciesScreen() {
                     
                     <View style={styles.section}>
                       <Text style={styles.sectionTitle}>Salary</Text>
-                      <Text style={styles.sectionText}>{vacancy.salary}</Text>
+                      <Text style={styles.sectionText} numberOfLines={2} ellipsizeMode="tail">{vacancy.salary}</Text>
                     </View>
 
                     <View style={styles.section}>
                       <Text style={styles.sectionTitle}>Description</Text>
-                      <Text style={styles.sectionText}>{vacancy.description}</Text>
+                      <Text style={styles.sectionText} numberOfLines={4} ellipsizeMode="tail">{vacancy.description}</Text>
                     </View>
 
                     <View style={styles.section}>
                       <Text style={styles.sectionTitle}>Requirements</Text>
                       {vacancy.requirements.map((req, index) => (
-                        <View key={index} style={styles.listItem}>
+                        <View key={`${vacancy.id}-req-${index}`} style={styles.listItem}>
                           <Text style={styles.bullet}>•</Text>
-                          <Text style={styles.listText}>{req}</Text>
+                          <Text style={styles.listText} numberOfLines={2} ellipsizeMode="tail">{req}</Text>
                         </View>
                       ))}
                     </View>
@@ -270,9 +274,9 @@ export default function VacanciesScreen() {
                     <View style={styles.section}>
                       <Text style={styles.sectionTitle}>Responsibilities</Text>
                       {vacancy.responsibilities.map((resp, index) => (
-                        <View key={index} style={styles.listItem}>
+                        <View key={`${vacancy.id}-resp-${index}`} style={styles.listItem}>
                           <Text style={styles.bullet}>•</Text>
-                          <Text style={styles.listText}>{resp}</Text>
+                          <Text style={styles.listText} numberOfLines={2} ellipsizeMode="tail">{resp}</Text>
                         </View>
                       ))}
                     </View>
@@ -283,7 +287,7 @@ export default function VacanciesScreen() {
           })
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -293,11 +297,15 @@ function getStyles(colors) {
       flex: 1,
       backgroundColor: colors.background,
     },
+    header: {
+      backgroundColor: colors.background,
+      paddingTop: 15,
+    },
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
-      margin: 15,
+      marginHorizontal: 15,
       marginBottom: 10,
       borderRadius: 25,
       paddingHorizontal: 15,
@@ -317,7 +325,7 @@ function getStyles(colors) {
       fontSize: 16,
     },
     filtersContainer: {
-      maxHeight: 50,
+      maxHeight:50,
       marginBottom: 5,
     },
     filtersContent: {
@@ -341,8 +349,12 @@ function getStyles(colors) {
       color: colors.text,
       textAlign: 'center',
     },
+    contentScrollView: {
+      flex: 1,
+    },
     content: {
-      padding: 25,
+      padding: 15,
+      paddingBottom: 25,
     },
     vacancyCard: {
       backgroundColor: colors.card,
@@ -354,6 +366,7 @@ function getStyles(colors) {
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
+      minHeight: 140,
     },
     vacancyHeader: {
       flexDirection: 'row',

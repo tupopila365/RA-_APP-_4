@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import {
   View,
   Text,
@@ -6,6 +7,7 @@ import {
   TouchableOpacity,
   useColorScheme,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 
@@ -47,28 +49,30 @@ export default function MoreMenuScreen({ navigation }) {
   const styles = getStyles(colors);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>More</Text>
-        <Text style={styles.headerSubtitle}>Additional features and settings</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>More</Text>
+          <Text style={styles.headerSubtitle}>Additional features and settings</Text>
+        </View>
 
-      <View style={styles.menuGrid}>
-        {menuItems.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.menuItem}
-            onPress={() => navigation.push(item.screen)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuIconContainer, { backgroundColor: item.color + '20' }]}>
-              <Ionicons name={item.icon} size={32} color={item.color} />
-            </View>
-            <Text style={styles.menuItemText}>{item.title}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
+        <View style={styles.menuGrid}>
+          {menuItems.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.menuItem}
+              onPress={() => navigation.push(item.screen)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconContainer, { backgroundColor: item.color + '20' }]}>
+                <Ionicons name={item.icon} size={32} color={item.color} />
+              </View>
+              <Text style={styles.menuItemText}>{item.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -82,6 +86,7 @@ function getStyles(colors) {
       padding: 20,
     },
     header: {
+      paddingTop: 20,
       marginBottom: 30,
     },
     headerTitle: {
@@ -128,4 +133,8 @@ function getStyles(colors) {
     },
   });
 }
+
+MoreMenuScreen.propTypes = {
+  navigation: PropTypes.object.isRequired,
+};
 

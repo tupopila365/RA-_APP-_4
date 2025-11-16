@@ -10,6 +10,7 @@ import {
   Appearance,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { RATheme } from '../theme/colors';
@@ -117,7 +118,7 @@ export default function SettingsScreen() {
   const styles = getStyles(colors);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         {settingsSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
@@ -160,7 +161,7 @@ export default function SettingsScreen() {
           <Text style={styles.footerSubtext}>© 2024 All rights reserved</Text>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -172,6 +173,7 @@ function getStyles(colors) {
     },
     content: {
       padding: 20,
+      paddingTop: 25,
     },
     section: {
       marginBottom: 30,
