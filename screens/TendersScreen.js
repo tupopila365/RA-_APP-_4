@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -227,7 +227,7 @@ function getStyles(colors) {
       paddingVertical: 10,
     },
     filterChip: {
-      paddingHorizontal: 24,
+      paddingHorizontal: 20,
       paddingVertical: 10,
       borderRadius: 20,
       backgroundColor: colors.card,
@@ -238,9 +238,10 @@ function getStyles(colors) {
       alignItems: 'center',
     },
     filterText: {
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: '600',
       color: colors.text,
+      textAlign: 'center',
     },
     content: {
       padding: 15,

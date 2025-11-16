@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Image,
   ImageBackground,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -179,6 +180,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
         colors={[colors.primary, colors.primary + 'DD']}
         style={styles.header}
       >
+        <SafeAreaView edges={['top']}>
         <View style={styles.headerContent}>
           <View style={styles.brandContainer}>
             <Image source={RAIcon} style={styles.brandLogo} />
@@ -198,6 +200,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
           accessibilityLabel="Search menu items"
           accessibilityHint="Type to filter available menu options"
         />
+        </SafeAreaView>
       </LinearGradient>
 
       <ScrollView 
@@ -305,7 +308,7 @@ function getStyles(colors) {
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: 60,
+      paddingTop: 20,
       paddingBottom: 20,
       paddingHorizontal: 20,
       borderBottomLeftRadius: 30,

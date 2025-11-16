@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { StatusBar as RNStatusBar, useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 
@@ -42,6 +43,8 @@ function NewsStack() {
   return (
     <Stack.Navigator
       screenOptions={{
+        headerBackTitleVisible: false,
+        gestureEnabled: true,
         headerStyle: {
           backgroundColor: colors.primary,
         },
@@ -60,9 +63,11 @@ function NewsStack() {
 function MainTabs() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
+      detachInactiveScreens={false}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -87,8 +92,8 @@ function MainTabs() {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
@@ -132,6 +137,8 @@ function MoreStack() {
   return (
     <Stack.Navigator
       screenOptions={{
+        headerBackTitleVisible: false,
+        gestureEnabled: true,
         headerStyle: {
           backgroundColor: colors.primary,
         },
@@ -157,29 +164,37 @@ function MoreStack() {
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const colorScheme = useColorScheme();
+  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
 
   useEffect(() => {
+    // Set status bar background color for Android
+    RNStatusBar.setBackgroundColor(colors.primary);
+    RNStatusBar.setBarStyle('light-content');
+    
     // Simulate splash screen delay
     setTimeout(() => {
       setIsLoading(false);
     }, 3000);
-  }, []);
+  }, [colors.primary]);
 
   if (isLoading) {
     return <SplashScreen />;
   }
 
   return (
-    <ErrorBoundary>
-      <AppProvider>
-        <CacheProvider>
-          <NavigationContainer>
-            <StatusBar style="light" />
-            <MainTabs />
-          </NavigationContainer>
-        </CacheProvider>
-      </AppProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <AppProvider>
+          <CacheProvider>
+            <NavigationContainer>
+              <StatusBar style="light" backgroundColor={colors.primary} />
+              <MainTabs />
+            </NavigationContainer>
+          </CacheProvider>
+        </AppProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
 

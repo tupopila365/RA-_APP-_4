@@ -138,9 +138,10 @@ function getStyles(colors) {
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
+      borderWidth: 2,
+      borderColor: 'transparent',
     },
     faqCardExpanded: {
-      borderWidth: 2,
       borderColor: colors.primary,
     },
     faqHeader: {

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   View,
   Text,
@@ -59,7 +58,7 @@ export default function MoreMenuScreen({ navigation }) {
           <TouchableOpacity
             key={item.id}
             style={styles.menuItem}
-            onPress={() => navigation.navigate(item.screen)}
+            onPress={() => navigation.push(item.screen)}
             activeOpacity={0.7}
           >
             <View style={[styles.menuIconContainer, { backgroundColor: item.color + '20' }]}>

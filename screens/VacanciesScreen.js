@@ -317,7 +317,7 @@ function getStyles(colors) {
       fontSize: 16,
     },
     filtersContainer: {
-      maxHeight: 60,
+      maxHeight: 50,
       marginBottom: 5,
     },
     filtersContent: {
@@ -332,12 +332,14 @@ function getStyles(colors) {
       borderWidth: 1,
       borderColor: colors.border,
       marginRight: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     filterText: {
       fontSize: 14,
       fontWeight: '600',
       color: colors.text,
-       flexWrap: 'wrap',
+      textAlign: 'center',
     },
     content: {
       padding: 25,
