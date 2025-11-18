@@ -17,15 +17,18 @@ export default function FindOfficesScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
   const [selectedType, setSelectedType] = useState('All');
+  const [selectedRegion, setSelectedRegion] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
   const officeTypes = ['All', 'RA Offices', 'NATIS Offices'];
+  const regions = ['All', 'Khomas', 'Erongo', 'Oshana'];
 
   const offices = [
     {
       id: 1,
       name: 'Roads Authority Head Office',
       type: 'RA Offices',
+      region: 'Khomas',
       address: '123 Independence Avenue, Windhoek',
       phone: '+264 61 123 4567',
       hours: 'Mon-Fri: 8:00 AM - 5:00 PM',
@@ -36,6 +39,7 @@ export default function FindOfficesScreen() {
       id: 2,
       name: 'NATIS Office - Windhoek',
       type: 'NATIS Offices',
+      region: 'Khomas',
       address: '45 Sam Nujoma Drive, Windhoek',
       phone: '+264 61 234 5678',
       hours: 'Mon-Fri: 8:00 AM - 5:00 PM',
@@ -46,6 +50,7 @@ export default function FindOfficesScreen() {
       id: 3,
       name: 'Roads Authority - Swakopmund',
       type: 'RA Offices',
+      region: 'Erongo',
       address: '78 Main Street, Swakopmund',
       phone: '+264 64 123 4567',
       hours: 'Mon-Fri: 8:00 AM - 5:00 PM',
@@ -56,6 +61,7 @@ export default function FindOfficesScreen() {
       id: 4,
       name: 'NATIS Office - Swakopmund',
       type: 'NATIS Offices',
+      region: 'Erongo',
       address: '12 Hage Geingob Street, Swakopmund',
       phone: '+264 64 234 5678',
       hours: 'Mon-Fri: 8:00 AM - 5:00 PM',
@@ -66,6 +72,7 @@ export default function FindOfficesScreen() {
       id: 5,
       name: 'Roads Authority - Oshakati',
       type: 'RA Offices',
+      region: 'Oshana',
       address: '34 Independence Road, Oshakati',
       phone: '+264 65 123 4567',
       hours: 'Mon-Fri: 8:00 AM - 5:00 PM',
@@ -76,6 +83,7 @@ export default function FindOfficesScreen() {
       id: 6,
       name: 'NATIS Office - Oshakati',
       type: 'NATIS Offices',
+      region: 'Oshana',
       address: '56 Main Road, Oshakati',
       phone: '+264 65 234 5678',
       hours: 'Mon-Fri: 8:00 AM - 5:00 PM',
@@ -88,7 +96,8 @@ export default function FindOfficesScreen() {
     const matchesSearch = office.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       office.address.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = selectedType === 'All' || office.type === selectedType;
-    return matchesSearch && matchesType;
+    const matchesRegion = selectedRegion === 'All' || office.region === selectedRegion;
+    return matchesSearch && matchesType && matchesRegion;
   });
 
   const handleCall = (phone) => {
@@ -104,50 +113,89 @@ export default function FindOfficesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search offices..."
-          placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+      {/* Header with Search and Filters */}
+      <View style={styles.header}>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search offices..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {/* Office Type Filters */}
+        <View style={styles.filterLabel}>
+          <Text style={styles.filterLabelText}>Office Type:</Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersContainer}
+          contentContainerStyle={styles.filtersContent}
+        >
+          {officeTypes.map((type) => (
+            <TouchableOpacity
+              key={type}
+              style={[
+                styles.filterChip,
+                selectedType === type && {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+              onPress={() => setSelectedType(type)}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedType === type && { color: '#FFFFFF' },
+                ]}
+              >
+                {type}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Region Filters */}
+        <View style={styles.filterLabel}>
+          <Text style={styles.filterLabelText}>Region:</Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersContainer}
+          contentContainerStyle={styles.filtersContent}
+        >
+          {regions.map((region) => (
+            <TouchableOpacity
+              key={region}
+              style={[
+                styles.filterChip,
+                selectedRegion === region && {
+                  backgroundColor: colors.secondary,
+                },
+              ]}
+              onPress={() => setSelectedRegion(region)}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedRegion === region && { color: '#FFFFFF' },
+                ]}
+              >
+                {region}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
-      {/* Office Type Filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filtersContainer}
-        contentContainerStyle={styles.filtersContent}
-      >
-        {officeTypes.map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[
-              styles.filterChip,
-              selectedType === type && {
-                backgroundColor: colors.primary,
-              },
-            ]}
-            onPress={() => setSelectedType(type)}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                selectedType === type && { color: '#FFFFFF' },
-              ]}
-            >
-              {type}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
       {/* Offices List */}
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={styles.contentScrollView} contentContainerStyle={styles.content}>
         {filteredOffices.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="location-outline" size={64} color={colors.textSecondary} />
@@ -206,12 +254,16 @@ function getStyles(colors) {
       flex: 1,
       backgroundColor: colors.background,
     },
+    header: {
+      backgroundColor: colors.background,
+      paddingTop: 15,
+    },
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
-      margin: 15,
-      marginTop: 20,
+      marginHorizontal: 15,
+      marginBottom: 10,
       borderRadius: 25,
       paddingHorizontal: 15,
       height: 50,
@@ -231,27 +283,46 @@ function getStyles(colors) {
     },
     filtersContainer: {
       maxHeight: 50,
+      marginBottom: 5,
     },
     filtersContent: {
       paddingHorizontal: 15,
-      paddingVertical: 10,
+      paddingVertical: 5,
+    },
+    filterLabel: {
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+    },
+    filterLabelText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     filterChip: {
       paddingHorizontal: 20,
-      paddingVertical: 8,
+      paddingVertical: 10,
       borderRadius: 20,
       backgroundColor: colors.card,
       marginRight: 10,
       borderWidth: 1,
       borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     filterText: {
       fontSize: 14,
       fontWeight: '600',
       color: colors.text,
+      textAlign: 'center',
+    },
+    contentScrollView: {
+      flex: 1,
     },
     content: {
       padding: 15,
+      paddingBottom: 25,
     },
     officeCard: {
       backgroundColor: colors.card,
