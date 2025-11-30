@@ -1,0 +1,8 @@
+# Domain Entities
+
+This folder contains domain entities - core business objects that represent the application's data model.
+
+Examples:
+- NewsEntity
+- FAQEntity
+- OfficeEntity

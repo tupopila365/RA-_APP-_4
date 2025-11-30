@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "components/*": ["components/*"],
+      "screens/*": ["screens/*"],
+      "context/*": ["context/*"],
+      "hooks/*": ["hooks/*"],
+      "services/*": ["services/*"],
+      "theme/*": ["theme/*"],
+      "utils/*": ["utils/*"],
+      "assets/*": ["assets/*"],
+      "config/*": ["config/*"]
+    }
+  },
+  "exclude": ["node_modules", "android", ".expo"]
+}

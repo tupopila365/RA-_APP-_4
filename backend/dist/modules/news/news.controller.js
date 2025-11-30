@@ -1,0 +1,223 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.newsController = exports.NewsController = void 0;
+const news_service_1 = require("./news.service");
+const logger_1 = require("../../utils/logger");
+const errors_1 = require("../../constants/errors");
+class NewsController {
+    /**
+     * Create a new news article
+     * POST /api/news
+     */
+    async createNews(req, res, next) {
+        try {
+            // Validate required fields
+            const { title, content, excerpt, category, author, imageUrl, published } = req.body;
+            if (!title || !content || !excerpt || !category || !author) {
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                        message: 'Title, content, excerpt, category, and author are required',
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+                return;
+            }
+            // Create news article
+            const news = await news_service_1.newsService.createNews({
+                title,
+                content,
+                excerpt,
+                category,
+                author,
+                imageUrl,
+                published: published === true,
+            });
+            logger_1.logger.info(`News article created successfully: ${news._id}`);
+            res.status(201).json({
+                success: true,
+                data: {
+                    news: {
+                        id: news._id,
+                        title: news.title,
+                        content: news.content,
+                        excerpt: news.excerpt,
+                        category: news.category,
+                        author: news.author,
+                        imageUrl: news.imageUrl,
+                        published: news.published,
+                        publishedAt: news.publishedAt,
+                        createdAt: news.createdAt,
+                        updatedAt: news.updatedAt,
+                    },
+                    message: 'News article created successfully',
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Create news error:', error);
+            next(error);
+        }
+    }
+    /**
+     * List all news articles with pagination, filtering, and search
+     * GET /api/news
+     */
+    async listNews(req, res, next) {
+        try {
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const category = req.query.category;
+            const published = req.query.published === 'true' ? true : req.query.published === 'false' ? false : undefined;
+            const search = req.query.search;
+            const result = await news_service_1.newsService.listNews({
+                page,
+                limit,
+                category,
+                published,
+                search,
+            });
+            res.status(200).json({
+                success: true,
+                data: {
+                    news: result.news.map((article) => ({
+                        id: article._id,
+                        title: article.title,
+                        content: article.content,
+                        excerpt: article.excerpt,
+                        category: article.category,
+                        author: article.author,
+                        imageUrl: article.imageUrl,
+                        published: article.published,
+                        publishedAt: article.publishedAt,
+                        createdAt: article.createdAt,
+                        updatedAt: article.updatedAt,
+                    })),
+                    pagination: {
+                        total: result.total,
+                        page: result.page,
+                        totalPages: result.totalPages,
+                        limit,
+                    },
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('List news error:', error);
+            next(error);
+        }
+    }
+    /**
+     * Get a single news article by ID
+     * GET /api/news/:id
+     */
+    async getNews(req, res, next) {
+        try {
+            const { id } = req.params;
+            const news = await news_service_1.newsService.getNewsById(id);
+            res.status(200).json({
+                success: true,
+                data: {
+                    news: {
+                        id: news._id,
+                        title: news.title,
+                        content: news.content,
+                        excerpt: news.excerpt,
+                        category: news.category,
+                        author: news.author,
+                        imageUrl: news.imageUrl,
+                        published: news.published,
+                        publishedAt: news.publishedAt,
+                        createdAt: news.createdAt,
+                        updatedAt: news.updatedAt,
+                    },
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Get news error:', error);
+            next(error);
+        }
+    }
+    /**
+     * Update a news article
+     * PUT /api/news/:id
+     */
+    async updateNews(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { title, content, excerpt, category, author, imageUrl, published } = req.body;
+            // Build update object with only provided fields
+            const updateData = {};
+            if (title !== undefined)
+                updateData.title = title;
+            if (content !== undefined)
+                updateData.content = content;
+            if (excerpt !== undefined)
+                updateData.excerpt = excerpt;
+            if (category !== undefined)
+                updateData.category = category;
+            if (author !== undefined)
+                updateData.author = author;
+            if (imageUrl !== undefined)
+                updateData.imageUrl = imageUrl;
+            if (published !== undefined)
+                updateData.published = published;
+            const news = await news_service_1.newsService.updateNews(id, updateData);
+            logger_1.logger.info(`News article updated successfully: ${id}`);
+            res.status(200).json({
+                success: true,
+                data: {
+                    news: {
+                        id: news._id,
+                        title: news.title,
+                        content: news.content,
+                        excerpt: news.excerpt,
+                        category: news.category,
+                        author: news.author,
+                        imageUrl: news.imageUrl,
+                        published: news.published,
+                        publishedAt: news.publishedAt,
+                        createdAt: news.createdAt,
+                        updatedAt: news.updatedAt,
+                    },
+                    message: 'News article updated successfully',
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Update news error:', error);
+            next(error);
+        }
+    }
+    /**
+     * Delete a news article
+     * DELETE /api/news/:id
+     */
+    async deleteNews(req, res, next) {
+        try {
+            const { id } = req.params;
+            await news_service_1.newsService.deleteNews(id);
+            logger_1.logger.info(`News article deleted: ${id}`);
+            res.status(200).json({
+                success: true,
+                data: {
+                    message: 'News article deleted successfully',
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Delete news error:', error);
+            next(error);
+        }
+    }
+}
+exports.NewsController = NewsController;
+exports.newsController = new NewsController();
+//# sourceMappingURL=news.controller.js.map

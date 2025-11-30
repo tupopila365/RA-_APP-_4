@@ -1,0 +1,8 @@
+# Dependency Injection
+
+This folder contains dependency injection setup and context providers.
+
+Examples:
+- DependencyContext
+- DependencyProvider
+- Dependency hooks (useNewsRepository, useGetNewsUseCase, etc.)

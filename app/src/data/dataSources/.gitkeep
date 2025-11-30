@@ -1,0 +1,8 @@
+# Data Sources
+
+This folder contains data source classes that handle raw API communication and local storage.
+
+Examples:
+- NewsApiDataSource
+- CacheDataSource
+- ApiDataSource (base class)

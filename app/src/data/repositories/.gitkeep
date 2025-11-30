@@ -1,0 +1,8 @@
+# Data Repository Implementations
+
+This folder contains concrete implementations of repository interfaces.
+
+Examples:
+- NewsRepository
+- FAQRepository
+- OfficeRepository

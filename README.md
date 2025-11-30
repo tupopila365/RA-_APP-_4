@@ -1,6 +1,43 @@
-# Roads Authority Namibia Mobile App
+# 🚗 Roads Authority Namibia - Full Stack Application
 
-A premium cross-platform mobile application for Roads Authority Namibia, built with React Native and Expo.
+A premium cross-platform application for Roads Authority Namibia.
+
+## 🚀 Quick Start - Start Everything in One Command
+
+```bash
+START-ALL.bat
+```
+
+This starts:
+- ✅ Backend API (port 5000)
+- ✅ Admin Panel (port 5173)  
+- ✅ Mobile App (Expo)
+
+**📖 For detailed instructions, see:** [`START-HERE.md`](START-HERE.md)
+
+---
+
+## 📚 Essential Documentation
+
+| Document | Purpose |
+|----------|---------|
+| **[START-HERE.md](START-HERE.md)** | 👈 **Start here!** Complete startup guide |
+| [QUICK-REFERENCE.md](QUICK-REFERENCE.md) | Quick commands & troubleshooting |
+| [STARTUP-FLOW.md](STARTUP-FLOW.md) | Visual startup sequence |
+| [HOW-TO-RUN-CHATBOT.md](HOW-TO-RUN-CHATBOT.md) | AI Chatbot setup |
+
+---
+
+## 🏗️ Project Structure
+
+This monorepo contains:
+
+- **`/app`** - Mobile App (React Native + Expo)
+- **`/backend`** - Backend API (Node.js + Express + MongoDB)
+- **`/admin`** - Admin Panel (React + Vite)
+- **`/rag-service`** - AI Chatbot (Python + FastAPI + Ollama)
+
+---
 
 ## Features
 

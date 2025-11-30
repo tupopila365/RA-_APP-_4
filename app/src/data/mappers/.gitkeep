@@ -1,0 +1,8 @@
+# Data Mappers
+
+This folder contains mapper classes that transform DTOs to domain entities and vice versa.
+
+Examples:
+- NewsMapper
+- FAQMapper
+- OfficeMapper

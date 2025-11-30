@@ -1,0 +1,9 @@
+# Domain Errors
+
+This folder contains domain-specific error classes.
+
+Examples:
+- DomainError
+- ValidationError
+- NetworkError
+- NotFoundError

@@ -1,0 +1,8 @@
+# View Models
+
+This folder contains custom hooks that manage screen state and coordinate with use cases.
+
+Examples:
+- useNewsViewModel
+- useOfficesViewModel
+- useFAQsViewModel

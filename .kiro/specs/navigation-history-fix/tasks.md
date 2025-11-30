@@ -10,8 +10,10 @@
 
 
 
-- [ ] 2. Configure Stack Navigators with proper back button handling
-  - [ ] 2.1 Update NewsStack navigator configuration
+- [x] 2. Configure Stack Navigators with proper back button handling
+
+  - [x] 2.1 Update NewsStack navigator configuration
+
     - Add `headerBackTitleVisible: false` to screenOptions for clean iOS back button
     - Add `gestureEnabled: true` to enable iOS swipe-back gesture
 
@@ -31,10 +33,14 @@
 
     - _Requirements: 1.1, 1.2, 1.5, 3.1, 3.2, 3.3, 4.1_
 
+
+
+
 - [ ] 3. Verify screen components properly use navigation prop
   - [ ] 3.1 Review NewsDetailScreen component
     - Ensure the component receives navigation prop (currently it only uses route)
     - Verify no custom back handlers interfere with default behavior
+
     - _Requirements: 1.4, 4.2_
   
   - [ ] 3.2 Review screens in MoreStack (ChatbotScreen, FAQsScreen, FindOfficesScreen, SettingsScreen)

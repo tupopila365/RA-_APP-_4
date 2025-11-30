@@ -1,0 +1,8 @@
+# Data Models (DTOs)
+
+This folder contains Data Transfer Objects that match API response structures.
+
+Examples:
+- NewsDTO
+- FAQDTO
+- OfficeDTO

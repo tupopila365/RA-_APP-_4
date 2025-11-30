@@ -1,0 +1,8 @@
+# Domain Repository Interfaces
+
+This folder contains repository interfaces that define data operations without implementation details.
+
+Examples:
+- INewsRepository
+- IFAQRepository
+- IOfficeRepository

@@ -1,0 +1,8 @@
+# Domain Use Cases
+
+This folder contains use case classes - single-purpose business operations that orchestrate data flow.
+
+Examples:
+- GetNewsUseCase
+- SearchNewsUseCase
+- GetOfficesUseCase
