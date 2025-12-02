@@ -8,8 +8,8 @@
 
 2. **Pull Required Models:**
    ```bash
-   ollama pull nomic-embed-text
-   ollama pull llama3.1:8b
+   ollama pull nomic-embed-text:latest
+   ollama pull llama3.2:1b
    ```
 
 3. **Install Python 3.10+:**
@@ -103,8 +103,8 @@ curl -X POST http://localhost:8001/api/query \
 3. Verify models are installed: `ollama list`
 4. Pull missing models:
    ```bash
-   ollama pull nomic-embed-text
-   ollama pull llama3.1:8b
+   ollama pull nomic-embed-text:latest
+   ollama pull llama3.2:1b
    ```
 
 ### ChromaDB Issues

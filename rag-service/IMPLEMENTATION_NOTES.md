@@ -57,7 +57,7 @@ This document describes the implementation of the PDF processing pipeline for th
 **Purpose**: Generate vector embeddings for text chunks using Ollama.
 
 **Key Features**:
-- Uses Ollama's `nomic-embed-text` model (768-dimensional embeddings)
+- Uses Ollama's `nomic-embed-text:latest` model (768-dimensional embeddings)
 - Batch processing support
 - Connection health checks
 - Model availability verification
@@ -72,7 +72,7 @@ This document describes the implementation of the PDF processing pipeline for th
 
 **Configuration**:
 - Base URL: Configurable via `settings.ollama_base_url` (default: http://localhost:11434)
-- Model: Configurable via `settings.ollama_embedding_model` (default: nomic-embed-text)
+- Model: Configurable via `settings.ollama_embedding_model` (default: nomic-embed-text:latest)
 
 ### 4. Vector Store (`app/services/vector_store.py`)
 
@@ -117,7 +117,7 @@ chunk_overlap: int = 50        # Overlap tokens between chunks
 
 # Ollama Configuration
 ollama_base_url: str = "http://localhost:11434"
-ollama_embedding_model: str = "nomic-embed-text"
+ollama_embedding_model: str = "nomic-embed-text:latest"
 
 # ChromaDB Configuration
 chromadb_collection_name: str = "document_chunks"
@@ -184,7 +184,7 @@ This implementation satisfies the following requirements:
 
 ### Requirement 17.4
 ✅ **THE RAG Service SHALL generate embeddings for each chunk using Ollama**
-- Implemented in `EmbeddingService.embed_chunks()` using nomic-embed-text model
+- Implemented in `EmbeddingService.embed_chunks()` using nomic-embed-text:latest model
 
 ### Requirement 17.5
 ✅ **THE RAG Service SHALL store embeddings and metadata in ChromaDB**
@@ -218,7 +218,7 @@ This verifies:
 ### Integration Testing
 
 Full integration tests require:
-1. Running Ollama service with `nomic-embed-text` model
+1. Running Ollama service with `nomic-embed-text:latest` model
 2. ChromaDB instance (automatically created as persistent client)
 3. Actual PDF documents for testing
 

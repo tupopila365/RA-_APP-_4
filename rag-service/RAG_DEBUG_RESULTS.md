@@ -14,8 +14,8 @@ The RAG system connectivity check has been completed successfully. All component
 ## Configuration
 
 - **Ollama Base URL:** `http://localhost:11434`
-- **Embedding Model:** `nomic-embed-text`
-- **LLM Model:** `llama3.1:8b`
+- **Embedding Model:** `nomic-embed-text:latest`
+- **LLM Model:** `llama3.2:1b`
 
 ---
 
@@ -24,16 +24,16 @@ The RAG system connectivity check has been completed successfully. All component
 ### 1. Ollama Service Connection ✅
 - **Status:** Connected
 - **Available Models:**
-  - `llama3.1:8b`
-  - `nomic-embed-text:latest`
+  - `llama3.2:1b`
+  - `nomic-embed-text:latest:latest`
 
 ### 2. Embedding Model Check ✅
-- **Model:** `nomic-embed-text`
+- **Model:** `nomic-embed-text:latest`
 - **Status:** Accessible and responding
 - **Test:** Successfully generated embeddings for test input
 
 ### 3. LLM Model Check ✅
-- **Model:** `llama3.1:8b`
+- **Model:** `llama3.2:1b`
 - **Status:** Accessible and responding
 - **Test Query:** "Say 'OK'"
 - **Test Response:** "OK!"
@@ -42,7 +42,7 @@ The RAG system connectivity check has been completed successfully. All component
 
 ## Warnings and Notes
 
-1. **Timeout Consideration:** The LLM model requires up to 60 seconds for initial response generation. This is normal for larger models like llama3.1:8b.
+1. **Timeout Consideration:** The LLM model requires up to 60 seconds for initial response generation. This is normal for larger models like llama3.2:1b.
 
 2. **Model Loading:** The first request to the LLM may take longer as the model loads into memory. Subsequent requests will be faster.
 
@@ -72,8 +72,8 @@ If you encounter issues in the future:
 curl http://localhost:11434/api/tags
 
 # Pull/update models
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 
 # Run debug script
 cd RA-_APP-_4/rag-service

@@ -62,17 +62,56 @@ async def index_document(request: IndexRequest):
         
         try:
             progress_tracker.update_stage(request.document_id, 'extracting', 'Extracting text from PDF...')
-            pdf_data = pdf_processor.process_pdf_from_url(request.document_url)
+            pdf_data = pdf_processor.process_pdf_from_url(request.document_url, document_id=request.document_id)
         except PDFProcessingError as e:
-            logger.error(f"PDF processing failed: {str(e)}")
+            # Enhanced error logging with detailed context
+            error_context = {
+                'document_id': request.document_id,
+                'document_url': request.document_url,
+                'document_title': request.title,
+                'error_code': getattr(e, 'error_code', 'UNKNOWN'),
+                'status_code': getattr(e, 'status_code', None)
+            }
+            
+            logger.error(
+                f"PDF processing failed | "
+                f"Document ID: {error_context['document_id']} | "
+                f"URL: {error_context['document_url']} | "
+                f"Title: {error_context['document_title']} | "
+                f"Error Code: {error_context['error_code']} | "
+                f"HTTP Status: {error_context['status_code']} | "
+                f"Error: {str(e)}"
+            )
+            
             progress_tracker.fail_indexing(request.document_id, f"PDF processing failed: {str(e)}")
+            
+            # Provide more specific error messages based on error code
+            if hasattr(e, 'error_code'):
+                if e.error_code == 'AUTH_REQUIRED':
+                    detail_message = (
+                        "Authentication required to access the PDF. "
+                        "The document URL requires valid credentials. "
+                        "Please check Cloudinary access settings."
+                    )
+                elif e.error_code == 'ACCESS_FORBIDDEN':
+                    detail_message = (
+                        "Access forbidden for the PDF. "
+                        "The credentials or permissions are insufficient. "
+                        "Please check Cloudinary permissions."
+                    )
+                else:
+                    detail_message = f"Failed to process PDF: {str(e)}"
+            else:
+                detail_message = f"Failed to process PDF: {str(e)}"
+            
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
                     "status": "error",
-                    "error": "PDF_PROCESSING_ERROR",
-                    "message": f"Failed to process PDF: {str(e)}",
-                    "document_id": request.document_id
+                    "error": getattr(e, 'error_code', 'PDF_PROCESSING_ERROR'),
+                    "message": detail_message,
+                    "document_id": request.document_id,
+                    "http_status": getattr(e, 'status_code', None)
                 }
             )
         

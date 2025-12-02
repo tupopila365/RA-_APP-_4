@@ -49,10 +49,10 @@ Keep this terminal open.
 **Step 2: Install Models (in a new terminal)**
 ```cmd
 # Install embedding model (274 MB, ~2-5 minutes)
-ollama pull nomic-embed-text
+ollama pull nomic-embed-text:latest
 
 # Install LLM model (4.7 GB, ~10-30 minutes)
-ollama pull llama3.1:8b
+ollama pull llama3.2:1b
 ```
 
 **Step 3: Verify Installation**
@@ -63,17 +63,17 @@ ollama list
 Expected output:
 ```
 NAME                    ID              SIZE    MODIFIED
-nomic-embed-text:latest abc123def456    274 MB  2 days ago
-llama3.1:8b            xyz789abc123    4.7 GB  2 days ago
+nomic-embed-text:latest:latest abc123def456    274 MB  2 days ago
+llama3.2:1b            xyz789abc123    4.7 GB  2 days ago
 ```
 
 **Step 4: Test Models Work**
 ```cmd
 # Test embedding model
-ollama run nomic-embed-text "test"
+ollama run nomic-embed-text:latest "test"
 
 # Test LLM model
-ollama run llama3.1:8b "Hello"
+ollama run llama3.2:1b "Hello"
 ```
 
 ---
@@ -92,8 +92,8 @@ curl http://localhost:11434/api/tags
 {
   "models": [
     {
-      "name": "nomic-embed-text:latest",
-      "model": "nomic-embed-text:latest",
+      "name": "nomic-embed-text:latest:latest",
+      "model": "nomic-embed-text:latest:latest",
       "modified_at": "2024-01-15T10:30:00.000Z",
       "size": 274000000,
       "digest": "sha256:abc123...",
@@ -107,8 +107,8 @@ curl http://localhost:11434/api/tags
       }
     },
     {
-      "name": "llama3.1:8b",
-      "model": "llama3.1:8b",
+      "name": "llama3.2:1b",
+      "model": "llama3.2:1b",
       "modified_at": "2024-01-15T11:00:00.000Z",
       "size": 4700000000,
       "digest": "sha256:xyz789...",
@@ -182,24 +182,24 @@ curl http://localhost:8001/api/models/status
   "overall_status": "ready",
   "ollama_url": "http://localhost:11434",
   "required_models": {
-    "embedding": "nomic-embed-text",
-    "llm": "llama3.1:8b"
+    "embedding": "nomic-embed-text:latest",
+    "llm": "llama3.2:1b"
   },
   "status": {
     "embedding_model": {
-      "name": "nomic-embed-text",
+      "name": "nomic-embed-text:latest",
       "available": true,
       "status": "ready"
     },
     "llm_model": {
-      "name": "llama3.1:8b",
+      "name": "llama3.2:1b",
       "available": true,
       "status": "ready"
     }
   },
   "available_models": [
-    {"name": "nomic-embed-text:latest", "size": 274000000, ...},
-    {"name": "llama3.1:8b", "size": 4700000000, ...}
+    {"name": "nomic-embed-text:latest:latest", "size": 274000000, ...},
+    {"name": "llama3.2:1b", "size": 4700000000, ...}
   ],
   "missing_models": [],
   "message": "All required models are available and ready."
@@ -212,20 +212,20 @@ curl http://localhost:8001/api/models/status
   "overall_status": "incomplete",
   "status": {
     "embedding_model": {
-      "name": "nomic-embed-text",
+      "name": "nomic-embed-text:latest",
       "available": false,
       "status": "missing"
     },
     "llm_model": {
-      "name": "llama3.1:8b",
+      "name": "llama3.2:1b",
       "available": false,
       "status": "missing"
     }
   },
-  "missing_models": ["nomic-embed-text", "llama3.1:8b"],
+  "missing_models": ["nomic-embed-text:latest", "llama3.2:1b"],
   "instructions": [
-    "Install embedding model: ollama pull nomic-embed-text",
-    "Install LLM model: ollama pull llama3.1:8b"
+    "Install embedding model: ollama pull nomic-embed-text:latest",
+    "Install LLM model: ollama pull llama3.2:1b"
   ],
   "message": "Some required models are missing. Please install them using the provided instructions."
 }
@@ -250,13 +250,13 @@ curl -X POST http://localhost:8001/api/models/verify
 {
   "embedding_test": {
     "status": "success",
-    "model": "nomic-embed-text",
+    "model": "nomic-embed-text:latest",
     "embedding_dimension": 768,
     "message": "Embedding model is functional"
   },
   "llm_test": {
     "status": "success",
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "response_length": 42,
     "message": "LLM model is functional"
   },
@@ -367,8 +367,8 @@ setup-ollama-models.bat
 
 Or manually:
 ```cmd
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 #### Step 7: Verify Installation
@@ -397,8 +397,8 @@ taskkill /F /IM ollama.exe
 ollama serve
 
 # Reinstall models
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 ---
@@ -483,8 +483,8 @@ curl http://localhost:8001/api/models/status
 | Task | Time |
 |------|------|
 | Install Ollama | 5 minutes |
-| Download nomic-embed-text | 2-5 minutes |
-| Download llama3.1:8b | 10-30 minutes |
+| Download nomic-embed-text:latest | 2-5 minutes |
+| Download llama3.2:1b | 10-30 minutes |
 | Start services | 1 minute |
 | **Total** | **~20-40 minutes** |
 

@@ -88,7 +88,7 @@ def sample_chunks():
 @pytest.fixture
 def sample_embedding():
     """Sample embedding vector for testing."""
-    # Return a 768-dimensional vector (typical for nomic-embed-text)
+    # Return a 768-dimensional vector (typical for nomic-embed-text:latest)
     return [0.1] * 768
 
 
@@ -120,8 +120,8 @@ def mock_ollama_client():
     # Mock list response
     mock_client.list.return_value = {
         'models': [
-            {'name': 'nomic-embed-text:latest'},
-            {'name': 'llama3.1:8b'}
+            {'name': 'nomic-embed-text:latest:latest'},
+            {'name': 'llama3.2:1b'}
         ]
     }
     

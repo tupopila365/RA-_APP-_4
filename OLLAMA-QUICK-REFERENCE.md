@@ -22,8 +22,8 @@ curl http://localhost:8001/api/models/status
 
 ```cmd
 # Install both required models
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 
 # Or use the automated script
 setup-ollama-models.bat
@@ -65,8 +65,8 @@ ollama rm <model-name>
 
 | Model | Size | Purpose |
 |-------|------|---------|
-| `nomic-embed-text` | 274 MB | Generate embeddings for document chunks |
-| `llama3.1:8b` | 4.7 GB | Generate chatbot answers |
+| `nomic-embed-text:latest` | 274 MB | Generate embeddings for document chunks |
+| `llama3.2:1b` | 4.7 GB | Generate chatbot answers |
 
 ---
 
@@ -75,7 +75,7 @@ ollama rm <model-name>
 ### Problem: "Available models: ['', '']"
 ```cmd
 # Solution: Install models
-ollama pull nomic-embed-text && ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest && ollama pull llama3.2:1b
 ```
 
 ### Problem: "Could not connect to Ollama"
@@ -141,16 +141,16 @@ Returns:
 ### ollama list
 ```
 NAME                    ID              SIZE    MODIFIED
-nomic-embed-text:latest abc123def456    274 MB  2 days ago
-llama3.1:8b            xyz789abc123    4.7 GB  2 days ago
+nomic-embed-text:latest:latest abc123def456    274 MB  2 days ago
+llama3.2:1b            xyz789abc123    4.7 GB  2 days ago
 ```
 
 ### curl http://localhost:11434/api/tags
 ```json
 {
   "models": [
-    {"name": "nomic-embed-text:latest", ...},
-    {"name": "llama3.1:8b", ...}
+    {"name": "nomic-embed-text:latest:latest", ...},
+    {"name": "llama3.2:1b", ...}
   ]
 }
 ```

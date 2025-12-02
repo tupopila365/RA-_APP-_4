@@ -107,6 +107,29 @@ const vacancySchema = new mongoose_1.Schema({
         type: Boolean,
         default: false,
     },
+    // Contact information fields
+    contactName: {
+        type: String,
+        trim: true,
+    },
+    contactEmail: {
+        type: String,
+        trim: true,
+        lowercase: true,
+        validate: {
+            validator: function (v) {
+                // Only validate if value is provided
+                if (!v)
+                    return true;
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+            },
+            message: 'Invalid email format',
+        },
+    },
+    contactTelephone: {
+        type: String,
+        trim: true,
+    },
 }, {
     timestamps: true,
 });

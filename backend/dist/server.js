@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const app_1 = require("./app");
 const db_1 = require("./config/db");
 const redis_1 = require("./config/redis");
+const cloudinary_1 = require("./config/cloudinary");
 const env_1 = require("./config/env");
 const logger_1 = require("./utils/logger");
 const os_1 = require("os");
@@ -57,6 +58,7 @@ const getNetworkIP = () => {
     return null;
 };
 const startServer = async () => {
+    let server = null;
     try {
         // Connect to MongoDB
         await (0, db_1.connectDB)();
@@ -66,10 +68,12 @@ const startServer = async () => {
         if (redisClient) {
             logger_1.logger.info('Redis connected successfully');
         }
+        // Configure Cloudinary
+        (0, cloudinary_1.configureCloudinary)();
         // Create Express app
         const app = (0, app_1.createApp)();
         // Start server - listen on all network interfaces (0.0.0.0) to allow external connections
-        const server = app.listen(env_1.env.PORT, '0.0.0.0', () => {
+        server = app.listen(env_1.env.PORT, '0.0.0.0', () => {
             const networkIP = getNetworkIP();
             logger_1.logger.info(`✅ Server running on port ${env_1.env.PORT} in ${env_1.env.NODE_ENV} mode`);
             logger_1.logger.info(`📍 Local:   http://localhost:${env_1.env.PORT}`);
@@ -84,31 +88,52 @@ const startServer = async () => {
         // Graceful shutdown
         const gracefulShutdown = async (signal) => {
             logger_1.logger.info(`${signal} received. Starting graceful shutdown...`);
-            server.close(async () => {
-                logger_1.logger.info('HTTP server closed');
+            // Close HTTP server if it exists
+            if (server && typeof server.close === 'function') {
+                server.close(async () => {
+                    logger_1.logger.info('HTTP server closed');
+                    try {
+                        // Close database connections
+                        const mongoose = await Promise.resolve().then(() => __importStar(require('mongoose')));
+                        if (mongoose.connection.readyState !== 0) {
+                            await mongoose.connection.close();
+                            logger_1.logger.info('MongoDB connection closed');
+                        }
+                        const { getRedisClient } = await Promise.resolve().then(() => __importStar(require('./config/redis')));
+                        const redisClient = getRedisClient();
+                        if (redisClient && redisClient.isOpen) {
+                            await redisClient.quit();
+                            logger_1.logger.info('Redis connection closed');
+                        }
+                        process.exit(0);
+                    }
+                    catch (error) {
+                        logger_1.logger.error('Error during graceful shutdown:', error);
+                        process.exit(1);
+                    }
+                });
+                // Force shutdown after 10 seconds
+                setTimeout(() => {
+                    logger_1.logger.error('Forced shutdown after timeout');
+                    process.exit(1);
+                }, 10000);
+            }
+            else {
+                // Server not initialized, just close connections
+                logger_1.logger.warn('Server not initialized, closing connections directly');
                 try {
-                    // Close database connections
                     const mongoose = await Promise.resolve().then(() => __importStar(require('mongoose')));
-                    await mongoose.connection.close();
-                    logger_1.logger.info('MongoDB connection closed');
-                    const { getRedisClient } = await Promise.resolve().then(() => __importStar(require('./config/redis')));
-                    const redisClient = getRedisClient();
-                    if (redisClient) {
-                        await redisClient.quit();
-                        logger_1.logger.info('Redis connection closed');
+                    if (mongoose.connection.readyState !== 0) {
+                        await mongoose.connection.close();
+                        logger_1.logger.info('MongoDB connection closed');
                     }
                     process.exit(0);
                 }
                 catch (error) {
-                    logger_1.logger.error('Error during graceful shutdown:', error);
+                    logger_1.logger.error('Error closing connections:', error);
                     process.exit(1);
                 }
-            });
-            // Force shutdown after 10 seconds
-            setTimeout(() => {
-                logger_1.logger.error('Forced shutdown after timeout');
-                process.exit(1);
-            }, 10000);
+            }
         };
         // Handle shutdown signals
         process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
@@ -121,7 +146,8 @@ const startServer = async () => {
         // Handle unhandled promise rejections
         process.on('unhandledRejection', (reason, promise) => {
             logger_1.logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-            gracefulShutdown('unhandledRejection');
+            // Don't crash on unhandled rejections, just log them
+            // gracefulShutdown('unhandledRejection');
         });
     }
     catch (error) {

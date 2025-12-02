@@ -21,6 +21,11 @@ export declare class DocumentsController {
      * DELETE /api/documents/:id
      */
     deleteDocument(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    /**
+     * Get indexing progress for a document
+     * GET /api/documents/:id/indexing-progress
+     */
+    getIndexingProgress(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const documentsController: DocumentsController;
 //# sourceMappingURL=documents.controller.d.ts.map

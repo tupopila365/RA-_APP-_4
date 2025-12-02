@@ -4,8 +4,8 @@
 
 Your RAG service showed:
 ```
-WARNING - Model nomic-embed-text not found. Available models: ['', '']
-WARNING - Model llama3.1:8b not found. Available models: ['', '']
+WARNING - Model nomic-embed-text:latest not found. Available models: ['', '']
+WARNING - Model llama3.2:1b not found. Available models: ['', '']
 ```
 
 ## Root Cause
@@ -37,8 +37,8 @@ setup-ollama-models.bat
 
 **Option B - Manual:**
 ```cmd
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 Wait for downloads to complete (5-30 minutes depending on internet speed).
@@ -54,8 +54,8 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 You should now see:
 ```
 ✓ Ollama service is accessible
-✓ Embedding model 'nomic-embed-text' is available
-✓ LLM model 'llama3.1:8b' is available
+✓ Embedding model 'nomic-embed-text:latest' is available
+✓ LLM model 'llama3.2:1b' is available
 ```
 
 ---
@@ -70,8 +70,8 @@ ollama list
 Expected output:
 ```
 NAME                    ID              SIZE    MODIFIED
-nomic-embed-text:latest abc123def456    274 MB  2 days ago
-llama3.1:8b            xyz789abc123    4.7 GB  2 days ago
+nomic-embed-text:latest:latest abc123def456    274 MB  2 days ago
+llama3.2:1b            xyz789abc123    4.7 GB  2 days ago
 ```
 
 ### Test 2: Check Ollama API

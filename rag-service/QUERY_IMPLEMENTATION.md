@@ -11,7 +11,7 @@ This document describes the implementation of the query processing pipeline for 
 The LLM service handles answer generation using Ollama's language models.
 
 **Key Features:**
-- Configurable LLM model (default: `llama3.1:8b`)
+- Configurable LLM model (default: `llama3.2:1b`)
 - Prompt template with system instructions and context
 - Support for both standard and streaming responses
 - Connection and model availability checks
@@ -90,7 +90,7 @@ Implemented in `query_documents()` function:
 
 Implemented in `LLMService.generate_answer()`:
 - Constructs prompt with retrieved context
-- Calls Ollama LLM (llama3.1:8b or qwen2.5)
+- Calls Ollama LLM (llama3.2:1b or qwen2.5)
 - Returns generated answer
 
 ### Requirement 4.4 ✅
@@ -105,7 +105,7 @@ Implemented in response formatting:
 **"WHEN the RAG Service receives POST /query with a question, THE RAG Service SHALL generate an embedding for the question"**
 
 Implemented using `EmbeddingService.generate_embedding()`:
-- Uses Ollama's nomic-embed-text model
+- Uses Ollama's nomic-embed-text:latest model
 - Generates 768-dimensional embedding vector
 
 ### Requirement 18.2 ✅
@@ -136,7 +136,7 @@ Implemented in `LLMService._build_prompt()`:
 **"THE RAG Service SHALL generate an answer using llama3.1 or qwen2.5 model via Ollama"**
 
 Implemented with configurable model:
-- Default: `llama3.1:8b`
+- Default: `llama3.2:1b`
 - Configurable via environment variable
 - Uses Ollama client for generation
 
@@ -146,8 +146,8 @@ The query pipeline uses the following configuration from `app/config.py`:
 
 ```python
 ollama_base_url: str = "http://localhost:11434"
-ollama_embedding_model: str = "nomic-embed-text"
-ollama_llm_model: str = "llama3.1:8b"
+ollama_embedding_model: str = "nomic-embed-text:latest"
+ollama_llm_model: str = "llama3.2:1b"
 top_k_results: int = 5
 ```
 

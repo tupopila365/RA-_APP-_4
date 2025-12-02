@@ -328,7 +328,7 @@ class E2EDocumentIndexingTest {
     if (!ragHealthy) {
       console.log('\n⚠️  RAG service is not running or not healthy.');
       console.log('   1. Start Ollama: ollama serve');
-      console.log('   2. Pull models: ollama pull nomic-embed-text && ollama pull llama3.1:8b');
+      console.log('   2. Pull models: ollama pull nomic-embed-text:latest && ollama pull llama3.2:1b');
       console.log('   3. Start RAG service: cd rag-service && START-RAG.bat\n');
       this.printSummary();
       return;

@@ -424,7 +424,7 @@ async function runTests() {
       logInfo('  1. Check if RAG service is running: http://localhost:8001/health');
       logInfo('  2. Start RAG service: cd rag-service && python -m uvicorn app.main:app --reload --port 8001');
       logInfo('  3. Check if Ollama is running: ollama list');
-      logInfo('  4. Pull required models: ollama pull nomic-embed-text && ollama pull llama3.2');
+      logInfo('  4. Pull required models: ollama pull nomic-embed-text:latest && ollama pull llama3.2');
     }
     
     if (!results.backendHealth) {

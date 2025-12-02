@@ -13,7 +13,7 @@ class TestEmbeddingService:
         """Test EmbeddingService initialization with default parameters."""
         service = EmbeddingService()
         
-        assert service.model == 'nomic-embed-text'
+        assert service.model == 'nomic-embed-text:latest'
         mock_client_class.assert_called_once()
     
     @patch('app.services.embeddings.ollama.Client')
@@ -184,7 +184,7 @@ class TestEmbeddingService:
     def test_check_model_available_success(self, mock_ollama_client):
         """Test model availability check when model exists."""
         with patch('app.services.embeddings.ollama.Client', return_value=mock_ollama_client):
-            service = EmbeddingService(model='nomic-embed-text')
+            service = EmbeddingService(model='nomic-embed-text:latest')
             result = service.check_model_available()
             
             assert result is True

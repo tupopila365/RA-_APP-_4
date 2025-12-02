@@ -1,0 +1,405 @@
+# Design Document
+
+## Overview
+
+This design addresses the 401 Unauthorized error occurring when the RAG service attempts to download PDF documents from Cloudinary. The root cause is that PDFs uploaded as "raw" resource type to Cloudinary are not publicly accessible by default, requiring either public access configuration or signed URLs for programmatic access.
+
+The solution involves three main approaches:
+1. **Primary Solution**: Configure Cloudinary uploads to use public access for PDFs
+2. **Alternative Solution**: Generate and use signed URLs for time-limited access
+3. **Fallback Solution**: Pass Cloudinary credentials to RAG service for authenticated downloads
+
+We will implement the primary solution (public access) as it provides the simplest and most reliable approach for this use case, with the signed URL approach as a configurable alternative for enhanced security.
+
+## Architecture
+
+### Current Flow (Broken)
+```
+Admin Panel → Backend Upload Service → Cloudinary (raw, private)
+                                      ↓
+                                  Private URL
+                                      ↓
+Backend → RAG Service → PDF Processor → HTTP GET (no auth) → 401 Error
+```
+
+### Fixed Flow (Public Access)
+```
+Admin Panel → Backend Upload Service → Cloudinary (raw, public)
+                                      ↓
+                                  Public URL
+                                      ↓
+Backend → RAG Service → PDF Processor → HTTP GET → Success
+```
+
+### Alternative Flow (Signed URLs)
+```
+Admin Panel → Backend Upload Service → Cloudinary (raw, private)
+                                      ↓
+                                  Generate Signed URL (24h expiry)
+                                      ↓
+Backend → RAG Service → PDF Processor → HTTP GET (signed) → Success
+```
+
+## Components and Interfaces
+
+### 1. Backend Upload Service (TypeScript)
+
+**File**: `backend/src/modules/upload/upload.service.ts`
+
+**Changes Required**:
+- Modify `uploadPDF()` method to include `type: 'upload'` parameter for public access
+- Add optional configuration for signed URL generation
+- Add validation to ensure URLs are accessible before sending to RAG service
+
+**New Interface**:
+```typescript
+interface CloudinaryUploadOptions {
+  folder: string;
+  resource_type: 'raw';
+  type: 'upload';  // Makes resource publicly accessible
+  access_mode?: 'public' | 'authenticated';  // Optional: explicit access control
+}
+
+interface SignedURLOptions {
+  expiresIn: number;  // Seconds until expiration (default: 86400 = 24 hours)
+  transformation?: string;  // Optional transformations
+}
+```
+
+### 2. RAG Service PDF Processor (Python)
+
+**File**: `rag-service/app/services/pdf_processor.py`
+
+**Changes Required**:
+- Add better error handling for 401 errors with actionable messages
+- Add support for Cloudinary authentication headers (fallback option)
+- Improve logging to capture URL structure and response details
+
+**New Configuration**:
+```python
+class PDFProcessor:
+    def __init__(
+        self,
+        max_retries: int = 3,
+        timeout: int = 30,
+        cloudinary_credentials: Optional[Dict[str, str]] = None
+    ):
+        self.max_retries = max_retries
+        self.timeout = timeout
+        self.cloudinary_credentials = cloudinary_credentials
+```
+
+### 3. Cloudinary Configuration
+
+**File**: `backend/src/config/cloudinary.ts`
+
+**New Utility Functions**:
+```typescript
+/**
+ * Generate a signed URL for private Cloudinary resources
+ */
+export function generateSignedURL(
+  publicId: string,
+  options?: SignedURLOptions
+): string;
+
+/**
+ * Validate that a URL is accessible
+ */
+export async function validateURLAccess(url: string): Promise<boolean>;
+```
+
+## Data Models
+
+### Upload Result Enhancement
+
+```typescript
+interface PDFUploadResult {
+  url: string;              // Public or signed URL
+  publicId: string;         // Cloudinary public ID
+  format: string;           // File format
+  bytes: number;            // File size
+  accessType: 'public' | 'signed' | 'authenticated';  // NEW
+  expiresAt?: Date;         // NEW: For signed URLs
+}
+```
+
+### RAG Service Request
+
+```typescript
+interface IndexDocumentRequest {
+  document_url: string;     // Must be accessible URL
+  document_id: string;      // MongoDB document ID
+  title: string;            // Document title
+  auth_headers?: Record<string, string>;  // NEW: Optional auth headers
+}
+```
+
+## C
+orrectness Properties
+
+*A property is a characteristic or behavior that should hold true across all valid executions of a system—essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
+
+Property 1: Uploaded PDFs generate accessible URLs
+*For any* PDF uploaded to Cloudinary, the generated URL should be downloadable via HTTP GET without authentication errors
+**Validates: Requirements 1.1, 2.3**
+
+Property 2: PDF downloads do not return 401 errors
+*For any* valid PDF URL generated by the system, attempting to download it should not result in a 401 Unauthorized error
+**Validates: Requirements 1.3**
+
+Property 3: URLs remain valid during processing
+*For any* document URL sent to the RAG service, the URL should remain accessible for at least the maximum expected processing time (e.g., 5 minutes)
+**Validates: Requirements 1.4**
+
+Property 4: Upload configuration includes correct resource type
+*For any* PDF upload operation, the Cloudinary upload options should specify resource_type as 'raw'
+**Validates: Requirements 2.2**
+
+Property 5: Upload configuration includes public access
+*For any* PDF upload operation using public access mode, the Cloudinary upload options should include type: 'upload' to enable public access
+**Validates: Requirements 2.1**
+
+Property 6: Authenticated requests include credentials
+*For any* PDF download that requires authentication, the HTTP request should include the necessary authentication headers or credentials
+**Validates: Requirements 3.1, 3.2**
+
+Property 7: Signed URLs preserve all parameters
+*For any* signed URL, when the URL is passed through the system, all query parameters and signature components should remain unmodified
+**Validates: Requirements 3.3**
+
+Property 8: Error categorization distinguishes authentication errors
+*For any* error that occurs during PDF download, if the error is an authentication error (401), it should be categorized differently from network errors or other error types
+**Validates: Requirements 4.4**
+
+Property 9: Error logs contain required context
+*For any* error that occurs during PDF processing, the error log should include timestamp, document ID, and error details
+**Validates: Requirements 4.5**
+
+Property 10: Cloudinary errors are fully logged
+*For any* error response from Cloudinary, the complete error response should be captured in the logs
+**Validates: Requirements 4.2**
+
+Property 11: Multiple URL formats are handled
+*For any* document URL (whether old format or new format), the system should be able to process and download the PDF successfully
+**Validates: Requirements 5.2**
+
+## Error Handling
+
+### Error Categories
+
+1. **Configuration Errors**
+   - Missing Cloudinary credentials
+   - Invalid credentials
+   - Misconfigured access permissions
+
+2. **Upload Errors**
+   - File validation failures
+   - Cloudinary API errors
+   - Network timeouts during upload
+
+3. **Download Errors**
+   - 401 Unauthorized (authentication required)
+   - 403 Forbidden (insufficient permissions)
+   - 404 Not Found (invalid URL or deleted resource)
+   - Network errors (timeout, connection refused)
+
+4. **Processing Errors**
+   - Invalid PDF format
+   - Corrupted file data
+   - Text extraction failures
+
+### Error Handling Strategy
+
+**Backend Upload Service**:
+```typescript
+try {
+  const result = await cloudinary.uploader.upload(dataURI, options);
+  
+  // Validate URL accessibility
+  const isAccessible = await validateURLAccess(result.secure_url);
+  if (!isAccessible) {
+    throw new Error('Generated URL is not accessible');
+  }
+  
+  return result;
+} catch (error) {
+  if (error.http_code === 401) {
+    logger.error('Cloudinary authentication failed', { error });
+    throw new ConfigurationError('Invalid Cloudinary credentials');
+  }
+  // Handle other errors...
+}
+```
+
+**RAG Service PDF Processor**:
+```python
+try:
+    response = requests.get(url, timeout=self.timeout, headers=auth_headers)
+    response.raise_for_status()
+except requests.exceptions.HTTPError as e:
+    if e.response.status_code == 401:
+        logger.error(f"Authentication required for URL: {url}")
+        raise PDFProcessingError(
+            "PDF requires authentication. Check Cloudinary access settings.",
+            error_code="AUTH_REQUIRED"
+        )
+    elif e.response.status_code == 403:
+        logger.error(f"Access forbidden for URL: {url}")
+        raise PDFProcessingError(
+            "Access forbidden. Check Cloudinary permissions.",
+            error_code="ACCESS_FORBIDDEN"
+        )
+    # Handle other HTTP errors...
+```
+
+### Retry Logic
+
+- **Authentication Errors (401, 403)**: Do not retry - these require configuration changes
+- **Network Errors**: Retry up to 3 times with exponential backoff
+- **Server Errors (5xx)**: Retry up to 3 times with exponential backoff
+- **Client Errors (4xx except 401, 403)**: Do not retry - these indicate invalid requests
+
+## Testing Strategy
+
+### Unit Tests
+
+**Backend Upload Service Tests**:
+- Test PDF upload with public access configuration
+- Test signed URL generation with various expiration times
+- Test URL accessibility validation
+- Test error handling for invalid credentials
+- Test backward compatibility with existing URL formats
+
+**RAG Service PDF Processor Tests**:
+- Test PDF download with public URLs
+- Test PDF download with signed URLs
+- Test authentication header inclusion when credentials provided
+- Test error categorization (401 vs network vs other)
+- Test URL parameter preservation
+- Test retry logic for different error types
+
+### Property-Based Tests
+
+We will use:
+- **TypeScript**: `fast-check` library for backend tests
+- **Python**: `hypothesis` library for RAG service tests
+
+Each property-based test should run a minimum of 100 iterations.
+
+**Property Test Examples**:
+
+1. **Property 1: Uploaded PDFs generate accessible URLs**
+   - Generate random valid PDF files
+   - Upload each to Cloudinary
+   - Attempt to download from returned URL
+   - Assert: No 401 errors, successful download
+
+2. **Property 7: Signed URLs preserve all parameters**
+   - Generate random signed URLs with various parameters
+   - Pass URLs through the system
+   - Assert: All query parameters remain identical
+
+3. **Property 11: Multiple URL formats are handled**
+   - Generate URLs in various formats (with/without signatures, different domains)
+   - Process each URL
+   - Assert: All are successfully downloaded
+
+### Integration Tests
+
+- End-to-end test: Upload PDF → Index in RAG → Query chatbot
+- Test with both public and signed URL configurations
+- Test migration scenario: Process documents uploaded before fix
+- Test error scenarios: Invalid credentials, expired signed URLs
+
+### Manual Testing Checklist
+
+1. Upload a new PDF document through admin panel
+2. Verify document appears in documents list
+3. Check backend logs for successful upload
+4. Verify RAG service successfully indexes the document (no 401 errors)
+5. Query chatbot about the document content
+6. Verify chatbot can answer questions using the indexed document
+7. Test with existing documents uploaded before the fix
+
+## Implementation Notes
+
+### Configuration Options
+
+Add to `backend/.env`:
+```env
+# Cloudinary PDF Access Configuration
+CLOUDINARY_PDF_ACCESS_MODE=public  # Options: public, signed, authenticated
+CLOUDINARY_SIGNED_URL_EXPIRY=86400  # Seconds (24 hours)
+```
+
+Add to `rag-service/.env`:
+```env
+# Cloudinary Authentication (optional, for authenticated mode)
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+### Migration Strategy
+
+For existing documents with inaccessible URLs:
+
+1. **Option A: Regenerate URLs** (Recommended if using signed URLs)
+   - Create migration script to regenerate signed URLs for all documents
+   - Update document records with new URLs
+   - Re-trigger indexing for affected documents
+
+2. **Option B: Update Access Permissions** (Recommended if using public access)
+   - Use Cloudinary API to update access mode of existing resources
+   - No database changes needed
+   - Re-trigger indexing for affected documents
+
+3. **Option C: Hybrid Approach**
+   - Keep existing documents as-is
+   - New uploads use public access
+   - Provide manual re-upload option for critical old documents
+
+### Security Considerations
+
+**Public Access Mode**:
+- ✅ Simple and reliable
+- ✅ No expiration concerns
+- ⚠️ PDFs are publicly accessible if URL is known
+- ⚠️ Consider if documents contain sensitive information
+
+**Signed URL Mode**:
+- ✅ Time-limited access
+- ✅ More secure for sensitive documents
+- ⚠️ Requires URL regeneration before expiry
+- ⚠️ More complex implementation
+
+**Authenticated Mode**:
+- ✅ Most secure
+- ✅ Full access control
+- ⚠️ Requires credential management in RAG service
+- ⚠️ Most complex implementation
+
+**Recommendation**: Use public access mode for this application since:
+- Documents are administrative/public information (tenders, news, etc.)
+- Simplicity reduces maintenance burden
+- No sensitive personal data in documents
+- URLs are not easily guessable (Cloudinary generates unique IDs)
+
+### Performance Considerations
+
+- URL validation adds ~100-200ms per upload (acceptable for user-initiated uploads)
+- Signed URL generation is fast (<10ms)
+- Public access mode has no performance impact on downloads
+- Consider caching Cloudinary API responses if making multiple calls
+
+### Rollback Plan
+
+If issues arise after deployment:
+
+1. Revert upload service changes to previous version
+2. Existing documents will continue to work (no database changes)
+3. New uploads will use old configuration
+4. Investigate and fix issues before redeploying
+
+The fix is designed to be backward compatible, so rollback should be safe.

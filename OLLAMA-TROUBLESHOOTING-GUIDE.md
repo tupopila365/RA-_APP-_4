@@ -4,8 +4,8 @@
 
 Your RAG service startup logs show:
 ```
-WARNING - Model nomic-embed-text not found. Available models: ['', '']
-WARNING - Model llama3.1:8b not found. Available models: ['', '']
+WARNING - Model nomic-embed-text:latest not found. Available models: ['', '']
+WARNING - Model llama3.2:1b not found. Available models: ['', '']
 ```
 
 This indicates that Ollama is running but has no models installed, or the models list is corrupted.
@@ -23,8 +23,8 @@ ollama list
 **Expected Output (if working):**
 ```
 NAME                    ID              SIZE    MODIFIED
-nomic-embed-text:latest abc123def456    274 MB  2 days ago
-llama3.1:8b            xyz789abc123    4.7 GB  2 days ago
+nomic-embed-text:latest:latest abc123def456    274 MB  2 days ago
+llama3.2:1b            xyz789abc123    4.7 GB  2 days ago
 ```
 
 **If you see an error:**
@@ -48,13 +48,13 @@ curl http://localhost:11434/api/tags
 {
   "models": [
     {
-      "name": "nomic-embed-text:latest",
+      "name": "nomic-embed-text:latest:latest",
       "modified_at": "2024-01-15T10:30:00Z",
       "size": 274000000,
       "digest": "abc123..."
     },
     {
-      "name": "llama3.1:8b",
+      "name": "llama3.2:1b",
       "modified_at": "2024-01-15T11:00:00Z",
       "size": 4700000000,
       "digest": "xyz789..."
@@ -81,10 +81,10 @@ curl http://localhost:11434/api/tags
 
 ```cmd
 REM Pull the embedding model (274 MB)
-ollama pull nomic-embed-text
+ollama pull nomic-embed-text:latest
 
 REM Pull the LLM model (4.7 GB)
-ollama pull llama3.1:8b
+ollama pull llama3.2:1b
 ```
 
 **Wait for downloads to complete.** This may take 5-30 minutes depending on your internet speed.
@@ -105,10 +105,10 @@ Test if models actually work:
 
 ```cmd
 REM Test embedding model
-ollama run nomic-embed-text "test"
+ollama run nomic-embed-text:latest "test"
 
 REM Test LLM model
-ollama run llama3.1:8b "Hello, how are you?"
+ollama run llama3.2:1b "Hello, how are you?"
 ```
 
 If these commands work, the models are functional.
@@ -148,8 +148,8 @@ If models appear in `ollama list` but show as `['', '']` in the API, Ollama may 
 
 6. **Pull Models Again:**
    ```cmd
-   ollama pull nomic-embed-text
-   ollama pull llama3.1:8b
+   ollama pull nomic-embed-text:latest
+   ollama pull llama3.2:1b
    ```
 
 7. **Verify Installation:**
@@ -196,8 +196,8 @@ Once Ollama models are installed:
    You should see:
    ```
    ✓ Ollama service is accessible
-   ✓ Embedding model 'nomic-embed-text' is available
-   ✓ LLM model 'llama3.1:8b' is available
+   ✓ Embedding model 'nomic-embed-text:latest' is available
+   ✓ LLM model 'llama3.2:1b' is available
    ```
 
 3. **Test Health Endpoint:**
@@ -234,8 +234,8 @@ Once Ollama models are installed:
 REM Check exact model names
 ollama list
 
-REM If model shows as "nomic-embed-text:latest", update .env:
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
+REM If model shows as "nomic-embed-text:latest:latest", update .env:
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest:latest
 ```
 
 ### Issue 2: Ollama uses too much memory
@@ -245,7 +245,7 @@ OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
 **Solution:**
 ```cmd
 REM Use smaller models
-ollama pull llama3.1:8b-q4_0  # Quantized version (smaller)
+ollama pull llama3.2:1b-q4_0  # Quantized version (smaller)
 ```
 
 ### Issue 3: Models download but disappear
@@ -331,7 +331,7 @@ check-ollama.bat
 1. **Always start Ollama first** before RAG service
 2. **Keep Ollama running** in a dedicated terminal
 3. **Monitor disk space** - models are large (5+ GB)
-4. **Use model tags** explicitly in .env (e.g., `nomic-embed-text:latest`)
+4. **Use model tags** explicitly in .env (e.g., `nomic-embed-text:latest:latest`)
 5. **Check logs** regularly for warnings
 
 ---
@@ -339,7 +339,7 @@ check-ollama.bat
 ## Next Steps
 
 1. ✅ Verify Ollama is running: `ollama list`
-2. ✅ Install missing models: `ollama pull nomic-embed-text` and `ollama pull llama3.1:8b`
+2. ✅ Install missing models: `ollama pull nomic-embed-text:latest` and `ollama pull llama3.2:1b`
 3. ✅ Test API manually: `curl http://localhost:11434/api/tags`
 4. ✅ Restart RAG service and check logs
 5. ✅ Test health endpoint: `curl http://localhost:8001/health`
@@ -374,8 +374,8 @@ The `Available models: ['', '']` error means:
 
 Most common fix:
 ```cmd
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 Then restart your RAG service.

@@ -1,6 +1,26 @@
 # Implementation Plan
 
-- [x] 1. Fix test mocking issues
+- [x] 1. Fix relevance score calculation in vector store (CRITICAL)
+
+
+
+
+
+
+  - [x] 1.1 Fix distance normalization to prevent negative relevance scores
+
+
+
+
+    - Open app/services/vector_store.py
+    - Locate the search() method around line 150-180
+    - Update distance handling to use absolute values: `distances = [abs(d) for d in results.get('distances', [[]])[0]]`
+    - Ensure max_distance is positive and non-zero: `max_distance = max(abs(max_distance), 0.001)`
+    - Update relevance calculation to clamp values: `relevance = max(0.0, min(1.0 - normalized_distance, 1.0))`
+    - Test with a query to verify no Pydantic validation errors occur
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+
+- [x] 2. Fix test mocking issues
 
 
 
@@ -10,7 +30,7 @@
 
 
 
-  - [x] 1.1 Fix query pipeline embedding mock to return proper list
+  - [x] 2.1 Fix query pipeline embedding mock to return proper list
 
 
 
@@ -21,7 +41,7 @@
     - Run test to verify it passes
     - _Requirements: 3.1, 3.2, 3.3_
   
-  - [x] 1.2 Fix LLM service model name test assertion
+  - [x] 2.2 Fix LLM service model name test assertion
 
 
 
@@ -29,11 +49,11 @@
     - Update tests/test_llm.py test_initialization_default
     - Change assertion from `assert service.model in ['llama3.1', 'qwen2.5']`
     - To `assert any(model in service.model for model in ['llama3.1', 'qwen2.5'])`
-    - This accepts both "llama3.1" and "llama3.1:8b" as valid
+    - This accepts both "llama3.1" and "llama3.2:1b" as valid
     - Run test to verify it passes
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
   
-  - [x] 1.3 Fix query error handling test expectations
+  - [x] 2.3 Fix query error handling test expectations
 
 
 
@@ -45,7 +65,7 @@
     - Run test to verify it passes
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [x] 2. Fix PDF download error message format
+- [x] 3. Fix PDF download error message format
 
 
 
@@ -58,7 +78,7 @@
 
 
 
-  - [x] 2.1 Update PDFProcessingError message in download_pdf method
+  - [x] 3.1 Update PDFProcessingError message in download_pdf method
 
 
 
@@ -71,7 +91,7 @@
     - Run test_pipeline_error_handling_pdf_download to verify
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [x] 3. Fix VectorStore initialization error handling
+- [x] 4. Fix VectorStore initialization error handling
 
 
 
@@ -81,7 +101,7 @@
 
 
 
-  - [x] 3.1 Make VectorStore initialization handle connection failures gracefully
+  - [x] 4.1 Make VectorStore initialization handle connection failures gracefully
 
 
 
@@ -95,7 +115,7 @@
     - Run test_check_connection_failure to verify
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [x] 4. Fix text chunking overlap logic
+- [x] 5. Fix text chunking overlap logic
 
 
 
@@ -109,7 +129,7 @@
 
 
 
-  - [x] 4.1 Fix create_chunks method to properly handle overlap
+  - [x] 5.1 Fix create_chunks method to properly handle overlap
 
 
 
@@ -122,26 +142,26 @@
     - Run test_create_chunks_overlap to verify
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 5. Run full test suite and verify all tests pass
+- [ ] 6. Run full test suite and verify all tests pass
 
 
 
 
-  - [ ] 5.1 Execute complete test suite
+  - [ ] 6.1 Execute complete test suite
 
 
     - Run `pytest tests/ -v` from rag-service directory
     - Verify all 103 tests pass without failures
     - Check that no new test failures were introduced
     - Review test output for any warnings or issues
-    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 6. Manual testing and verification
-
-
+- [ ] 7. Manual testing and verification
 
 
-  - [ ] 6.1 Test RAG service with real dependencies
+
+
+  - [ ] 7.1 Test RAG service with real dependencies
 
 
     - Start Ollama service
@@ -151,4 +171,4 @@
     - Test query processing with indexed documents
     - Verify error handling with invalid inputs
     - Confirm all functionality works as expected
-    - _Requirements: 7.1, 7.2, 7.3_
+    - _Requirements: 8.1, 8.2, 8.3_

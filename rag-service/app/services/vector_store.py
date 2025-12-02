@@ -195,13 +195,26 @@ class VectorStore:
                 metadatas = results.get('metadatas', [[]])[0]
                 distances = results.get('distances', [[]])[0]
                 
+                # Use absolute values for distances to handle negative values
+                distances = [abs(d) for d in distances]
+                
+                # Find max distance for normalization (ensure it's positive and non-zero)
+                max_distance = max(distances) if distances else 1.0
+                max_distance = max(abs(max_distance), 0.001)  # Ensure positive and non-zero
+                
                 for i in range(len(ids)):
+                    distance = abs(distances[i]) if i < len(distances) else 0.0
+                    # Normalize distance to 0-1 range
+                    normalized_distance = min(distance / max_distance, 1.0)
+                    # Convert to similarity score and clamp to valid range [0.0, 1.0]
+                    relevance = max(0.0, min(1.0 - normalized_distance, 1.0))
+                    
                     result = {
                         'id': ids[i],
                         'document': documents[i] if i < len(documents) else '',
                         'metadata': metadatas[i] if i < len(metadatas) else {},
-                        'distance': distances[i] if i < len(distances) else 0.0,
-                        'relevance': 1.0 - (distances[i] if i < len(distances) else 0.0)  # Convert distance to relevance score
+                        'distance': distance,
+                        'relevance': relevance
                     }
                     formatted_results.append(result)
             

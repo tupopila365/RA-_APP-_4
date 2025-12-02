@@ -10,6 +10,7 @@ from app.routers import index, query, models
 from app.services.embeddings import EmbeddingService
 from app.services.llm import LLMService
 from app.services.vector_store import VectorStore
+from app.utils.ollama_setup import initialize_ollama_models
 
 # Configure logging with enhanced formatting
 logging.basicConfig(
@@ -122,38 +123,34 @@ async def startup_event():
     logger.info(f"Ollama Base URL: {settings.ollama_base_url}")
     logger.info(f"Embedding Model: {settings.ollama_embedding_model}")
     logger.info(f"LLM Model: {settings.ollama_llm_model}")
+    if settings.ollama_models_path:
+        logger.info(f"Custom Models Path: {settings.ollama_models_path}")
+    logger.info(f"Auto-pull Models: {settings.ollama_auto_pull}")
     logger.info(f"ChromaDB Collection: {settings.chromadb_collection_name}")
     logger.info(f"Chunk Size: {settings.chunk_size} tokens")
     logger.info(f"Chunk Overlap: {settings.chunk_overlap} tokens")
     logger.info("=" * 60)
     
-    # Perform initial health check
+    # Initialize Ollama models (detect and auto-pull if needed)
     try:
-        logger.info("Performing initial health check...")
+        logger.info("\nInitializing Ollama models...")
+        models_ready = initialize_ollama_models(
+            embedding_model=settings.ollama_embedding_model,
+            llm_model=settings.ollama_llm_model,
+            base_url=settings.ollama_base_url,
+            custom_model_path=settings.ollama_models_path,
+            auto_pull=settings.ollama_auto_pull
+        )
         
-        # Check Ollama
-        embedding_service = EmbeddingService()
-        if embedding_service.check_connection():
-            logger.info("✓ Ollama service is accessible")
-            
-            # Check if models are available
-            if embedding_service.check_model_available():
-                logger.info(f"✓ Embedding model '{settings.ollama_embedding_model}' is available")
-            else:
-                logger.warning(f"⚠ Embedding model '{settings.ollama_embedding_model}' not found")
-                logger.warning(f"  Run: ollama pull {settings.ollama_embedding_model}")
-            
-            llm_service = LLMService()
-            if llm_service.check_model_available():
-                logger.info(f"✓ LLM model '{settings.ollama_llm_model}' is available")
-            else:
-                logger.warning(f"⚠ LLM model '{settings.ollama_llm_model}' not found")
-                logger.warning(f"  Run: ollama pull {settings.ollama_llm_model}")
-        else:
-            logger.error("✗ Failed to connect to Ollama service")
-            logger.error(f"  Check if Ollama is running at {settings.ollama_base_url}")
+        if not models_ready:
+            logger.warning("⚠ Some Ollama models are not available. Service may not function correctly.")
         
-        # Check ChromaDB
+    except Exception as e:
+        logger.error(f"Failed to initialize Ollama models: {str(e)}")
+    
+    # Check ChromaDB
+    try:
+        logger.info("\nChecking ChromaDB connection...")
         vector_store = VectorStore()
         if vector_store.check_connection():
             count = vector_store.count_documents()
@@ -162,9 +159,11 @@ async def startup_event():
             logger.error("✗ Failed to connect to ChromaDB")
         
     except Exception as e:
-        logger.error(f"Startup health check failed: {str(e)}")
+        logger.error(f"ChromaDB check failed: {str(e)}")
     
+    logger.info("\n" + "=" * 60)
     logger.info("RAG Service startup complete")
+    logger.info("=" * 60)
 
 
 @app.on_event("shutdown")

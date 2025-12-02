@@ -9,10 +9,10 @@ const env_1 = require("../config/env");
 const logger_1 = require("./logger");
 const errors_1 = require("../constants/errors");
 class HttpClient {
-    constructor(baseURL) {
+    constructor(baseURL, timeout = 30000) {
         this.client = axios_1.default.create({
             baseURL,
-            timeout: 30000,
+            timeout,
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -68,13 +68,14 @@ class HttpClient {
         return this.client.patch(url, data, config);
     }
 }
-// RAG Service HTTP Client
-exports.ragServiceClient = new HttpClient(env_1.env.RAG_SERVICE_URL);
+// RAG Service HTTP Client with extended timeout for document processing
+// Document indexing with embeddings can take 2-5 minutes for large PDFs
+exports.ragServiceClient = new HttpClient(env_1.env.RAG_SERVICE_URL, 300000); // 5 minutes
 // RAG Service API methods
 exports.ragService = {
     async indexDocument(documentUrl, documentId, title) {
         try {
-            const response = await exports.ragServiceClient.post('/index', {
+            const response = await exports.ragServiceClient.post('/api/index', {
                 document_url: documentUrl,
                 document_id: documentId,
                 title,
@@ -93,7 +94,7 @@ exports.ragService = {
     },
     async queryDocuments(question, topK = 5) {
         try {
-            const response = await exports.ragServiceClient.post('/query', {
+            const response = await exports.ragServiceClient.post('/api/query', {
                 question,
                 top_k: topK,
             });
@@ -120,6 +121,21 @@ exports.ragService = {
                 statusCode: 503,
                 code: errors_1.ERROR_CODES.RAG_SERVICE_UNAVAILABLE,
                 message: 'RAG service is unavailable',
+                details: error.message,
+            };
+        }
+    },
+    async getIndexingProgress(documentId) {
+        try {
+            const response = await exports.ragServiceClient.get(`/api/index/progress/${documentId}`);
+            return response.data.data;
+        }
+        catch (error) {
+            logger_1.logger.error('RAG progress check failed:', error);
+            throw {
+                statusCode: 503,
+                code: errors_1.ERROR_CODES.RAG_SERVICE_UNAVAILABLE,
+                message: 'Failed to get indexing progress',
                 details: error.message,
             };
         }

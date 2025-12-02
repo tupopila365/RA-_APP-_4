@@ -72,7 +72,7 @@ You'll see detailed progress output like this:
 
 ### 🧠 Step 3: Generate Embeddings
 - Creates vector embeddings for each chunk
-- Uses Ollama with `nomic-embed-text` model
+- Uses Ollama with `nomic-embed-text:latest` model
 - Shows progress for every single chunk
 - **This is the slowest step** (takes ~2-3 seconds per chunk)
 

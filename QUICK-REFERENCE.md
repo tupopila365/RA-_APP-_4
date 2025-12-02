@@ -122,8 +122,8 @@ ollama serve
 
 **Models not found?**
 ```bash
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 **Check RAG health:**

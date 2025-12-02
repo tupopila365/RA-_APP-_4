@@ -76,8 +76,8 @@
 │                    Check Ollama                              │
 │  • Is Ollama running? (port 11434)                          │
 │  • Are models available?                                     │
-│    - nomic-embed-text                                        │
-│    - llama3.1:8b                                            │
+│    - nomic-embed-text:latest                                        │
+│    - llama3.2:1b                                            │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼

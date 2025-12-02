@@ -202,8 +202,47 @@ class NewsController {
     async deleteNews(req, res, next) {
         try {
             const { id } = req.params;
+            // Validate ID exists
+            if (!id || id === 'undefined' || id === 'null') {
+                logger_1.logger.warn('Delete attempt with missing or invalid ID', {
+                    id,
+                    params: req.params,
+                    url: req.url,
+                    user: req.user?.email,
+                });
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                        message: 'News ID is required',
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+                return;
+            }
+            // Validate ID format (MongoDB ObjectId is 24 hex characters)
+            if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+                logger_1.logger.warn('Delete attempt with invalid ID format', {
+                    id,
+                    user: req.user?.email,
+                });
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                        message: 'Invalid news ID format',
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+                return;
+            }
+            logger_1.logger.info(`Attempting to delete news article: ${id}`, {
+                user: req.user?.email,
+                role: req.user?.role,
+                permissions: req.user?.permissions,
+            });
             await news_service_1.newsService.deleteNews(id);
-            logger_1.logger.info(`News article deleted: ${id}`);
+            logger_1.logger.info(`News article deleted successfully: ${id}`);
             res.status(200).json({
                 success: true,
                 data: {
@@ -213,7 +252,12 @@ class NewsController {
             });
         }
         catch (error) {
-            logger_1.logger.error('Delete news error:', error);
+            logger_1.logger.error('Delete news error:', {
+                id: req.params.id,
+                error: error.message,
+                stack: error.stack,
+                statusCode: error.statusCode,
+            });
             next(error);
         }
     }

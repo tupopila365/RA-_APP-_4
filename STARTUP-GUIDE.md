@@ -3,7 +3,7 @@
 ## Overview
 
 This is a full-stack monorepo containing:
-- **Mobile App** (React Native + Expo) - iOS & Android
+- **Mobile App** (React Native + Expo) - iOS & Android6
 - **Backend API** (Node.js + Express + TypeScript)
 - **Admin Panel** (React + TypeScript + Vite)
 - **RAG Service** (Python + FastAPI) - AI Chatbot
@@ -55,31 +55,7 @@ cp .env.example .env
 Edit `backend/.env`:
 
 ```env
-# Server
-PORT=5000
-NODE_ENV=development
-
-# MongoDB (REQUIRED)
-MONGODB_URI=mongodb://localhost:27017/roads-authority
-# OR use MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/roads-authority
-
-# JWT (REQUIRED)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-JWT_EXPIRES_IN=7d
-
-# Redis (OPTIONAL - for caching)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# Cloudinary (OPTIONAL - for image uploads)
-CLOUDINARY_CLOUD_NAME=your-cloud-name
-CLOUDINARY_API_KEY=your-api-key
-CLOUDINARY_API_SECRET=your-api-secret
-
-# RAG Service (OPTIONAL - for chatbot)
-RAG_SERVICE_URL=http://localhost:8000
+ 
 ```
 
 #### Mobile App Configuration

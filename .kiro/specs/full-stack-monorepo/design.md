@@ -620,10 +620,10 @@ Answer:
 #### Ollama Configuration
 
 **Models Used:**
-- **Embedding Model:** `nomic-embed-text` (768-dimensional embeddings)
-- **LLM Model:** `llama3.1:8b` or `qwen2.5:7b` (configurable)
+- **Embedding Model:** `nomic-embed-text:latest` (768-dimensional embeddings)
+- **LLM Model:** `llama3.2:1b` or `qwen2.5:7b` (configurable)
 
-**Design Rationale:** `nomic-embed-text` is optimized for retrieval tasks. Llama 3.1 and Qwen 2.5 provide strong instruction-following and reasoning capabilities while being runnable on consumer hardware (Requirements 17, 18).
+**Design Rationale:** `nomic-embed-text:latest` is optimized for retrieval tasks. Llama 3.1 and Qwen 2.5 provide strong instruction-following and reasoning capabilities while being runnable on consumer hardware (Requirements 17, 18).
 
 ## Data Models
 

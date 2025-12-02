@@ -47,6 +47,10 @@ declare class DocumentsService {
      * Delete a document
      */
     deleteDocument(documentId: string): Promise<void>;
+    /**
+     * Get indexing progress from RAG service
+     */
+    getIndexingProgress(documentId: string): Promise<any>;
 }
 export declare const documentsService: DocumentsService;
 export {};

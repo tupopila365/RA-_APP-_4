@@ -2187,8 +2187,8 @@ GET /health
   "indexed_documents": 15,
   "total_chunks": 630,
   "models": {
-    "embedding": "nomic-embed-text",
-    "llm": "llama3.1:8b"
+    "embedding": "nomic-embed-text:latest",
+    "llm": "llama3.2:1b"
   }
 }
 ```

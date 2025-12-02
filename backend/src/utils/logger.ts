@@ -62,10 +62,10 @@ const cleanMeta = (meta: any): any => {
       // For request/response objects, extract only useful info
       if (value.constructor?.name === 'IncomingMessage' || value.constructor?.name === 'ClientRequest') {
         cleaned[key] = {
-          method: value.method,
-          url: value.url,
-          statusCode: value.statusCode,
-          headers: value.headers,
+          method: (value as any).method,
+          url: (value as any).url,
+          statusCode: (value as any).statusCode,
+          headers: (value as any).headers,
         };
         continue;
       }

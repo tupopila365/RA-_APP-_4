@@ -181,8 +181,8 @@ cp .env.example .env
 # OLLAMA_BASE_URL=http://localhost:11434
 
 # Pull required Ollama models
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 # or
 ollama pull qwen2.5:7b
 
@@ -228,8 +228,8 @@ API_BASE_URL=http://localhost:3000
 ### RAG Service (.env)
 ```env
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-OLLAMA_LLM_MODEL=llama3.1:8b
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
+OLLAMA_LLM_MODEL=llama3.2:1b
 CHROMADB_PATH=./data/chromadb
 LOG_LEVEL=INFO
 ```

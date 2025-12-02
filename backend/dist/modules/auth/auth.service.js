@@ -153,7 +153,9 @@ class AuthService {
         try {
             const redisClient = (0, redis_1.getRedisClient)();
             const key = `token:refresh:${userId}`;
-            await redisClient.del(key);
+            if (redisClient) {
+                await redisClient.del(key);
+            }
             logger_1.logger.info(`User logged out: ${userId}`);
         }
         catch (error) {
@@ -171,6 +173,9 @@ class AuthService {
     async verifyRefreshToken(userId, refreshToken) {
         try {
             const redisClient = (0, redis_1.getRedisClient)();
+            if (!redisClient) {
+                return false;
+            }
             const key = `token:refresh:${userId}`;
             const storedToken = await redisClient.get(key);
             return storedToken === refreshToken;

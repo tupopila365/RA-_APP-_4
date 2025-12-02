@@ -45,25 +45,25 @@ if %ERRORLEVEL% EQU 0 (
 echo.
 
 REM 4. Check if embedding model is available
-echo [4/5] Checking Embedding Model (nomic-embed-text)...
-curl -s http://localhost:11434/api/tags 2>NUL | findstr "nomic-embed-text" >NUL
+echo [4/5] Checking Embedding Model (nomic-embed-text:latest)...
+curl -s http://localhost:11434/api/tags 2>NUL | findstr "nomic-embed-text:latest" >NUL
 if %ERRORLEVEL% EQU 0 (
-    echo    [OK] Embedding model 'nomic-embed-text' is available
+    echo    [OK] Embedding model 'nomic-embed-text:latest' is available
 ) else (
-    echo    [ERROR] Embedding model 'nomic-embed-text' NOT found
-    echo    Please run: ollama pull nomic-embed-text
+    echo    [ERROR] Embedding model 'nomic-embed-text:latest' NOT found
+    echo    Please run: ollama pull nomic-embed-text:latest
     set EMBED_MODEL=0
 )
 echo.
 
 REM 5. Check if LLM model is available
-echo [5/5] Checking LLM Model (llama3.1:8b)...
-curl -s http://localhost:11434/api/tags 2>NUL | findstr "llama3.1:8b" >NUL
+echo [5/5] Checking LLM Model (llama3.2:1b)...
+curl -s http://localhost:11434/api/tags 2>NUL | findstr "llama3.2:1b" >NUL
 if %ERRORLEVEL% EQU 0 (
-    echo    [OK] LLM model 'llama3.1:8b' is available
+    echo    [OK] LLM model 'llama3.2:1b' is available
 ) else (
-    echo    [ERROR] LLM model 'llama3.1:8b' NOT found
-    echo    Please run: ollama pull llama3.1:8b
+    echo    [ERROR] LLM model 'llama3.2:1b' NOT found
+    echo    Please run: ollama pull llama3.2:1b
     set LLM_MODEL=0
 )
 echo.
@@ -92,7 +92,7 @@ if defined OLLAMA_RUNNING (
 
 if defined EMBED_MODEL (
     echo [X] Embedding Model - NOT AVAILABLE
-    echo     Action: Run 'ollama pull nomic-embed-text'
+    echo     Action: Run 'ollama pull nomic-embed-text:latest'
     echo.
 ) else (
     echo [✓] Embedding Model - AVAILABLE
@@ -100,7 +100,7 @@ if defined EMBED_MODEL (
 
 if defined LLM_MODEL (
     echo [X] LLM Model - NOT AVAILABLE
-    echo     Action: Run 'ollama pull llama3.1:8b'
+    echo     Action: Run 'ollama pull llama3.2:1b'
     echo.
 ) else (
     echo [✓] LLM Model - AVAILABLE

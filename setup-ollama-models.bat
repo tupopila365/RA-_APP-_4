@@ -37,43 +37,43 @@ echo [Step 2] Listing currently installed models...
 ollama list
 echo.
 
-REM Check if nomic-embed-text is installed
-echo [Step 3] Checking for nomic-embed-text model...
-ollama list | findstr /C:"nomic-embed-text" >nul 2>&1
+REM Check if nomic-embed-text:latest is installed
+echo [Step 3] Checking for nomic-embed-text:latest model...
+ollama list | findstr /C:"nomic-embed-text:latest" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ⚠ nomic-embed-text not found
+    echo ⚠ nomic-embed-text:latest not found
     echo.
-    echo Installing nomic-embed-text (274 MB)...
+    echo Installing nomic-embed-text:latest (274 MB)...
     echo This may take a few minutes...
-    ollama pull nomic-embed-text
+    ollama pull nomic-embed-text:latest
     if %errorlevel% neq 0 (
-        echo ✗ Failed to install nomic-embed-text
+        echo ✗ Failed to install nomic-embed-text:latest
         pause
         exit /b 1
     )
-    echo ✓ nomic-embed-text installed successfully
+    echo ✓ nomic-embed-text:latest installed successfully
 ) else (
-    echo ✓ nomic-embed-text is already installed
+    echo ✓ nomic-embed-text:latest is already installed
 )
 echo.
 
-REM Check if llama3.1:8b is installed
-echo [Step 4] Checking for llama3.1:8b model...
-ollama list | findstr /C:"llama3.1:8b" >nul 2>&1
+REM Check if llama3.2:1b is installed
+echo [Step 4] Checking for llama3.2:1b model...
+ollama list | findstr /C:"llama3.2:1b" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ⚠ llama3.1:8b not found
+    echo ⚠ llama3.2:1b not found
     echo.
-    echo Installing llama3.1:8b (4.7 GB)...
+    echo Installing llama3.2:1b (4.7 GB)...
     echo This will take several minutes depending on your internet speed...
-    ollama pull llama3.1:8b
+    ollama pull llama3.2:1b
     if %errorlevel% neq 0 (
-        echo ✗ Failed to install llama3.1:8b
+        echo ✗ Failed to install llama3.2:1b
         pause
         exit /b 1
     )
-    echo ✓ llama3.1:8b installed successfully
+    echo ✓ llama3.2:1b installed successfully
 ) else (
-    echo ✓ llama3.1:8b is already installed
+    echo ✓ llama3.2:1b is already installed
 )
 echo.
 
@@ -87,21 +87,21 @@ echo.
 REM Test models
 echo [Step 6] Testing models...
 echo.
-echo Testing nomic-embed-text...
-echo test | ollama run nomic-embed-text >nul 2>&1
+echo Testing nomic-embed-text:latest...
+echo test | ollama run nomic-embed-text:latest >nul 2>&1
 if %errorlevel% equ 0 (
-    echo ✓ nomic-embed-text is working
+    echo ✓ nomic-embed-text:latest is working
 ) else (
-    echo ⚠ nomic-embed-text test failed
+    echo ⚠ nomic-embed-text:latest test failed
 )
 
 echo.
-echo Testing llama3.1:8b...
-echo Hello | ollama run llama3.1:8b >nul 2>&1
+echo Testing llama3.2:1b...
+echo Hello | ollama run llama3.2:1b >nul 2>&1
 if %errorlevel% equ 0 (
-    echo ✓ llama3.1:8b is working
+    echo ✓ llama3.2:1b is working
 ) else (
-    echo ⚠ llama3.1:8b test failed
+    echo ⚠ llama3.2:1b test failed
 )
 
 echo.

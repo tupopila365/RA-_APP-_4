@@ -234,5 +234,5 @@ Target metrics:
 
 - Tests use mock data and do not require actual Ollama or ChromaDB instances
 - PDF processing tests use a minimal valid PDF structure
-- Embedding dimensions are set to 768 (matching nomic-embed-text)
+- Embedding dimensions are set to 768 (matching nomic-embed-text:latest)
 - All tests are designed to be deterministic and repeatable

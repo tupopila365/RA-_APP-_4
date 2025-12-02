@@ -61,7 +61,7 @@ ollama serve
 ollama list
 
 # Test embedding generation
-ollama run nomic-embed-text "test"
+ollama run nomic-embed-text:latest "test"
 ```
 
 ### 2. Out of Memory
@@ -181,8 +181,8 @@ curl http://localhost:3000/health
 
 ### Check if Ollama is working
 ```bash
-ollama run nomic-embed-text "test embedding"
-ollama run llama3.1:8b "test response"
+ollama run nomic-embed-text:latest "test embedding"
+ollama run llama3.2:1b "test response"
 ```
 
 ### Check RAG service directly

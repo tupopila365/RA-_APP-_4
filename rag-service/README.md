@@ -34,8 +34,8 @@ This RAG (Retrieval-Augmented Generation) service provides:
 2. **Ollama** installed and running ([download](https://ollama.com/download))
 3. **Required Ollama models** pulled:
    ```bash
-   ollama pull nomic-embed-text
-   ollama pull llama3.1:8b
+   ollama pull nomic-embed-text:latest
+   ollama pull llama3.2:1b
    ```
 
 ### Installation
@@ -109,12 +109,12 @@ rag-service/
 This service requires the following Ollama models:
 
 ### Embedding Model
-- **nomic-embed-text** - 768-dimensional embeddings optimized for retrieval
-- Pull: `ollama pull nomic-embed-text`
+- **nomic-embed-text:latest** - 768-dimensional embeddings optimized for retrieval
+- Pull: `ollama pull nomic-embed-text:latest`
 
 ### LLM Models (choose one)
-- **llama3.1:8b** - Meta's Llama 3.1 (8B parameters)
-  - Pull: `ollama pull llama3.1:8b`
+- **llama3.2:1b** - Meta's Llama 3.1 (8B parameters)
+  - Pull: `ollama pull llama3.2:1b`
 - **qwen2.5:7b** - Alibaba's Qwen 2.5 (7B parameters)
   - Pull: `ollama pull qwen2.5:7b`
 
@@ -177,7 +177,7 @@ Check service health and connectivity.
   "status": "healthy",
   "ollama_connected": true,
   "chromadb_connected": true,
-  "models_available": ["nomic-embed-text", "llama3.1:8b"]
+  "models_available": ["nomic-embed-text:latest", "llama3.2:1b"]
 }
 ```
 
@@ -206,8 +206,8 @@ Check service health and connectivity.
 ```env
 # Ollama Configuration
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-OLLAMA_LLM_MODEL=llama3.1:8b
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
+OLLAMA_LLM_MODEL=llama3.2:1b
 
 # ChromaDB Configuration
 CHROMADB_PATH=./data/chromadb

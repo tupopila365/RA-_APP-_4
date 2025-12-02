@@ -35,5 +35,11 @@ router.get('/:id', auth_1.authenticate, (0, roleGuard_1.requirePermission)('docu
  * @access  Private (requires documents:upload permission)
  */
 router.delete('/:id', auth_1.authenticate, (0, roleGuard_1.requirePermission)('documents:upload'), documents_controller_1.documentsController.deleteDocument.bind(documents_controller_1.documentsController));
+/**
+ * @route   GET /api/documents/:id/indexing-progress
+ * @desc    Get indexing progress for a document
+ * @access  Private (requires documents:upload permission)
+ */
+router.get('/:id/indexing-progress', auth_1.authenticate, (0, roleGuard_1.requirePermission)('documents:upload'), documents_controller_1.documentsController.getIndexingProgress.bind(documents_controller_1.documentsController));
 exports.default = router;
 //# sourceMappingURL=documents.routes.js.map

@@ -48,7 +48,7 @@ The index router implements the complete document processing pipeline as specifi
 
 ### Step 4: Generate Embeddings
 - Uses `EmbeddingService.embed_chunks()`
-- Generates embeddings via Ollama nomic-embed-text model
+- Generates embeddings via Ollama nomic-embed-text:latest model
 - Batch processing with progress logging
 - Handles embedding failures per chunk
 
@@ -223,7 +223,7 @@ await Document.findByIdAndUpdate(document._id, {
 
 ### With Ollama
 - Requires Ollama running on configured host (default: localhost:11434)
-- Requires nomic-embed-text model pulled
+- Requires nomic-embed-text:latest model pulled
 - Connection checked during embedding generation
 
 ### With ChromaDB

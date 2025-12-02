@@ -60,21 +60,19 @@ class DocumentsController {
             res.status(201).json({
                 success: true,
                 data: {
-                    document: {
-                        id: document._id,
-                        title: document.title,
-                        description: document.description,
-                        fileUrl: document.fileUrl,
-                        fileType: document.fileType,
-                        fileSize: document.fileSize,
-                        category: document.category,
-                        indexed: document.indexed,
-                        uploadedBy: document.uploadedBy,
-                        createdAt: document.createdAt,
-                        updatedAt: document.updatedAt,
-                    },
-                    message: 'Document uploaded successfully. Indexing in progress.',
+                    _id: document._id,
+                    title: document.title,
+                    description: document.description,
+                    fileUrl: document.fileUrl,
+                    fileType: document.fileType,
+                    fileSize: document.fileSize,
+                    category: document.category,
+                    indexed: document.indexed,
+                    uploadedBy: document.uploadedBy,
+                    createdAt: document.createdAt,
+                    updatedAt: document.updatedAt,
                 },
+                message: 'Document uploaded successfully. Indexing in progress.',
                 timestamp: new Date().toISOString(),
             });
         }
@@ -104,8 +102,8 @@ class DocumentsController {
             res.status(200).json({
                 success: true,
                 data: {
-                    documents: result.documents.map((doc) => ({
-                        id: doc._id,
+                    items: result.documents.map((doc) => ({
+                        _id: doc._id,
                         title: doc.title,
                         description: doc.description,
                         fileUrl: doc.fileUrl,
@@ -117,12 +115,10 @@ class DocumentsController {
                         createdAt: doc.createdAt,
                         updatedAt: doc.updatedAt,
                     })),
-                    pagination: {
-                        total: result.total,
-                        page: result.page,
-                        totalPages: result.totalPages,
-                        limit,
-                    },
+                    total: result.total,
+                    page: result.page,
+                    totalPages: result.totalPages,
+                    limit,
                 },
                 timestamp: new Date().toISOString(),
             });
@@ -143,19 +139,17 @@ class DocumentsController {
             res.status(200).json({
                 success: true,
                 data: {
-                    document: {
-                        id: document._id,
-                        title: document.title,
-                        description: document.description,
-                        fileUrl: document.fileUrl,
-                        fileType: document.fileType,
-                        fileSize: document.fileSize,
-                        category: document.category,
-                        indexed: document.indexed,
-                        uploadedBy: document.uploadedBy,
-                        createdAt: document.createdAt,
-                        updatedAt: document.updatedAt,
-                    },
+                    _id: document._id,
+                    title: document.title,
+                    description: document.description,
+                    fileUrl: document.fileUrl,
+                    fileType: document.fileType,
+                    fileSize: document.fileSize,
+                    category: document.category,
+                    indexed: document.indexed,
+                    uploadedBy: document.uploadedBy,
+                    createdAt: document.createdAt,
+                    updatedAt: document.updatedAt,
                 },
                 timestamp: new Date().toISOString(),
             });
@@ -184,6 +178,25 @@ class DocumentsController {
         }
         catch (error) {
             logger_1.logger.error('Delete document error:', error);
+            next(error);
+        }
+    }
+    /**
+     * Get indexing progress for a document
+     * GET /api/documents/:id/indexing-progress
+     */
+    async getIndexingProgress(req, res, next) {
+        try {
+            const { id } = req.params;
+            const progress = await documents_service_1.documentsService.getIndexingProgress(id);
+            res.status(200).json({
+                success: true,
+                data: progress,
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Get indexing progress error:', error);
             next(error);
         }
     }

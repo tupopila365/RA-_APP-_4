@@ -47,7 +47,7 @@ This feature addresses bugs and issues identified in the RAG (Retrieval-Augmente
 #### Acceptance Criteria
 
 1. WHEN the embedding service is mocked in tests, THE mock SHALL return a list of floats representing the embedding vector
-2. THE mocked embedding SHALL have the correct dimension (768 for nomic-embed-text model)
+2. THE mocked embedding SHALL have the correct dimension (768 for nomic-embed-text:latest model)
 3. THE mock SHALL not return a MagicMock object when get() is called on the embedding response
 4. THE RAG Service SHALL correctly handle mocked embeddings in the query pipeline
 5. THE RAG Service SHALL pass the test_full_query_pipeline test case
@@ -70,9 +70,9 @@ This feature addresses bugs and issues identified in the RAG (Retrieval-Augmente
 
 #### Acceptance Criteria
 
-1. WHEN the LLM service is initialized with default settings, THE test SHALL accept model names with version tags (e.g., "llama3.1:8b")
+1. WHEN the LLM service is initialized with default settings, THE test SHALL accept model names with version tags (e.g., "llama3.2:1b")
 2. THE test SHALL check for the base model name without requiring exact match to version tag
-3. THE RAG Service SHALL support both short model names ("llama3.1") and full names with tags ("llama3.1:8b")
+3. THE RAG Service SHALL support both short model names ("llama3.1") and full names with tags ("llama3.2:1b")
 4. THE test SHALL validate that the model name contains the expected base model identifier
 5. THE RAG Service SHALL pass the test_initialization_default test case
 
@@ -89,6 +89,18 @@ This feature addresses bugs and issues identified in the RAG (Retrieval-Augmente
 5. THE RAG Service SHALL pass the test_check_connection_failure test case
 
 ### Requirement 7
+
+**User Story:** As a developer, I want the vector store relevance score calculation to handle all distance values correctly, so that queries don't fail with validation errors.
+
+#### Acceptance Criteria
+
+1. WHEN ChromaDB returns distance values, THE RAG Service SHALL normalize them to produce relevance scores between 0.0 and 1.0
+2. WHEN distance values are negative or unexpectedly large, THE RAG Service SHALL clamp the relevance score to the valid range [0.0, 1.0]
+3. THE RAG Service SHALL not produce negative relevance scores that violate Pydantic validation constraints
+4. WHEN relevance scores are calculated, THE RAG Service SHALL use absolute values for distance normalization
+5. THE RAG Service SHALL handle edge cases where max_distance equals zero or is negative
+
+### Requirement 8
 
 **User Story:** As a developer, I want all RAG service tests to pass, so that I can be confident the service is working correctly and reliably.
 

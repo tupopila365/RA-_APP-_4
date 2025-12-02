@@ -136,8 +136,8 @@ PORT=8001
 
 # Ollama Configuration
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-OLLAMA_LLM_MODEL=llama3.1:8b
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
+OLLAMA_LLM_MODEL=llama3.2:1b
 
 # ChromaDB Configuration
 CHROMADB_HOST=localhost
@@ -171,16 +171,16 @@ LOG_LEVEL=INFO
 ============================================================
 Starting Roads Authority RAG Service
 Ollama Base URL: http://localhost:11434
-Embedding Model: nomic-embed-text
-LLM Model: llama3.1:8b
+Embedding Model: nomic-embed-text:latest
+LLM Model: llama3.2:1b
 ChromaDB Collection: document_chunks
 Chunk Size: 500 tokens
 Chunk Overlap: 50 tokens
 ============================================================
 Performing initial health check...
 ✓ Ollama service is accessible
-✓ Embedding model 'nomic-embed-text' is available
-✓ LLM model 'llama3.1:8b' is available
+✓ Embedding model 'nomic-embed-text:latest' is available
+✓ LLM model 'llama3.2:1b' is available
 ✓ ChromaDB is accessible (0 chunks indexed)
 RAG Service startup complete
 ```

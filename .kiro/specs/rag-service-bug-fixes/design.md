@@ -80,11 +80,11 @@ def download_pdf(url: str) -> bytes
 
 ### 5. LLM Service Tests (tests/test_llm.py)
 
-**Current Issue**: Test expects model name "llama3.1" but config has "llama3.1:8b".
+**Current Issue**: Test expects model name "llama3.1" but config has "llama3.2:1b".
 
 **Fix Approach**:
 - Update test assertion to check if base model name is contained in the full model name
-- Accept both "llama3.1" and "llama3.1:8b" as valid
+- Accept both "llama3.1" and "llama3.2:1b" as valid
 - Use substring matching instead of exact list membership
 
 **Test Fix**:
@@ -149,6 +149,11 @@ No changes to data models are required. All fixes are in logic and error handlin
 *For any* VectorStore initialization attempt, if ChromaDB connection fails, the initialization should complete without raising an exception, and the check_connection() method should return False
 **Validates: Requirements 6.1**
 
+### Property 7: Relevance scores are always within valid range
+
+*For any* distance value returned by ChromaDB, the calculated relevance score should be between 0.0 and 1.0 inclusive, never negative or greater than 1.0
+**Validates: Requirements 7.1, 7.2, 7.3**
+
 ## Error Handling
 
 ### Chunking Errors
@@ -194,14 +199,42 @@ After fixes:
 4. Test query processing with indexed documents
 5. Verify error handling with invalid inputs
 
+### Vector Store Relevance Score Calculation (app/services/vector_store.py)
+
+**Current Issue**: The relevance score calculation can produce negative values when ChromaDB returns large or negative distance values, causing Pydantic validation errors.
+
+**Fix Approach**:
+- Use absolute values for distance calculations
+- Ensure max_distance is always positive and non-zero
+- Clamp the final relevance score to [0.0, 1.0] range
+- Handle edge cases where distances are negative or unexpectedly large
+
+**Modified Logic**:
+```python
+# Use absolute values for distances
+distances = [abs(d) for d in results.get('distances', [[]])[0]]
+
+# Find max distance for normalization (ensure it's positive and non-zero)
+max_distance = max(distances) if distances else 1.0
+max_distance = max(abs(max_distance), 0.001)  # Ensure positive and non-zero
+
+for i in range(len(ids)):
+    distance = abs(distances[i]) if i < len(distances) else 0.0
+    # Normalize distance to 0-1 range
+    normalized_distance = min(distance / max_distance, 1.0)
+    # Convert to similarity score and clamp to valid range
+    relevance = max(0.0, min(1.0 - normalized_distance, 1.0))
+```
+
 ## Implementation Notes
 
 ### Priority Order
 
-1. **Fix test mocks first** (Requirements 3, 4, 5) - These are test-only changes
-2. **Fix error message format** (Requirement 2) - Simple string change
-3. **Fix VectorStore initialization** (Requirement 6) - Important for service stability
-4. **Fix chunking overlap** (Requirement 1) - Most complex logic change
+1. **Fix relevance score calculation** (Requirement 7) - Critical production bug causing query failures
+2. **Fix test mocks first** (Requirements 3, 4, 5) - These are test-only changes
+3. **Fix error message format** (Requirement 2) - Simple string change
+4. **Fix VectorStore initialization** (Requirement 6) - Important for service stability
+5. **Fix chunking overlap** (Requirement 1) - Most complex logic change
 
 ### Backward Compatibility
 

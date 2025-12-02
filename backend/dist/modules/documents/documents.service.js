@@ -234,6 +234,24 @@ class DocumentsService {
             };
         }
     }
+    /**
+     * Get indexing progress from RAG service
+     */
+    async getIndexingProgress(documentId) {
+        try {
+            const progress = await httpClient_1.ragService.getIndexingProgress(documentId);
+            return progress;
+        }
+        catch (error) {
+            logger_1.logger.error(`Failed to get indexing progress for document ${documentId}:`, error);
+            // Return default progress if RAG service is unavailable
+            return {
+                status: 'unknown',
+                percentage: 0,
+                message: 'Unable to retrieve indexing progress',
+            };
+        }
+    }
 }
 exports.documentsService = new DocumentsService();
 //# sourceMappingURL=documents.service.js.map

@@ -77,8 +77,8 @@ Download from: https://ollama.ai/
 ### Step 2: Pull Required Models
 
 ```bash
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 This takes 5-10 minutes (downloads ~5GB).
@@ -295,8 +295,8 @@ ollama serve
 **Problem:** Models not found
 ```bash
 # Solution: Pull models
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 **Problem:** Python dependencies error

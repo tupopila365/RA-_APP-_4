@@ -47,13 +47,13 @@ Before starting, ensure you have:
    
    **Option B - Manual:**
    ```cmd
-   ollama pull nomic-embed-text
-   ollama pull llama3.1:8b
+   ollama pull nomic-embed-text:latest
+   ollama pull llama3.2:1b
    ```
    
    This will download:
-   - `nomic-embed-text` - For generating embeddings (~274MB)
-   - `llama3.1:8b` - For generating answers (~4.7GB)
+   - `nomic-embed-text:latest` - For generating embeddings (~274MB)
+   - `llama3.2:1b` - For generating answers (~4.7GB)
 
 4. **Verify Models:**
    ```cmd
@@ -244,8 +244,8 @@ setup-ollama-models.bat
 3. Verify models: `ollama list`
 4. Pull missing models:
    ```cmd
-   ollama pull nomic-embed-text
-   ollama pull llama3.1:8b
+   ollama pull nomic-embed-text:latest
+   ollama pull llama3.2:1b
    ```
 
 **Detailed Help:** See [OLLAMA-FIX-SUMMARY.md](OLLAMA-FIX-SUMMARY.md)

@@ -20,20 +20,20 @@ echo.
 
 REM Check if models are available
 echo [2/4] Checking Ollama models...
-curl -s http://localhost:11434/api/tags | findstr "nomic-embed-text" >NUL
+curl -s http://localhost:11434/api/tags | findstr "nomic-embed-text:latest" >NUL
 if %ERRORLEVEL% EQU 0 (
     echo    [OK] Embedding model found
 ) else (
     echo    [WARNING] Embedding model not found
-    echo    Run: ollama pull nomic-embed-text
+    echo    Run: ollama pull nomic-embed-text:latest
 )
 
-curl -s http://localhost:11434/api/tags | findstr "llama3.1:8b" >NUL
+curl -s http://localhost:11434/api/tags | findstr "llama3.2:1b" >NUL
 if %ERRORLEVEL% EQU 0 (
     echo    [OK] LLM model found
 ) else (
     echo    [WARNING] LLM model not found
-    echo    Run: ollama pull llama3.1:8b
+    echo    Run: ollama pull llama3.2:1b
 )
 echo.
 

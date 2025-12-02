@@ -14,7 +14,7 @@ Run through these checks in order:
 ollama list
 ```
 
-**Expected:** Should show your models (nomic-embed-text, llama3.1:8b)
+**Expected:** Should show your models (nomic-embed-text:latest, llama3.2:1b)
 
 **If not running:**
 ```bash
@@ -109,8 +109,8 @@ ollama serve
 ollama list
 
 # If models missing, pull them
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 ### Scenario 3: No Documents Indexed
@@ -298,8 +298,8 @@ CLOUDINARY_API_SECRET=your_api_secret
 ```env
 # Ollama
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-OLLAMA_LLM_MODEL=llama3.1:8b
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
+OLLAMA_LLM_MODEL=llama3.2:1b
 
 # ChromaDB
 CHROMADB_PATH=./chroma_db
@@ -333,7 +333,7 @@ LOG_LEVEL=INFO
 
 3. **Use smaller model:**
    - Edit `rag-service/.env`
-   - Set `OLLAMA_LLM_MODEL=llama3.1:8b` (if using larger)
+   - Set `OLLAMA_LLM_MODEL=llama3.2:1b` (if using larger)
 
 ### Out of Memory
 
@@ -344,7 +344,7 @@ LOG_LEVEL=INFO
 **Solutions:**
 1. **Use smaller model:**
    ```bash
-   ollama pull llama3.1:8b  # Instead of larger models
+   ollama pull llama3.2:1b  # Instead of larger models
    ```
 
 2. **Reduce concurrent requests:**
@@ -407,14 +407,14 @@ ollama list
 **Should show:**
 ```
 NAME                    ID              SIZE
-nomic-embed-text:latest abc123...       274MB
-llama3.1:8b            def456...       4.7GB
+nomic-embed-text:latest:latest abc123...       274MB
+llama3.2:1b            def456...       4.7GB
 ```
 
 **If missing:**
 ```bash
-ollama pull nomic-embed-text
-ollama pull llama3.1:8b
+ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b
 ```
 
 ### 4. Test with Simple Query

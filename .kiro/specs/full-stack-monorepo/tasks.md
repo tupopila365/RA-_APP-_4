@@ -323,7 +323,7 @@
   - [x] 15.2 Implement embedding and vector storage services
 
 
-    - Implement app/services/embeddings.py to generate embeddings using Ollama nomic-embed-text model
+    - Implement app/services/embeddings.py to generate embeddings using Ollama nomic-embed-text:latest model
     - Implement app/services/vector_store.py for ChromaDB operations (store, search)
     - _Requirements: 17.4, 17.5_
 

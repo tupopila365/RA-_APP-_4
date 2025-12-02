@@ -149,6 +149,15 @@ class NewsService {
      */
     async deleteNews(newsId) {
         try {
+            // Validate ID is provided
+            if (!newsId || newsId === 'undefined' || newsId === 'null') {
+                logger_1.logger.error('Delete called with invalid ID:', newsId);
+                throw {
+                    statusCode: 400,
+                    code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                    message: 'News ID is required',
+                };
+            }
             logger_1.logger.info(`Deleting news article: ${newsId}`);
             const news = await news_model_1.NewsModel.findByIdAndDelete(newsId);
             if (!news) {
@@ -161,9 +170,18 @@ class NewsService {
             logger_1.logger.info(`News article ${newsId} deleted successfully`);
         }
         catch (error) {
-            logger_1.logger.error('Delete news error:', error);
+            logger_1.logger.error('Delete news error:', { newsId, error: error.message });
             if (error.statusCode) {
                 throw error;
+            }
+            // Handle Mongoose CastError (invalid ObjectId format)
+            if (error.name === 'CastError') {
+                throw {
+                    statusCode: 400,
+                    code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                    message: 'Invalid news ID format',
+                    details: error.message,
+                };
             }
             throw {
                 statusCode: 500,

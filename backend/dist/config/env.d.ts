@@ -11,6 +11,13 @@ interface EnvConfig {
     CLOUDINARY_CLOUD_NAME?: string;
     CLOUDINARY_API_KEY?: string;
     CLOUDINARY_API_SECRET?: string;
+    CLOUDINARY_PDF_ACCESS_MODE?: 'public' | 'signed';
+    CLOUDINARY_SIGNED_URL_EXPIRY?: number;
+    GOOGLE_DRIVE_CLIENT_ID?: string;
+    GOOGLE_DRIVE_CLIENT_SECRET?: string;
+    GOOGLE_DRIVE_REDIRECT_URI?: string;
+    GOOGLE_DRIVE_REFRESH_TOKEN?: string;
+    GOOGLE_DRIVE_FOLDER_ID?: string;
     RAG_SERVICE_URL: string;
     CORS_ORIGIN: string;
 }

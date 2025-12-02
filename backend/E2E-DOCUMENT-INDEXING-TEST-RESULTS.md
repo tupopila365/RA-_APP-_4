@@ -45,7 +45,7 @@ Checked if required services are running:
 
 3. **Ollama Service** (Port 11434): ⚠️ NOT RUNNING
    - Required for RAG service operation
-   - Models needed: nomic-embed-text, llama3.1:8b
+   - Models needed: nomic-embed-text:latest, llama3.2:1b
 
 ## Test Results Summary
 
@@ -96,8 +96,8 @@ The following tests require the RAG service and Ollama to be running:
 
 2. Pull required models (if not already done):
    ```bash
-   ollama pull nomic-embed-text
-   ollama pull llama3.1:8b
+   ollama pull nomic-embed-text:latest
+   ollama pull llama3.2:1b
    ```
 
 3. Start RAG service:

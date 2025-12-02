@@ -6,10 +6,10 @@ import { ERROR_CODES } from '../constants/errors';
 class HttpClient {
   private client: AxiosInstance;
 
-  constructor(baseURL: string) {
+  constructor(baseURL: string, timeout: number = 30000) {
     this.client = axios.create({
       baseURL,
-      timeout: 30000,
+      timeout,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -90,8 +90,9 @@ class HttpClient {
   }
 }
 
-// RAG Service HTTP Client
-export const ragServiceClient = new HttpClient(env.RAG_SERVICE_URL);
+// RAG Service HTTP Client with extended timeout for document processing
+// Document indexing with embeddings can take 2-5 minutes for large PDFs
+export const ragServiceClient = new HttpClient(env.RAG_SERVICE_URL, 300000); // 5 minutes
 
 // RAG Service API methods
 export const ragService = {
