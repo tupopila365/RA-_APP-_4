@@ -284,9 +284,7 @@ const TendersList = () => {
                     {tender.pdfUrl ? (
                       <IconButton
                         size="small"
-                        href={tender.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        onClick={() => window.open(tender.pdfUrl, '_blank', 'noopener,noreferrer')}
                         title="View PDF"
                       >
                         <PdfIcon fontSize="small" />

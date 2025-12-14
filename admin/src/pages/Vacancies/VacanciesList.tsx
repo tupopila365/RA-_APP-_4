@@ -272,9 +272,7 @@ const VacanciesList = () => {
                     {vacancy.pdfUrl ? (
                       <IconButton
                         size="small"
-                        href={vacancy.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        onClick={() => window.open(vacancy.pdfUrl, '_blank', 'noopener,noreferrer')}
                         title="View PDF"
                       >
                         <PdfIcon fontSize="small" />

@@ -1,5 +1,4 @@
-import { File, Paths, Directory } from 'expo-file-system';
-import * as FileSystemLegacy from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Linking } from 'react-native';
 
@@ -59,7 +58,7 @@ const getFilePath = (filename) => {
   if (!filename || typeof filename !== 'string') {
     throw new Error('Invalid filename provided');
   }
-  return `${Paths.document}/${filename}`;
+  return `${FileSystem.documentDirectory}${filename}`;
 };
 
 /**
@@ -70,8 +69,9 @@ const getFilePath = (filename) => {
  */
 const fileExists = async (filename) => {
   try {
-    const file = new File(Paths.document, filename);
-    return await file.exists; // File.exists is a property, not a method
+    const fileUri = getFilePath(filename);
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    return fileInfo.exists;
   } catch (error) {
     console.error('Error checking file existence:', error);
     return false;
@@ -86,11 +86,11 @@ const fileExists = async (filename) => {
  */
 const deleteFile = async (filename) => {
   try {
-    const file = new File(Paths.document, filename);
-    const exists = await file.exists; // File.exists is a property
+    const fileUri = getFilePath(filename);
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
     
-    if (exists) {
-      await file.delete(); // Use delete() method
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(fileUri);
       console.log('File deleted successfully:', filename);
       return true;
     }
@@ -115,14 +115,10 @@ const deleteFileByUri = async (fileUri) => {
       return false;
     }
 
-    // Create a File object from the URI
-    const file = File.fromUri(fileUri);
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
     
-    // Check if the file exists
-    const exists = await file.exists;
-    
-    if (exists) {
-      await file.delete();
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(fileUri);
       console.log('File deleted successfully:', fileUri);
       return true;
     }
@@ -135,7 +131,7 @@ const deleteFileByUri = async (fileUri) => {
 };
 
 /**
- * Download a file using Expo SDK 54 FileSystem API with progress tracking
+ * Download a file using Expo FileSystem.downloadAsync with progress tracking
  * 
  * @param {string} url - The URL to download from
  * @param {string} filename - The filename to save as
@@ -164,38 +160,43 @@ const downloadFile = async (url, filename, onProgress) => {
     console.log('Starting download from:', url);
     console.log('Saving to filename:', filename);
 
-    // Get the documents directory
-    const documentsDir = await Directory.documents();
-    
-    // Create the file instance using the new File API from Expo SDK 54
-    const file = new File(filename, { directory: documentsDir });
+    // Get the full file path
+    const fileUri = getFilePath(filename);
+    console.log('File will be saved to:', fileUri);
 
-    // Download the file using the download method
-    await file.download(url, (progressEvent) => {
-      if (onProgress && typeof onProgress === 'function') {
-        const { totalBytesWritten, totalBytesExpectedToWrite } = progressEvent;
-        const progress = totalBytesExpectedToWrite > 0
-          ? Math.round((totalBytesWritten / totalBytesExpectedToWrite) * 100)
-          : 0;
-        
-        onProgress({
-          totalBytesWritten,
-          totalBytesExpectedToWrite,
-          progress,
-        });
+    // Create a download resumable for progress tracking
+    const downloadResumable = FileSystem.createDownloadResumable(
+      url,
+      fileUri,
+      {},
+      (downloadProgress) => {
+        if (onProgress && typeof onProgress === 'function') {
+          const { totalBytesWritten, totalBytesExpectedToWrite } = downloadProgress;
+          const progress = totalBytesExpectedToWrite > 0
+            ? Math.round((totalBytesWritten / totalBytesExpectedToWrite) * 100)
+            : 0;
+          
+          onProgress({
+            totalBytesWritten,
+            totalBytesExpectedToWrite,
+            progress,
+          });
+        }
       }
-    });
+    );
 
-    // Ensure file and uri exist before returning
-    if (!file || !file.uri) {
-      throw new Error('File creation failed - no URI available');
+    // Download the file
+    const result = await downloadResumable.downloadAsync();
+
+    if (!result || !result.uri) {
+      throw new Error('Download completed but no file URI was returned');
     }
 
-    console.log('File downloaded successfully at:', file.uri);
+    console.log('File downloaded successfully at:', result.uri);
 
     return {
       success: true,
-      uri: file.uri,
+      uri: result.uri,
     };
   } catch (error) {
     console.error('Download error:', error.message || error);

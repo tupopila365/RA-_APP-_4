@@ -17,12 +17,12 @@ const ENV = {
   development: {
     // Using your computer's WiFi IP address
     API_BASE_URL: 'http://192.168.11.52:5000/api',
-    API_TIMEOUT: 10000,
+    API_TIMEOUT: 60000, // 60 seconds for chatbot queries
     DEBUG_MODE: true,
   },
   production: {
     API_BASE_URL: 'https://api.roadsauthority.na/api',
-    API_TIMEOUT: 10000,
+    API_TIMEOUT: 60000, // 60 seconds for chatbot queries
     DEBUG_MODE: false,
   },
 };

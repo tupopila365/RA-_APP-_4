@@ -47,6 +47,10 @@ app.include_router(index.router, prefix="/api")
 app.include_router(query.router, prefix="/api")
 app.include_router(models.router, prefix="/api")
 
+# Import and include streaming router
+from app.routers import query_stream
+app.include_router(query_stream.router, prefix="/api")
+
 logger.info("FastAPI application initialized")
 
 
@@ -161,8 +165,30 @@ async def startup_event():
     except Exception as e:
         logger.error(f"ChromaDB check failed: {str(e)}")
     
+    # Warm up models to avoid first-request delays
+    try:
+        logger.info("\nWarming up models...")
+        embedding_service = EmbeddingService()
+        llm_service = LLMService()
+        
+        # Generate a test embedding to load the embedding model
+        test_embedding = embedding_service.generate_embedding("test warmup query")
+        logger.info(f"✓ Embedding model warmed up (dimension: {len(test_embedding)})")
+        
+        # Generate a test response to load the LLM model
+        test_response = llm_service.generate_answer(
+            question="What is Roads Authority?",
+            context_chunks=[{"document": "Roads Authority is a government organization.", "metadata": {}}],
+            temperature=0.7,
+            max_tokens=50
+        )
+        logger.info(f"✓ LLM model warmed up (response length: {len(test_response)})")
+        
+    except Exception as e:
+        logger.warning(f"Model warmup failed (non-critical): {str(e)}")
+    
     logger.info("\n" + "=" * 60)
-    logger.info("RAG Service startup complete")
+    logger.info("RAG Service startup complete and ready to serve requests")
     logger.info("=" * 60)
 
 

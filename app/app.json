@@ -35,13 +35,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#FFD700"
-        }
-      ],
       "expo-web-browser",
       "expo-font",
       "expo-secure-store"

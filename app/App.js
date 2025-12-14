@@ -6,7 +6,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
+// Import notifications conditionally to avoid Expo Go errors
+let Notifications;
+try {
+  Notifications = require('expo-notifications');
+} catch (error) {
+  console.log('Notifications not available in Expo Go');
+  Notifications = null;
+}
 
 import SplashScreen from './screens/SplashScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -28,14 +35,20 @@ import { DependencyProvider } from './src/presentation/di/DependencyContext';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Configure notifications
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Configure notifications (only if available)
+if (Notifications && Notifications.setNotificationHandler) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch (error) {
+    console.log('Could not configure notifications:', error.message);
+  }
+}
 
 function getTabBarIcon(route, focused, color, size) {
   let iconName;

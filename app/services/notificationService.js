@@ -3,19 +3,33 @@
  * Handles push notifications using Expo Notifications
  */
 
-import * as Notifications from 'expo-notifications';
+// Import notifications conditionally to avoid Expo Go errors
+let Notifications;
+try {
+  Notifications = require('expo-notifications');
+} catch (error) {
+  console.log('Notifications not available - using mock');
+  Notifications = null;
+}
+
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { api } from './api';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Configure notification behavior (only if available)
+if (Notifications && Notifications.setNotificationHandler) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (error) {
+    console.log('Could not configure notification handler:', error.message);
+  }
+}
 
 class NotificationService {
   constructor() {
@@ -29,6 +43,12 @@ class NotificationService {
    */
   async registerForPushNotifications() {
     try {
+      // Check if notifications are available
+      if (!Notifications) {
+        console.log('Notifications not available in Expo Go. Use a development build.');
+        return null;
+      }
+
       // Check if running on physical device
       if (!Device.isDevice) {
         console.log('Push notifications only work on physical devices');
@@ -100,6 +120,11 @@ class NotificationService {
    * Set up notification listeners
    */
   setupNotificationListeners(onNotificationReceived, onNotificationResponse) {
+    if (!Notifications) {
+      console.log('Notifications not available - skipping listener setup');
+      return;
+    }
+
     // Listener for notifications received while app is foregrounded
     this.notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
@@ -125,6 +150,8 @@ class NotificationService {
    * Remove notification listeners
    */
   removeNotificationListeners() {
+    if (!Notifications) return;
+    
     if (this.notificationListener) {
       Notifications.removeNotificationSubscription(this.notificationListener);
     }
@@ -137,6 +164,11 @@ class NotificationService {
    * Schedule a local notification
    */
   async scheduleLocalNotification(title, body, data = {}, trigger = null) {
+    if (!Notifications) {
+      console.log('Notifications not available');
+      return null;
+    }
+
     try {
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -159,6 +191,8 @@ class NotificationService {
    * Cancel a scheduled notification
    */
   async cancelNotification(notificationId) {
+    if (!Notifications) return;
+
     try {
       await Notifications.cancelScheduledNotificationAsync(notificationId);
     } catch (error) {
@@ -170,6 +204,8 @@ class NotificationService {
    * Cancel all scheduled notifications
    */
   async cancelAllNotifications() {
+    if (!Notifications) return;
+
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
     } catch (error) {
@@ -181,6 +217,8 @@ class NotificationService {
    * Get notification permissions status
    */
   async getPermissionsStatus() {
+    if (!Notifications) return 'unavailable';
+
     try {
       const { status } = await Notifications.getPermissionsAsync();
       return status;
@@ -194,6 +232,8 @@ class NotificationService {
    * Get badge count
    */
   async getBadgeCount() {
+    if (!Notifications) return 0;
+
     try {
       return await Notifications.getBadgeCountAsync();
     } catch (error) {
@@ -206,6 +246,8 @@ class NotificationService {
    * Set badge count
    */
   async setBadgeCount(count) {
+    if (!Notifications) return;
+
     try {
       await Notifications.setBadgeCountAsync(count);
     } catch (error) {
@@ -217,6 +259,8 @@ class NotificationService {
    * Clear badge count
    */
   async clearBadgeCount() {
+    if (!Notifications) return;
+
     try {
       await Notifications.setBadgeCountAsync(0);
     } catch (error) {
@@ -228,6 +272,8 @@ class NotificationService {
    * Get all scheduled notifications
    */
   async getAllScheduledNotifications() {
+    if (!Notifications) return [];
+
     try {
       return await Notifications.getAllScheduledNotificationsAsync();
     } catch (error) {
@@ -240,6 +286,8 @@ class NotificationService {
    * Dismiss a notification
    */
   async dismissNotification(notificationId) {
+    if (!Notifications) return;
+
     try {
       await Notifications.dismissNotificationAsync(notificationId);
     } catch (error) {
@@ -251,6 +299,8 @@ class NotificationService {
    * Dismiss all notifications
    */
   async dismissAllNotifications() {
+    if (!Notifications) return;
+
     try {
       await Notifications.dismissAllNotificationsAsync();
     } catch (error) {
