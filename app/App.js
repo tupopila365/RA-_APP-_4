@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StatusBar as RNStatusBar, useColorScheme } from 'react-native';
+import { StatusBar as RNStatusBar, useColorScheme, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -34,21 +34,6 @@ import { DependencyProvider } from './src/presentation/di/DependencyContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
-
-// Configure notifications (only if available)
-if (Notifications && Notifications.setNotificationHandler) {
-  try {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
-    });
-  } catch (error) {
-    console.log('Could not configure notifications:', error.message);
-  }
-}
 
 function getTabBarIcon(route, focused, color, size) {
   let iconName;
@@ -210,9 +195,33 @@ export default function App() {
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
 
   useEffect(() => {
-    // Set status bar background color for Android
-    RNStatusBar.setBackgroundColor(colors.primary);
-    RNStatusBar.setBarStyle('light-content');
+    // Guard native StatusBar calls to avoid TurboModule access during startup in Expo Go
+    try {
+      if (Platform.OS === 'android') {
+        RNStatusBar.setBackgroundColor(colors.primary);
+      }
+      if (Platform.OS === 'android' || Platform.OS === 'ios') {
+        RNStatusBar.setBarStyle('light-content');
+      }
+    } catch (e) {
+      // In Expo Go, avoid crashing if StatusBar native module isn't ready yet
+      console.log('StatusBar configuration skipped:', e?.message);
+    }
+
+    // Configure notifications after mount (Expo Go safe)
+    if ((Platform.OS === 'android' || Platform.OS === 'ios') && Notifications?.setNotificationHandler) {
+      try {
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+          }),
+        });
+      } catch (e) {
+        console.log('Notification handler setup skipped:', e?.message);
+      }
+    }
     
     // Simulate splash screen delay
     setTimeout(() => {
@@ -231,6 +240,7 @@ export default function App() {
           <AppProvider>
             <CacheProvider>
               <NavigationContainer>
+                {/* Expo-go safe StatusBar component */}
                 <StatusBar style="light" backgroundColor={colors.primary} />
                 <RootStack />
               </NavigationContainer>
@@ -241,4 +251,3 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
