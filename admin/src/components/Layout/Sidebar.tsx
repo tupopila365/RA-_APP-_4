@@ -19,6 +19,7 @@ import {
   Gavel as TenderIcon,
   ViewCarousel as BannerIcon,
   LocationOn as LocationIcon,
+  HelpOutline as FAQIcon,
   People as UsersIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -93,6 +94,12 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         path: '/locations',
         icon: <LocationIcon />,
         permission: 'locations:manage',
+      },
+      {
+        label: 'FAQs',
+        path: '/faqs',
+        icon: <FAQIcon />,
+        permission: 'faqs:manage',
       },
       {
         label: 'Users',

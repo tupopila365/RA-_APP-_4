@@ -18,6 +18,7 @@ import {
   Gavel,
   ViewCarousel,
   LocationOn,
+  HelpOutline,
   People,
 } from '@mui/icons-material';
 
@@ -45,6 +46,8 @@ const DashboardPage: React.FC = () => {
         return <ViewCarousel {...iconProps} />;
       case 'locations':
         return <LocationOn {...iconProps} />;
+      case 'faqs':
+        return <HelpOutline {...iconProps} />;
       case 'users':
         return <People {...iconProps} />;
       default:
@@ -95,6 +98,13 @@ const DashboardPage: React.FC = () => {
       description: 'Manage office locations',
       icon: 'locations',
       permission: 'locations:manage' as const,
+    },
+    {
+      id: 'faqs',
+      name: 'FAQs',
+      description: 'Manage frequently asked questions',
+      icon: 'faqs',
+      permission: 'faqs:manage' as const,
     },
     {
       id: 'users',

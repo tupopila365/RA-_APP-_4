@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 // Data Sources
 import { NewsApiDataSource } from '../../data/dataSources/NewsApiDataSource';
 import { OfficeApiDataSource } from '../../data/dataSources/OfficeApiDataSource';
-import { FAQStaticDataSource } from '../../data/dataSources/FAQStaticDataSource';
+import { FAQApiDataSource } from '../../data/dataSources/FAQApiDataSource';
 import { CacheDataSource } from '../../data/dataSources/CacheDataSource';
 
 // Mappers
@@ -48,7 +48,7 @@ export function DependencyProvider({ children }) {
     // Initialize data sources
     const newsApiDataSource = new NewsApiDataSource();
     const officeApiDataSource = new OfficeApiDataSource();
-    const faqStaticDataSource = new FAQStaticDataSource();
+    const faqApiDataSource = new FAQApiDataSource();
     const cacheDataSource = new CacheDataSource();
     
     // Initialize mappers
@@ -70,7 +70,7 @@ export function DependencyProvider({ children }) {
     );
     
     const faqRepository = new FAQRepository(
-      faqStaticDataSource,
+      faqApiDataSource,
       faqMapper
     );
     
@@ -86,7 +86,7 @@ export function DependencyProvider({ children }) {
       // Data Sources
       newsApiDataSource,
       officeApiDataSource,
-      faqStaticDataSource,
+      faqApiDataSource,
       cacheDataSource,
       
       // Repositories

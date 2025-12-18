@@ -22,20 +22,43 @@ jest.mock('expo-asset', () => ({
 }));
 
 // Mock expo-file-system
-jest.mock('expo-file-system', () => ({
-  downloadAsync: jest.fn(),
-  getInfoAsync: jest.fn(),
-  readAsStringAsync: jest.fn(),
-  writeAsStringAsync: jest.fn(),
-  deleteAsync: jest.fn(),
-  moveAsync: jest.fn(),
-  copyAsync: jest.fn(),
-  createDownloadResumable: jest.fn(() => ({
+jest.mock('expo-file-system', () => {
+  const mockFile = {
+    existsAsync: jest.fn(() => Promise.resolve(false)),
+    deleteAsync: jest.fn(() => Promise.resolve()),
     downloadAsync: jest.fn(() => Promise.resolve({ uri: 'file://mock-download.pdf' })),
-  })),
-  documentDirectory: 'file://mock-document-directory/',
-  cacheDirectory: 'file://mock-cache-directory/',
-}));
+  };
+
+  return {
+    __esModule: true,
+    default: {},
+    downloadAsync: jest.fn(),
+    getInfoAsync: jest.fn(), // Keep for backward compatibility
+    readAsStringAsync: jest.fn(),
+    writeAsStringAsync: jest.fn(),
+    deleteAsync: jest.fn(),
+    moveAsync: jest.fn(),
+    copyAsync: jest.fn(),
+    createDownloadResumable: jest.fn(() => ({
+      downloadAsync: jest.fn(() => Promise.resolve({ uri: 'file://mock-download.pdf' })),
+    })),
+    documentDirectory: 'file://mock-document-directory/',
+    cacheDirectory: 'file://mock-cache-directory/',
+    // New File API
+    File: {
+      fromUri: jest.fn((uri) => ({
+        ...mockFile,
+        uri,
+        existsAsync: jest.fn(() => Promise.resolve(false)),
+        deleteAsync: jest.fn(() => Promise.resolve()),
+      })),
+    },
+    Paths: {
+      document: 'file://mock-document-directory/',
+      cache: 'file://mock-cache-directory/',
+    },
+  };
+});
 
 // Mock expo-sharing
 jest.mock('expo-sharing', () => ({

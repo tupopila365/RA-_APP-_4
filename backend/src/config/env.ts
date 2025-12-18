@@ -37,7 +37,9 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
 export const env: EnvConfig = {
   NODE_ENV: getEnvVar('NODE_ENV', 'development'),
   PORT: parseInt(getEnvVar('PORT', '5000'), 10),
-  MONGODB_URI: getEnvVar('MONGODB_URI'),
+  MONGODB_URI: process.env.NODE_ENV === 'production' 
+    ? getEnvVar('MONGODB_URI') // Use Atlas URI for production
+    : 'mongodb://localhost:27017/ra_db', // Always use local MongoDB for development
   REDIS_HOST: process.env.REDIS_HOST || '',
   REDIS_PORT: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 0,
   REDIS_PASSWORD: process.env.REDIS_PASSWORD,

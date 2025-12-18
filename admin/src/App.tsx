@@ -11,6 +11,7 @@ import { VacanciesList, VacancyForm } from './pages/Vacancies';
 import { TendersList, TenderForm } from './pages/Tenders';
 import { BannersList, BannerForm } from './pages/Banners';
 import { LocationsList, LocationForm } from './pages/Locations';
+import { FAQList, FAQForm } from './pages/FAQs';
 import { UsersList, UserForm } from './pages/Users';
 import Layout from './components/Layout/Layout';
 
@@ -219,6 +220,36 @@ function App() {
                 <ProtectedRoute requiredPermission="locations:manage">
                   <Layout>
                     <LocationForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/faqs"
+              element={
+                <ProtectedRoute requiredPermission="faqs:manage">
+                  <Layout>
+                    <FAQList />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/faqs/create"
+              element={
+                <ProtectedRoute requiredPermission="faqs:manage">
+                  <Layout>
+                    <FAQForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/faqs/edit/:id"
+              element={
+                <ProtectedRoute requiredPermission="faqs:manage">
+                  <Layout>
+                    <FAQForm />
                   </Layout>
                 </ProtectedRoute>
               }

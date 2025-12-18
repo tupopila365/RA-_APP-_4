@@ -81,8 +81,7 @@ const tenderSchema = new Schema<ITender>(
   }
 );
 
-// Indexes for efficient queries
-tenderSchema.index({ referenceNumber: 1 });
+// Indexes for efficient queries (removed duplicate referenceNumber index - unique: true already creates index)
 tenderSchema.index({ title: 'text', description: 'text' });
 tenderSchema.index({ status: 1 });
 tenderSchema.index({ category: 1 });

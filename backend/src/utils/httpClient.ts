@@ -106,11 +106,43 @@ export const ragService = {
       return response.data;
     } catch (error: any) {
       logger.error('RAG indexing failed:', error);
+      
+      // Extract error details from FastAPI error response
+      // FastAPI returns errors in { detail: {...} } format
+      let errorDetails = error.message;
+      let errorMessage = 'Failed to index document in RAG service';
+      
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        
+        // FastAPI error responses have a 'detail' field
+        if (responseData.detail) {
+          errorDetails = responseData.detail;
+          
+          // Extract more specific error message if available
+          if (typeof responseData.detail === 'object') {
+            errorMessage = responseData.detail.message || errorMessage;
+            
+            // Include diagnostic information if available
+            if (responseData.detail.diagnostics) {
+              errorDetails = {
+                ...responseData.detail,
+                diagnostics: responseData.detail.diagnostics,
+              };
+            }
+          } else {
+            errorMessage = responseData.detail;
+          }
+        } else {
+          errorDetails = responseData;
+        }
+      }
+      
       throw {
-        statusCode: 503,
+        statusCode: error.response?.status || 503,
         code: ERROR_CODES.RAG_INDEXING_FAILED,
-        message: 'Failed to index document in RAG service',
-        details: error.response?.data || error.message,
+        message: errorMessage,
+        details: errorDetails,
       };
     }
   },

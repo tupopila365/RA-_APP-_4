@@ -24,7 +24,7 @@ export class FAQMapper extends BaseMapper {
     }
 
     return new FAQEntity({
-      id: parseInt(dto.id),
+      id: parseString(dto.id || dto._id), // Use string ID for MongoDB ObjectIds
       question: parseString(dto.question),
       answer: parseString(dto.answer),
       category: parseString(dto.category || '', null),

@@ -4,9 +4,14 @@ import { logger } from '../utils/logger';
 
 export const connectDB = async (): Promise<void> => {
   try {
-    const conn = await mongoose.connect(env.MONGODB_URI);
+    const isProduction = env.NODE_ENV === 'production';
+    const mongoUri = env.MONGODB_URI;
     
-    logger.info(`MongoDB Connected: ${conn.connection.host}`);
+    logger.info(`Connecting to MongoDB (${isProduction ? 'Atlas' : 'Local'}): ${mongoUri}`);
+    
+    const conn = await mongoose.connect(mongoUri);
+    
+    logger.info(`MongoDB Connected: ${conn.connection.host} (${conn.connection.name})`);
     
     mongoose.connection.on('error', (err) => {
       logger.error('MongoDB connection error:', err);

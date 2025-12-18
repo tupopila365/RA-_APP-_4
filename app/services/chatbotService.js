@@ -12,7 +12,12 @@ export const chatbotService = {
         ...(sessionId && { sessionId }),
       };
 
-      const response = await ApiClient.post(API_ENDPOINTS.CHATBOT_QUERY, requestBody);
+      // Use longer timeout for chatbot queries (60 seconds)
+      const response = await ApiClient.post(
+        API_ENDPOINTS.CHATBOT_QUERY, 
+        requestBody,
+        { timeout: ENV.API_TIMEOUT_LONG || 60000 }
+      );
       // Extract data from new API response format
       return response.data || response;
     } catch (error) {
@@ -30,7 +35,9 @@ export const chatbotService = {
    */
   async queryStream(question, { onChunk, onMetadata, onComplete, onError }) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for streaming
+    // Use streaming timeout from config (2 minutes default)
+    const streamTimeout = ENV.API_TIMEOUT_STREAM || 120000;
+    const timeoutId = setTimeout(() => controller.abort(), streamTimeout);
 
     try {
       const response = await fetch(`${ENV.API_BASE_URL}/chatbot/query/stream`, {

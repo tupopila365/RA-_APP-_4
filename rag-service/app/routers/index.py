@@ -176,27 +176,61 @@ async def index_document(request: IndexRequest):
             
             embedded_chunks = embedding_service.embed_chunks(chunks, progress_callback=embedding_progress)
         except EmbeddingError as e:
-            logger.error(f"Embedding generation failed: {str(e)}")
-            progress_tracker.fail_indexing(request.document_id, f"Embedding failed: {str(e)}")
+            error_message = str(e)
+            logger.error(f"Embedding generation failed: {error_message}")
+            progress_tracker.fail_indexing(request.document_id, f"Embedding failed: {error_message}")
+            
+            # Provide diagnostic information in the error response
+            diagnostic_info = {
+                "ollama_base_url": settings.ollama_base_url,
+                "embedding_model": settings.ollama_embedding_model,
+                "troubleshooting": [
+                    "1. Verify Ollama is running: ollama serve",
+                    f"2. Check if model is installed: ollama pull {settings.ollama_embedding_model}",
+                    "3. Test Ollama connection: curl http://localhost:11434/api/tags",
+                    "4. Check RAG service logs for detailed error messages"
+                ]
+            }
+            
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail={
                     "status": "error",
                     "error": "EMBEDDING_ERROR",
-                    "message": f"Failed to generate embeddings: {str(e)}",
+                    "message": error_message,
+                    "document_id": request.document_id,
+                    "diagnostics": diagnostic_info
+                }
+            )
+        except Exception as e:
+            # Catch any unexpected errors
+            error_message = f"Unexpected error during embedding generation: {str(e)}"
+            logger.error(error_message, exc_info=True)
+            progress_tracker.fail_indexing(request.document_id, error_message)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "status": "error",
+                    "error": "EMBEDDING_ERROR",
+                    "message": error_message,
                     "document_id": request.document_id
                 }
             )
         
+        # Safety check: This should rarely be hit now since embed_chunks raises exception on total failure
         if not embedded_chunks:
-            logger.error("No embeddings generated for chunks")
+            logger.error("No embeddings generated for chunks (safety check triggered)")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail={
                     "status": "error",
                     "error": "EMBEDDING_ERROR",
-                    "message": "Failed to generate embeddings for any chunks",
-                    "document_id": request.document_id
+                    "message": "Failed to generate embeddings for any chunks. This may indicate Ollama connection issues or model unavailability.",
+                    "document_id": request.document_id,
+                    "diagnostics": {
+                        "ollama_base_url": settings.ollama_base_url,
+                        "embedding_model": settings.ollama_embedding_model
+                    }
                 }
             )
         

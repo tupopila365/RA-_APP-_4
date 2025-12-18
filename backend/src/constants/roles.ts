@@ -13,6 +13,7 @@ export const PERMISSIONS = {
   BANNERS_MANAGE: 'banners:manage',
   LOCATIONS_MANAGE: 'locations:manage',
   USERS_MANAGE: 'users:manage',
+  FAQS_MANAGE: 'faqs:manage',
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -27,6 +28,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.BANNERS_MANAGE,
     PERMISSIONS.LOCATIONS_MANAGE,
     PERMISSIONS.USERS_MANAGE,
+    PERMISSIONS.FAQS_MANAGE,
   ],
   [ROLES.ADMIN]: [], // Admin permissions are assigned individually
 };

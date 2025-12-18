@@ -10,7 +10,8 @@
     "seed": "ts-node src/scripts/seed.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "seed:admin": "ts-node src/scripts/seedAdmin.ts"
   },
   "keywords": [
     "express",

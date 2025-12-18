@@ -175,14 +175,27 @@ async def startup_event():
         test_embedding = embedding_service.generate_embedding("test warmup query")
         logger.info(f"✓ Embedding model warmed up (dimension: {len(test_embedding)})")
         
-        # Generate a test response to load the LLM model
-        test_response = llm_service.generate_answer(
-            question="What is Roads Authority?",
-            context_chunks=[{"document": "Roads Authority is a government organization.", "metadata": {}}],
-            temperature=0.7,
-            max_tokens=50
-        )
-        logger.info(f"✓ LLM model warmed up (response length: {len(test_response)})")
+        # Validate LLM model before attempting warmup
+        if not llm_service.check_model_available():
+            logger.warning(
+                f"⚠ LLM model '{settings.ollama_llm_model}' is not available. "
+                f"Answer generation will fail. Run: ollama pull {settings.ollama_llm_model}"
+            )
+        else:
+            # Generate a test response to load the LLM model
+            try:
+                test_response = llm_service.generate_answer(
+                    question="What is Roads Authority?",
+                    context_chunks=[{"document": "Roads Authority is a government organization.", "metadata": {}}],
+                    temperature=0.7,
+                    max_tokens=50
+                )
+                logger.info(f"✓ LLM model warmed up (response length: {len(test_response)})")
+            except Exception as warmup_error:
+                logger.warning(
+                    f"LLM warmup failed: {str(warmup_error)}. "
+                    f"This may indicate the model is corrupted. Try: ollama pull {settings.ollama_llm_model}"
+                )
         
     except Exception as e:
         logger.warning(f"Model warmup failed (non-critical): {str(e)}")

@@ -6,7 +6,7 @@
 export class FAQEntity {
   /**
    * @param {Object} props - FAQ properties
-   * @param {number} props.id - Unique identifier
+   * @param {string|number} props.id - Unique identifier (MongoDB ObjectId as string)
    * @param {string} props.question - Question text
    * @param {string} props.answer - Answer text
    * @param {string} [props.category] - FAQ category

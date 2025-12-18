@@ -12,6 +12,7 @@ import bannersRoutes from './modules/banners/banners.routes';
 import locationsRoutes from './modules/locations/locations.routes';
 import chatbotRoutes from './modules/chatbot/chatbot.routes';
 import uploadRoutes from './modules/upload/upload.routes';
+import faqsRoutes from './modules/faqs/faqs.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -44,6 +45,7 @@ export const createApp = (): Application => {
   app.use('/api/locations', locationsRoutes);
   app.use('/api/chatbot', chatbotRoutes);
   app.use('/api/upload', uploadRoutes);
+  app.use('/api/faqs', faqsRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);

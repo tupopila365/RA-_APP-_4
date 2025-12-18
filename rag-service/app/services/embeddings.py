@@ -121,21 +121,58 @@ class EmbeddingService:
             List of chunks with 'embedding' key added
             
         Raises:
-            EmbeddingError: If embedding generation fails
+            EmbeddingError: If embedding generation fails or all chunks fail
         """
         if not chunks:
             return []
         
         logger.info(f"Embedding {len(chunks)} chunks")
         
+        # Pre-flight checks: Verify Ollama connection and model availability
+        logger.info("Checking Ollama connection and model availability...")
+        if not self.check_connection():
+            error_msg = (
+                f"Cannot connect to Ollama at {self.base_url}. "
+                f"Please ensure Ollama is running (ollama serve) and accessible."
+            )
+            logger.error(error_msg)
+            raise EmbeddingError(error_msg)
+        
+        if not self.check_model_available():
+            error_msg = (
+                f"Embedding model '{self.model}' is not available. "
+                f"Please install it using: ollama pull {self.model}"
+            )
+            logger.error(error_msg)
+            raise EmbeddingError(error_msg)
+        
+        logger.info("✓ Ollama connection and model availability verified")
+        
         # Extract texts from chunks
         texts = [chunk.get('text', '') for chunk in chunks]
+        
+        # Validate that we have non-empty texts
+        empty_texts = sum(1 for text in texts if not text or not text.strip())
+        if empty_texts == len(texts):
+            error_msg = "All chunks have empty text. Cannot generate embeddings."
+            logger.error(error_msg)
+            raise EmbeddingError(error_msg)
+        elif empty_texts > 0:
+            logger.warning(f"Warning: {empty_texts} chunks have empty text and will be skipped")
         
         # Generate embeddings with progress tracking
         embeddings = []
         failed_count = 0
+        error_messages = []
         
         for i, text in enumerate(texts):
+            # Skip empty texts
+            if not text or not text.strip():
+                logger.warning(f"Skipping chunk {i} - empty text")
+                embeddings.append(None)
+                failed_count += 1
+                continue
+                
             try:
                 embedding = self.generate_embedding(text)
                 embeddings.append(embedding)
@@ -149,7 +186,15 @@ class EmbeddingService:
                 logger.info(f"📊 Embedding progress: {i + 1}/{len(texts)} ({percentage:.1f}%) - Chunk {i + 1} embedded")
                     
             except EmbeddingError as e:
-                logger.warning(f"Failed to generate embedding for text {i}: {str(e)}")
+                error_msg = f"Chunk {i}: {str(e)}"
+                logger.warning(f"Failed to generate embedding for chunk {i}: {str(e)}")
+                error_messages.append(error_msg)
+                failed_count += 1
+                embeddings.append(None)
+            except Exception as e:
+                error_msg = f"Chunk {i}: Unexpected error - {str(e)}"
+                logger.error(error_msg)
+                error_messages.append(error_msg)
                 failed_count += 1
                 embeddings.append(None)
         
@@ -164,6 +209,28 @@ class EmbeddingService:
                 logger.warning(f"Skipping chunk {chunk.get('chunk_index')} due to embedding failure")
         
         logger.info(f"Successfully embedded {len(embedded_chunks)}/{len(chunks)} chunks")
+        
+        # If all chunks failed, raise an exception with detailed error information
+        if len(embedded_chunks) == 0:
+            error_details = "\n".join(error_messages[:5])  # Show first 5 errors
+            if len(error_messages) > 5:
+                error_details += f"\n... and {len(error_messages) - 5} more errors"
+            
+            error_msg = (
+                f"Failed to generate embeddings for all {len(chunks)} chunks. "
+                f"Ollama connection: {self.base_url}, Model: {self.model}. "
+                f"Errors: {error_details}"
+            )
+            logger.error(error_msg)
+            raise EmbeddingError(error_msg)
+        
+        # If too many chunks failed, log a warning but continue
+        failure_rate = failed_count / len(chunks)
+        if failure_rate > 0.5:  # More than 50% failed
+            logger.warning(
+                f"High failure rate: {failed_count}/{len(chunks)} chunks failed to generate embeddings. "
+                f"Only {len(embedded_chunks)} chunks will be indexed."
+            )
         
         return embedded_chunks
     

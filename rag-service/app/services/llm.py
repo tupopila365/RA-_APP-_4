@@ -103,6 +103,16 @@ Answer:"""
         if not context_chunks:
             logger.warning("No context chunks provided, generating answer without context")
         
+        # Validate model availability before attempting generation
+        if not self.check_model_available():
+            error_msg = (
+                f"Model '{self.model}' is not available or may be corrupted. "
+                f"Please verify the model is installed correctly by running: "
+                f"ollama pull {self.model}"
+            )
+            logger.error(error_msg)
+            raise LLMError(error_msg)
+        
         try:
             logger.info(f"Generating answer for question: {question[:100]}...")
             
@@ -132,8 +142,36 @@ Answer:"""
             return answer
             
         except Exception as e:
-            logger.error(f"Failed to generate answer: {str(e)}")
-            raise LLMError(f"Answer generation failed: {str(e)}")
+            error_str = str(e)
+            logger.error(f"Failed to generate answer: {error_str}")
+            
+            # Provide specific guidance for common errors
+            if "llama runner process has terminated" in error_str or "exit status" in error_str:
+                error_msg = (
+                    f"Ollama model process crashed. This usually means:\n"
+                    f"1. Model '{self.model}' is corrupted or incomplete\n"
+                    f"2. Insufficient memory/disk space\n"
+                    f"3. Model file is missing\n\n"
+                    f"Try these solutions:\n"
+                    f"- Reinstall the model: ollama pull {self.model}\n"
+                    f"- Check Ollama logs for details\n"
+                    f"- Verify you have enough disk space and RAM\n"
+                    f"- Try a different model if the issue persists"
+                )
+            elif "connection" in error_str.lower() or "refused" in error_str.lower() or "connect" in error_str.lower():
+                error_msg = (
+                    f"Cannot connect to Ollama at {self.base_url}. "
+                    f"Please ensure Ollama is running."
+                )
+            elif "500" in error_str or "Internal Server Error" in error_str:
+                error_msg = (
+                    f"Ollama server error. The model '{self.model}' may be corrupted or unavailable. "
+                    f"Try: ollama pull {self.model}"
+                )
+            else:
+                error_msg = f"Answer generation failed: {error_str}"
+            
+            raise LLMError(error_msg)
     
     def generate_answer_streaming(
         self,
@@ -203,7 +241,7 @@ Answer:"""
     
     def check_model_available(self) -> bool:
         """
-        Check if the configured LLM model is available.
+        Check if the configured LLM model is available and valid.
         
         Returns:
             True if model is available, False otherwise
@@ -212,14 +250,26 @@ Answer:"""
             models = self.client.list()
             model_names = [model.get('name', '') for model in models.get('models', [])]
             
+            # Filter out empty names (corrupted model entries)
+            valid_model_names = [name for name in model_names if name and name.strip()]
+            
             # Check if our model is in the list
-            is_available = any(self.model in name for name in model_names)
+            is_available = any(
+                self.model == name or 
+                name.startswith(self.model.split(':')[0]) or
+                self.model in name
+                for name in valid_model_names
+            )
             
             if is_available:
-                logger.info(f"Model {self.model} is available")
+                logger.debug(f"Model {self.model} is available")
             else:
-                logger.warning(f"Model {self.model} not found. Available models: {model_names}")
-                logger.info(f"To install the model, run: ollama pull {self.model}")
+                logger.warning(f"Model {self.model} not found. Available models: {valid_model_names}")
+                if not valid_model_names:
+                    logger.error("No valid models found in Ollama. Model registry may be corrupted.")
+                    logger.error(f"Try: ollama pull {self.model}")
+                else:
+                    logger.info(f"To install the model, run: ollama pull {self.model}")
             
             return is_available
             

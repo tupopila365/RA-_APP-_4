@@ -15,14 +15,24 @@
 // Default configuration
 const ENV = {
   development: {
-    // Using your computer's WiFi IP address
-    API_BASE_URL: 'http://192.168.11.52:5000/api',
-    API_TIMEOUT: 60000, // 60 seconds for chatbot queries
+    // USB Connection: Use localhost (requires: adb reverse tcp:5000 tcp:5000)
+    // WiFi Connection: Use your computer's network IP address
+    // To switch: Run 'adb reverse tcp:5000 tcp:5000' for USB, then use localhost
+    // For WiFi: Use your IP from 'ipconfig' (e.g., 192.168.12.166)
+    API_BASE_URL: 'http://localhost:5000/api', // USB connection (bypasses firewall)
+    // API_BASE_URL: 'http://192.168.12.166:5000/api', // WiFi connection
+    // Different timeouts for different types of requests
+    API_TIMEOUT: 15000, // 15 seconds for regular API calls (news, banners, etc.)
+    API_TIMEOUT_LONG: 60000, // 60 seconds for chatbot queries
+    API_TIMEOUT_STREAM: 120000, // 2 minutes for streaming responses
     DEBUG_MODE: true,
   },
   production: {
     API_BASE_URL: 'https://api.roadsauthority.na/api',
-    API_TIMEOUT: 60000, // 60 seconds for chatbot queries
+    // Different timeouts for different types of requests
+    API_TIMEOUT: 15000, // 15 seconds for regular API calls
+    API_TIMEOUT_LONG: 60000, // 60 seconds for chatbot queries
+    API_TIMEOUT_STREAM: 120000, // 2 minutes for streaming responses
     DEBUG_MODE: false,
   },
 };

@@ -70,7 +70,5 @@ userSchema.methods.comparePassword = async function (
   }
 };
 
-// Index for faster email lookups
-userSchema.index({ email: 1 });
-
+// Index for faster email lookups (removed duplicate - unique: true already creates index)
 export const User = mongoose.model<IUser>('User', userSchema);

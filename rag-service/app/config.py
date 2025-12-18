@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     
     # Ollama Configuration
     ollama_base_url: str = "http://localhost:11434"
-    ollama_embedding_model: str = "nomic-embed-text:latest:latest"
-    ollama_llm_model: str = "llama3.2:1b"
+    ollama_embedding_model: str = "nomic-embed-text:latest"
+    ollama_llm_model: str = "mistral:7b"
     ollama_models_path: Optional[str] = None  # Custom path for Ollama models
     ollama_auto_pull: bool = True  # Automatically pull missing models
     
