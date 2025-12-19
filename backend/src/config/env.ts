@@ -24,6 +24,8 @@ interface EnvConfig {
   GOOGLE_DRIVE_FOLDER_ID?: string;
   RAG_SERVICE_URL: string;
   CORS_ORIGIN: string;
+  GEOCODING_API_KEY?: string;
+  GEOCODING_SERVICE?: 'nominatim' | 'google';
 }
 
 const getEnvVar = (key: string, defaultValue?: string): string => {
@@ -60,4 +62,6 @@ export const env: EnvConfig = {
   GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID,
   RAG_SERVICE_URL: getEnvVar('RAG_SERVICE_URL', 'http://localhost:8000'),
   CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000'),
+  GEOCODING_API_KEY: process.env.GEOCODING_API_KEY,
+  GEOCODING_SERVICE: (process.env.GEOCODING_SERVICE as 'nominatim' | 'google') || 'nominatim',
 };

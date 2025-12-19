@@ -119,6 +119,20 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       onPress: handleERecruitment,
     },
     {
+      id: 2.5,
+      title: 'Report Road Damage',
+      icon: 'warning-outline',
+      color: '#FF6B6B',
+      onPress: () => navigation?.navigate('ReportPothole'),
+    },
+    {
+      id: 2.6,
+      title: 'My Reports',
+      icon: 'list-outline',
+      color: '#4ECDC4',
+      onPress: () => navigation?.navigate('MyReports'),
+    },
+    {
       id: 3,
       title: 'News',
       icon: 'newspaper-outline',

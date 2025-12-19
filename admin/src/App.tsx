@@ -13,6 +13,7 @@ import { BannersList, BannerForm } from './pages/Banners';
 import { LocationsList, LocationForm } from './pages/Locations';
 import { FAQList, FAQForm } from './pages/FAQs';
 import { UsersList, UserForm } from './pages/Users';
+import { ReportsList, ReportDetail } from './pages/PotholeReports';
 import Layout from './components/Layout/Layout';
 
 const theme = createTheme({
@@ -280,6 +281,26 @@ function App() {
                 <ProtectedRoute requiredPermission="users:manage">
                   <Layout>
                     <UserForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pothole-reports"
+              element={
+                <ProtectedRoute requiredPermission="pothole-reports:manage">
+                  <Layout>
+                    <ReportsList />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pothole-reports/:id"
+              element={
+                <ProtectedRoute requiredPermission="pothole-reports:manage">
+                  <Layout>
+                    <ReportDetail />
                   </Layout>
                 </ProtectedRoute>
               }

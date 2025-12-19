@@ -24,7 +24,8 @@ export function useFAQsViewModel({ getFAQsUseCase, searchFAQsUseCase }) {
       setLoading(true);
       setError(null);
 
-      const result = await getFAQsUseCase.execute();
+      // Request all FAQs (limit 100 to get all in one request)
+      const result = await getFAQsUseCase.execute({ limit: 100 });
 
       if (result.isSuccess()) {
         setFaqs(result.value);

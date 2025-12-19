@@ -36,7 +36,7 @@ export const validateURLAccess = async (url: string): Promise<boolean> => {
     logger.info('Validating URL accessibility', { url });
     
     const response = await axios.head(url, {
-      timeout: 5000, // 5 second timeout
+      timeout: 60000, // 60 second timeout for image uploads
       validateStatus: (status) => status >= 200 && status < 400, // Accept 2xx and 3xx
     });
     

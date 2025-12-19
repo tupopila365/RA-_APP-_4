@@ -26,6 +26,10 @@ import FAQsScreen from './screens/FAQsScreen';
 import FindOfficesScreen from './screens/FindOfficesScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import MoreMenuScreen from './screens/MoreMenuScreen';
+import ReportPotholeScreen from './screens/ReportPotholeScreen';
+import ReportConfirmationScreen from './screens/ReportConfirmationScreen';
+import MyReportsScreen from './screens/MyReportsScreen';
+import ReportDetailScreen from './screens/ReportDetailScreen';
 import { RATheme } from './theme/colors';
 import { AppProvider } from './context/AppContext';
 import { CacheProvider } from './context/CacheContext';
@@ -158,6 +162,26 @@ function MoreStack() {
       <Stack.Screen name="FAQs" component={FAQsScreen} />
       <Stack.Screen name="FindOffices" component={FindOfficesScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen 
+        name="ReportPothole" 
+        component={ReportPotholeScreen}
+        options={{ title: 'Report Road Damage' }}
+      />
+      <Stack.Screen 
+        name="ReportConfirmation" 
+        component={ReportConfirmationScreen}
+        options={{ title: 'Report Submitted' }}
+      />
+      <Stack.Screen 
+        name="MyReports" 
+        component={MyReportsScreen}
+        options={{ title: 'My Reports' }}
+      />
+      <Stack.Screen 
+        name="ReportDetail" 
+        component={ReportDetailScreen}
+        options={{ title: 'Report Details' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -184,6 +208,26 @@ function RootStack() {
         name="MainTabs"
         component={MainTabs}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="ReportPothole" 
+        component={ReportPotholeScreen}
+        options={{ title: 'Report Road Damage' }}
+      />
+      <Stack.Screen 
+        name="ReportConfirmation" 
+        component={ReportConfirmationScreen}
+        options={{ title: 'Report Submitted' }}
+      />
+      <Stack.Screen 
+        name="MyReports" 
+        component={MyReportsScreen}
+        options={{ title: 'My Reports' }}
+      />
+      <Stack.Screen 
+        name="ReportDetail" 
+        component={ReportDetailScreen}
+        options={{ title: 'Report Details' }}
       />
     </Stack.Navigator>
   );

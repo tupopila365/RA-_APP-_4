@@ -10,3 +10,5 @@ export { faqsService } from './faqsService';
 export { officesService } from './officesService';
 export { errorLogger, ErrorCategory, ErrorSeverity } from './errorLogger';
 export { documentDownloadService } from './documentDownloadService';
+export { potholeReportsService } from './potholeReportsService';
+export { getOrCreateDeviceId, getDeviceId, clearDeviceId } from './deviceIdService';

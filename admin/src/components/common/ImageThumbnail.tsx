@@ -30,7 +30,9 @@ const ImageThumbnail = ({
   const [imageError, setImageError] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
 
-  const dimensions = sizeMap[size];
+  // Handle invalid size prop gracefully
+  const validSize = size && sizeMap[size] ? size : 'medium';
+  const dimensions = sizeMap[validSize];
   const isLoading = externalLoading || imageLoading;
 
   useEffect(() => {

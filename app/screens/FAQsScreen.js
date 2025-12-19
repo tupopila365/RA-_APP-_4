@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,99 +6,115 @@ import {
   ScrollView,
   TouchableOpacity,
   useColorScheme,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
+import { ErrorState } from '../components';
+import { useFAQUseCases } from '../src/presentation/di/DependencyContext';
+import { useFAQsViewModel } from '../src/presentation/viewModels/useFAQsViewModel';
 
 export default function FAQsScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const [expandedId, setExpandedId] = useState(null);
-
-  const faqs = [
-    {
-      id: 1,
-      question: 'How do I apply for a driver\'s license?',
-      answer: 'You can apply for a driver\'s license through NATIS online or visit any Roads Authority office. You will need to complete the application form, provide required documents, and pass the driving test.',
-    },
-    {
-      id: 2,
-      question: 'What documents do I need for vehicle registration?',
-      answer: 'For vehicle registration, you need: proof of identity, proof of residence, vehicle import documents (if applicable), and proof of payment for applicable fees.',
-    },
-    {
-      id: 3,
-      question: 'How can I check my vehicle registration status?',
-      answer: 'You can check your vehicle registration status through NATIS online portal or by visiting any Roads Authority office with your vehicle registration number.',
-    },
-    {
-      id: 4,
-      question: 'What are the operating hours of Roads Authority offices?',
-      answer: 'Roads Authority offices are open Monday to Friday from 8:00 AM to 5:00 PM. Some offices may have extended hours. Please check with your local office for specific hours.',
-    },
-    {
-      id: 5,
-      question: 'How do I report a road maintenance issue?',
-      answer: 'You can report road maintenance issues through our website, mobile app, or by calling our toll-free number. Please provide as much detail as possible including location and nature of the issue.',
-    },
-    {
-      id: 6,
-      question: 'What payment methods are accepted?',
-      answer: 'We accept cash, debit cards, credit cards, and bank transfers. Online payments can be made through NATIS online portal using various payment methods.',
-    },
-    {
-      id: 7,
-      question: 'How long does it take to process a driver\'s license?',
-      answer: 'The processing time for a driver\'s license is typically 7-14 working days after successful completion of all requirements including the driving test.',
-    },
-    {
-      id: 8,
-      question: 'Can I renew my license online?',
-      answer: 'Yes, you can renew your driver\'s license online through the NATIS portal. You will need to log in with your credentials and follow the renewal process.',
-    },
-  ];
-
-  const toggleExpanded = (id) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
+  
+  // Get use cases from dependency injection
+  const { getFAQsUseCase, searchFAQsUseCase } = useFAQUseCases();
+  
+  // Use view model for state management
+  const {
+    faqs,
+    loading,
+    error,
+    expandedId,
+    searchQuery,
+    setSearchQuery,
+    clearSearch,
+    toggleExpanded,
+    retry,
+    isEmpty,
+    hasError,
+  } = useFAQsViewModel({ getFAQsUseCase, searchFAQsUseCase });
 
   const styles = getStyles(colors);
 
+  // Show error state if initial load fails
+  if (hasError && isEmpty && !loading) {
+    return (
+      <ErrorState
+        message={error?.message || 'Failed to load FAQs'}
+        onRetry={retry}
+        fullScreen
+      />
+    );
+  }
+
+  const isInitialLoading = loading && faqs.length === 0;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading && faqs.length > 0}
+            onRefresh={retry}
+            tintColor={colors.primary}
+          />
+        }
+      >
         <View style={styles.header}>
           <Ionicons name="help-circle" size={48} color={colors.primary} />
           <Text style={styles.headerTitle}>Frequently Asked Questions</Text>
           <Text style={styles.headerSubtitle}>Find answers to common questions</Text>
         </View>
 
-        {faqs.map((faq) => (
-          <TouchableOpacity
-            key={faq.id}
-            style={[
-              styles.faqCard,
-              expandedId === faq.id && styles.faqCardExpanded,
-            ]}
-            onPress={() => toggleExpanded(faq.id)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.faqHeader}>
-              <Text style={styles.faqQuestion}>{faq.question}</Text>
-              <Ionicons
-                name={expandedId === faq.id ? 'chevron-up' : 'chevron-down'}
-                size={24}
-                color={colors.primary}
-              />
-            </View>
-            {expandedId === faq.id && (
-              <View style={styles.faqAnswerContainer}>
-                <Text style={styles.faqAnswer}>{faq.answer}</Text>
+        {isInitialLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading FAQs...</Text>
+          </View>
+        ) : isEmpty ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="document-text-outline" size={64} color={colors.textSecondary} />
+            <Text style={styles.emptyText}>No FAQs available</Text>
+            <Text style={styles.emptySubtext}>Check back later for updates</Text>
+          </View>
+        ) : (
+          faqs.map((faq) => (
+            <TouchableOpacity
+              key={faq.id}
+              style={[
+                styles.faqCard,
+                expandedId === faq.id && styles.faqCardExpanded,
+              ]}
+              onPress={() => toggleExpanded(faq.id)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.faqHeader}>
+                <Text style={styles.faqQuestion}>{faq.question}</Text>
+                <Ionicons
+                  name={expandedId === faq.id ? 'chevron-up' : 'chevron-down'}
+                  size={24}
+                  color={colors.primary}
+                />
               </View>
-            )}
-          </TouchableOpacity>
-        ))}
+              {expandedId === faq.id && (
+                <View style={styles.faqAnswerContainer}>
+                  <Text style={styles.faqAnswer}>{faq.answer}</Text>
+                  {faq.category && (
+                    <View style={styles.categoryContainer}>
+                      <Ionicons name="pricetag" size={14} color={colors.textSecondary} />
+                      <Text style={styles.categoryText}>{faq.category}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -109,10 +125,6 @@ function getStyles(colors) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
-    },
-     header: {
-      backgroundColor: colors.background,
-      paddingTop: 20,
     },
     content: {
       padding: 20,
@@ -132,6 +144,34 @@ function getStyles(colors) {
       fontSize: 14,
       color: colors.textSecondary,
       marginTop: 5,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+    },
+    emptyText: {
+      marginTop: 16,
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    emptySubtext: {
+      marginTop: 8,
+      fontSize: 14,
+      color: colors.textSecondary,
     },
     faqCard: {
       backgroundColor: colors.card,
@@ -171,6 +211,20 @@ function getStyles(colors) {
       fontSize: 14,
       color: colors.textSecondary,
       lineHeight: 20,
+    },
+    categoryContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    categoryText: {
+      marginLeft: 6,
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
     },
   });
 }

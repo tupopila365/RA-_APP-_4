@@ -223,3 +223,4 @@ Instead of port forwarding, you can configure your Android app to use your compu
 3. Check backend logs for connection attempts
 4. Verify Android app has INTERNET permission in AndroidManifest.xml
 
+

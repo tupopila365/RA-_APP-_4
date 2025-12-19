@@ -18,7 +18,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.roadsauthority.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app needs access to your camera to take photos."
+        "NSCameraUsageDescription": "This app needs access to your camera to take photos of potholes.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select photos of potholes.",
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to report pothole locations."
       }
     },
     "android": {
@@ -28,7 +30,12 @@
       },
       "package": "com.roadsauthority.app",
       "permissions": [
-        "NOTIFICATIONS"
+        "NOTIFICATIONS",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -37,7 +44,20 @@
     "plugins": [
       "expo-web-browser",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Roads Authority to use your location to report pothole locations."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you select pothole images.",
+          "cameraPermission": "The app accesses your camera to let you take photos of potholes."
+        }
+      ]
     ]
   }
 }

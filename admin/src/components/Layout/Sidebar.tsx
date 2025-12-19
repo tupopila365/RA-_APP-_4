@@ -21,6 +21,7 @@ import {
   LocationOn as LocationIcon,
   HelpOutline as FAQIcon,
   People as UsersIcon,
+  Warning as PotholeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -100,6 +101,12 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         path: '/faqs',
         icon: <FAQIcon />,
         permission: 'faqs:manage',
+      },
+      {
+        label: 'Pothole Reports',
+        path: '/pothole-reports',
+        icon: <PotholeIcon />,
+        permission: 'pothole-reports:manage',
       },
       {
         label: 'Users',
