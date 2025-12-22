@@ -31,7 +31,7 @@ import {
   markAsFixed,
   PotholeReport,
 } from '../../services/potholeReports.service';
-import { ImageThumbnail } from '../../components/common';
+import { ImageThumbnail, ZoomableImage } from '../../components/common';
 import { ImageUploadField } from '../../components/common';
 
 const STATUS_OPTIONS = [
@@ -294,7 +294,18 @@ const ReportDetail = () => {
                 Photo
               </Typography>
               <Divider sx={{ mb: 2 }} />
-              <ImageThumbnail src={report.photoUrl} alt={report.roadName} size={400} />
+              <ZoomableImage
+                src={report.photoUrl}
+                alt={report.roadName}
+                title={`${report.roadName} - ${report.referenceCode}`}
+                thumbnail={
+                  <ImageThumbnail
+                    src={report.photoUrl}
+                    alt={report.roadName}
+                    size="large"
+                  />
+                }
+              />
             </CardContent>
           </Card>
 
@@ -305,7 +316,18 @@ const ReportDetail = () => {
                   Repair Photo
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
-                <ImageThumbnail src={report.repairPhotoUrl} alt="Repair" size={400} />
+                <ZoomableImage
+                  src={report.repairPhotoUrl}
+                  alt="Repair Photo"
+                  title={`Repair Photo - ${report.referenceCode}`}
+                  thumbnail={
+                    <ImageThumbnail
+                      src={report.repairPhotoUrl}
+                      alt="Repair"
+                      size="large"
+                    />
+                  }
+                />
               </CardContent>
             </Card>
           )}

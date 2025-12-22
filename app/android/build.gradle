@@ -11,6 +11,8 @@ buildscript {
         classpath('com.facebook.react:react-native-gradle-plugin')
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
         classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:2.0.21-1.0.28")
+        // Add the Google services Gradle plugin
+        classpath('com.google.gms:google-services:4.4.2')
     }
 }
 
@@ -24,3 +26,5 @@ allprojects {
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
+
+

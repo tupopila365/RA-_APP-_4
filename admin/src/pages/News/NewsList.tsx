@@ -163,7 +163,7 @@ const NewsList = () => {
   };
 
   return (
-    <Box>
+    <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           News Management
@@ -179,9 +179,16 @@ const NewsList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <Card sx={{ mb: 3, width: '100%', boxSizing: 'border-box' }}>
+        <CardContent sx={{ width: '100%', boxSizing: 'border-box' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 2, 
+            flexWrap: 'wrap', 
+            alignItems: 'center',
+            width: '100%',
+            boxSizing: 'border-box',
+          }}>
             <TextField
               label="Search"
               variant="outlined"
@@ -190,13 +197,32 @@ const NewsList = () => {
               onChange={handleSearchChange}
               placeholder="Search by title..."
               InputProps={{
-                startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />,
+                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
               }}
-              sx={{ flexGrow: 1, minWidth: 200 }}
+              sx={{ 
+                flexGrow: 0,
+                flexShrink: 0,
+                minWidth: { xs: '100%', sm: '250px' },
+                maxWidth: { sm: '400px' },
+                width: { xs: '100%', sm: '250px' },
+              }}
             />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
+            <FormControl 
+              size="small" 
+              sx={{ 
+                flexGrow: 0,
+                flexShrink: 0,
+                minWidth: { xs: '100%', sm: '180px' },
+                maxWidth: { sm: '180px' },
+                width: { xs: '100%', sm: '180px' },
+              }}
+            >
               <InputLabel>Category</InputLabel>
-              <Select value={categoryFilter} onChange={handleCategoryFilterChange} label="Category">
+              <Select
+                value={categoryFilter}
+                onChange={handleCategoryFilterChange}
+                label="Category"
+              >
                 <MenuItem value="">All Categories</MenuItem>
                 <MenuItem value="General">General</MenuItem>
                 <MenuItem value="Infrastructure">Infrastructure</MenuItem>
@@ -204,9 +230,22 @@ const NewsList = () => {
                 <MenuItem value="Announcements">Announcements</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
+            <FormControl 
+              size="small" 
+              sx={{ 
+                flexGrow: 0,
+                flexShrink: 0,
+                minWidth: { xs: '100%', sm: '150px' },
+                maxWidth: { sm: '150px' },
+                width: { xs: '100%', sm: '150px' },
+              }}
+            >
               <InputLabel>Status</InputLabel>
-              <Select value={publishedFilter} onChange={handlePublishedFilterChange} label="Status">
+              <Select
+                value={publishedFilter}
+                onChange={handlePublishedFilterChange}
+                label="Status"
+              >
                 <MenuItem value="all">All</MenuItem>
                 <MenuItem value="published">Published</MenuItem>
                 <MenuItem value="draft">Draft</MenuItem>

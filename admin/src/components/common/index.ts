@@ -10,3 +10,5 @@ export { default as ErrorState } from './ErrorState';
 export { default as ImageUploadField } from './ImageUploadField';
 export { default as ImageThumbnail } from './ImageThumbnail';
 export type { ImageThumbnailProps } from './ImageThumbnail';
+export { default as ZoomableImage } from './ZoomableImage';
+export type { ZoomableImageProps } from './ZoomableImage';

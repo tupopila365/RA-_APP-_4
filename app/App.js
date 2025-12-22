@@ -35,6 +35,7 @@ import { AppProvider } from './context/AppContext';
 import { CacheProvider } from './context/CacheContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DependencyProvider } from './src/presentation/di/DependencyContext';
+import { useNotifications } from './hooks/useNotifications';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -186,6 +187,12 @@ function MoreStack() {
   );
 }
 
+// Component to initialize notifications (must be inside NavigationContainer)
+function NotificationInitializer() {
+  useNotifications(); // This hook registers for push notifications
+  return null;
+}
+
 function RootStack() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
@@ -286,6 +293,7 @@ export default function App() {
               <NavigationContainer>
                 {/* Expo-go safe StatusBar component */}
                 <StatusBar style="light" backgroundColor={colors.primary} />
+                <NotificationInitializer />
                 <RootStack />
               </NavigationContainer>
             </CacheProvider>

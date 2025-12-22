@@ -14,6 +14,7 @@ import chatbotRoutes from './modules/chatbot/chatbot.routes';
 import uploadRoutes from './modules/upload/upload.routes';
 import faqsRoutes from './modules/faqs/faqs.routes';
 import potholeReportsRoutes from './modules/pothole-reports/pothole-reports.routes';
+import notificationsRoutes from './modules/notifications/notifications.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -23,10 +24,8 @@ export const createApp = (): Application => {
     origin: env.CORS_ORIGIN,
     credentials: true,
   }));
-  
-  // Increase body size limit for file uploads (10MB)
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
   // Health check endpoint
   app.get('/health', (_req, res) => {
@@ -50,6 +49,7 @@ export const createApp = (): Application => {
   app.use('/api/upload', uploadRoutes);
   app.use('/api/faqs', faqsRoutes);
   app.use('/api/pothole-reports', potholeReportsRoutes);
+  app.use('/api/notifications', notificationsRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);

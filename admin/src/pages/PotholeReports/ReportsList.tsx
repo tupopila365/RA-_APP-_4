@@ -45,7 +45,7 @@ import {
   PotholeReport,
   ListReportsParams,
 } from '../../services/potholeReports.service';
-import { ImageThumbnail } from '../../components/common';
+import { ImageThumbnail, ZoomableImage } from '../../components/common';
 
 const SEVERITY_COLORS = {
   small: '#4ECDC4',
@@ -372,7 +372,14 @@ const ReportsList = () => {
               reports.map((report) => (
                 <TableRow key={report.id} hover>
                   <TableCell>
-                    <ImageThumbnail src={report.photoUrl} alt={report.roadName} size="small" />
+                    <ZoomableImage
+                      src={report.photoUrl}
+                      alt={report.roadName}
+                      title={`${report.roadName} - ${report.referenceCode}`}
+                      thumbnail={
+                        <ImageThumbnail src={report.photoUrl} alt={report.roadName} size="small" />
+                      }
+                    />
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontFamily="monospace">

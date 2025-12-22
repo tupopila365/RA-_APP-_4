@@ -15,12 +15,26 @@
 // Default configuration
 const ENV = {
   development: {
-    // USB Connection: Use localhost (requires: adb reverse tcp:5000 tcp:5000)
-    // WiFi Connection: Use your computer's network IP address
-    // To switch: Run 'adb reverse tcp:5000 tcp:5000' for USB, then use localhost
-    // For WiFi: Use your IP from 'ipconfig' (e.g., 192.168.12.166)
-    API_BASE_URL: 'http://localhost:5000/api', // USB connection (bypasses firewall)
-    // API_BASE_URL: 'http://192.168.12.166:5000/api', // WiFi connection
+    // Connection Options:
+    // 1. USB Connection: Use localhost (requires: adb reverse tcp:5000 tcp:5000)
+    // 2. WiFi Connection: Use your computer's network IP address
+    // 3. Ngrok Tunnel: Use ngrok HTTPS URL (works from any network)
+    // 
+    // To use ngrok:
+    //   1. Run: .\start-backend-with-ngrok.bat
+    //   2. Copy the ngrok HTTPS URL (e.g., https://abc123.ngrok-free.app)
+    //   3. Update API_BASE_URL below with your ngrok URL
+    //   4. Restart Expo app
+    
+    // USB connection (bypasses firewall)
+    // API_BASE_URL: 'http://localhost:5000/api',
+    
+    // WiFi connection (uncomment and use your IP)
+    // API_BASE_URL: 'http://192.168.12.166:5000/api',
+    
+    // Ngrok tunnel (works from any network!)
+    API_BASE_URL: 'https://tuskless-clinkingly-dorothy.ngrok-free.dev/api',
+    
     // Different timeouts for different types of requests
     API_TIMEOUT: 15000, // 15 seconds for regular API calls (news, banners, etc.)
     API_TIMEOUT_LONG: 60000, // 60 seconds for chatbot queries

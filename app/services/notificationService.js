@@ -12,9 +12,25 @@ try {
   Notifications = null;
 }
 
-import * as Device from 'expo-device';
+// Import Device conditionally
+let Device;
+try {
+  Device = require('expo-device');
+} catch (error) {
+  console.log('expo-device not available');
+  Device = { isDevice: true }; // Default to true if unavailable
+}
+
 import { Platform } from 'react-native';
 import { api } from './api';
+
+// Import Constants (comes with Expo SDK)
+let Constants;
+try {
+  Constants = require('expo-constants');
+} catch (error) {
+  Constants = null;
+}
 
 // Configure notification behavior (only if available)
 if (Notifications && Notifications.setNotificationHandler) {
@@ -43,40 +59,53 @@ class NotificationService {
    */
   async registerForPushNotifications() {
     try {
+      console.log('🔔 Starting push notification registration...');
+      
       // Check if notifications are available
       if (!Notifications) {
-        console.log('Notifications not available in Expo Go. Use a development build.');
+        console.warn('⚠️ Notifications not available in Expo Go. Use a development build.');
         return null;
       }
 
       // Check if running on physical device
-      if (!Device.isDevice) {
-        console.log('Push notifications only work on physical devices');
+      if (Device && !Device.isDevice) {
+        console.warn('⚠️ Push notifications only work on physical devices');
         return null;
       }
 
+      console.log('📱 Checking notification permissions...');
       // Check existing permissions
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
+      console.log('Current permission status:', existingStatus);
 
       // Request permissions if not granted
       if (existingStatus !== 'granted') {
+        console.log('📝 Requesting notification permissions...');
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
+        console.log('Permission request result:', status);
       }
 
       if (finalStatus !== 'granted') {
-        console.log('Failed to get push notification permissions');
+        console.error('❌ Failed to get push notification permissions. Status:', finalStatus);
         return null;
       }
 
+      console.log('✅ Notification permissions granted!');
+      
       // Get Expo push token
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: 'your-project-id', // Replace with your Expo project ID
-      });
+      // Try to get project ID from expo-constants, otherwise let Expo auto-detect
+      const projectId = Constants?.expoConfig?.extra?.eas?.projectId || 
+                       Constants?.expoConfig?.extra?.projectId ||
+                       undefined;
+      
+      const tokenOptions = projectId ? { projectId } : undefined;
+      console.log('🔑 Getting Expo push token...', projectId ? `(Project ID: ${projectId})` : '(auto-detect)');
+      const tokenData = await Notifications.getExpoPushTokenAsync(tokenOptions);
 
       this.expoPushToken = tokenData.data;
-      console.log('Expo Push Token:', this.expoPushToken);
+      console.log('✅ Expo Push Token obtained:', this.expoPushToken);
 
       // Configure Android notification channel
       if (Platform.OS === 'android') {
@@ -100,19 +129,32 @@ class NotificationService {
    */
   async sendPushTokenToBackend(token) {
     try {
-      await api.post('/notifications/register', {
+      console.log('📱 Attempting to register push token with backend...');
+      const response = await api.post('/notifications/register', {
         pushToken: token,
         platform: Platform.OS,
-        deviceInfo: {
+        deviceInfo: Device ? {
           brand: Device.brand,
           modelName: Device.modelName,
           osName: Device.osName,
           osVersion: Device.osVersion,
-        },
+        } : {},
       });
-      console.log('Push token registered with backend');
+      
+      if (response.success) {
+        console.log('✅ Push token successfully registered with backend!');
+        console.log('Token ID:', response.data?.tokenId);
+      } else {
+        console.warn('⚠️ Push token registration returned unsuccessful response:', response);
+      }
     } catch (error) {
-      console.error('Error sending push token to backend:', error);
+      console.error('❌ Error sending push token to backend:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        endpoint: '/notifications/register',
+      });
+      // Don't throw - allow app to continue even if registration fails
     }
   }
 
