@@ -11,11 +11,6 @@ export interface PDFUploadResult {
     publicId: string;
     format: string;
     bytes: number;
-    accessType?: 'public' | 'signed';
-    expiresAt?: Date;
-    googleDriveFileId?: string;
-    googleDriveUrl?: string;
-    ragDownloadUrl?: string;
 }
 export interface ValidationResult {
     valid: boolean;
@@ -26,11 +21,6 @@ export declare class UploadService {
     private readonly MAX_IMAGE_SIZE;
     private readonly MAX_PDF_SIZE;
     private readonly UPLOAD_FOLDER;
-    /**
-     * Sanitize filename for Cloudinary upload
-     * Removes spaces, special characters, and ensures URL-safe naming
-     */
-    private sanitizeFilename;
     /**
      * Validate image file
      */
@@ -54,13 +44,6 @@ export declare class UploadService {
         userId: string;
         email: string;
     }): Promise<PDFUploadResult>;
-    /**
-     * Validate that an uploaded URL is accessible
-     * @param url - The URL to validate
-     * @param fileMetadata - File metadata for logging
-     * @returns Promise<boolean> - true if URL is accessible, false otherwise
-     */
-    private validateUploadedURL;
     /**
      * Handle upload errors with proper categorization and logging
      */

@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
-  Description as DocumentIcon,
+  ChatBubble as ChatbotIcon,
   Article as NewsIcon,
   Work as VacancyIcon,
   Gavel as TenderIcon,
@@ -61,10 +61,10 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         permission: null,
       },
       {
-        label: 'Documents',
-        path: '/documents',
-        icon: <DocumentIcon />,
-        permission: 'documents:upload',
+        label: 'Chatbot Interactions',
+        path: '/chatbot-interactions',
+        icon: <ChatbotIcon />,
+        permission: null,
       },
       {
         label: 'News',

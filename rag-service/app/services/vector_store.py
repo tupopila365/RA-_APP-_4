@@ -209,14 +209,19 @@ class VectorStore:
                     # Convert to similarity score and clamp to valid range [0.0, 1.0]
                     relevance = max(0.0, min(1.0 - normalized_distance, 1.0))
                     
-                    result = {
-                        'id': ids[i],
-                        'document': documents[i] if i < len(documents) else '',
-                        'metadata': metadatas[i] if i < len(metadatas) else {},
-                        'distance': distance,
-                        'relevance': relevance
-                    }
-                    formatted_results.append(result)
+                    # Only filter out results with extremely low relevance (< 0.01) to avoid noise
+                    # This allows even low-relevance results to be returned, which is useful for
+                    # short queries or when documents don't match well
+                    if relevance >= 0.01 or len(formatted_results) == 0:
+                        # Always include at least one result if available, even if relevance is low
+                        result = {
+                            'id': ids[i],
+                            'document': documents[i] if i < len(documents) else '',
+                            'metadata': metadatas[i] if i < len(metadatas) else {},
+                            'distance': distance,
+                            'relevance': relevance
+                        }
+                        formatted_results.append(result)
             
             logger.info(f"Found {len(formatted_results)} similar documents")
             

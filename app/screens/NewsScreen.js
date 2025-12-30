@@ -15,9 +15,10 @@ import { useTheme } from '../hooks/useTheme';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
 import { SearchInput } from '../components/SearchInput';
-import { FilterChip } from '../components/FilterChip';
-import { NewsCardSkeleton } from '../components/NewsCardSkeleton';
+import { FilterBar } from '../components/FilterBar';
+import { LoadingIndicator } from '../components/LoadingIndicator';
 import { CachedImage } from '../components/CachedImage';
+import { Badge, Card } from '../components';
 import { useNewsViewModel } from '../src/presentation/viewModels/useNewsViewModel';
 import { useNewsUseCases } from '../src/presentation/di/DependencyContext';
 
@@ -74,24 +75,13 @@ export default function NewsScreen({ navigation }) {
       />
 
       {/* Category Filter Chips */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterContainer}
-        accessibilityRole="tablist"
-        accessibilityLabel="Category filters"
-      >
-        {categories.map((category) => (
-          <FilterChip
-            key={category}
-            label={category}
-            selected={selectedCategory === category}
-            onPress={() => setSelectedCategory(category)}
-            testID={`category-filter-${category}`}
-            accessibilityLabel={`Filter by ${category}`}
-          />
-        ))}
-      </ScrollView>
+      <FilterBar
+        filters={categories}
+        selectedFilter={selectedCategory}
+        onFilterChange={setSelectedCategory}
+        testID="news-filter-bar"
+        accessibilityLabel="News category filters"
+      />
 
       {/* News List */}
       <ScrollView 
@@ -106,23 +96,16 @@ export default function NewsScreen({ navigation }) {
         }
       >
         {isInitialLoading ? (
-          // Show skeleton loading screens
-          <>
-            <NewsCardSkeleton />
-            <NewsCardSkeleton />
-            <NewsCardSkeleton />
-          </>
+          <LoadingIndicator message="Loading news..." />
         ) : news.length > 0 ? (
           news.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
-              style={styles.newsCard} 
-              activeOpacity={0.7}
+            <Card
+              key={item.id}
               onPress={() => navigation.navigate('NewsDetail', { article: item })}
+              style={styles.newsCard}
               accessible={true}
               accessibilityLabel={`${item.title}, ${item.category}, ${item.getFormattedDate()}`}
               accessibilityHint="Double tap to read full article"
-              accessibilityRole="button"
             >
               {item.hasImage() && (
                 <CachedImage
@@ -135,11 +118,7 @@ export default function NewsScreen({ navigation }) {
               )}
               <View style={styles.newsContent}>
                 <View style={styles.newsHeader}>
-                  <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '20' }]}>
-                    <Text style={[styles.categoryText, { color: colors.primary }]}>
-                      {item.category}
-                    </Text>
-                  </View>
+                  <Badge label={item.category} variant="info" />
                   <Text style={styles.dateText}>{item.getTimeAgo()}</Text>
                 </View>
                 <Text style={styles.newsTitle}>{item.title}</Text>
@@ -149,7 +128,7 @@ export default function NewsScreen({ navigation }) {
                   <Ionicons name="arrow-forward" size={16} color={colors.primary} />
                 </View>
               </View>
-            </TouchableOpacity>
+            </Card>
           ))
         ) : (
           <EmptyState
@@ -184,23 +163,13 @@ function getStyles(colors) {
       marginTop: 20,
       marginBottom: 10,
     },
-    filterContainer: {
-      paddingHorizontal: 15,
-      paddingBottom: 10,
-    },
     content: {
       padding: 20,
     },
     newsCard: {
-      backgroundColor: colors.card,
-      borderRadius: 15,
-      marginBottom: 15,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
       overflow: 'hidden',
+      padding: 0,
+      marginBottom: 15,
     },
     newsImage: {
       width: '100%',
@@ -215,15 +184,6 @@ function getStyles(colors) {
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 10,
-    },
-    categoryBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    categoryText: {
-      fontSize: 12,
-      fontWeight: '600',
     },
     dateText: {
       fontSize: 12,

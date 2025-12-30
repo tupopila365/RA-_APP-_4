@@ -1,0 +1,147 @@
+import { getRedisClient } from '../config/redis';
+import { logger } from './logger';
+import crypto from 'crypto';
+
+/**
+ * Cache utility for Redis operations
+ * Gracefully handles cases where Redis is not available
+ */
+class CacheService {
+  /**
+   * Generate a cache key from a string
+   * Normalizes the input and creates a hash for consistent keys
+   */
+  private generateKey(prefix: string, value: string): string {
+    // Normalize: lowercase, trim, remove extra spaces
+    const normalized = value.toLowerCase().trim().replace(/\s+/g, ' ');
+    // Create hash for consistent key length
+    const hash = crypto.createHash('md5').update(normalized).digest('hex');
+    return `cache:${prefix}:${hash}`;
+  }
+
+  /**
+   * Get a value from cache
+   * @param prefix - Cache key prefix (e.g., 'chatbot')
+   * @param key - The key to look up
+   * @returns Cached value or null if not found or Redis unavailable
+   */
+  async get<T>(prefix: string, key: string): Promise<T | null> {
+    const redisClient = getRedisClient();
+    if (!redisClient) {
+      return null;
+    }
+
+    try {
+      const cacheKey = this.generateKey(prefix, key);
+      const cached = await redisClient.get(cacheKey);
+      
+      if (cached) {
+        logger.debug(`Cache hit for ${prefix}: ${key.substring(0, 50)}...`);
+        return JSON.parse(cached) as T;
+      }
+      
+      logger.debug(`Cache miss for ${prefix}: ${key.substring(0, 50)}...`);
+      return null;
+    } catch (error: any) {
+      logger.warn(`Cache get error for ${prefix}:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Set a value in cache
+   * @param prefix - Cache key prefix (e.g., 'chatbot')
+   * @param key - The key to store
+   * @param value - The value to cache
+   * @param ttlSeconds - Time to live in seconds (default: 3600 = 1 hour)
+   * @returns true if successful, false otherwise
+   */
+  async set<T>(
+    prefix: string,
+    key: string,
+    value: T,
+    ttlSeconds: number = 3600
+  ): Promise<boolean> {
+    const redisClient = getRedisClient();
+    if (!redisClient) {
+      return false;
+    }
+
+    try {
+      const cacheKey = this.generateKey(prefix, key);
+      const serialized = JSON.stringify(value);
+      
+      await redisClient.setEx(cacheKey, ttlSeconds, serialized);
+      logger.debug(`Cache set for ${prefix}: ${key.substring(0, 50)}... (TTL: ${ttlSeconds}s)`);
+      return true;
+    } catch (error: any) {
+      logger.warn(`Cache set error for ${prefix}:`, error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Delete a value from cache
+   * @param prefix - Cache key prefix
+   * @param key - The key to delete
+   * @returns true if successful, false otherwise
+   */
+  async delete(prefix: string, key: string): Promise<boolean> {
+    const redisClient = getRedisClient();
+    if (!redisClient) {
+      return false;
+    }
+
+    try {
+      const cacheKey = this.generateKey(prefix, key);
+      await redisClient.del(cacheKey);
+      logger.debug(`Cache delete for ${prefix}: ${key.substring(0, 50)}...`);
+      return true;
+    } catch (error: any) {
+      logger.warn(`Cache delete error for ${prefix}:`, error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Delete all keys with a given prefix
+   * @param prefix - Cache key prefix
+   * @returns number of keys deleted
+   */
+  async deleteAll(prefix: string): Promise<number> {
+    const redisClient = getRedisClient();
+    if (!redisClient) {
+      return 0;
+    }
+
+    try {
+      const pattern = `cache:${prefix}:*`;
+      const keys = await redisClient.keys(pattern);
+      
+      if (keys.length === 0) {
+        return 0;
+      }
+
+      await redisClient.del(keys);
+      logger.info(`Cache cleared for prefix ${prefix}: ${keys.length} keys deleted`);
+      return keys.length;
+    } catch (error: any) {
+      logger.warn(`Cache deleteAll error for ${prefix}:`, error.message);
+      return 0;
+    }
+  }
+
+  /**
+   * Check if Redis is available
+   */
+  isAvailable(): boolean {
+    return getRedisClient() !== null;
+  }
+}
+
+export const cacheService = new CacheService();
+
+
+
+
+

@@ -29,11 +29,11 @@ const ENV = {
     // USB connection (bypasses firewall)
     // API_BASE_URL: 'http://localhost:5000/api',
     
-    // WiFi connection (uncomment and use your IP)
-    // API_BASE_URL: 'http://192.168.12.166:5000/api',
+    // WiFi connection - using your current WiFi IP
+    API_BASE_URL: 'http://192.168.11.52:5000/api',
     
-    // Ngrok tunnel (works from any network!)
-    API_BASE_URL: 'https://tuskless-clinkingly-dorothy.ngrok-free.dev/api',
+    // Ngrok tunnel (works from any network!) - Currently offline
+    // API_BASE_URL: 'https://tuskless-clinkingly-dorothy.ngrok-free.dev/api',
     
     // Different timeouts for different types of requests
     API_TIMEOUT: 15000, // 15 seconds for regular API calls (news, banners, etc.)

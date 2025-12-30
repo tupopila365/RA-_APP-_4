@@ -15,30 +15,92 @@ class AuthService {
      * Authenticate user with email and password
      */
     async login(credentials) {
+        // #region agent log
+        const fs = require('fs');
+        const logPath = 'c:\\Roads Authority Application\\.cursor\\debug.log';
+        try {
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:29', message: 'AuthService.login called', data: { email: credentials.email, hasPassword: !!credentials.password }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+        }
+        catch (e) { }
+        // #endregion
         const { email, password } = credentials;
+        // #region agent log
+        try {
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:33', message: 'Looking up user in database', data: { email }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+        }
+        catch (e) { }
+        // #endregion
         // Find user with password field included
         const user = await auth_model_1.User.findOne({ email }).select('+password');
+        // #region agent log
+        try {
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:35', message: 'User lookup result', data: { userFound: !!user, userId: user?._id?.toString() }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+        }
+        catch (e) { }
+        // #endregion
         if (!user) {
+            // #region agent log
+            try {
+                fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:37', message: 'User not found', data: { email }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+            }
+            catch (e) { }
+            // #endregion
             throw {
                 code: errors_1.ERROR_CODES.AUTH_INVALID_CREDENTIALS,
                 message: 'Invalid email or password',
                 statusCode: 401,
             };
         }
+        // #region agent log
+        try {
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:44', message: 'Verifying password', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+        }
+        catch (e) { }
+        // #endregion
         // Verify password
         const isPasswordValid = await user.comparePassword(password);
+        // #region agent log
+        try {
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:46', message: 'Password verification result', data: { isPasswordValid }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+        }
+        catch (e) { }
+        // #endregion
         if (!isPasswordValid) {
+            // #region agent log
+            try {
+                fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:48', message: 'Password invalid', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+            }
+            catch (e) { }
+            // #endregion
             throw {
                 code: errors_1.ERROR_CODES.AUTH_INVALID_CREDENTIALS,
                 message: 'Invalid email or password',
                 statusCode: 401,
             };
         }
+        // #region agent log
+        try {
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:55', message: 'Generating tokens', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+        }
+        catch (e) { }
+        // #endregion
         // Generate tokens
         const tokens = await this.generateTokens(user);
+        // #region agent log
+        try {
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:58', message: 'Storing refresh token in Redis', data: { hasAccessToken: !!tokens.accessToken, hasRefreshToken: !!tokens.refreshToken }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+        }
+        catch (e) { }
+        // #endregion
         // Store refresh token in Redis
         await this.storeRefreshToken(user._id.toString(), tokens.refreshToken);
         logger_1.logger.info(`User logged in: ${user.email}`);
+        // #region agent log
+        try {
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:62', message: 'Login completed successfully', data: { email: user.email }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+        }
+        catch (e) { }
+        // #endregion
         return { user, tokens };
     }
     /**

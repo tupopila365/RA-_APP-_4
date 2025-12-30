@@ -13,6 +13,8 @@ exports.PERMISSIONS = {
     BANNERS_MANAGE: 'banners:manage',
     LOCATIONS_MANAGE: 'locations:manage',
     USERS_MANAGE: 'users:manage',
+    FAQS_MANAGE: 'faqs:manage',
+    POTHOLE_REPORTS_MANAGE: 'pothole-reports:manage',
 };
 // Role-based permission mappings
 exports.ROLE_PERMISSIONS = {
@@ -24,6 +26,8 @@ exports.ROLE_PERMISSIONS = {
         exports.PERMISSIONS.BANNERS_MANAGE,
         exports.PERMISSIONS.LOCATIONS_MANAGE,
         exports.PERMISSIONS.USERS_MANAGE,
+        exports.PERMISSIONS.FAQS_MANAGE,
+        exports.PERMISSIONS.POTHOLE_REPORTS_MANAGE,
     ],
     [exports.ROLES.ADMIN]: [], // Admin permissions are assigned individually
 };

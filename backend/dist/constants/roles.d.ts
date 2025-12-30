@@ -11,6 +11,8 @@ export declare const PERMISSIONS: {
     readonly BANNERS_MANAGE: "banners:manage";
     readonly LOCATIONS_MANAGE: "locations:manage";
     readonly USERS_MANAGE: "users:manage";
+    readonly FAQS_MANAGE: "faqs:manage";
+    readonly POTHOLE_REPORTS_MANAGE: "pothole-reports:manage";
 };
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 export declare const ROLE_PERMISSIONS: Record<Role, Permission[]>;

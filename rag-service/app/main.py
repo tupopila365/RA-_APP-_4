@@ -95,12 +95,15 @@ async def health_check():
     except Exception as e:
         logger.error(f"Ollama health check failed: {str(e)}")
     
-    # Check ChromaDB connectivity
+    # Check ChromaDB connectivity and get document count
     chromadb_connected = False
+    document_count = 0
     try:
         vector_store = VectorStore()
         chromadb_connected = vector_store.check_connection()
-        logger.info(f"ChromaDB connection check: {'success' if chromadb_connected else 'failed'}")
+        if chromadb_connected:
+            document_count = vector_store.count_documents()
+        logger.info(f"ChromaDB connection check: {'success' if chromadb_connected else 'failed'}, documents: {document_count}")
     except Exception as e:
         logger.error(f"ChromaDB health check failed: {str(e)}")
     
@@ -110,12 +113,13 @@ async def health_check():
     if not ollama_connected and not chromadb_connected:
         overall_status = "unhealthy"
     
-    logger.info(f"Health check completed: {overall_status}")
+    logger.info(f"Health check completed: {overall_status}, documents: {document_count}")
     
     return HealthResponse(
         status=overall_status,
         ollama_connected=ollama_connected,
-        chromadb_connected=chromadb_connected
+        chromadb_connected=chromadb_connected,
+        document_count=document_count
     )
 
 

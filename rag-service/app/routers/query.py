@@ -74,11 +74,18 @@ async def query_documents(request: QueryRequest):
         logger.info(f"Step 2: Searching for top {request.top_k} relevant chunks")
         vector_store = VectorStore()
         
+        # Check total documents before search
+        total_documents = vector_store.count_documents()
+        logger.info(f"Total documents in ChromaDB: {total_documents}")
+        
         try:
             search_results = vector_store.search(
                 query_embedding=question_embedding,
                 top_k=request.top_k
             )
+            logger.info(f"Vector search returned {len(search_results)} results")
+            if search_results:
+                logger.debug(f"Top result relevance: {search_results[0].get('relevance', 0.0):.4f}")
         except VectorStoreError as e:
             logger.error(f"Vector store search failed: {str(e)}")
             raise HTTPException(
@@ -92,9 +99,24 @@ async def query_documents(request: QueryRequest):
         
         if not search_results:
             logger.warning("No relevant documents found for query")
-            # Return a response indicating no relevant information was found
+            
+            # Use the total_documents we already checked
+            if total_documents == 0:
+                # Database is empty - provide helpful message
+                answer = (
+                    "I apologize, but I cannot find relevant information to answer your question. "
+                    "This is because no documents have been indexed in the system yet. "
+                    "Please contact the administrator to upload and index documents, or try again later."
+                )
+            else:
+                # Database has documents but no matches found
+                answer = (
+                    "I couldn't find any relevant information in the available documents to answer your question. "
+                    "Please try rephrasing your question or contact Roads Authority Namibia directly for assistance."
+                )
+            
             return QueryResponse(
-                answer="I couldn't find any relevant information in the available documents to answer your question. Please try rephrasing your question or contact Roads Authority Namibia directly for assistance.",
+                answer=answer,
                 sources=[],
                 confidence=0.0
             )
@@ -245,9 +267,26 @@ async def query_documents_stream(request: QueryRequest):
             
             if not search_results:
                 logger.warning("No relevant documents found for query")
+                
+                # Check if database is empty vs just no matches
+                vector_store_check = VectorStore()
+                total_documents = vector_store_check.count_documents()
+                
+                if total_documents == 0:
+                    answer = (
+                        "I apologize, but I cannot find relevant information to answer your question. "
+                        "This is because no documents have been indexed in the system yet. "
+                        "Please contact the administrator to upload and index documents, or try again later."
+                    )
+                else:
+                    answer = (
+                        "I couldn't find any relevant information in the available documents to answer your question. "
+                        "Please try rephrasing your question or contact Roads Authority Namibia directly for assistance."
+                    )
+                
                 no_results_data = {
                     "type": "complete",
-                    "answer": "I couldn't find any relevant information in the available documents to answer your question.",
+                    "answer": answer,
                     "sources": [],
                     "confidence": 0.0
                 }

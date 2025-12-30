@@ -4,8 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import Login from './pages/Login';
 import DashboardPage from './pages/DashboardPage';
-import DocumentList from './pages/Documents/DocumentList';
-import DocumentUpload from './pages/Documents/DocumentUpload';
+import ChatbotInteractions from './pages/ChatbotInteractions';
 import { NewsList, NewsForm, NewsDetail } from './pages/News';
 import { VacanciesList, VacancyForm } from './pages/Vacancies';
 import { TendersList, TenderForm } from './pages/Tenders';
@@ -14,7 +13,11 @@ import { LocationsList, LocationForm } from './pages/Locations';
 import { FAQList, FAQForm } from './pages/FAQs';
 import { UsersList, UserForm } from './pages/Users';
 import { ReportsList, ReportDetail } from './pages/PotholeReports';
+import PLNDashboardPage from './pages/PLN/PLNDashboardPage';
+import PLNListPage from './pages/PLN/PLNListPage';
+import PLNDetailPage from './pages/PLN/PLNDetailPage';
 import Layout from './components/Layout/Layout';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 const theme = createTheme({
   palette: {
@@ -31,7 +34,12 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -46,21 +54,13 @@ function App() {
               }
             />
             <Route
-              path="/documents"
+              path="/chatbot-interactions"
               element={
-                <ProtectedRoute requiredPermission="documents:upload">
+                <ProtectedRoute>
                   <Layout>
-                    <DocumentList />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/documents/upload"
-              element={
-                <ProtectedRoute requiredPermission="documents:upload">
-                  <Layout>
-                    <DocumentUpload />
+                    <ErrorBoundary>
+                      <ChatbotInteractions />
+                    </ErrorBoundary>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -301,6 +301,36 @@ function App() {
                 <ProtectedRoute requiredPermission="pothole-reports:manage">
                   <Layout>
                     <ReportDetail />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pln"
+              element={
+                <ProtectedRoute requiredPermission="pln:manage">
+                  <Layout>
+                    <PLNDashboardPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pln/applications"
+              element={
+                <ProtectedRoute requiredPermission="pln:manage">
+                  <Layout>
+                    <PLNListPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pln/applications/:id"
+              element={
+                <ProtectedRoute requiredPermission="pln:manage">
+                  <Layout>
+                    <PLNDetailPage />
                   </Layout>
                 </ProtectedRoute>
               }

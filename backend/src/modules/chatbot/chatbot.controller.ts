@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { chatbotService, ChatbotQueryRequest } from './chatbot.service';
+import { chatbotService, ChatbotQueryRequest, ChatbotResponse } from './chatbot.service';
+import { interactionsService } from './interactions.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
+import { cacheService } from '../../utils/cache';
 import axios from 'axios';
 import { env } from '../../config/env';
 
@@ -12,7 +14,7 @@ class ChatbotController {
    */
   async queryStream(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { question } = req.body;
+      const { question, sessionId } = req.body;
 
       // Validate input
       if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -40,6 +42,10 @@ class ChatbotController {
         return;
       }
 
+      // Generate sessionId if not provided
+      const finalSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const normalizedQuestion = question.trim();
+
       // Set headers for SSE
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -49,19 +55,108 @@ class ChatbotController {
       // Forward streaming request to RAG service
       const ragResponse = await axios.post(
         `${env.RAG_SERVICE_URL}/api/query/stream`,
-        { question: question.trim(), top_k: 5 },
+        { question: normalizedQuestion, top_k: 5 },
         {
           responseType: 'stream',
           timeout: 120000, // 2 minutes
         }
       );
 
-      // Pipe the stream from RAG service to client
-      ragResponse.data.pipe(res);
+      // Intercept the stream to collect answer and log interaction
+      let buffer = '';
+      let fullAnswer = '';
+      let sources: any[] = [];
+      let streamEnded = false;
+
+      ragResponse.data.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              // Forward all events to client
+              res.write(line + '\n');
+
+              // Collect answer chunks
+              if (data.type === 'chunk') {
+                fullAnswer += data.content || '';
+              } else if (data.type === 'metadata') {
+                sources = data.sources || [];
+              } else if (data.type === 'complete') {
+                // Handle complete event (no results case)
+                fullAnswer = data.answer || '';
+                sources = data.sources || [];
+              } else if (data.type === 'done') {
+                // Stream is done, log interaction and send interactionId
+                streamEnded = true;
+                
+                // Log interaction asynchronously (don't block the response)
+                interactionsService.logInteraction({
+                  question: normalizedQuestion,
+                  answer: fullAnswer,
+                  sessionId: finalSessionId,
+                })
+                  .then((interaction) => {
+                    // Send interactionId after logging
+                    const interactionData = {
+                      type: 'interactionId',
+                      interactionId: interaction._id.toString(),
+                    };
+                    res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
+                    logger.info('Interaction logged in stream', { 
+                      interactionId: interaction._id,
+                    });
+                  })
+                  .catch((error: any) => {
+                    logger.error('Failed to log interaction in stream:', error);
+                    // Don't send error to client, just log it
+                  });
+              }
+            } catch (parseError: any) {
+              // If parsing fails, just forward the line as-is
+              res.write(line + '\n');
+            }
+          } else if (line.trim()) {
+            // Forward non-data lines (like empty lines or comments)
+            res.write(line + '\n');
+          }
+        }
+      });
+
+      ragResponse.data.on('end', () => {
+        if (!streamEnded && fullAnswer) {
+          // If stream ended without 'done' event, log interaction
+          interactionsService.logInteraction({
+            question: normalizedQuestion,
+            answer: fullAnswer,
+            sessionId: finalSessionId,
+          })
+            .then((interaction) => {
+              const interactionData = {
+                type: 'interactionId',
+                interactionId: interaction._id.toString(),
+              };
+              res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
+              logger.info('Interaction logged in stream (end event)', { 
+                interactionId: interaction._id,
+              });
+            })
+            .catch((error: any) => {
+              logger.error('Failed to log interaction in stream (end event):', error);
+            });
+        }
+        res.end();
+      });
 
       ragResponse.data.on('error', (error: any) => {
         logger.error('RAG streaming error:', error);
-        res.write(`data: ${JSON.stringify({ type: 'error', message: 'Streaming error occurred' })}\n\n`);
+        if (!res.headersSent) {
+          res.write(`data: ${JSON.stringify({ type: 'error', message: 'Streaming error occurred' })}\n\n`);
+        }
         res.end();
       });
 
@@ -115,13 +210,53 @@ class ChatbotController {
         return;
       }
 
-      const queryRequest: ChatbotQueryRequest = {
-        question: question.trim(),
-        sessionId,
-      };
+      // Generate sessionId if not provided
+      const finalSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const normalizedQuestion = question.trim();
+      let response: ChatbotResponse;
+      let fromCache = false;
 
-      // Process query through chatbot service
-      const response = await chatbotService.processQuery(queryRequest);
+      // Try to get cached response first
+      const cachedResponse = await cacheService.get<ChatbotResponse>('chatbot', normalizedQuestion);
+      if (cachedResponse) {
+        logger.info('Serving chatbot response from cache', { question: normalizedQuestion.substring(0, 50) });
+        response = { ...cachedResponse };
+        fromCache = true;
+      } else {
+        // Cache miss - process query
+        const queryRequest: ChatbotQueryRequest = {
+          question: normalizedQuestion,
+          sessionId: finalSessionId,
+        };
+
+        response = await chatbotService.processQuery(queryRequest);
+
+        // Cache the response (without interactionId, as it's per-request)
+        // Create a clean response object without interactionId for caching
+        const responseToCache: ChatbotResponse = {
+          answer: response.answer,
+          sources: response.sources,
+          timestamp: response.timestamp,
+        };
+        await cacheService.set('chatbot', normalizedQuestion, responseToCache, 3600);
+      }
+
+      // Log interaction to database (always log, even for cached responses)
+      try {
+        const interaction = await interactionsService.logInteraction({
+          question: normalizedQuestion,
+          answer: response.answer,
+          sessionId: finalSessionId,
+        });
+        response.interactionId = interaction._id.toString();
+        logger.info('Interaction logged successfully', { 
+          interactionId: interaction._id,
+          fromCache,
+        });
+      } catch (error: any) {
+        // Log error but don't fail the request - interactionId will be undefined
+        logger.error('Failed to log interaction:', error);
+      }
 
       res.status(200).json({
         success: true,

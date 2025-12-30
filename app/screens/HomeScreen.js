@@ -158,28 +158,44 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       title: 'RA Chatbot',
       icon: 'chatbubbles-outline',
       color: '#9B59B6',
-      onPress: () => navigation?.navigate('More', { screen: 'Chatbot' }),
+      onPress: () => {
+        // Navigate to Chatbot tab in MainTabs
+        const tabNavigator = navigation?.getParent('MainTabs');
+        if (tabNavigator) {
+          tabNavigator.navigate('Chatbot');
+        } else {
+          // Fallback: navigate through root
+          navigation?.navigate('MainTabs', { screen: 'Chatbot' });
+        }
+      },
     },
     {
       id: 7,
       title: 'FAQs',
       icon: 'help-circle-outline',
       color: '#E67E22',
-      onPress: () => navigation?.navigate('More', { screen: 'FAQs' }),
+      onPress: () => navigation?.navigate('FAQs'),
     },
     {
       id: 8,
       title: 'Find Offices',
       icon: 'location-outline',
       color: '#3498DB',
-      onPress: () => navigation?.navigate('More', { screen: 'FindOffices' }),
+      onPress: () => navigation?.navigate('Find Offices'),
     },
     {
       id: 9,
+      title: 'Personalized Plates',
+      icon: 'car-sport-outline',
+      color: '#9B59B6',
+      onPress: () => navigation?.navigate('PLNInfo'),
+    },
+    {
+      id: 10,
       title: 'Settings',
       icon: 'settings-outline',
       color: '#95A5A6',
-      onPress: () => navigation?.navigate('More', { screen: 'Settings' }),
+      onPress: () => navigation?.navigate('Settings'),
     },
   ];
 
@@ -191,7 +207,14 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
 
   const handleMessageNavigation = () => {
     setShowMessageOption(false);
-    navigation?.navigate('More', { screen: 'Chatbot' });
+    // Navigate to Chatbot tab in MainTabs
+    const tabNavigator = navigation?.getParent('MainTabs');
+    if (tabNavigator) {
+      tabNavigator.navigate('Chatbot');
+    } else {
+      // Fallback: navigate through root
+      navigation?.navigate('MainTabs', { screen: 'Chatbot' });
+    }
   };
 
   if (showMenuOnly) {

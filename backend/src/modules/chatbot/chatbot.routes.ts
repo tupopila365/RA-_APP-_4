@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { chatbotController } from './chatbot.controller';
+import interactionsRoutes from './interactions.routes';
 
 const router = Router();
 
@@ -23,5 +24,11 @@ router.post('/query/stream', chatbotController.queryStream.bind(chatbotControlle
  * No authentication required
  */
 router.get('/health', chatbotController.health.bind(chatbotController));
+
+/**
+ * Interactions routes
+ * /api/chatbot/interactions/*
+ */
+router.use('/interactions', interactionsRoutes);
 
 export default router;

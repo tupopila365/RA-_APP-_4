@@ -1,4 +1,4 @@
-import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
+import { Expo, ExpoPushMessage, ExpoPushTicket, ExpoPushReceiptId, ExpoPushReceipt } from 'expo-server-sdk';
 import { PushTokenModel, NotificationLogModel, IPushToken } from './notifications.model';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
@@ -80,7 +80,7 @@ class NotificationsService {
   }
 
   /**
-   * Send push notification to specific tokens
+   * Send push notification to specific tokens with retry logic and receipt checking
    */
   async sendPushNotification(dto: SendNotificationDTO, pushTokens?: string[]): Promise<any> {
     try {
@@ -103,56 +103,158 @@ class NotificationsService {
         };
       }
 
-      // Create messages
+      // Fetch all token documents at once for efficient platform detection
+      const tokenDocs = await PushTokenModel.find({ pushToken: { $in: tokens } }).lean();
+      const tokenToPlatformMap = new Map<string, 'ios' | 'android'>();
+      tokenDocs.forEach((doc) => {
+        tokenToPlatformMap.set(doc.pushToken, doc.platform);
+      });
+
+      // Create messages with platform-specific configurations
       const messages: ExpoPushMessage[] = [];
-      for (const pushToken of tokens) {
+      const messageIndexToTokenMap = new Map<number, string>(); // Track which message index maps to which token
+
+      for (let i = 0; i < tokens.length; i++) {
+        const pushToken = tokens[i];
         if (!Expo.isExpoPushToken(pushToken)) {
           logger.warn(`Invalid push token: ${pushToken}`);
           continue;
         }
+
+        // Get platform from cached map
+        const platform = tokenToPlatformMap.get(pushToken) || 'android'; // Default to android if not found
+        const isIOS = platform === 'ios';
 
         messages.push({
           to: pushToken,
           sound: 'default',
           title: dto.title,
           body: dto.body,
-          data: dto.data || {},
+          data: {
+            ...(dto.data || {}),
+            type: dto.type,
+            relatedId: dto.relatedId,
+          },
           priority: 'high',
+          // iOS-specific options
+          ...(isIOS && {
+            badge: 1, // Set badge count for iOS
+          }),
+          // Android-specific options
+          ...(!isIOS && {
+            channelId: 'default',
+          }),
         });
+
+        messageIndexToTokenMap.set(messages.length - 1, pushToken);
       }
 
-      // Send notifications in chunks
+      if (messages.length === 0) {
+        logger.warn('No valid messages to send');
+        return {
+          sentCount: 0,
+          failedCount: 0,
+          message: 'No valid recipients available',
+        };
+      }
+
+      // Send notifications in chunks (expo-server-sdk handles chunking automatically)
       const chunks = this.expo.chunkPushNotifications(messages);
       const tickets: ExpoPushTicket[] = [];
 
+      // Send with retry logic and exponential backoff
       for (const chunk of chunks) {
-        try {
-          const ticketChunk = await this.expo.sendPushNotificationsAsync(chunk);
-          tickets.push(...ticketChunk);
-        } catch (error) {
-          logger.error('Error sending push notification chunk:', error);
+        let retries = 0;
+        const maxRetries = 3;
+        let success = false;
+
+        while (retries < maxRetries && !success) {
+          try {
+            const ticketChunk = await this.expo.sendPushNotificationsAsync(chunk);
+            tickets.push(...ticketChunk);
+            success = true;
+          } catch (error: any) {
+            retries++;
+            const isRetryable = this.isRetryableError(error);
+
+            if (!isRetryable || retries >= maxRetries) {
+              logger.error(`Error sending push notification chunk (attempt ${retries}/${maxRetries}):`, error);
+              // Create error tickets for the entire chunk
+              for (let i = 0; i < chunk.length; i++) {
+                tickets.push({
+                  status: 'error',
+                  message: error.message || 'Failed to send notification',
+                  details: error,
+                });
+              }
+              break;
+            }
+
+            // Exponential backoff: wait 2^retries seconds
+            const delay = Math.pow(2, retries) * 1000;
+            logger.warn(`Retrying push notification chunk after ${delay}ms (attempt ${retries}/${maxRetries})`);
+            await this.sleep(delay);
+          }
         }
       }
 
-      // Count successes and failures
+      // Store ticket IDs for receipt checking
+      // Note: tickets are returned in the same order as messages (which match tokens order)
+      const receiptIds: ExpoPushReceiptId[] = [];
+      const receiptIdToTokenMap = new Map<string, string>(); // Map receipt ID to push token
+
+      // Process tickets and handle immediate errors
       let sentCount = 0;
       let failedCount = 0;
+      const deviceNotRegisteredTokens: string[] = [];
 
-      for (const ticket of tickets) {
-        if (ticket.status === 'ok') {
+      for (let i = 0; i < tickets.length && i < messages.length; i++) {
+        const ticket = tickets[i];
+        const token = messageIndexToTokenMap.get(i); // Get token from message index
+
+        if (!token) {
+          logger.warn(`No token found for message index ${i}`);
+          continue;
+        }
+
+        if (ticket.status === 'ok' && ticket.id) {
           sentCount++;
+          receiptIds.push(ticket.id);
+          receiptIdToTokenMap.set(ticket.id, token);
         } else {
           failedCount++;
-          logger.error('Push notification error:', ticket);
+          logger.error('Push notification ticket error:', ticket);
+
+          // Handle DeviceNotRegistered error immediately
+          if (ticket.details?.error === 'DeviceNotRegistered') {
+            deviceNotRegisteredTokens.push(token);
+          }
         }
       }
+
+      // Deactivate tokens that are not registered
+      for (const token of deviceNotRegisteredTokens) {
+        await this.deactivatePushToken(token);
+        logger.info(`Deactivated push token due to DeviceNotRegistered: ${token.substring(0, 20)}...`);
+      }
+
+      // Check push receipts after 15 minutes (schedule asynchronously)
+      if (receiptIds.length > 0) {
+        // Schedule receipt checking (fire and forget)
+        this.checkPushReceipts(receiptIds, receiptIdToTokenMap, dto).catch((error) => {
+          logger.error('Error checking push receipts:', error);
+        });
+      }
+
+      // Get list of all tokens that were actually sent (from messages)
+      const sentTokens = Array.from(messageIndexToTokenMap.values());
 
       // Log notification
       await NotificationLogModel.create({
         title: dto.title,
         body: dto.body,
         data: dto.data,
-        recipients: tokens,
+        recipients: sentTokens,
         sentCount,
         failedCount,
         type: dto.type,
@@ -161,12 +263,13 @@ class NotificationsService {
         sentAt: new Date(),
       });
 
-      logger.info(`Sent ${sentCount} notifications, ${failedCount} failed`);
+      logger.info(`Sent ${sentCount} notifications, ${failedCount} failed, ${deviceNotRegisteredTokens.length} tokens deactivated`);
 
       return {
         sentCount,
         failedCount,
-        totalRecipients: tokens.length,
+        totalRecipients: sentTokens.length,
+        deactivatedTokens: deviceNotRegisteredTokens.length,
       };
     } catch (error: any) {
       logger.error('Send push notification error:', error);
@@ -177,6 +280,94 @@ class NotificationsService {
         details: error.message,
       };
     }
+  }
+
+  /**
+   * Check push receipts for delivery status (called 15 minutes after sending)
+   */
+  private async checkPushReceipts(
+    receiptIds: ExpoPushReceiptId[],
+    receiptIdToTokenMap: Map<string, string>,
+    dto: SendNotificationDTO
+  ): Promise<void> {
+    // Wait 15 minutes before checking receipts (as per Expo recommendation)
+    const RECEIPT_CHECK_DELAY = 15 * 60 * 1000; // 15 minutes in milliseconds
+    await this.sleep(RECEIPT_CHECK_DELAY);
+
+    try {
+      // Get receipts in chunks (max 1000 per request)
+      const receiptChunks: ExpoPushReceiptId[][] = [];
+      for (let i = 0; i < receiptIds.length; i += 1000) {
+        receiptChunks.push(receiptIds.slice(i, i + 1000));
+      }
+
+      for (const receiptChunk of receiptChunks) {
+        const receiptIdChunk = receiptChunk.filter((id) => Expo.isExpoPushReceiptId(id)) as ExpoPushReceiptId[];
+        
+        if (receiptIdChunk.length === 0) continue;
+
+        try {
+          const receipts = await this.expo.getPushNotificationReceiptsAsync(receiptIdChunk);
+
+          // Process receipts and handle errors
+          for (const [receiptId, receipt] of Object.entries(receipts)) {
+            const token = receiptIdToTokenMap.get(receiptId);
+
+            if (receipt.status === 'error') {
+              logger.error(`Push receipt error for token ${token?.substring(0, 20)}...:`, receipt);
+
+              // Handle specific errors
+              if (receipt.details?.error === 'DeviceNotRegistered' && token) {
+                await this.deactivatePushToken(token);
+                logger.info(`Deactivated push token due to DeviceNotRegistered in receipt: ${token.substring(0, 20)}...`);
+              } else if (receipt.details?.error === 'MessageTooBig') {
+                logger.error('Notification payload too large:', dto);
+              } else if (receipt.details?.error === 'MessageRateExceeded') {
+                logger.warn('Message rate exceeded for token:', token?.substring(0, 20));
+              } else if (receipt.details?.error === 'InvalidCredentials') {
+                logger.error('Invalid push notification credentials - check FCM/APN configuration');
+              } else if (receipt.details?.error === 'MismatchSenderId') {
+                logger.error('FCM Sender ID mismatch - check google-services.json and server key match');
+              }
+            } else if (receipt.status === 'ok') {
+              logger.debug(`Push receipt OK for token ${token?.substring(0, 20)}...`);
+            }
+          }
+        } catch (error: any) {
+          logger.error('Error fetching push receipts:', error);
+          // Don't throw - continue processing other chunks
+        }
+      }
+    } catch (error: any) {
+      logger.error('Error in checkPushReceipts:', error);
+    }
+  }
+
+  /**
+   * Check if an error is retryable (5xx errors, network errors, 429)
+   */
+  private isRetryableError(error: any): boolean {
+    if (!error) return false;
+
+    // HTTP status codes that are retryable
+    const status = error.status || error.statusCode;
+    if (status === 429 || (status >= 500 && status < 600)) {
+      return true;
+    }
+
+    // Network errors
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Sleep utility for exponential backoff
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

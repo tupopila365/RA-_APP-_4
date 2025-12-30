@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { ErrorState } from '../components';
+import { ErrorState, EmptyState } from '../components';
 import { useFAQUseCases } from '../src/presentation/di/DependencyContext';
 import { useFAQsViewModel } from '../src/presentation/viewModels/useFAQsViewModel';
 
@@ -77,11 +77,11 @@ export default function FAQsScreen() {
             <Text style={styles.loadingText}>Loading FAQs...</Text>
           </View>
         ) : isEmpty ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={64} color={colors.textSecondary} />
-            <Text style={styles.emptyText}>No FAQs available</Text>
-            <Text style={styles.emptySubtext}>Check back later for updates</Text>
-          </View>
+          <EmptyState
+            icon="document-text-outline"
+            message="No FAQs available"
+            accessibilityLabel="No FAQs found"
+          />
         ) : (
           faqs.map((faq) => (
             <TouchableOpacity
@@ -154,23 +154,6 @@ function getStyles(colors) {
     loadingText: {
       marginTop: 16,
       fontSize: 16,
-      color: colors.textSecondary,
-    },
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 60,
-    },
-    emptyText: {
-      marginTop: 16,
-      fontSize: 18,
-      fontWeight: '600',
-      color: colors.text,
-    },
-    emptySubtext: {
-      marginTop: 8,
-      fontSize: 14,
       color: colors.textSecondary,
     },
     faqCard: {

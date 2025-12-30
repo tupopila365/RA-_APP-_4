@@ -1,6 +1,7 @@
 """Router for model management and status endpoints."""
 
 import logging
+import requests
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from app.services.embeddings import EmbeddingService
@@ -75,23 +76,32 @@ async def check_models_status():
                 f"Install LLM model: ollama pull {settings.ollama_llm_model}"
             )
         
-        # Get list of available models
+        # Get list of available models using direct HTTP call to /api/tags
         try:
-            models_response = embedding_service.client.list()
-            models = models_response.get('models', [])
+            response = requests.get(f"{settings.ollama_base_url}/api/tags", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                # Correctly parse the response: Ollama returns {"models": [...]}
+                models_list = data.get('models', [])
+                
+                result["available_models"] = [
+                    {
+                        "name": model.get('name', 'unknown'),
+                        "size": model.get('size', 0),
+                        "modified_at": model.get('modified_at', '')
+                    }
+                    for model in models_list
+                    if isinstance(model, dict) and model.get('name')  # Filter out empty names and invalid entries
+                ]
+                
+                logger.info(f"Found {len(result['available_models'])} available models")
+            else:
+                logger.error(f"Failed to list models: HTTP {response.status_code}")
+                result["available_models"] = []
             
-            result["available_models"] = [
-                {
-                    "name": model.get('name', 'unknown'),
-                    "size": model.get('size', 0),
-                    "modified_at": model.get('modified_at', '')
-                }
-                for model in models
-                if model.get('name')  # Filter out empty names
-            ]
-            
-            logger.info(f"Found {len(result['available_models'])} available models")
-            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to connect to Ollama for model listing: {str(e)}")
+            result["available_models"] = []
         except Exception as e:
             logger.error(f"Failed to list available models: {str(e)}")
             result["available_models"] = []

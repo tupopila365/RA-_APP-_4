@@ -23,6 +23,9 @@ const apiClient: AxiosInstance = axios.create({
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:24',message:'API request interceptor',data:{url:config.url,method:config.method,baseURL:config.baseURL,hasToken:!!localStorage.getItem(ACCESS_TOKEN_KEY)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
     
     if (accessToken && config.headers) {
@@ -32,6 +35,9 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error: AxiosError) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:34',message:'API request interceptor error',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     return Promise.reject(error);
   }
 );
@@ -59,9 +65,15 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:60',message:'API response interceptor success',data:{status:response.status,url:response.config?.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     return response;
   },
   async (error: AxiosError) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:64',message:'API response interceptor error',data:{status:error.response?.status,statusText:error.response?.statusText,url:error.config?.url,message:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     // Handle 401 Unauthorized errors

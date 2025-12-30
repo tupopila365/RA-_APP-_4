@@ -16,7 +16,9 @@ const getEnvVar = (key, defaultValue) => {
 exports.env = {
     NODE_ENV: getEnvVar('NODE_ENV', 'development'),
     PORT: parseInt(getEnvVar('PORT', '5000'), 10),
-    MONGODB_URI: getEnvVar('MONGODB_URI'),
+    MONGODB_URI: process.env.NODE_ENV === 'production'
+        ? getEnvVar('MONGODB_URI') // Use Atlas URI for production
+        : 'mongodb://localhost:27017/ra_db', // Always use local MongoDB for development
     REDIS_HOST: process.env.REDIS_HOST || '',
     REDIS_PORT: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 0,
     REDIS_PASSWORD: process.env.REDIS_PASSWORD,
@@ -35,7 +37,9 @@ exports.env = {
     GOOGLE_DRIVE_REDIRECT_URI: process.env.GOOGLE_DRIVE_REDIRECT_URI,
     GOOGLE_DRIVE_REFRESH_TOKEN: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
     GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID,
-    RAG_SERVICE_URL: getEnvVar('RAG_SERVICE_URL', 'http://localhost:8000'),
+    RAG_SERVICE_URL: getEnvVar('RAG_SERVICE_URL', 'http://localhost:8001'),
     CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000'),
+    GEOCODING_API_KEY: process.env.GEOCODING_API_KEY,
+    GEOCODING_SERVICE: process.env.GEOCODING_SERVICE || 'nominatim',
 };
 //# sourceMappingURL=env.js.map

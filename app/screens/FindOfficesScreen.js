@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { LoadingSpinner, ErrorState } from '../components';
+import { LoadingSpinner, ErrorState, EmptyState, FilterBar } from '../components';
 import { useOfficesViewModel } from '../src/presentation/viewModels/useOfficesViewModel';
 import { useOfficeUseCases } from '../src/presentation/di/DependencyContext';
 
@@ -129,34 +129,13 @@ export default function FindOfficesScreen() {
         <View style={styles.filterLabel}>
           <Text style={styles.filterLabelText}>Region:</Text>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersContainer}
-          contentContainerStyle={styles.filtersContent}
-        >
-          {regions.map((region) => (
-            <TouchableOpacity
-              key={region}
-              style={[
-                styles.filterChip,
-                selectedRegion === region && {
-                  backgroundColor: colors.primary,
-                },
-              ]}
-              onPress={() => setSelectedRegion(region)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  selectedRegion === region && { color: '#FFFFFF' },
-                ]}
-              >
-                {region}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <FilterBar
+          filters={regions}
+          selectedFilter={selectedRegion}
+          onFilterChange={setSelectedRegion}
+          testID="offices-filter-bar"
+          accessibilityLabel="Office region filters"
+        />
       </View>
 
       {/* Locations List - Grouped by Region */}
@@ -173,13 +152,11 @@ export default function FindOfficesScreen() {
         }
       >
         {isEmpty ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="location-outline" size={64} color={colors.textSecondary} />
-            <Text style={styles.emptyText}>No locations found</Text>
-            <Text style={styles.emptySubtext}>
-              {searchQuery ? 'Try adjusting your search' : 'No locations available'}
-            </Text>
-          </View>
+          <EmptyState
+            icon="location-outline"
+            message={searchQuery ? 'No locations found matching your search' : 'No locations available'}
+            accessibilityLabel="No locations found"
+          />
         ) : (
           Object.keys(groupedOffices).sort().map((region) => (
             <View key={region} style={styles.regionSection}>
@@ -284,14 +261,6 @@ function getStyles(colors) {
       color: colors.text,
       fontSize: 16,
     },
-    filtersContainer: {
-      maxHeight: 50,
-      marginBottom: 10,
-    },
-    filtersContent: {
-      paddingHorizontal: 15,
-      paddingVertical: 5,
-    },
     filterLabel: {
       paddingHorizontal: 15,
       paddingVertical: 8,
@@ -302,23 +271,6 @@ function getStyles(colors) {
       color: colors.textSecondary,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
-    },
-    filterChip: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: colors.card,
-      marginRight: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    filterText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      textAlign: 'center',
     },
     contentScrollView: {
       flex: 1,
@@ -406,22 +358,6 @@ function getStyles(colors) {
     actionButtonText: {
       fontSize: 14,
       fontWeight: '600',
-    },
-    emptyState: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 60,
-    },
-    emptyText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginTop: 15,
-    },
-    emptySubtext: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginTop: 8,
     },
   });
 }

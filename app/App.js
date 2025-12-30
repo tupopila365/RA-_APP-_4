@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { StatusBar as RNStatusBar, useColorScheme, Platform } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { StatusBar as RNStatusBar, useColorScheme, Platform, BackHandler, Alert } from 'react-native';
+import { NavigationContainer, CommonActions, useNavigation } from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -25,17 +26,24 @@ import ChatbotScreen from './screens/ChatbotScreen';
 import FAQsScreen from './screens/FAQsScreen';
 import FindOfficesScreen from './screens/FindOfficesScreen';
 import SettingsScreen from './screens/SettingsScreen';
-import MoreMenuScreen from './screens/MoreMenuScreen';
 import ReportPotholeScreen from './screens/ReportPotholeScreen';
 import ReportConfirmationScreen from './screens/ReportConfirmationScreen';
 import MyReportsScreen from './screens/MyReportsScreen';
 import ReportDetailScreen from './screens/ReportDetailScreen';
+import PLNInfoScreen from './screens/PLNInfoScreen';
+import PLNApplicationScreen from './screens/PLNApplicationScreen';
+import PLNConfirmationScreen from './screens/PLNConfirmationScreen';
+import PLNTrackingScreen from './screens/PLNTrackingScreen';
+import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
+import EmailVerificationScreen from './screens/EmailVerificationScreen';
 import { RATheme } from './theme/colors';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useAppContext } from './context/AppContext';
 import { CacheProvider } from './context/CacheContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DependencyProvider } from './src/presentation/di/DependencyContext';
 import { useNotifications } from './hooks/useNotifications';
+import { authService } from './services/authService';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -51,8 +59,10 @@ function getTabBarIcon(route, focused, color, size) {
     iconName = focused ? 'briefcase' : 'briefcase-outline';
   } else if (route.name === 'Tenders') {
     iconName = focused ? 'document-text' : 'document-text-outline';
-  } else if (route.name === 'More') {
-    iconName = focused ? 'menu' : 'menu-outline';
+  } else if (route.name === 'Chatbot') {
+    iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+  } else if (route.name === 'Settings') {
+    iconName = focused ? 'settings' : 'settings-outline';
   }
 
   return <Ionicons name={iconName} size={size} color={color} />;
@@ -125,65 +135,28 @@ function MainTabs() {
         component={NewsStack}
         options={{ headerShown: false }}
       />
-      <Tab.Screen name="Vacancies" component={VacanciesScreen} />
-      <Tab.Screen name="Tenders" component={TendersScreen} />
       <Tab.Screen 
-        name="More" 
-        component={MoreStack}
+        name="Vacancies" 
+        component={VacanciesScreen} 
+      />
+      <Tab.Screen 
+        name="Tenders" 
+        component={TendersScreen} 
+      />
+      <Tab.Screen 
+        name="Chatbot" 
+        component={ChatbotScreen}
+        options={{ 
+          headerShown: false,
+          title: 'Chatbot'
+        }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
         options={{ headerShown: false }}
       />
     </Tab.Navigator>
-  );
-}
-
-function MoreStack() {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerBackTitleVisible: false,
-        gestureEnabled: true,
-        headerStyle: {
-          backgroundColor: colors.primary,
-        },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
-      <Stack.Screen
-        name="MoreMenu"
-        component={MoreMenuScreen}
-        options={{ title: 'More' }}
-      />
-      <Stack.Screen name="Chatbot" component={ChatbotScreen} />
-      <Stack.Screen name="FAQs" component={FAQsScreen} />
-      <Stack.Screen name="FindOffices" component={FindOfficesScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen 
-        name="ReportPothole" 
-        component={ReportPotholeScreen}
-        options={{ title: 'Report Road Damage' }}
-      />
-      <Stack.Screen 
-        name="ReportConfirmation" 
-        component={ReportConfirmationScreen}
-        options={{ title: 'Report Submitted' }}
-      />
-      <Stack.Screen 
-        name="MyReports" 
-        component={MyReportsScreen}
-        options={{ title: 'My Reports' }}
-      />
-      <Stack.Screen 
-        name="ReportDetail" 
-        component={ReportDetailScreen}
-        options={{ title: 'Report Details' }}
-      />
-    </Stack.Navigator>
   );
 }
 
@@ -193,12 +166,52 @@ function NotificationInitializer() {
   return null;
 }
 
-function RootStack() {
+function AuthStack() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
 
   return (
     <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+      }}
+    >
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+      />
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+      />
+      <Stack.Screen
+        name="EmailVerification"
+        component={EmailVerificationScreen}
+      />
+    </Stack.Navigator>
+  );
+}
+
+function AppNavigator() {
+  const colorScheme = useColorScheme();
+  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { user, isLoading } = useAppContext();
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return null;
+  }
+
+  // Show auth stack if not authenticated
+  if (!user) {
+    return <AuthStack />;
+  }
+
+  // Show main app if authenticated
+  return (
+    <Stack.Navigator
+      initialRouteName="MainTabs"
       screenOptions={{
         headerBackTitleVisible: false,
         gestureEnabled: true,
@@ -217,6 +230,21 @@ function RootStack() {
         options={{ headerShown: false }}
       />
       <Stack.Screen 
+        name="Message RA" 
+        component={ChatbotScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="FAQs" 
+        component={FAQsScreen}
+        options={{ title: 'FAQs' }}
+      />
+      <Stack.Screen 
+        name="Find Offices" 
+        component={FindOfficesScreen}
+        options={{ title: 'Find Offices' }}
+      />
+      <Stack.Screen 
         name="ReportPothole" 
         component={ReportPotholeScreen}
         options={{ title: 'Report Road Damage' }}
@@ -236,8 +264,126 @@ function RootStack() {
         component={ReportDetailScreen}
         options={{ title: 'Report Details' }}
       />
+      <Stack.Screen 
+        name="PLNInfo" 
+        component={PLNInfoScreen}
+        options={{ title: 'Personalized Number Plates' }}
+      />
+      <Stack.Screen 
+        name="PLNApplication" 
+        component={PLNApplicationScreen}
+        options={{ title: 'PLN Application' }}
+      />
+      <Stack.Screen 
+        name="PLNConfirmation" 
+        component={PLNConfirmationScreen}
+        options={{ title: 'Application Submitted' }}
+      />
+      <Stack.Screen 
+        name="PLNTracking" 
+        component={PLNTrackingScreen}
+        options={{ title: 'Track Application' }}
+      />
+      <Stack.Screen
+        name="Auth"
+        component={AuthStack}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
+}
+
+function RootStack() {
+  return <AppNavigator />;
+}
+
+// Component to handle deep links for email verification
+function DeepLinkHandler() {
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    // Handle initial URL (when app is opened via deep link)
+    const handleInitialURL = async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handleDeepLink(initialUrl, navigation);
+      }
+    };
+
+    // Handle URL when app is already running
+    const subscription = Linking.addEventListener('url', (event) => {
+      handleDeepLink(event.url, navigation);
+    });
+
+    handleInitialURL();
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [navigation]);
+
+  return null;
+}
+
+async function handleDeepLink(url, navigation) {
+  try {
+    const parsedUrl = Linking.parse(url);
+    
+    // Check if it's an email verification link
+    if (parsedUrl.hostname === 'verify-email' || parsedUrl.path === '/verify-email') {
+      const token = parsedUrl.queryParams?.token;
+      
+      if (token) {
+        // Show loading indicator
+        Alert.alert('Verifying Email', 'Please wait...', [{ text: 'OK' }]);
+        
+        try {
+          // Verify email with token
+          const result = await authService.verifyEmail(token);
+          
+          Alert.alert(
+            'Email Verified',
+            'Your email has been successfully verified! You can now log in.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Navigate to login screen
+                  navigation.navigate('Auth', {
+                    screen: 'Login',
+                    params: {
+                      message: 'Email verified successfully. Please log in.',
+                    },
+                  });
+                },
+              },
+            ]
+          );
+        } catch (error) {
+          console.error('Email verification error:', error);
+          Alert.alert(
+            'Verification Failed',
+            error.message || 'The verification link is invalid or has expired. Please request a new verification email.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Navigate to login screen
+                  navigation.navigate('Auth', {
+                    screen: 'Login',
+                  });
+                },
+              },
+            ]
+          );
+        }
+      } else {
+        Alert.alert('Invalid Link', 'The verification link is missing a token.');
+      }
+    }
+  } catch (error) {
+    console.error('Deep link handling error:', error);
+  }
 }
 
 export default function App() {
@@ -264,9 +410,11 @@ export default function App() {
       try {
         Notifications.setNotificationHandler({
           handleNotification: async () => ({
-            shouldShowAlert: true,
+            shouldShowAlert: true, // For iOS compatibility (legacy)
             shouldPlaySound: true,
-            shouldSetBadge: false,
+            shouldSetBadge: true,
+            shouldShowBanner: true, // Show notification banner when app is foregrounded
+            shouldShowList: true, // Show in notification center
           }),
         });
       } catch (e) {
@@ -294,6 +442,7 @@ export default function App() {
                 {/* Expo-go safe StatusBar component */}
                 <StatusBar style="light" backgroundColor={colors.primary} />
                 <NotificationInitializer />
+                <DeepLinkHandler />
                 <RootStack />
               </NavigationContainer>
             </CacheProvider>

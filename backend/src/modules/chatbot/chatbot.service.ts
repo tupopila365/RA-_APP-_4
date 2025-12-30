@@ -17,6 +17,7 @@ export interface ChatbotResponse {
   answer: string;
   sources: ChatbotSource[];
   timestamp: Date;
+  interactionId?: string;
 }
 
 class ChatbotService {
@@ -33,16 +34,32 @@ class ChatbotService {
       // Forward query to RAG service
       const ragResponse = await ragService.queryDocuments(question);
 
+      // Debug logging to trace source formatting
+      logger.debug('RAG service response:', {
+        hasAnswer: !!ragResponse.answer,
+        rawSources: ragResponse.sources,
+        sourcesType: Array.isArray(ragResponse.sources) ? 'array' : typeof ragResponse.sources,
+        sourcesLength: Array.isArray(ragResponse.sources) ? ragResponse.sources.length : 0,
+      });
+
       // Format response with source document references
+      const formattedSources = this.formatSources(ragResponse.sources || []);
+      
+      logger.debug('Formatted sources:', {
+        formattedSources,
+        formattedCount: formattedSources.length,
+      });
+
       const formattedResponse: ChatbotResponse = {
         answer: ragResponse.answer || 'I apologize, but I could not find relevant information to answer your question.',
-        sources: this.formatSources(ragResponse.sources || []),
+        sources: formattedSources,
         timestamp: new Date(),
       };
 
       logger.info('Chatbot query processed successfully', {
         question,
         sourcesCount: formattedResponse.sources.length,
+        rawSourcesCount: Array.isArray(ragResponse.sources) ? ragResponse.sources.length : 0,
       });
 
       return formattedResponse;
@@ -73,11 +90,24 @@ class ChatbotService {
    * Format source documents from RAG service response
    */
   private formatSources(sources: any[]): ChatbotSource[] {
-    return sources.map((source) => ({
-      documentId: source.document_id || source.documentId || '',
-      title: source.document_title || source.title || 'Unknown Document',
-      relevance: source.relevance || source.score || 0,
-    }));
+    if (!sources || !Array.isArray(sources)) {
+      logger.warn('formatSources received invalid input:', { sources, type: typeof sources });
+      return [];
+    }
+    
+    const formatted = sources.map((source) => {
+      const formattedSource = {
+        documentId: source.document_id || source.documentId || '',
+        title: source.document_title || source.title || 'Unknown Document',
+        relevance: source.relevance || source.score || 0,
+      };
+      
+      logger.debug('Formatting source:', { original: source, formatted: formattedSource });
+      return formattedSource;
+    });
+    
+    logger.debug('Formatted sources result:', { count: formatted.length, sources: formatted });
+    return formatted;
   }
 
   /**

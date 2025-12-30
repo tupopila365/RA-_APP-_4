@@ -3,6 +3,7 @@
 import logging
 from typing import List, Dict, Any
 import ollama
+import requests
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -258,20 +259,34 @@ class EmbeddingService:
             True if model is available, False otherwise
         """
         try:
-            models = self.client.list()
-            model_names = [model.get('name', '') for model in models.get('models', [])]
+            # Use direct HTTP call to /api/tags for reliable parsing
+            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
+            if response.status_code != 200:
+                logger.error(f"Failed to list models: HTTP {response.status_code}")
+                return False
+            
+            data = response.json()
+            # Correctly parse the response: Ollama returns {"models": [...]}
+            models_list = data.get('models', [])
+            model_names = [model.get('name', '') for model in models_list if isinstance(model, dict)]
+            
+            # Filter out empty names (corrupted model entries)
+            valid_model_names = [name for name in model_names if name and name.strip()]
             
             # Check if our model is in the list
-            is_available = any(self.model in name for name in model_names)
+            is_available = any(self.model in name for name in valid_model_names)
             
             if is_available:
                 logger.info(f"Model {self.model} is available")
             else:
-                logger.warning(f"Model {self.model} not found. Available models: {model_names}")
+                logger.warning(f"Model {self.model} not found. Available models: {valid_model_names}")
                 logger.info(f"To install the model, run: ollama pull {self.model}")
             
             return is_available
             
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to connect to Ollama for model check: {str(e)}")
+            return False
         except Exception as e:
             logger.error(f"Failed to check model availability: {str(e)}")
             return False

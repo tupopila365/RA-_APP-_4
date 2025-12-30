@@ -1,5 +1,6 @@
 import React, { createContext, useState, useCallback, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { authService } from '../services/authService';
 
 export const AppContext = createContext();
 
@@ -21,11 +22,32 @@ export function AppProvider({ children }) {
     try {
       setIsLoading(true);
       
-      const storedUser = await SecureStore.getItemAsync('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+      // Check for stored user and tokens
+      const storedUser = await authService.getStoredUser();
+      const { accessToken } = await authService.getStoredTokens();
+
+      if (storedUser && accessToken) {
+        // Try to validate token by getting current user
+        try {
+          const currentUser = await authService.getCurrentUser();
+          if (currentUser) {
+            setUser(currentUser);
+          } else {
+            // Token invalid, clear stored data
+            await authService.logout();
+            setUser(null);
+          }
+        } catch (err) {
+          console.error('Error validating token:', err);
+          // Token invalid, clear stored data
+          await authService.logout();
+          setUser(null);
+        }
+      } else {
+        setUser(null);
       }
 
+      // Load app settings
       const storedSettings = await SecureStore.getItemAsync('appSettings');
       if (storedSettings) {
         setAppSettings(JSON.parse(storedSettings));
@@ -43,7 +65,7 @@ export function AppProvider({ children }) {
       setIsLoading(true);
       setError(null);
       
-      await SecureStore.setItemAsync('user', JSON.stringify(userData));
+      // User data and tokens are already stored by authService
       setUser(userData);
       return userData;
     } catch (err) {
@@ -57,7 +79,7 @@ export function AppProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       setIsLoading(true);
-      await SecureStore.deleteItemAsync('user');
+      await authService.logout();
       setUser(null);
     } catch (err) {
       setError(err.message);
@@ -95,4 +117,13 @@ export function AppProvider({ children }) {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+// Hook to use AppContext
+export function useAppContext() {
+  const context = React.useContext(AppContext);
+  if (!context) {
+    throw new Error('useAppContext must be used within AppProvider');
+  }
+  return context;
 }

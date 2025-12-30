@@ -2,9 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadService = exports.UploadService = void 0;
 const cloudinary_1 = require("../../config/cloudinary");
-const google_drive_1 = require("../../config/google-drive");
 const logger_1 = require("../../utils/logger");
-const env_1 = require("../../config/env");
 const upload_errors_1 = require("./upload.errors");
 class UploadService {
     constructor() {
@@ -12,22 +10,6 @@ class UploadService {
         this.MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
         this.MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
         this.UPLOAD_FOLDER = 'roads-authority';
-    }
-    /**
-     * Sanitize filename for Cloudinary upload
-     * Removes spaces, special characters, and ensures URL-safe naming
-     */
-    sanitizeFilename(filename) {
-        // Remove file extension
-        const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
-        // Replace spaces with underscores and remove special characters
-        // Keep only alphanumeric, underscores, and hyphens
-        const sanitized = nameWithoutExt
-            .replace(/\s+/g, '_') // Replace spaces with underscores
-            .replace(/[^a-zA-Z0-9_-]/g, '') // Remove special characters
-            .replace(/_+/g, '_') // Replace multiple underscores with single
-            .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
-        return sanitized || 'document'; // Fallback if sanitization results in empty string
     }
     /**
      * Validate image file
@@ -195,99 +177,23 @@ class UploadService {
             // Convert buffer to base64
             const b64 = Buffer.from(file.buffer).toString('base64');
             const dataURI = `data:${file.mimetype};base64,${b64}`;
-            // Determine access mode from environment configuration
-            const accessMode = env_1.env.CLOUDINARY_PDF_ACCESS_MODE || 'public';
-            const useSignedUrls = accessMode === 'signed';
-            // Sanitize filename to prevent URL encoding issues
-            const sanitizedFilename = this.sanitizeFilename(file.originalname);
-            const timestamp = Date.now();
-            const publicId = `doc_${timestamp}_${sanitizedFilename}`;
             // Upload to Cloudinary
             // Use 'raw' resource type for PDFs - Cloudinary will auto-detect the format
-            // For public mode: Use 'upload' type to make PDFs publicly accessible (fixes 401 errors in RAG service)
-            // For signed mode: Use 'authenticated' type to require signed URLs
-            const uploadOptions = {
+            const result = await cloudinary_1.cloudinary.uploader.upload(dataURI, {
                 folder: `${this.UPLOAD_FOLDER}/pdfs`,
-                public_id: publicId, // Use sanitized filename without spaces
                 resource_type: 'raw', // Use 'raw' for PDFs
-                type: useSignedUrls ? 'authenticated' : 'upload', // 'authenticated' for signed URLs, 'upload' for public access
-                access_mode: 'public', // CRITICAL: Explicitly set access_mode to 'public' to ensure PDFs are publicly accessible
-            };
-            logger_1.logger.info('Uploading PDF with access mode', {
-                operation: 'pdf_upload',
-                accessMode,
-                uploadType: uploadOptions.type,
-                accessModeExplicit: uploadOptions.access_mode,
-                ...fileMetadata,
             });
-            const result = await cloudinary_1.cloudinary.uploader.upload(dataURI, uploadOptions);
             // Validate response contains all required metadata
             const validatedResult = this.validatePDFUploadResult(result, file);
-            // ALWAYS generate signed URL for PDFs to ensure secure access
-            // For public files (type: 'upload'), the signature provides URL integrity
-            // For private files (type: 'authenticated'), the signature provides access control
-            const finalUrl = (0, cloudinary_1.generateSignedURL)(result.public_id, {
-                resourceType: 'raw',
-                type: useSignedUrls ? 'authenticated' : 'upload', // Match the upload type
-            });
-            logger_1.logger.info('Generated signed URL for PDF', {
-                operation: 'pdf_upload',
-                publicId: result.public_id,
-                accessMode,
-                deliveryType: useSignedUrls ? 'authenticated' : 'upload',
-                originalUrl: validatedResult.url,
-                signedUrl: finalUrl,
-                ...fileMetadata,
-            });
-            // Note: Signed URLs for 'upload' type don't expire by default
-            // Only 'authenticated' type URLs can have expiration
-            let expiresAt;
-            // Upload to Google Drive for RAG service (if configured)
-            let googleDriveFileId;
-            let googleDriveUrl;
-            let ragDownloadUrl = finalUrl; // Default to Cloudinary URL
-            if ((0, google_drive_1.isGoogleDriveConfigured)()) {
-                try {
-                    logger_1.logger.info('Uploading PDF to Google Drive for RAG service', {
-                        operation: 'google_drive_upload',
-                        ...fileMetadata,
-                    });
-                    const googleDriveResult = await (0, google_drive_1.uploadToGoogleDrive)(file.buffer, sanitizedFilename + '.pdf', 'application/pdf', env_1.env.GOOGLE_DRIVE_FOLDER_ID);
-                    googleDriveFileId = googleDriveResult.fileId;
-                    googleDriveUrl = googleDriveResult.webViewLink;
-                    ragDownloadUrl = googleDriveResult.directDownloadLink; // Use Google Drive for RAG
-                    logger_1.logger.info('PDF uploaded to Google Drive successfully', {
-                        operation: 'google_drive_upload',
-                        fileId: googleDriveFileId,
-                        directDownloadLink: ragDownloadUrl,
-                        ...fileMetadata,
-                    });
-                }
-                catch (error) {
-                    // Log error but don't fail the upload - Cloudinary URL can still be used
-                    logger_1.logger.warn('Failed to upload to Google Drive, will use Cloudinary URL for RAG', {
-                        error: error instanceof Error ? error.message : 'Unknown error',
-                        ...fileMetadata,
-                    });
-                }
-            }
-            // Validate URL accessibility (use RAG download URL)
-            const isAccessible = await this.validateUploadedURL(ragDownloadUrl, fileMetadata);
-            if (!isAccessible) {
-                throw (0, upload_errors_1.createUploadError)(upload_errors_1.UploadErrorType.CLOUDINARY_ERROR, 'Uploaded PDF URL is not accessible. The file was uploaded but cannot be downloaded.', { ...fileMetadata, url: ragDownloadUrl, accessMode });
-            }
             // Log successful upload with Cloudinary response
             logger_1.logger.info('PDF upload successful', {
                 operation: 'pdf_upload',
                 status: 'success',
                 ...fileMetadata,
                 publicId: validatedResult.publicId,
-                url: finalUrl,
+                url: validatedResult.url,
                 bytes: validatedResult.bytes,
                 format: validatedResult.format,
-                accessMode,
-                urlAccessible: isAccessible,
-                ...(expiresAt && { expiresAt: expiresAt.toISOString() }),
                 cloudinaryResponse: {
                     publicId: result.public_id,
                     secureUrl: result.secure_url,
@@ -300,65 +206,10 @@ class UploadService {
                 }),
                 timestamp: new Date().toISOString(),
             });
-            return {
-                ...validatedResult,
-                url: finalUrl, // Cloudinary URL for display
-                accessType: accessMode,
-                ...(expiresAt && { expiresAt }),
-                ...(googleDriveFileId && { googleDriveFileId }),
-                ...(googleDriveUrl && { googleDriveUrl }),
-                ragDownloadUrl, // Optimized URL for RAG service (Google Drive if available, otherwise Cloudinary)
-            };
+            return validatedResult;
         }
         catch (error) {
             return this.handleUploadError(error, file, userInfo);
-        }
-    }
-    /**
-     * Validate that an uploaded URL is accessible
-     * @param url - The URL to validate
-     * @param fileMetadata - File metadata for logging
-     * @returns Promise<boolean> - true if URL is accessible, false otherwise
-     */
-    async validateUploadedURL(url, fileMetadata) {
-        try {
-            logger_1.logger.info('Validating uploaded PDF URL accessibility', {
-                operation: 'url_validation',
-                url,
-                ...fileMetadata,
-                timestamp: new Date().toISOString(),
-            });
-            const isAccessible = await (0, cloudinary_1.validateURLAccess)(url);
-            if (isAccessible) {
-                logger_1.logger.info('URL validation successful', {
-                    operation: 'url_validation',
-                    status: 'success',
-                    url,
-                    ...fileMetadata,
-                    timestamp: new Date().toISOString(),
-                });
-            }
-            else {
-                logger_1.logger.error('URL validation failed - URL not accessible', {
-                    operation: 'url_validation',
-                    status: 'failed',
-                    url,
-                    ...fileMetadata,
-                    timestamp: new Date().toISOString(),
-                });
-            }
-            return isAccessible;
-        }
-        catch (error) {
-            logger_1.logger.error('URL validation error', {
-                operation: 'url_validation',
-                status: 'error',
-                url,
-                error: error instanceof Error ? error.message : 'Unknown error',
-                ...fileMetadata,
-                timestamp: new Date().toISOString(),
-            });
-            return false;
         }
     }
     /**

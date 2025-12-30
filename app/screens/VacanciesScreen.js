@@ -17,7 +17,7 @@ import { RATheme } from '../theme/colors';
 import { vacanciesService } from '../services/vacanciesService';
 import { documentDownloadService } from '../services/documentDownloadService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
-import { LoadingSpinner, ErrorState } from '../components';
+import { LoadingSpinner, ErrorState, FilterBar, EmptyState } from '../components';
 
 export default function VacanciesScreen() {
   const colorScheme = useColorScheme();
@@ -291,34 +291,13 @@ export default function VacanciesScreen() {
         </View>
 
         {/* Filters */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersContainer}
-          contentContainerStyle={styles.filtersContent}
-        >
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              style={[
-                styles.filterChip,
-                selectedFilter === filter && {
-                  backgroundColor: colors.primary,
-                },
-              ]}
-              onPress={() => setSelectedFilter(filter)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  selectedFilter === filter && { color: '#FFFFFF' },
-                ]}
-              >
-                {filter}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <FilterBar
+          filters={filters}
+          selectedFilter={selectedFilter}
+          onFilterChange={setSelectedFilter}
+          testID="vacancies-filter-bar"
+          accessibilityLabel="Vacancy type filters"
+        />
       </View>
 
       {/* Vacancies List */}
@@ -335,12 +314,11 @@ export default function VacanciesScreen() {
         }
       >
         {filteredVacancies.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="briefcase-outline" size={64} color={colors.textSecondary} />
-            <Text style={styles.emptyText}>
-              {vacancies.length === 0 ? 'No vacancies available' : 'No vacancies match your search'}
-            </Text>
-          </View>
+          <EmptyState
+            icon="briefcase-outline"
+            message={vacancies.length === 0 ? 'No vacancies available' : 'No vacancies match your search'}
+            accessibilityLabel="No vacancies found"
+          />
         ) : 
           filteredVacancies.map((vacancy) => {
             const isExpanded = expandedVacancy === vacancy._id;
@@ -504,31 +482,6 @@ function getStyles(colors) {
       color: colors.text,
       fontSize: 16,
     },
-    filtersContainer: {
-      maxHeight:50,
-      marginBottom: 5,
-    },
-    filtersContent: {
-      paddingHorizontal: 15,
-      paddingVertical: 5,
-    },
-    filterChip: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginRight: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    filterText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      textAlign: 'center',
-    },
     contentScrollView: {
       flex: 1,
     },
@@ -594,16 +547,6 @@ function getStyles(colors) {
       fontSize: 14,
       fontWeight: '600',
       marginLeft: 5,
-    },
-    emptyState: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 60,
-    },
-    emptyText: {
-      fontSize: 16,
-      color: colors.textSecondary,
-      marginTop: 15,
     },
     expandedContent: {
       marginTop: 15,

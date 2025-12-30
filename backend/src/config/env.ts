@@ -26,6 +26,13 @@ interface EnvConfig {
   CORS_ORIGIN: string;
   GEOCODING_API_KEY?: string;
   GEOCODING_SERVICE?: 'nominatim' | 'google';
+  SMTP_HOST?: string;
+  SMTP_PORT?: number;
+  SMTP_USER?: string;
+  SMTP_PASSWORD?: string;
+  SMTP_FROM_EMAIL?: string;
+  SMTP_FROM_NAME?: string;
+  EMAIL_VERIFICATION_BASE_URL?: string;
 }
 
 const getEnvVar = (key: string, defaultValue?: string): string => {
@@ -60,8 +67,15 @@ export const env: EnvConfig = {
   GOOGLE_DRIVE_REDIRECT_URI: process.env.GOOGLE_DRIVE_REDIRECT_URI,
   GOOGLE_DRIVE_REFRESH_TOKEN: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
   GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID,
-  RAG_SERVICE_URL: getEnvVar('RAG_SERVICE_URL', 'http://localhost:8000'),
+  RAG_SERVICE_URL: getEnvVar('RAG_SERVICE_URL', 'http://localhost:8001'),
   CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000'),
   GEOCODING_API_KEY: process.env.GEOCODING_API_KEY,
   GEOCODING_SERVICE: (process.env.GEOCODING_SERVICE as 'nominatim' | 'google') || 'nominatim',
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD,
+  SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL || 'noreply@roadsauthority.na',
+  SMTP_FROM_NAME: process.env.SMTP_FROM_NAME || 'Roads Authority Namibia',
+  EMAIL_VERIFICATION_BASE_URL: process.env.EMAIL_VERIFICATION_BASE_URL || 'roadsauthority://verify-email',
 };

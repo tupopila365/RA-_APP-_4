@@ -18,7 +18,7 @@ import { tendersService } from '../services/tendersService';
 import { documentDownloadService } from '../services/documentDownloadService';
 import { useDebounce } from '../hooks/useDebounce';
 import useDocumentDownload from '../hooks/useDocumentDownload';
-import { LoadingSpinner, ErrorState, EmptyState } from '../components';
+import { LoadingSpinner, ErrorState, EmptyState, Badge, Card, FilterBar } from '../components';
 
 export default function TendersScreen() {
   const colorScheme = useColorScheme();
@@ -320,34 +320,13 @@ export default function TendersScreen() {
         </View>
 
         {/* Filters */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersContainer}
-          contentContainerStyle={styles.filtersContent}
-        >
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter.value}
-              style={[
-                styles.filterChip,
-                selectedFilter === filter.value && {
-                  backgroundColor: colors.primary,
-                },
-              ]}
-              onPress={() => setSelectedFilter(filter.value)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  selectedFilter === filter.value && { color: '#FFFFFF' },
-                ]}
-              >
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <FilterBar
+          filters={filters}
+          selectedFilter={selectedFilter}
+          onFilterChange={setSelectedFilter}
+          testID="tenders-filter-bar"
+          accessibilityLabel="Tender status filters"
+        />
       </View>
 
       {/* Tenders List */}
@@ -371,20 +350,18 @@ export default function TendersScreen() {
         ) : (
           tenders.map((tender) => {
             const isTenderDownloading = isDownloading && currentDownloadId === tender._id;
+            const statusColor = getStatusColor(tender.status);
             return (
-              <View key={tender._id} style={styles.tenderCard}>
+              <Card key={tender._id} style={styles.tenderCard}>
                 <View style={styles.tenderHeader}>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(tender.status) + '20' }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(tender.status) }]}>
-                      {getStatusLabel(tender.status)}
-                    </Text>
-                  </View>
+                  <Badge
+                    label={getStatusLabel(tender.status)}
+                    backgroundColor={statusColor + '20'}
+                    textColor={statusColor}
+                    size="small"
+                  />
                   {tender.category && (
-                    <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '20' }]}>
-                      <Text style={[styles.categoryText, { color: colors.primary }]}>
-                        {tender.category}
-                      </Text>
-                    </View>
+                    <Badge label={tender.category} variant="info" size="small" />
                   )}
                 </View>
                 <Text style={styles.tenderTitle} numberOfLines={2} ellipsizeMode="tail">
@@ -445,7 +422,7 @@ export default function TendersScreen() {
                     )}
                   </>
                 )}
-              </View>
+              </Card>
             );
           })
         )}
@@ -487,30 +464,6 @@ function getStyles(colors) {
       color: colors.text,
       fontSize: 16,
     },
-    filtersContainer: {
-      marginBottom: 5,
-    },
-    filtersContent: {
-      paddingHorizontal: 15,
-      paddingVertical: 10,
-    },
-    filterChip: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: colors.card,
-      marginRight: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    filterText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      textAlign: 'center',
-    },
     contentScrollView: {
       flex: 1,
     },
@@ -519,15 +472,6 @@ function getStyles(colors) {
       paddingBottom: 25,
     },
     tenderCard: {
-      backgroundColor: colors.card,
-      borderRadius: 15,
-      padding: 20,
-      marginBottom: 15,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
       minHeight: 180,
     },
     tenderHeader: {
@@ -537,24 +481,6 @@ function getStyles(colors) {
       marginBottom: 12,
       flexWrap: 'wrap',
       gap: 8,
-    },
-    statusBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    statusText: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    categoryBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    categoryText: {
-      fontSize: 12,
-      fontWeight: '600',
     },
     tenderTitle: {
       fontSize: 18,

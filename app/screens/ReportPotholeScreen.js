@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Image,
   Alert,
   ActivityIndicator,
@@ -26,6 +25,8 @@ try {
 }
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
+import { FormInput, Button, SectionTitle } from '../components';
+import { spacing } from '../theme/spacing';
 
 const SEVERITY_OPTIONS = [
   { value: 'small', label: 'Small', color: '#4ECDC4' },
@@ -349,42 +350,37 @@ export default function ReportPotholeScreen({ navigation }) {
           {/* Location Section */}
           <View style={styles.section}>
             {showManualLocation ? (
-              <View style={styles.manualLocationContainer}>
-                <Text style={styles.manualLocationLabel}>Latitude:</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., -22.5700"
-                  placeholderTextColor={colors.textSecondary}
+                <View style={styles.manualLocationContainer}>
+                <FormInput
+                  label="Latitude"
                   value={manualLatitude}
                   onChangeText={setManualLatitude}
+                  placeholder="e.g., -22.5700"
                   keyboardType="numeric"
                 />
-                <Text style={styles.manualLocationLabel}>Longitude:</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., 17.0836"
-                  placeholderTextColor={colors.textSecondary}
+                <FormInput
+                  label="Longitude"
                   value={manualLongitude}
                   onChangeText={setManualLongitude}
+                  placeholder="e.g., 17.0836"
                   keyboardType="numeric"
                 />
                 <View style={styles.manualLocationButtons}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.submitButton]}
+                  <Button
+                    label="Set Location"
                     onPress={handleManualLocationSubmit}
-                  >
-                    <Text style={styles.buttonText}>Set Location</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
+                    iconName="checkmark-circle"
+                    style={styles.submitButton}
+                  />
+                  <Button
+                    label="Cancel"
                     onPress={() => {
                       setShowManualLocation(false);
                       setManualLatitude('');
                       setManualLongitude('');
                     }}
-                  >
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
+                    variant="outline"
+                  />
                 </View>
               </View>
             ) : locationLoading ? (
@@ -412,15 +408,12 @@ export default function ReportPotholeScreen({ navigation }) {
               </View>
             ) : (
               <View>
-                <TouchableOpacity
-                  style={styles.button}
+                <Button
+                  label={Location ? 'Get Location' : 'Enter Location Manually'}
                   onPress={Location ? requestLocationPermission : showManualLocationInput}
-                >
-                  <Ionicons name="location-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.buttonText}>
-                    {Location ? 'Get Location' : 'Enter Location Manually'}
-                  </Text>
-                </TouchableOpacity>
+                  iconName="location-outline"
+                  fullWidth
+                />
                 {!Location && (
                   <Text style={styles.helpText}>
                     Location services unavailable. Tap to enter coordinates manually.
@@ -472,12 +465,11 @@ export default function ReportPotholeScreen({ navigation }) {
 
           {/* Road Name */}
           <View style={styles.section}>
-            <TextInput
-              style={styles.input}
-              placeholder="Road Name / Landmark *"
-              placeholderTextColor={colors.textSecondary}
+            <FormInput
               value={roadName}
               onChangeText={setRoadName}
+              placeholder="Road Name / Landmark *"
+              label="Road Name / Landmark"
             />
           </View>
 
@@ -518,33 +510,26 @@ export default function ReportPotholeScreen({ navigation }) {
 
           {/* Description */}
           <View style={styles.section}>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Description (Optional)"
-              placeholderTextColor={colors.textSecondary}
+            <FormInput
               value={description}
               onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
+              placeholder="Description (Optional)"
+              label="Description"
+              textArea
             />
           </View>
 
           {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+          <Button
+            label="Submit Report"
             onPress={handleSubmit}
+            loading={loading}
             disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-                <Text style={styles.submitButtonText}>Submit Report</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            iconName="checkmark-circle"
+            size="large"
+            fullWidth
+            style={styles.submitButton}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -564,10 +549,10 @@ function getStyles(colors) {
       flex: 1,
     },
     content: {
-      padding: 20,
+      padding: spacing.xl,
     },
     section: {
-      marginBottom: 24,
+      marginBottom: spacing.xxl,
     },
     sectionTitle: {
       fontSize: 16,
@@ -595,21 +580,6 @@ function getStyles(colors) {
     locationText: {
       color: colors.text,
       fontSize: 14,
-    },
-    button: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primary,
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 8,
-      gap: 8,
-    },
-    buttonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
     },
     photoContainer: {
       alignItems: 'center',
@@ -647,21 +617,10 @@ function getStyles(colors) {
     manualLocationContainer: {
       gap: 12,
     },
-    manualLocationLabel: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      marginTop: 8,
-    },
     manualLocationButtons: {
       flexDirection: 'row',
-      gap: 12,
-      marginTop: 8,
-    },
-    cancelButton: {
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border || '#E0E0E0',
+      gap: spacing.md,
+      marginTop: spacing.sm,
     },
     photoPlaceholder: {
       width: '100%',
@@ -693,19 +652,6 @@ function getStyles(colors) {
       fontSize: 12,
       color: '#856404',
     },
-    input: {
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: 12,
-      fontSize: 16,
-      color: colors.text,
-      borderWidth: 1,
-      borderColor: colors.border || '#E0E0E0',
-    },
-    textArea: {
-      height: 100,
-      paddingTop: 12,
-    },
     severityContainer: {
       flexDirection: 'row',
       gap: 12,
@@ -732,22 +678,7 @@ function getStyles(colors) {
       fontSize: 14,
     },
     submitButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primary,
-      paddingVertical: 16,
-      borderRadius: 8,
-      marginTop: 8,
-      gap: 8,
-    },
-    submitButtonDisabled: {
-      opacity: 0.6,
-    },
-    submitButtonText: {
-      color: '#FFFFFF',
-      fontSize: 18,
-      fontWeight: 'bold',
+      marginTop: spacing.sm,
     },
   });
 }

@@ -20,6 +20,7 @@ import {
   LocationOn,
   HelpOutline,
   People,
+  DirectionsCar,
 } from '@mui/icons-material';
 
 const DashboardPage: React.FC = () => {
@@ -34,8 +35,6 @@ const DashboardPage: React.FC = () => {
   const getModuleIcon = (iconName: string) => {
     const iconProps = { sx: { fontSize: 48, color: 'primary.main' } };
     switch (iconName) {
-      case 'documents':
-        return <Description {...iconProps} />;
       case 'news':
         return <Article {...iconProps} />;
       case 'vacancies':
@@ -50,6 +49,8 @@ const DashboardPage: React.FC = () => {
         return <HelpOutline {...iconProps} />;
       case 'users':
         return <People {...iconProps} />;
+      case 'pln':
+        return <DirectionsCar {...iconProps} />;
       default:
         return null;
     }
@@ -57,13 +58,6 @@ const DashboardPage: React.FC = () => {
 
   // Define available modules based on permissions
   const modules = [
-    {
-      id: 'documents',
-      name: 'Documents',
-      description: 'Upload and manage PDF documents for chatbot',
-      icon: 'documents',
-      permission: 'documents:upload' as const,
-    },
     {
       id: 'news',
       name: 'News',
@@ -112,6 +106,13 @@ const DashboardPage: React.FC = () => {
       description: 'Manage admin users (Super-admin only)',
       icon: 'users',
       permission: 'users:manage' as const,
+    },
+    {
+      id: 'pln',
+      name: 'PLN',
+      description: 'Manage Personalized Number Plate applications',
+      icon: 'pln',
+      permission: 'pln:manage' as const,
     },
   ];
 

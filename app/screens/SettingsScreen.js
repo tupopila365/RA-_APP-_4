@@ -4,20 +4,27 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Switch,
   useColorScheme,
-  Appearance,
   Alert,
+  BackHandler,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/native';
 import { RATheme } from '../theme/colors';
+import { SectionTitle, ListItem, Button } from '../components';
+import { spacing } from '../theme/spacing';
+import { useAppContext } from '../context/AppContext';
+import { authService } from '../services/authService';
+import { typography } from '../theme/typography';
 
 export default function SettingsScreen() {
+  const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { user, logout } = useAppContext();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [darkModeEnabled, setDarkModeEnabled] = useState(colorScheme === 'dark');
 
@@ -25,6 +32,39 @@ export default function SettingsScreen() {
     // Check notification permissions
     checkNotificationPermissions();
   }, []);
+
+  // Handle hardware back button on Android - navigate to Home tab
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Get parent tab navigator
+        const tabNavigator = navigation?.getParent('MainTabs');
+        if (tabNavigator) {
+          tabNavigator.navigate('Home');
+          return true; // Prevent default back behavior
+        }
+        // Fallback: try to navigate through root navigator
+        const rootNavigator = navigation?.getParent();
+        if (rootNavigator) {
+          rootNavigator.navigate('MainTabs', { screen: 'Home' });
+          return true;
+        }
+        return false; // Allow default back behavior if no parent navigator
+      };
+
+      // Add event listener for Android back button
+      if (Platform.OS === 'android') {
+        BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      }
+
+      return () => {
+        // Cleanup
+        if (Platform.OS === 'android') {
+          BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        }
+      };
+    }, [navigation])
+  );
 
   const checkNotificationPermissions = async () => {
     const { status } = await Notifications.getPermissionsAsync();
@@ -56,7 +96,46 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              // Navigation will be handled by App.js based on auth state
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const settingsSections = [
+    ...(user ? [
+      {
+        title: 'Account',
+        items: [
+          {
+            id: 0,
+            title: user.fullName || 'User',
+            subtitle: user.email,
+            icon: 'person-circle-outline',
+            type: 'info',
+          },
+        ],
+      },
+    ] : []),
     {
       title: 'Appearance',
       items: [
@@ -122,39 +201,36 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {settingsSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <SectionTitle title={section.title} />
             <View style={styles.sectionContent}>
               {section.items.map((item) => (
-                <TouchableOpacity
+                <ListItem
                   key={item.id}
-                  style={styles.settingItem}
+                  title={item.title}
+                  subtitle={item.subtitle}
+                  iconName={item.icon}
+                  type={item.type}
+                  toggleValue={item.value}
+                  onToggle={item.onToggle}
                   onPress={item.onPress}
-                  activeOpacity={item.type === 'action' ? 0.7 : 1}
-                  disabled={item.type === 'info' || item.type === 'toggle'}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
-                    <Ionicons name={item.icon} size={24} color={colors.primary} />
-                  </View>
-                  <View style={styles.settingContent}>
-                    <Text style={styles.settingTitle}>{item.title}</Text>
-                    <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
-                  </View>
-                  {item.type === 'toggle' && (
-                    <Switch
-                      value={item.value}
-                      onValueChange={item.onToggle}
-                      trackColor={{ false: colors.border, true: colors.primary }}
-                      thumbColor={item.value ? colors.secondary : colors.textSecondary}
-                    />
-                  )}
-                  {item.type === 'action' && (
-                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                  )}
-                </TouchableOpacity>
+                  showChevron={item.type === 'action'}
+                />
               ))}
             </View>
           </View>
         ))}
+
+        {user && (
+          <View style={styles.logoutSection}>
+            <Button
+              label="Logout"
+              onPress={handleLogout}
+              style={styles.logoutButton}
+              size="large"
+              fullWidth
+            />
+          </View>
+        )}
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Roads Authority Namibia</Text>
@@ -172,17 +248,11 @@ function getStyles(colors) {
       backgroundColor: colors.background,
     },
     content: {
-      padding: 20,
-      paddingTop: 25,
+      padding: spacing.xl,
+      paddingTop: spacing.xxl,
     },
     section: {
-      marginBottom: 30,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: colors.text,
-      marginBottom: 15,
+      marginBottom: spacing.xxxl,
     },
     sectionContent: {
       backgroundColor: colors.card,
@@ -194,48 +264,27 @@ function getStyles(colors) {
       shadowRadius: 4,
       elevation: 3,
     },
-    settingItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 15,
-    },
-    settingContent: {
-      flex: 1,
-    },
-    settingTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 4,
-    },
-    settingSubtitle: {
-      fontSize: 14,
-      color: colors.textSecondary,
-    },
     footer: {
       alignItems: 'center',
-      marginTop: 20,
-      marginBottom: 40,
+      marginTop: spacing.xl,
+      marginBottom: spacing.xxxl + spacing.md,
     },
     footerText: {
       fontSize: 16,
       fontWeight: 'bold',
       color: colors.text,
-      marginBottom: 5,
+      marginBottom: spacing.xs,
     },
     footerSubtext: {
       fontSize: 12,
       color: colors.textSecondary,
+    },
+    logoutSection: {
+      marginTop: spacing.xl,
+      marginBottom: spacing.md,
+    },
+    logoutButton: {
+      backgroundColor: colors.error,
     },
   });
 }

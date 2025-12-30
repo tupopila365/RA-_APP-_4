@@ -15,6 +15,8 @@ import uploadRoutes from './modules/upload/upload.routes';
 import faqsRoutes from './modules/faqs/faqs.routes';
 import potholeReportsRoutes from './modules/pothole-reports/pothole-reports.routes';
 import notificationsRoutes from './modules/notifications/notifications.routes';
+import plnRoutes from './modules/pln/pln.routes';
+import appUsersRoutes from './modules/app-users/app-users.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -50,6 +52,8 @@ export const createApp = (): Application => {
   app.use('/api/faqs', faqsRoutes);
   app.use('/api/pothole-reports', potholeReportsRoutes);
   app.use('/api/notifications', notificationsRoutes);
+  app.use('/api/pln', plnRoutes);
+  app.use('/api/app-users', appUsersRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);

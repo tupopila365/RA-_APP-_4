@@ -1,9 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 
-export default function ReportConfirmationScreen({ navigation, route }) {
+export default function ReportConfirmationScreen({ route }) {
+  const navigation = useNavigation();
   const { colors } = useTheme();
   const { referenceCode } = route.params || {};
 
@@ -14,7 +17,15 @@ export default function ReportConfirmationScreen({ navigation, route }) {
   };
 
   const handleDone = () => {
-    navigation.navigate('Home');
+    // Navigate to Home tab through MainTabs navigator
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'MainTabs',
+        params: {
+          screen: 'Home',
+        },
+      })
+    );
   };
 
   return (

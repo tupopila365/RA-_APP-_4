@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tendersController = exports.TendersController = void 0;
 const tenders_service_1 = require("./tenders.service");
+const notifications_service_1 = require("../notifications/notifications.service");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 class TendersController {
@@ -88,6 +89,23 @@ class TendersController {
                 published: published === true,
             });
             logger_1.logger.info(`Tender created successfully: ${tender._id}`);
+            // Send push notification if published
+            if (published === true) {
+                try {
+                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender._id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString());
+                    if (notifResult.sentCount > 0) {
+                        logger_1.logger.info(`Push notification sent for tender: ${tender._id} (${notifResult.sentCount} devices notified)`);
+                    }
+                    else {
+                        logger_1.logger.warn(`Tender ${tender._id} published but no push tokens registered. Notification not sent.`);
+                        logger_1.logger.warn(`To receive notifications, users need to open the mobile app and grant notification permissions.`);
+                    }
+                }
+                catch (notifError) {
+                    // Log error but don't fail the request
+                    logger_1.logger.error('Failed to send notification for tender:', notifError);
+                }
+            }
             res.status(201).json({
                 success: true,
                 data: {
@@ -285,8 +303,31 @@ class TendersController {
                 updateData.pdfUrl = pdfUrl;
             if (published !== undefined)
                 updateData.published = published;
+            // Check if item is being published for the first time
+            let wasPublishedBefore = false;
+            if (published === true) {
+                const existingTender = await tenders_service_1.tendersService.getTenderById(id);
+                wasPublishedBefore = existingTender.published === true;
+            }
             const tender = await tenders_service_1.tendersService.updateTender(id, updateData);
             logger_1.logger.info(`Tender updated successfully: ${id}`);
+            // Send push notification if being published for the first time
+            if (published === true && !wasPublishedBefore) {
+                try {
+                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender._id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString());
+                    if (notifResult.sentCount > 0) {
+                        logger_1.logger.info(`Push notification sent for tender: ${tender._id} (${notifResult.sentCount} devices notified)`);
+                    }
+                    else {
+                        logger_1.logger.warn(`Tender ${tender._id} published but no push tokens registered. Notification not sent.`);
+                        logger_1.logger.warn(`To receive notifications, users need to open the mobile app and grant notification permissions.`);
+                    }
+                }
+                catch (notifError) {
+                    // Log error but don't fail the request
+                    logger_1.logger.error('Failed to send notification for tender:', notifError);
+                }
+            }
             res.status(200).json({
                 success: true,
                 data: {

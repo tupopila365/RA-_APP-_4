@@ -7,6 +7,7 @@ export type { Column, DataTableProps } from './DataTable';
 export { default as ConfirmDialog } from './ConfirmDialog';
 export type { ConfirmDialogProps } from './ConfirmDialog';
 export { default as ErrorState } from './ErrorState';
+export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as ImageUploadField } from './ImageUploadField';
 export { default as ImageThumbnail } from './ImageThumbnail';
 export type { ImageThumbnailProps } from './ImageThumbnail';

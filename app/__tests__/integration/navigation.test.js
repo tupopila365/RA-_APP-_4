@@ -14,7 +14,6 @@ jest.mock('../../screens/ChatbotScreen', () => 'ChatbotScreen');
 jest.mock('../../screens/FAQsScreen', () => 'FAQsScreen');
 jest.mock('../../screens/FindOfficesScreen', () => 'FindOfficesScreen');
 jest.mock('../../screens/SettingsScreen', () => 'SettingsScreen');
-jest.mock('../../screens/MoreMenuScreen', () => 'MoreMenuScreen');
 
 // Mock expo-notifications
 jest.mock('expo-notifications', () => ({
@@ -74,7 +73,7 @@ describe('Tab Navigation', () => {
       expect(getByText('News')).toBeTruthy();
       expect(getByText('Vacancies')).toBeTruthy();
       expect(getByText('Tenders')).toBeTruthy();
-      expect(getByText('More')).toBeTruthy();
+      expect(getByText('Settings')).toBeTruthy();
     });
   });
 });

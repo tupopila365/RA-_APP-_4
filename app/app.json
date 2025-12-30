@@ -26,7 +26,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#00B4E6"
+        "backgroundColor": "#00B4E6",
+        "googleServicesFile": "./android/app/google-services.json"
       },
       "package": "com.roadsauthority.app",
       "permissions": [
@@ -45,6 +46,7 @@
       "expo-web-browser",
       "expo-font",
       "expo-secure-store",
+      "expo-notifications",
       [
         "expo-location",
         {

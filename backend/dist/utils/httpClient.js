@@ -84,24 +84,73 @@ exports.ragService = {
         }
         catch (error) {
             logger_1.logger.error('RAG indexing failed:', error);
+            // Extract error details from FastAPI error response
+            // FastAPI returns errors in { detail: {...} } format
+            let errorDetails = error.message;
+            let errorMessage = 'Failed to index document in RAG service';
+            if (error.response?.data) {
+                const responseData = error.response.data;
+                // FastAPI error responses have a 'detail' field
+                if (responseData.detail) {
+                    errorDetails = responseData.detail;
+                    // Extract more specific error message if available
+                    if (typeof responseData.detail === 'object') {
+                        errorMessage = responseData.detail.message || errorMessage;
+                        // Include diagnostic information if available
+                        if (responseData.detail.diagnostics) {
+                            errorDetails = {
+                                ...responseData.detail,
+                                diagnostics: responseData.detail.diagnostics,
+                            };
+                        }
+                    }
+                    else {
+                        errorMessage = responseData.detail;
+                    }
+                }
+                else {
+                    errorDetails = responseData;
+                }
+            }
             throw {
-                statusCode: 503,
+                statusCode: error.response?.status || 503,
                 code: errors_1.ERROR_CODES.RAG_INDEXING_FAILED,
-                message: 'Failed to index document in RAG service',
-                details: error.response?.data || error.message,
+                message: errorMessage,
+                details: errorDetails,
             };
         }
     },
     async queryDocuments(question, topK = 5) {
         try {
+            logger_1.logger.debug('Calling RAG service query endpoint', {
+                url: `${env_1.env.RAG_SERVICE_URL}/api/query`,
+                question: question.substring(0, 100),
+                topK,
+            });
             const response = await exports.ragServiceClient.post('/api/query', {
                 question,
                 top_k: topK,
             });
+            logger_1.logger.debug('RAG service response received', {
+                status: response.status,
+                hasData: !!response.data,
+                hasAnswer: !!response.data?.answer,
+                hasSources: !!response.data?.sources,
+                sourcesType: Array.isArray(response.data?.sources) ? 'array' : typeof response.data?.sources,
+                sourcesLength: Array.isArray(response.data?.sources) ? response.data.sources.length : 0,
+                rawResponse: JSON.stringify(response.data).substring(0, 500),
+            });
             return response.data;
         }
         catch (error) {
-            logger_1.logger.error('RAG query failed:', error);
+            logger_1.logger.error('RAG query failed:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                url: error.config?.url,
+                baseURL: error.config?.baseURL,
+            });
             throw {
                 statusCode: 503,
                 code: errors_1.ERROR_CODES.RAG_QUERY_FAILED,

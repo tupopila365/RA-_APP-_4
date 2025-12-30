@@ -90,7 +90,6 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
         return false;
     }
 };
-// Index for faster email lookups
-userSchema.index({ email: 1 });
+// Index for faster email lookups (removed duplicate - unique: true already creates index)
 exports.User = mongoose_1.default.model('User', userSchema);
 //# sourceMappingURL=auth.model.js.map

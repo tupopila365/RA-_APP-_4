@@ -106,7 +106,31 @@ class DocumentsService {
             logger_1.logger.info(`Document ${documentId} marked as indexed`);
         }
         catch (error) {
-            logger_1.logger.error(`Failed to index document ${documentId} in RAG:`, error);
+            // Log detailed error information for debugging
+            const errorDetails = error.details || error.message || 'Unknown error';
+            const errorCode = error.code || 'UNKNOWN';
+            logger_1.logger.error(`Failed to index document ${documentId} in RAG service`, {
+                errorCode,
+                message: error.message,
+                details: errorDetails,
+                statusCode: error.statusCode,
+                documentId,
+                fileUrl,
+            });
+            // If the error contains diagnostic information, log it
+            if (error.details && typeof error.details === 'object') {
+                if (error.details.diagnostics) {
+                    logger_1.logger.error('RAG Service Diagnostics:', error.details.diagnostics);
+                }
+                if (error.details.error === 'EMBEDDING_ERROR') {
+                    logger_1.logger.error(`Embedding generation failed for document ${documentId}. ` +
+                        `This usually indicates: ` +
+                        `1. Ollama service is not running, ` +
+                        `2. Embedding model is not installed, or ` +
+                        `3. Network/connection issues with Ollama. ` +
+                        `Check RAG service logs for more details.`);
+                }
+            }
             // Don't throw - indexing failure shouldn't prevent document creation
             // The document will remain with indexed: false
         }

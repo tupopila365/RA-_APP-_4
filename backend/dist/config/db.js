@@ -9,8 +9,11 @@ const env_1 = require("./env");
 const logger_1 = require("../utils/logger");
 const connectDB = async () => {
     try {
-        const conn = await mongoose_1.default.connect(env_1.env.MONGODB_URI);
-        logger_1.logger.info(`MongoDB Connected: ${conn.connection.host}`);
+        const isProduction = env_1.env.NODE_ENV === 'production';
+        const mongoUri = env_1.env.MONGODB_URI;
+        logger_1.logger.info(`Connecting to MongoDB (${isProduction ? 'Atlas' : 'Local'}): ${mongoUri}`);
+        const conn = await mongoose_1.default.connect(mongoUri);
+        logger_1.logger.info(`MongoDB Connected: ${conn.connection.host} (${conn.connection.name})`);
         mongoose_1.default.connection.on('error', (err) => {
             logger_1.logger.error('MongoDB connection error:', err);
         });

@@ -18,6 +18,9 @@ const banners_routes_1 = __importDefault(require("./modules/banners/banners.rout
 const locations_routes_1 = __importDefault(require("./modules/locations/locations.routes"));
 const chatbot_routes_1 = __importDefault(require("./modules/chatbot/chatbot.routes"));
 const upload_routes_1 = __importDefault(require("./modules/upload/upload.routes"));
+const faqs_routes_1 = __importDefault(require("./modules/faqs/faqs.routes"));
+const pothole_reports_routes_1 = __importDefault(require("./modules/pothole-reports/pothole-reports.routes"));
+const notifications_routes_1 = __importDefault(require("./modules/notifications/notifications.routes"));
 const createApp = () => {
     const app = (0, express_1.default)();
     // Middleware
@@ -46,6 +49,9 @@ const createApp = () => {
     app.use('/api/locations', locations_routes_1.default);
     app.use('/api/chatbot', chatbot_routes_1.default);
     app.use('/api/upload', upload_routes_1.default);
+    app.use('/api/faqs', faqs_routes_1.default);
+    app.use('/api/pothole-reports', pothole_reports_routes_1.default);
+    app.use('/api/notifications', notifications_routes_1.default);
     // Error handling middleware (must be last)
     app.use(errorHandler_1.errorHandler);
     return app;

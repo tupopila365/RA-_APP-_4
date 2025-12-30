@@ -107,6 +107,7 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Overall service status")
     ollama_connected: bool = Field(..., description="Ollama connection status")
     chromadb_connected: bool = Field(..., description="ChromaDB connection status")
+    document_count: int = Field(default=0, description="Number of document chunks indexed in ChromaDB")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Check timestamp")
     
     class Config:

@@ -37,6 +37,12 @@ export const validators = {
 
   alphanumeric: (value) => /^[a-zA-Z0-9]*$/.test(value),
   numeric: (value) => /^\d+$/.test(value),
+  
+  plnPlateText: (value) => {
+    if (!value || typeof value !== 'string') return false;
+    // Max 7 characters, alphanumeric only
+    return value.length <= 7 && /^[a-zA-Z0-9]*$/.test(value);
+  },
 };
 
 export const validate = (value, rules) => {
@@ -77,6 +83,7 @@ export const getErrorMessage = (field, rule) => {
     password: 'Password must be at least 8 characters with uppercase, lowercase, and numbers',
     alphanumeric: 'Only letters and numbers are allowed',
     numeric: 'Only numbers are allowed',
+    plnPlateText: 'Plate text must be alphanumeric and maximum 7 characters',
   };
 
   return messages[rule] || `Invalid ${field}`;

@@ -20,6 +20,8 @@ interface EnvConfig {
     GOOGLE_DRIVE_FOLDER_ID?: string;
     RAG_SERVICE_URL: string;
     CORS_ORIGIN: string;
+    GEOCODING_API_KEY?: string;
+    GEOCODING_SERVICE?: 'nominatim' | 'google';
 }
 export declare const env: EnvConfig;
 export {};

@@ -149,13 +149,37 @@ export const ragService = {
 
   async queryDocuments(question: string, topK: number = 5) {
     try {
+      logger.debug('Calling RAG service query endpoint', {
+        url: `${env.RAG_SERVICE_URL}/api/query`,
+        question: question.substring(0, 100),
+        topK,
+      });
+      
       const response = await ragServiceClient.post('/api/query', {
         question,
         top_k: topK,
       });
+      
+      logger.debug('RAG service response received', {
+        status: response.status,
+        hasData: !!response.data,
+        hasAnswer: !!response.data?.answer,
+        hasSources: !!response.data?.sources,
+        sourcesType: Array.isArray(response.data?.sources) ? 'array' : typeof response.data?.sources,
+        sourcesLength: Array.isArray(response.data?.sources) ? response.data.sources.length : 0,
+        rawResponse: JSON.stringify(response.data).substring(0, 500),
+      });
+      
       return response.data;
     } catch (error: any) {
-      logger.error('RAG query failed:', error);
+      logger.error('RAG query failed:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+      });
       throw {
         statusCode: 503,
         code: ERROR_CODES.RAG_QUERY_FAILED,
