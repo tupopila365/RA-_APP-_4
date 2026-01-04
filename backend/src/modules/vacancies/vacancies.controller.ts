@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
 import { vacanciesService } from './vacancies.service';
+import { notificationsService } from '../notifications/notifications.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -93,6 +94,21 @@ export class VacanciesController {
       });
 
       logger.info(`Vacancy created successfully: ${vacancy._id}`);
+
+      // Send push notification if published
+      if (vacancy.published === true) {
+        try {
+          const notifResult = await notificationsService.sendVacancyNotification(
+            vacancy._id.toString(),
+            vacancy.title,
+            new Date(vacancy.closingDate).toLocaleDateString(),
+            { useQueue: false }
+          );
+          logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+        } catch (notifError: any) {
+          logger.error('Failed to send notification for vacancy:', notifError);
+        }
+      }
 
       res.status(201).json({
         success: true,
@@ -240,6 +256,13 @@ export class VacanciesController {
         published,
       } = req.body;
 
+      // Check if publishing newly
+      let wasPublishedBefore = false;
+      if (published === true) {
+        const existing = await vacanciesService.getVacancyById(id);
+        wasPublishedBefore = existing.published === true;
+      }
+
       // Build update object with only provided fields
       const updateData: any = {};
       if (title !== undefined) updateData.title = title;
@@ -297,6 +320,21 @@ export class VacanciesController {
       const vacancy = await vacanciesService.updateVacancy(id, updateData);
 
       logger.info(`Vacancy updated successfully: ${id}`);
+
+      // Send push notification only on first publish
+      if (published === true && !wasPublishedBefore) {
+        try {
+          const notifResult = await notificationsService.sendVacancyNotification(
+            vacancy._id.toString(),
+            vacancy.title,
+            new Date(vacancy.closingDate).toLocaleDateString(),
+            { useQueue: false }
+          );
+          logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+        } catch (notifError: any) {
+          logger.error('Failed to send notification for vacancy:', notifError);
+        }
+      }
 
       res.status(200).json({
         success: true,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,15 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
 import { EmptyState } from '../components/EmptyState';
-
-const STATUS_COLORS = {
-  pending: '#FFA500',
-  assigned: '#3498DB',
-  'in-progress': '#9B59B6',
-  fixed: '#4ECDC4',
-  duplicate: '#95A5A6',
-  invalid: '#E74C3C',
-};
+import { SearchInput } from '../components/SearchInput';
+import { FilterBar } from '../components/FilterBar';
 
 const STATUS_LABELS = {
   pending: 'Pending',
@@ -33,10 +26,26 @@ const STATUS_LABELS = {
   invalid: 'Invalid',
 };
 
-const SEVERITY_COLORS = {
-  small: '#4ECDC4',
-  medium: '#FFA500',
-  dangerous: '#FF6B6B',
+// Helper functions to get theme-based colors
+const getStatusColor = (status, colors) => {
+  const colorMap = {
+    pending: colors.secondary,
+    assigned: colors.primary,
+    'in-progress': colors.primary,
+    fixed: colors.success,
+    duplicate: colors.textSecondary,
+    invalid: colors.error,
+  };
+  return colorMap[status] || colors.textSecondary;
+};
+
+const getSeverityColor = (severity, colors) => {
+  const colorMap = {
+    small: colors.success,
+    medium: colors.secondary,
+    dangerous: colors.error,
+  };
+  return colorMap[severity] || colors.textSecondary;
 };
 
 export default function MyReportsScreen({ navigation }) {
@@ -45,6 +54,9 @@ export default function MyReportsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
 
   useEffect(() => {
     loadReports();
@@ -82,6 +94,51 @@ export default function MyReportsScreen({ navigation }) {
     });
   };
 
+  // Status filter options
+  const statusFilters = ['All', 'Pending', 'Assigned', 'In Progress', 'Fixed', 'Duplicate', 'Invalid'];
+
+  // Filter, search, and sort reports
+  const filteredReports = useMemo(() => {
+    let filtered = [...reports];
+
+    // Apply status filter
+    if (selectedFilter !== 'All') {
+      const filterMap = {
+        'Pending': 'pending',
+        'Assigned': 'assigned',
+        'In Progress': 'in-progress',
+        'Fixed': 'fixed',
+        'Duplicate': 'duplicate',
+        'Invalid': 'invalid',
+      };
+      const statusValue = filterMap[selectedFilter];
+      if (statusValue) {
+        filtered = filtered.filter(report => report.status === statusValue);
+      }
+    }
+
+    // Apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(report => 
+        report.roadName?.toLowerCase().includes(query) ||
+        report.town?.toLowerCase().includes(query) ||
+        report.region?.toLowerCase().includes(query) ||
+        report.referenceCode?.toLowerCase().includes(query) ||
+        report.description?.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort by date
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  }, [reports, searchQuery, selectedFilter, sortOrder]);
+
   const styles = getStyles(colors);
 
   if (loading) {
@@ -110,6 +167,26 @@ export default function MyReportsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Search and Filter */}
+      {reports.length > 0 && (
+        <>
+          <SearchInput
+            placeholder="Search reports..."
+            onSearch={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            style={styles.searchInput}
+            accessibilityLabel="Search reports"
+            accessibilityHint="Search by road name, location, or reference code"
+          />
+          <FilterBar
+            filters={statusFilters}
+            selectedFilter={selectedFilter}
+            onFilterChange={setSelectedFilter}
+            testID="reports-filter-bar"
+            accessibilityLabel="Report status filters"
+          />
+        </>
+      )}
 
       {reports.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -117,6 +194,18 @@ export default function MyReportsScreen({ navigation }) {
             icon="document-outline"
             title="No Reports Yet"
             message="You haven't submitted any reports. Tap 'Report Road Damage' to get started."
+          />
+        </View>
+      ) : filteredReports.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <EmptyState
+            icon="search-outline"
+            title="No Reports Found"
+            message={
+              searchQuery.trim() || selectedFilter !== 'All'
+                ? `No reports match your ${searchQuery.trim() ? 'search' : 'filter'} criteria.`
+                : 'No reports found.'
+            }
           />
         </View>
       ) : (
@@ -127,7 +216,29 @@ export default function MyReportsScreen({ navigation }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {reports.map((report) => (
+          {/* Results Count and Sort */}
+          <View style={styles.resultsHeader}>
+            {(searchQuery.trim() || selectedFilter !== 'All') && (
+              <Text style={styles.resultsCount}>
+                {filteredReports.length} {filteredReports.length === 1 ? 'report' : 'reports'} found
+              </Text>
+            )}
+            <TouchableOpacity
+              style={styles.sortButton}
+              onPress={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'} 
+                size={16} 
+                color={colors.primary} 
+              />
+              <Text style={styles.sortButtonText}>
+                {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {filteredReports.map((report) => (
             <TouchableOpacity
               key={report.id}
               style={styles.reportCard}
@@ -147,19 +258,19 @@ export default function MyReportsScreen({ navigation }) {
                   <View
                     style={[
                       styles.severityBadge,
-                      { backgroundColor: SEVERITY_COLORS[report.severity] + '20' },
+                      { backgroundColor: getSeverityColor(report.severity, colors) + '15' },
                     ]}
                   >
                     <View
                       style={[
                         styles.severityDot,
-                        { backgroundColor: SEVERITY_COLORS[report.severity] },
+                        { backgroundColor: getSeverityColor(report.severity, colors) },
                       ]}
                     />
                     <Text
                       style={[
                         styles.severityText,
-                        { color: SEVERITY_COLORS[report.severity] },
+                        { color: getSeverityColor(report.severity, colors) },
                       ]}
                     >
                       {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
@@ -178,19 +289,19 @@ export default function MyReportsScreen({ navigation }) {
                   <View
                     style={[
                       styles.statusBadge,
-                      { backgroundColor: STATUS_COLORS[report.status] + '20' },
+                      { backgroundColor: getStatusColor(report.status, colors) + '15' },
                     ]}
                   >
                     <View
                       style={[
                         styles.statusDot,
-                        { backgroundColor: STATUS_COLORS[report.status] },
+                        { backgroundColor: getStatusColor(report.status, colors) },
                       ]}
                     />
                     <Text
                       style={[
                         styles.statusText,
-                        { color: STATUS_COLORS[report.status] },
+                        { color: getStatusColor(report.status, colors) },
                       ]}
                     >
                       {STATUS_LABELS[report.status]}
@@ -253,6 +364,35 @@ function getStyles(colors) {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    searchInput: {
+      margin: 15,
+      marginTop: 20,
+      marginBottom: 10,
+    },
+    resultsHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+      paddingHorizontal: 4,
+    },
+    resultsCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      flex: 1,
+    },
+    sortButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+    },
+    sortButtonText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '600',
     },
     scrollView: {
       flex: 1,

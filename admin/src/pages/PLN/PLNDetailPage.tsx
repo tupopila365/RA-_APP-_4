@@ -32,6 +32,7 @@ import {
   markPaymentReceived,
   orderPlates,
   markReadyForCollection,
+  downloadApplicationPDF,
   PLNApplication,
   PLNStatus,
 } from '../../services/pln.service';
@@ -47,6 +48,7 @@ const PLNDetailPage = () => {
     action: string;
     comment: string;
   }>({ open: false, action: '', comment: '' });
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -87,6 +89,18 @@ const PLNDetailPage = () => {
       fetchApplication();
     } catch (err: any) {
       setError(err.response?.data?.error?.message || `Failed to ${action} application`);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!id) return;
+    try {
+      setDownloadingPDF(true);
+      await downloadApplicationPDF(id);
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || 'Failed to download PDF');
+    } finally {
+      setDownloadingPDF(false);
     }
   };
 
@@ -278,6 +292,14 @@ const PLNDetailPage = () => {
                 Admin Actions
               </Typography>
               <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  startIcon={<DownloadIcon />}
+                  variant="outlined"
+                  onClick={handleDownloadPDF}
+                  disabled={downloadingPDF}
+                >
+                  {downloadingPDF ? 'Downloading...' : 'Download Application Form (PDF)'}
+                </Button>
                 {application.status === 'SUBMITTED' && (
                   <>
                     <Button
@@ -378,5 +400,6 @@ const PLNDetailPage = () => {
 };
 
 export default PLNDetailPage;
+
 
 

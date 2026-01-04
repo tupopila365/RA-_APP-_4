@@ -25,7 +25,9 @@ export default function PLNConfirmationScreen({ route }) {
       <View style={styles.content}>
         {/* Success Icon */}
         <View style={styles.iconContainer}>
-          <Ionicons name="checkmark-circle" size={80} color="#4ECDC4" />
+          <View style={[styles.iconCircle, { backgroundColor: colors.success + '15' }]}>
+            <Ionicons name="checkmark-circle" size={80} color={colors.success} />
+          </View>
         </View>
 
         {/* Success Message */}
@@ -93,14 +95,21 @@ function getStyles(colors) {
       padding: 20,
     },
     iconContainer: {
-      marginBottom: 24,
+      marginBottom: 32,
+    },
+    iconCircle: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     title: {
-      fontSize: 24,
-      fontWeight: 'bold',
+      fontSize: 26,
+      fontWeight: '700',
       color: colors.text,
       textAlign: 'center',
-      marginBottom: 12,
+      marginBottom: 16,
     },
     message: {
       fontSize: 16,
@@ -122,21 +131,27 @@ function getStyles(colors) {
       fontWeight: '600',
     },
     referenceCodeBox: {
-      backgroundColor: colors.background,
-      paddingVertical: 16,
+      backgroundColor: colors.primary + '10',
+      paddingVertical: 18,
       paddingHorizontal: 24,
-      borderRadius: 8,
+      borderRadius: 12,
       borderWidth: 2,
       borderColor: colors.primary,
-      marginBottom: 8,
+      marginBottom: 10,
       width: '100%',
       alignItems: 'center',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
     },
     referenceCode: {
-      fontSize: 18,
-      fontWeight: 'bold',
+      fontSize: 20,
+      fontWeight: '700',
       color: colors.primary,
-      letterSpacing: 1,
+      letterSpacing: 2,
+      fontFamily: 'monospace',
     },
     referenceNote: {
       fontSize: 12,
@@ -150,7 +165,7 @@ function getStyles(colors) {
     },
     instructionsTitle: {
       fontSize: 18,
-      fontWeight: 'bold',
+      fontWeight: '700',
       color: colors.text,
       marginBottom: 12,
     },
@@ -165,5 +180,6 @@ function getStyles(colors) {
     },
   });
 }
+
 
 

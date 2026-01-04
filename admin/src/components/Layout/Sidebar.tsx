@@ -22,6 +22,7 @@ import {
   HelpOutline as FAQIcon,
   People as UsersIcon,
   Warning as PotholeIcon,
+  ReportProblem as IncidentIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -109,6 +110,12 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         permission: 'pothole-reports:manage',
       },
       {
+        label: 'Incidents',
+        path: '/incidents',
+        icon: <IncidentIcon />,
+        permission: 'incidents:manage',
+      },
+      {
         label: 'Users',
         path: '/users',
         icon: <UsersIcon />,
@@ -144,66 +151,152 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
   };
 
   const drawerContent = (
-    <Box>
-      <Toolbar>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Box
+      sx={{
+        height: '100%',
+        background: 'linear-gradient(180deg, rgba(0, 180, 230, 0.95) 0%, rgba(0, 144, 192, 0.98) 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+        overflow: 'hidden',
+      }}
+    >
+      <Toolbar
+        sx={{
+          py: 2,
+          px: 2,
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box
             sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 1,
-              bgcolor: 'primary.main',
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)',
+              backdropFilter: 'blur(10px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
             }}
           >
-            <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
+            <Typography variant="h6" sx={{ color: 'white', fontWeight: 800, fontSize: '1.25rem' }}>
               RA
             </Typography>
           </Box>
-          <Typography variant="h6" noWrap sx={{ fontWeight: 600 }}>
+          <Typography
+            variant="h6"
+            noWrap
+            sx={{
+              fontWeight: 700,
+              color: 'white',
+              fontSize: '1.25rem',
+              letterSpacing: '0.02em',
+            }}
+          >
             Admin
           </Typography>
         </Box>
       </Toolbar>
-      <Divider />
-      <List>
+      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+      <List
+        sx={{
+          flexGrow: 1,
+          pt: 1,
+          px: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+        }}
+      >
         {visibleNavigationItems.map((item) => (
           <ListItem key={item.path} disablePadding>
             <ListItemButton
               selected={isActive(item.path)}
               onClick={() => handleNavigation(item.path)}
               sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  transform: 'translateX(4px)',
+                },
                 '&.Mui-selected': {
-                  backgroundColor: 'primary.light',
-                  color: 'primary.main',
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+                  color: 'white',
                   '&:hover': {
-                    backgroundColor: 'primary.light',
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    transform: 'translateX(4px)',
                   },
                   '& .MuiListItemIcon-root': {
-                    color: 'primary.main',
+                    color: 'white',
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    left: 0,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 4,
+                    height: '60%',
+                    backgroundColor: '#FFD700',
+                    borderRadius: '0 4px 4px 0',
                   },
                 },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: isActive(item.path) ? 'primary.main' : 'inherit',
+                  color: isActive(item.path) ? 'white' : 'rgba(255, 255, 255, 0.8)',
+                  minWidth: 40,
+                  transition: 'color 0.2s',
                 }}
               >
                 {item.icon}
               </ListItemIcon>
-              <ListItemText primary={item.label} />
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{
+                  fontWeight: isActive(item.path) ? 600 : 500,
+                  fontSize: '0.9375rem',
+                  color: isActive(item.path) ? 'white' : 'rgba(255, 255, 255, 0.9)',
+                }}
+              />
             </ListItemButton>
           </ListItem>
         ))}
       </List>
       {isSuperAdmin && (
         <>
-          <Divider sx={{ my: 1 }} />
-          <Box sx={{ px: 2, py: 1 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+          <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', my: 1 }} />
+          <Box
+            sx={{
+              px: 2,
+              py: 1.5,
+              mx: 1,
+              mb: 1,
+              borderRadius: 2,
+              background: 'rgba(255, 215, 0, 0.2)',
+              border: '1px solid rgba(255, 215, 0, 0.3)',
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 700,
+                color: '#FFD700',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                fontSize: '0.7rem',
+              }}
+            >
               SUPER ADMIN
             </Typography>
           </Box>
@@ -231,6 +324,11 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
+            borderRight: 'none',
+            boxShadow: '4px 0 16px rgba(0, 0, 0, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
           },
         }}
       >
@@ -245,6 +343,11 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
+            borderRight: 'none',
+            boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
           },
         }}
         open

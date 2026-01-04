@@ -68,15 +68,23 @@ export class ApiClient {
     try {
       logApiCall(method, endpoint);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), requestTimeout);
+      // Use provided abortController or create a new one
+      const controller = options.abortController || new AbortController();
+      let timeoutId = null;
+      
+      // Only set timeout if we created the controller ourselves
+      if (!options.abortController) {
+        timeoutId = setTimeout(() => controller.abort(), requestTimeout);
+      }
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...config,
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
 
       if (__DEV__) {
         console.log('✅ API Response:', response.status, response.statusText);

@@ -78,7 +78,9 @@ export const useNotifications = () => {
     } 
     // Handle tender notifications
     else if (data.type === 'tender' && data.tenderId) {
-      navigation.navigate('Tenders');
+      navigation.navigate('Procurement', {
+        screen: 'BidsRFQs',
+      });
     } 
     // Handle vacancy notifications
     else if (data.type === 'vacancy' && data.vacancyId) {

@@ -52,15 +52,16 @@ export default function SettingsScreen() {
         return false; // Allow default back behavior if no parent navigator
       };
 
-      // Add event listener for Android back button
+      // Add event listener for Android back button (modern subscription API)
+      let backHandler;
       if (Platform.OS === 'android') {
-        BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       }
 
       return () => {
-        // Cleanup
-        if (Platform.OS === 'android') {
-          BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        // Cleanup using subscription.remove()
+        if (backHandler) {
+          backHandler.remove();
         }
       };
     }, [navigation])
@@ -252,26 +253,31 @@ function getStyles(colors) {
       paddingTop: spacing.xxl,
     },
     section: {
-      marginBottom: spacing.xxxl,
+      marginBottom: spacing.xxl,
     },
     sectionContent: {
       backgroundColor: colors.card,
-      borderRadius: 15,
+      borderRadius: 16,
       overflow: 'hidden',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
-      shadowRadius: 4,
+      shadowRadius: 6,
       elevation: 3,
+      borderWidth: 1,
+      borderColor: colors.border + '40',
     },
     footer: {
       alignItems: 'center',
-      marginTop: spacing.xl,
+      marginTop: spacing.xxl,
       marginBottom: spacing.xxxl + spacing.md,
+      paddingTop: spacing.xl,
+      borderTopWidth: 1,
+      borderTopColor: colors.border + '40',
     },
     footerText: {
       fontSize: 16,
-      fontWeight: 'bold',
+      fontWeight: '700',
       color: colors.text,
       marginBottom: spacing.xs,
     },
@@ -280,11 +286,16 @@ function getStyles(colors) {
       color: colors.textSecondary,
     },
     logoutSection: {
-      marginTop: spacing.xl,
-      marginBottom: spacing.md,
+      marginTop: spacing.xxl,
+      marginBottom: spacing.lg,
     },
     logoutButton: {
       backgroundColor: colors.error,
+      shadowColor: colors.error,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 3,
     },
   });
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { ErrorState, EmptyState } from '../components';
+import { ErrorState, EmptyState, SearchInput } from '../components';
 import { useFAQUseCases } from '../src/presentation/di/DependencyContext';
 import { useFAQsViewModel } from '../src/presentation/viewModels/useFAQsViewModel';
 
@@ -53,8 +53,34 @@ export default function FAQsScreen() {
 
   const isInitialLoading = loading && faqs.length === 0;
 
+  // Filter FAQs based on search query (if view model doesn't handle it)
+  const filteredFAQs = useMemo(() => {
+    if (!searchQuery.trim()) return faqs;
+    const query = searchQuery.toLowerCase();
+    return faqs.filter(faq => 
+      faq.question?.toLowerCase().includes(query) ||
+      faq.answer?.toLowerCase().includes(query) ||
+      faq.category?.toLowerCase().includes(query)
+    );
+  }, [faqs, searchQuery]);
+
+  const hasSearchResults = filteredFAQs.length > 0;
+  const showEmptyState = !isInitialLoading && (isEmpty || (!hasSearchResults && searchQuery.trim()));
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Search Input */}
+      {!isInitialLoading && !isEmpty && (
+        <SearchInput
+          placeholder="Search FAQs..."
+          onSearch={setSearchQuery}
+          onClear={clearSearch}
+          style={styles.searchInput}
+          accessibilityLabel="Search FAQs"
+          accessibilityHint="Search by question, answer, or category"
+        />
+      )}
+
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -76,14 +102,20 @@ export default function FAQsScreen() {
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading FAQs...</Text>
           </View>
-        ) : isEmpty ? (
+        ) : showEmptyState ? (
           <EmptyState
-            icon="document-text-outline"
-            message="No FAQs available"
-            accessibilityLabel="No FAQs found"
+            icon={searchQuery.trim() ? "search-outline" : "document-text-outline"}
+            message={searchQuery.trim() ? "No FAQs match your search" : "No FAQs available"}
+            accessibilityLabel={searchQuery.trim() ? "No search results" : "No FAQs found"}
           />
         ) : (
-          faqs.map((faq) => (
+          <>
+            {searchQuery.trim() && (
+              <Text style={styles.resultsCount}>
+                {filteredFAQs.length} {filteredFAQs.length === 1 ? 'result' : 'results'} found
+              </Text>
+            )}
+            {filteredFAQs.map((faq) => (
             <TouchableOpacity
               key={faq.id}
               style={[
@@ -113,7 +145,8 @@ export default function FAQsScreen() {
                 </View>
               )}
             </TouchableOpacity>
-          ))
+            ))}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -128,6 +161,17 @@ function getStyles(colors) {
     },
     content: {
       padding: 20,
+    },
+    searchInput: {
+      margin: 15,
+      marginTop: 20,
+      marginBottom: 10,
+    },
+    resultsCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 16,
+      paddingHorizontal: 4,
     },
     header: {
       alignItems: 'center',

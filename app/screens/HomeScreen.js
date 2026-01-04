@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
   View,
@@ -10,6 +10,7 @@ import {
   Image,
   ImageBackground,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,13 +26,41 @@ import Poster3 from '../assets/poster-3.png';
 
 const { width } = Dimensions.get('window');
 
+// Default poster banners (fallback)
+const defaultPosterBanners = [
+  {
+    id: 'poster-1',
+    source: Poster1,
+    title: 'Roads Authority Namibia',
+    description: 'Safe Roads to Prosperity',
+    isLocal: true,
+  },
+  {
+    id: 'poster-2',
+    source: Poster2,
+    title: 'Contact the NaTIS Office in Your Town',
+    description: '#WeBuildTheJourney',
+    isLocal: true,
+  },
+  {
+    id: 'poster-3',
+    source: Poster3,
+    title: 'Serving Namibia with Purpose',
+    description: '#WeBuildTheJourney',
+    isLocal: true,
+  },
+];
+
 export default function HomeScreen({ navigation, showMenuOnly = false }) {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const [showMessageOption, setShowMessageOption] = useState(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [banners, setBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(true);
+  const bannerScrollRef = useRef(null);
+  const autoScrollTimerRef = useRef(null);
+  const inactivityTimerRef = useRef(null);
 
   const handleNatisOnline = async () => {
     await WebBrowser.openBrowserAsync('https://online.ra.org.na/#/');
@@ -44,7 +73,61 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
   // Fetch banners from API
   useEffect(() => {
     fetchBanners();
+    
+    // Cleanup timers on unmount
+    return () => {
+      if (autoScrollTimerRef.current) {
+        clearInterval(autoScrollTimerRef.current);
+      }
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
   }, []);
+
+  // Banner auto-scroll functionality
+  useEffect(() => {
+    if (banners.length > 1 && isAutoScrolling) {
+      autoScrollTimerRef.current = setInterval(() => {
+        setActiveBannerIndex((prevIndex) => {
+          const nextIndex = (prevIndex + 1) % banners.length;
+          const scrollPosition = nextIndex * (width - 48 + 15);
+          
+          bannerScrollRef.current?.scrollTo({
+            x: scrollPosition,
+            animated: true,
+          });
+          return nextIndex;
+        });
+      }, 3000);
+    }
+
+    return () => {
+      if (autoScrollTimerRef.current) {
+        clearInterval(autoScrollTimerRef.current);
+      }
+    };
+  }, [banners.length, isAutoScrolling]);
+
+  // Handle banner scroll to pause auto-scroll
+  const handleBannerScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / (width - 48 + 15));
+    setActiveBannerIndex(index);
+    
+    // Pause auto-scroll on user interaction
+    setIsAutoScrolling(false);
+    
+    // Clear existing inactivity timer
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    
+    // Resume after 5 seconds of inactivity
+    inactivityTimerRef.current = setTimeout(() => {
+      setIsAutoScrolling(true);
+    }, 5000);
+  };
 
   const fetchBanners = async () => {
     try {
@@ -67,30 +150,6 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     }
   };
 
-  // Default poster banners (fallback)
-  const defaultPosterBanners = [
-    {
-      id: 'poster-1',
-      source: Poster1,
-      title: 'Roads Authority Namibia',
-      description: 'Safe Roads to Prosperity',
-      isLocal: true,
-    },
-    {
-      id: 'poster-2',
-      source: Poster2,
-      title: 'Contact the NaTIS Office in Your Town',
-      description: '#WeBuildTheJourney',
-      isLocal: true,
-    },
-    {
-      id: 'poster-3',
-      source: Poster3,
-      title: 'Serving Namibia with Purpose',
-      description: '#WeBuildTheJourney',
-      isLocal: true,
-    },
-  ];
 
   // Handle banner press (open link if available)
   const handleBannerPress = async (banner) => {
@@ -103,156 +162,166 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     }
   };
 
-  const menuItems = [
-    {
-      id: 1,
-      title: 'NATIS Online',
-      icon: 'car-outline',
-      color: '#00B4E6',
-      onPress: handleNatisOnline,
-    },
-    {
-      id: 2,
-      title: 'E-Recruitment',
-      icon: 'person-add-outline',
-      color: '#27AE60',
-      onPress: handleERecruitment,
-    },
-    {
-      id: 2.5,
-      title: 'Report Road Damage',
-      icon: 'warning-outline',
-      color: '#FF6B6B',
-      onPress: () => navigation?.navigate('ReportPothole'),
-    },
-    {
-      id: 2.6,
-      title: 'My Reports',
-      icon: 'list-outline',
-      color: '#4ECDC4',
-      onPress: () => navigation?.navigate('MyReports'),
-    },
-    {
-      id: 3,
-      title: 'News',
-      icon: 'newspaper-outline',
-      color: '#FF6B6B',
-      onPress: () => navigation?.navigate('News'),
-    },
-    {
-      id: 4,
-      title: 'Vacancies',
-      icon: 'briefcase-outline',
-      color: '#4ECDC4',
-      onPress: () => navigation?.navigate('Vacancies'),
-    },
-    {
-      id: 5,
-      title: 'Tenders',
-      icon: 'document-text-outline',
-      color: '#FFD700',
-      onPress: () => navigation?.navigate('Tenders'),
-    },
-    {
-      id: 6,
-      title: 'RA Chatbot',
-      icon: 'chatbubbles-outline',
-      color: '#9B59B6',
-      onPress: () => {
-        // Navigate to Chatbot tab in MainTabs
-        const tabNavigator = navigation?.getParent('MainTabs');
-        if (tabNavigator) {
-          tabNavigator.navigate('Chatbot');
-        } else {
-          // Fallback: navigate through root
-          navigation?.navigate('MainTabs', { screen: 'Chatbot' });
-        }
-      },
-    },
-    {
-      id: 7,
-      title: 'FAQs',
-      icon: 'help-circle-outline',
-      color: '#E67E22',
-      onPress: () => navigation?.navigate('FAQs'),
-    },
-    {
-      id: 8,
-      title: 'Find Offices',
-      icon: 'location-outline',
-      color: '#3498DB',
-      onPress: () => navigation?.navigate('Find Offices'),
-    },
-    {
-      id: 9,
-      title: 'Personalized Plates',
-      icon: 'car-sport-outline',
-      color: '#9B59B6',
-      onPress: () => navigation?.navigate('PLNInfo'),
-    },
-    {
-      id: 10,
-      title: 'Settings',
-      icon: 'settings-outline',
-      color: '#95A5A6',
-      onPress: () => navigation?.navigate('Settings'),
-    },
-  ];
-
-  const styles = getStyles(colors);
-
-  const handleMessageToggle = () => {
-    setShowMessageOption((prev) => !prev);
-  };
-
-  const handleMessageNavigation = () => {
-    setShowMessageOption(false);
-    // Navigate to Chatbot tab in MainTabs
+  // Navigation helper function
+  const navigateToChatbot = () => {
     const tabNavigator = navigation?.getParent('MainTabs');
     if (tabNavigator) {
       tabNavigator.navigate('Chatbot');
     } else {
-      // Fallback: navigate through root
       navigation?.navigate('MainTabs', { screen: 'Chatbot' });
     }
   };
+
+  // Menu categories with theme-based colors
+  const menuCategories = [
+    {
+      id: 'primary',
+      title: 'Primary Services',
+      icon: 'star-outline',
+      color: colors.primary,
+      items: [
+        {
+          id: 1,
+          title: 'NATIS Online',
+          icon: 'car-outline',
+          onPress: handleNatisOnline,
+        },
+        {
+          id: 2,
+          title: 'E-Recruitment',
+          icon: 'person-add-outline',
+          onPress: handleERecruitment,
+        },
+        {
+          id: 3,
+          title: 'Report Road Damage',
+          icon: 'warning-outline',
+          onPress: () => navigation?.navigate('ReportPothole'),
+        },
+      ],
+    },
+    {
+      id: 'information',
+      title: 'Information',
+      icon: 'information-circle-outline',
+      color: colors.secondary,
+      items: [
+        {
+          id: 4,
+          title: 'News',
+          icon: 'newspaper-outline',
+          onPress: () => navigation?.navigate('News'),
+        },
+        {
+          id: 5,
+          title: 'Vacancies',
+          icon: 'briefcase-outline',
+          onPress: () => navigation?.navigate('Vacancies'),
+        },
+        {
+          id: 6,
+          title: 'Procurement',
+          icon: 'document-text-outline',
+          onPress: () => navigation?.navigate('Procurement'),
+        },
+      ],
+    },
+    {
+      id: 'support',
+      title: 'Support',
+      icon: 'help-buoy-outline',
+      color: colors.success,
+      items: [
+        {
+          id: 7,
+          title: 'RA Chatbot',
+          icon: 'chatbubbles-outline',
+          onPress: navigateToChatbot,
+        },
+        {
+          id: 8,
+          title: 'FAQs',
+          icon: 'help-circle-outline',
+          onPress: () => navigation?.navigate('FAQs'),
+        },
+        {
+          id: 9,
+          title: 'Find Offices',
+          icon: 'location-outline',
+          onPress: () => navigation?.navigate('Find Offices'),
+        },
+      ],
+    },
+    {
+      id: 'account',
+      title: 'Account',
+      icon: 'person-outline',
+      color: colors.textSecondary,
+      items: [
+        {
+          id: 10,
+          title: 'Personalized Plates',
+          icon: 'car-sport-outline',
+          onPress: () => navigation?.navigate('PLNInfo'),
+        },
+        {
+          id: 11,
+          title: 'Settings',
+          icon: 'settings-outline',
+          onPress: () => navigation?.navigate('Settings'),
+        },
+      ],
+    },
+  ];
+
+  // Flatten all menu items for search
+  const allMenuItems = menuCategories.flatMap(category => 
+    category.items.map(item => ({ ...item, categoryColor: category.color }))
+  );
+
+  const styles = getStyles(colors);
+
+  // Filter menu items based on search query
+  const getFilteredMenuItems = () => {
+    if (!searchQuery.trim()) return allMenuItems;
+    const query = searchQuery.toLowerCase();
+    return allMenuItems.filter(item => 
+      item.title.toLowerCase().includes(query)
+    );
+  };
+
+  const filteredItems = getFilteredMenuItems();
 
   if (showMenuOnly) {
     return (
       <View style={styles.container}>
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-          <View style={styles.menuGrid}>
-            {menuItems.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.menuItem}
-                onPress={item.onPress}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.menuIconContainer, { backgroundColor: item.color + '20' }]}>
-                  <Ionicons name={item.icon} size={32} color={item.color} />
-                </View>
-                <Text style={styles.menuItemText}>{item.title}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {menuCategories.map((category) => (
+            <View key={category.id} style={styles.categorySection}>
+              <View style={styles.categoryHeader}>
+                <Ionicons name={category.icon} size={20} color={category.color} />
+                <Text style={[styles.categoryTitle, { color: category.color }]}>
+                  {category.title}
+                </Text>
+              </View>
+              <View style={styles.menuGrid}>
+                {category.items.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.menuItem}
+                    onPress={item.onPress}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.menuIconContainer, { backgroundColor: category.color + '15' }]}>
+                      <Ionicons name={item.icon} size={32} color={category.color} />
+                    </View>
+                    <Text style={styles.menuItemText}>{item.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
         </ScrollView>
-
-        <View style={styles.fabContainer}>
-          {showMessageOption && (
-            <TouchableOpacity
-              style={styles.messageFABMini}
-              activeOpacity={0.8}
-              onPress={handleMessageNavigation}
-            >
-              <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.messageFAB} activeOpacity={0.85} onPress={handleMessageToggle}>
-            <Ionicons name="chatbubbles-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.messageFABText}>Message RA</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     );
   }
@@ -277,10 +346,10 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
 
         {/* Search Bar */}
         <SearchInput
-          placeholder="Search..."
+          placeholder="Search services, news, and more..."
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery('')}
-          accessibilityLabel="Search menu items"
+          accessibilityLabel="Search services, news, and more"
           accessibilityHint="Type to filter available menu options"
         />
         </SafeAreaView>
@@ -289,6 +358,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
         {/* Banner Section */}
         <View style={styles.bannerContainer}>
@@ -299,20 +369,18 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
           ) : banners.length > 0 ? (
             <>
               <ScrollView
+                ref={bannerScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 snapToAlignment="start"
                 decelerationRate="fast"
                 pagingEnabled
                 contentContainerStyle={styles.bannerScrollContent}
-                onScroll={(event) => {
-                  const scrollPosition = event.nativeEvent.contentOffset.x;
-                  const index = Math.round(scrollPosition / (width - 60 + 15));
-                  setActiveBannerIndex(index);
-                }}
+                onScroll={handleBannerScroll}
                 scrollEventThrottle={16}
+                onScrollBeginDrag={() => setIsAutoScrolling(false)}
               >
-                {banners.map((banner) => (
+                {banners.map((banner, index) => (
                   <TouchableOpacity
                     key={banner.id}
                     activeOpacity={banner.linkUrl ? 0.8 : 1}
@@ -330,6 +398,14 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                           <Text style={styles.bannerSubtext}>{banner.description}</Text>
                         )}
                       </View>
+                      {/* Banner Counter - only show on active banner */}
+                      {banners.length > 1 && index === activeBannerIndex && (
+                        <View style={styles.bannerCounter}>
+                          <Text style={styles.bannerCounterText}>
+                            {activeBannerIndex + 1} / {banners.length}
+                          </Text>
+                        </View>
+                      )}
                     </ImageBackground>
                   </TouchableOpacity>
                 ))}
@@ -353,51 +429,101 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
           ) : null}
         </View>
 
-        {/* Menu Grid */}
-        <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle}>Quick Access</Text>
-          <View style={styles.menuGrid}>
-            {menuItems
-              .filter((item) => {
-                if (!searchQuery.trim()) return true;
-                return item.title.toLowerCase().includes(searchQuery.toLowerCase());
-              })
-              .map((item) => (
+        {/* Primary Services - Featured Horizontal Scroll */}
+        {!searchQuery.trim() && (
+          <View style={styles.primaryServicesSection}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="star" size={22} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Primary Services</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.primaryServicesScroll}
+            >
+              {menuCategories[0].items.map((item) => (
                 <TouchableOpacity
                   key={item.id}
-                  style={styles.menuItem}
+                  style={styles.primaryServiceCard}
                   onPress={item.onPress}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: item.color + '20' }]}>
-                    <Ionicons name={item.icon} size={32} color={item.color} />
+                  <View style={[styles.primaryServiceIconContainer, { backgroundColor: colors.primary + '15' }]}>
+                    <Ionicons name={item.icon} size={36} color={colors.primary} />
                   </View>
-                  <Text style={styles.menuItemText}>{item.title}</Text>
+                  <Text style={styles.primaryServiceText}>{item.title}</Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
           </View>
-          {searchQuery.trim() && menuItems.filter((item) => 
-            item.title.toLowerCase().includes(searchQuery.toLowerCase())
-          ).length === 0 && (
-            <Text style={styles.noResultsText}>No results found for "{searchQuery}"</Text>
-          )}
-        </View>
-      </ScrollView>
-      <View style={styles.fabContainer}>
-        {showMessageOption && (
-          <TouchableOpacity
-            style={styles.messageFABMini}
-            activeOpacity={0.8}
-            onPress={handleMessageNavigation}
-          >
-            <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.messageFAB} activeOpacity={0.85} onPress={handleMessageToggle}>
-          <Ionicons name="chatbubbles-outline" size={22} color="#FFFFFF" />
-          <Text style={styles.messageFABText}>Message RA</Text>
-        </TouchableOpacity>
-      </View>
+
+        {/* Other Menu Categories */}
+        {!searchQuery.trim() ? (
+          menuCategories.slice(1).map((category) => (
+            <View key={category.id} style={styles.categorySection}>
+              <View style={styles.categoryHeader}>
+                <Ionicons name={category.icon} size={20} color={category.color} />
+                <Text style={[styles.categoryTitle, { color: category.color }]}>
+                  {category.title}
+                </Text>
+              </View>
+              <View style={styles.menuGrid}>
+                {category.items.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.menuItem}
+                    onPress={item.onPress}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.menuIconContainer, { backgroundColor: category.color + '15' }]}>
+                      <Ionicons name={item.icon} size={32} color={category.color} />
+                    </View>
+                    <Text style={styles.menuItemText}>{item.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))
+        ) : (
+          /* Search Results */
+          <View style={styles.menuSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                Search Results {filteredItems.length > 0 && `(${filteredItems.length})`}
+              </Text>
+            </View>
+            {filteredItems.length > 0 ? (
+              <View style={styles.menuGrid}>
+                {filteredItems.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.menuItem}
+                    onPress={item.onPress}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.menuIconContainer, { backgroundColor: item.categoryColor + '15' }]}>
+                      <Ionicons name={item.icon} size={32} color={item.categoryColor} />
+                    </View>
+                    <Text style={styles.menuItemText}>{item.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.noResultsText}>No results found for "{searchQuery}"</Text>
+            )}
+          </View>
+        )}
+      </ScrollView>
+      {/* FAB - Report Road Damage */}
+      <TouchableOpacity 
+        style={styles.reportFAB} 
+        activeOpacity={0.85} 
+        onPress={() => navigation?.navigate('ReportPothole')}
+      >
+        <Ionicons name="warning" size={24} color="#FFFFFF" />
+        <Text style={styles.reportFABText}>Report Issue</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -409,9 +535,9 @@ function getStyles(colors) {
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: 20,
-      paddingBottom: 20,
-      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 16,
+      paddingHorizontal: 16,
       borderBottomLeftRadius: 30,
       borderBottomRightRadius: 30,
     },
@@ -419,7 +545,7 @@ function getStyles(colors) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 20,
+      marginBottom: 16,
     },
     brandContainer: {
       flexDirection: 'row',
@@ -455,30 +581,32 @@ function getStyles(colors) {
       flex: 1,
     },
     content: {
-      padding: 20,
+      padding: 16,
+      paddingBottom: 100,
     },
     bannerContainer: {
-      marginBottom: 30,
+      marginBottom: 24,
       position: 'relative',
     },
     bannerLoadingContainer: {
-      width: width - 60,
-      height: 180,
+      width: width - 48,
+      height: 200,
       borderRadius: 20,
       backgroundColor: colors.card,
       justifyContent: 'center',
       alignItems: 'center',
     },
     bannerScrollContent: {
-      paddingRight: 20,
+      paddingRight: 16,
     },
     banner: {
-      width: width - 60,
-      height: 180,
+      width: width - 48,
+      height: 200,
       borderRadius: 20,
       overflow: 'hidden',
       marginRight: 15,
       justifyContent: 'flex-end',
+      position: 'relative',
     },
     bannerImage: {
       borderRadius: 20,
@@ -499,6 +627,20 @@ function getStyles(colors) {
       marginTop: 6,
       opacity: 0.9,
     },
+    bannerCounter: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 12,
+    },
+    bannerCounterText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '600',
+    },
     paginationContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
@@ -514,18 +656,70 @@ function getStyles(colors) {
       opacity: 0.3,
     },
     paginationDotActive: {
-      backgroundColor: '#FFD700',
+      backgroundColor: colors.secondary,
       opacity: 1,
-      width: 24,
+      width: 28,
+      height: 8,
     },
     menuSection: {
-      marginTop: 10,
+      marginTop: 24,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+      gap: 8,
     },
     sectionTitle: {
       fontSize: 20,
       fontWeight: 'bold',
       color: colors.text,
-      marginBottom: 15,
+    },
+    primaryServicesSection: {
+      marginBottom: 24,
+    },
+    primaryServicesScroll: {
+      paddingRight: 16,
+    },
+    primaryServiceCard: {
+      width: width * 0.35,
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 16,
+      marginRight: 12,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    primaryServiceIconContainer: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    primaryServiceText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    categorySection: {
+      marginBottom: 24,
+    },
+    categoryHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+      gap: 8,
+    },
+    categoryTitle: {
+      fontSize: 18,
+      fontWeight: '600',
     },
     menuGrid: {
       flexDirection: 'row',
@@ -533,11 +727,11 @@ function getStyles(colors) {
       justifyContent: 'space-between',
     },
     menuItem: {
-      width: (width - 60) / 2,
+      width: (width - 48) / 2,
       backgroundColor: colors.card,
       borderRadius: 15,
-      padding: 20,
-      marginBottom: 15,
+      padding: 16,
+      marginBottom: 12,
       alignItems: 'center',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -546,12 +740,12 @@ function getStyles(colors) {
       elevation: 3,
     },
     menuIconContainer: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: 8,
     },
     menuItemText: {
       fontSize: 14,
@@ -565,44 +759,27 @@ function getStyles(colors) {
       textAlign: 'center',
       marginTop: 20,
     },
-    fabContainer: {
+    reportFAB: {
       position: 'absolute',
-      right: 20,
+      right: 16,
       bottom: 30,
-      alignItems: 'flex-end',
-      gap: 12,
-    },
-    messageFAB: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.error,
       paddingHorizontal: 18,
       height: 56,
       borderRadius: 28,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 6,
-      elevation: 6,
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      elevation: 8,
       gap: 10,
     },
-    messageFABText: {
+    reportFABText: {
       color: '#FFFFFF',
       fontSize: 16,
       fontWeight: '600',
-    },
-    messageFABMini: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.secondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 6,
-      elevation: 5,
     },
   });
 }
@@ -611,4 +788,5 @@ HomeScreen.propTypes = {
   navigation: PropTypes.object.isRequired,
   showMenuOnly: PropTypes.bool,
 };
+
 

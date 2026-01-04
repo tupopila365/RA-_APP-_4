@@ -347,6 +347,18 @@ export default function ReportPotholeScreen({ navigation }) {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          {/* My Reports Link */}
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.myReportsLink}
+              onPress={() => navigation.navigate('MyReports')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="list-outline" size={20} color={colors.primary} />
+              <Text style={styles.myReportsLinkText}>View My Reports</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Location Section */}
           <View style={styles.section}>
             {showManualLocation ? (
@@ -679,6 +691,26 @@ function getStyles(colors) {
     },
     submitButton: {
       marginTop: spacing.sm,
+    },
+    headerActions: {
+      marginBottom: spacing.lg,
+      alignItems: 'flex-end',
+    },
+    myReportsLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      gap: 8,
+      backgroundColor: colors.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.primary + '30',
+    },
+    myReportsLinkText: {
+      color: colors.primary,
+      fontSize: 15,
+      fontWeight: '600',
     },
   });
 }

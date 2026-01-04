@@ -54,7 +54,6 @@ const PushTokenSchema = new Schema<IPushToken>(
 );
 
 // Index for efficient queries
-PushTokenSchema.index({ pushToken: 1 });
 PushTokenSchema.index({ userId: 1 });
 PushTokenSchema.index({ active: 1 });
 
@@ -70,6 +69,10 @@ export interface INotificationLog extends Document {
   type: 'news' | 'tender' | 'vacancy' | 'general';
   relatedId?: string;
   sentBy?: mongoose.Types.ObjectId;
+  jobId?: string;
+  status?: 'queued' | 'sent' | 'failed' | 'partial';
+  platforms?: ('ios' | 'android')[];
+  scheduledAt?: Date;
   sentAt: Date;
   createdAt: Date;
 }
@@ -109,6 +112,22 @@ const NotificationLogSchema = new Schema<INotificationLog>(
     sentBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+    },
+    jobId: {
+      type: String,
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: ['queued', 'sent', 'failed', 'partial'],
+      default: 'queued',
+    },
+    platforms: [{
+      type: String,
+      enum: ['ios', 'android'],
+    }],
+    scheduledAt: {
+      type: Date,
     },
     sentAt: {
       type: Date,

@@ -4,6 +4,7 @@ import { getRedisClient } from '../../config/redis';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
+import { safeRedisDel } from '../../utils/redis';
 
 interface LoginCredentials {
   email: string;
@@ -237,17 +238,21 @@ export class AuthService {
       const key = `token:refresh:${userId}`;
       
       if (redisClient) {
-        await redisClient.del(key);
+        // Use timeout-protected Redis delete (2 second timeout)
+        const deleted = await safeRedisDel(redisClient, key, 2000);
+        if (deleted) {
+          logger.info(`User logged out: ${userId}`);
+        } else {
+          logger.warn(`User logout: Redis operation timed out or failed for user ${userId}, but logout continues`);
+        }
+      } else {
+        logger.warn('Redis not configured - cannot invalidate refresh token');
       }
-      
-      logger.info(`User logged out: ${userId}`);
+      // Logout succeeds regardless of Redis status - don't throw errors
     } catch (error) {
-      logger.error('Error removing refresh token from Redis:', error);
-      throw {
-        code: ERROR_CODES.SERVER_ERROR,
-        message: 'Failed to logout',
-        statusCode: 500,
-      };
+      logger.error('Error during logout (non-fatal):', error);
+      // Don't throw error - logout should succeed even if Redis fails
+      // This ensures logout completes quickly even on slow networks
     }
   }
 

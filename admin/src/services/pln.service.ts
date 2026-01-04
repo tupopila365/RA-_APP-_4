@@ -179,4 +179,25 @@ export const getDashboardStats = async (): Promise<PLNStatsResponse> => {
   return response.data;
 };
 
+/**
+ * Download application form as PDF (admin)
+ */
+export const downloadApplicationPDF = async (id: string): Promise<void> => {
+  const response = await apiClient.get(`/pln/applications/${id}/download-pdf`, {
+    responseType: 'blob',
+  });
+
+  // Create blob URL and trigger download
+  const blob = new Blob([response.data], { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `PLN-Application-${id}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+
 

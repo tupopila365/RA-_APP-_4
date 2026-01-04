@@ -1,7 +1,10 @@
 import { Expo, ExpoPushMessage, ExpoPushTicket, ExpoPushReceiptId, ExpoPushReceipt } from 'expo-server-sdk';
+import { Job } from 'bullmq';
 import { PushTokenModel, NotificationLogModel, IPushToken } from './notifications.model';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
+import { env } from '../../config/env';
+import { enqueuePushJob, getPushQueueStats, initPushWorker, PushJobData, PushPlatform } from '../../services/push-queue.service';
 
 export interface SendNotificationDTO {
   title: string;
@@ -10,13 +13,50 @@ export interface SendNotificationDTO {
   type: 'news' | 'tender' | 'vacancy' | 'general';
   relatedId?: string;
   sentBy?: string;
+  platforms?: PushPlatform[];
+  idempotencyKey?: string;
+  scheduledAt?: string;
+}
+
+export interface SendNotificationOptions {
+  useQueue?: boolean;
+  scheduledAt?: string;
+  pushTokens?: string[];
+  platforms?: PushPlatform[];
+  idempotencyKey?: string;
 }
 
 class NotificationsService {
   private expo: Expo;
 
   constructor() {
-    this.expo = new Expo();
+    this.expo = new Expo(
+      env.PUSH_EXPO_ACCESS_TOKEN
+        ? { accessToken: env.PUSH_EXPO_ACCESS_TOKEN }
+        : undefined
+    );
+
+    // Initialize background worker once per process
+    initPushWorker(this.processPushJob.bind(this));
+  }
+
+  /**
+   * Worker processor for queued jobs
+   */
+  private async processPushJob(job: Job<PushJobData>): Promise<any> {
+    return this.deliverPushNotification(
+      {
+        title: job.data.title,
+        body: job.data.body,
+        data: job.data.data,
+        type: job.data.type,
+        relatedId: job.data.relatedId,
+        sentBy: job.data.sentBy,
+        platforms: job.data.platforms,
+        idempotencyKey: job.data.idempotencyKey || job.id,
+      },
+      job.data.pushTokens
+    );
   }
 
   /**
@@ -80,17 +120,86 @@ class NotificationsService {
   }
 
   /**
-   * Send push notification to specific tokens with retry logic and receipt checking
+   * Send push notification: enqueue when possible, otherwise send immediately
    */
-  async sendPushNotification(dto: SendNotificationDTO, pushTokens?: string[]): Promise<any> {
+  async sendPushNotification(dto: SendNotificationDTO, options?: SendNotificationOptions): Promise<any> {
+    const idempotencyKey =
+      options?.idempotencyKey || dto.idempotencyKey || this.buildIdempotencyKey(dto);
+
+    const shouldQueue = options?.useQueue !== false && (!!options?.scheduledAt || !!enqueuePushJob);
+
+    const jobData: PushJobData = {
+      title: dto.title,
+      body: dto.body,
+      data: dto.data,
+      type: dto.type,
+      relatedId: dto.relatedId,
+      sentBy: dto.sentBy,
+      platforms: options?.platforms || dto.platforms,
+      pushTokens: options?.pushTokens,
+      idempotencyKey,
+      scheduledAt: options?.scheduledAt || dto.scheduledAt,
+    };
+
+    if (shouldQueue) {
+      const enqueued = await enqueuePushJob(jobData);
+      if (enqueued) {
+        logger.info('Notification enqueued', { jobId: enqueued.jobId, scheduledAt: enqueued.scheduledAt });
+
+        await NotificationLogModel.create({
+          title: dto.title,
+          body: dto.body,
+          data: dto.data,
+          recipients: [],
+          sentCount: 0,
+          failedCount: 0,
+          type: dto.type,
+          relatedId: dto.relatedId,
+          sentBy: dto.sentBy,
+          sentAt: new Date(),
+          jobId: enqueued.jobId,
+          status: 'queued',
+          platforms: options?.platforms || dto.platforms,
+          scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
+        });
+
+        return {
+          mode: 'queued',
+          jobId: enqueued.jobId,
+          scheduledAt: enqueued.scheduledAt,
+        };
+      }
+
+      if (options?.scheduledAt) {
+        logger.warn('Scheduled notification requested but queue unavailable - sending immediately');
+      }
+    }
+
+    return this.deliverPushNotification(
+      { ...dto, platforms: options?.platforms || dto.platforms, idempotencyKey },
+      options?.pushTokens
+    );
+  }
+
+  /**
+   * Direct delivery path with retries and receipt checking
+   */
+  private async deliverPushNotification(
+    dto: SendNotificationDTO,
+    pushTokens?: string[]
+  ): Promise<any> {
     try {
       let tokens: string[];
 
       if (pushTokens && pushTokens.length > 0) {
         tokens = pushTokens;
       } else {
-        // Get all active push tokens
-        const tokenDocs = await PushTokenModel.find({ active: true });
+        // Get all active push tokens (optionally filtered by platform)
+        const query: any = { active: true };
+        if (dto.platforms && dto.platforms.length > 0) {
+          query.platform = { $in: dto.platforms };
+        }
+        const tokenDocs = await PushTokenModel.find(query);
         tokens = tokenDocs.map((doc) => doc.pushToken);
       }
 
@@ -165,7 +274,7 @@ class NotificationsService {
       // Send with retry logic and exponential backoff
       for (const chunk of chunks) {
         let retries = 0;
-        const maxRetries = 3;
+        const maxRetries = env.PUSH_JOB_ATTEMPTS || 3;
         let success = false;
 
         while (retries < maxRetries && !success) {
@@ -238,7 +347,7 @@ class NotificationsService {
         logger.info(`Deactivated push token due to DeviceNotRegistered: ${token.substring(0, 20)}...`);
       }
 
-      // Check push receipts after 15 minutes (schedule asynchronously)
+      // Check push receipts after configured delay (schedule asynchronously)
       if (receiptIds.length > 0) {
         // Schedule receipt checking (fire and forget)
         this.checkPushReceipts(receiptIds, receiptIdToTokenMap, dto).catch((error) => {
@@ -248,6 +357,13 @@ class NotificationsService {
 
       // Get list of all tokens that were actually sent (from messages)
       const sentTokens = Array.from(messageIndexToTokenMap.values());
+
+      const status =
+        failedCount === 0
+          ? 'sent'
+          : sentCount === 0
+            ? 'failed'
+            : 'partial';
 
       // Log notification
       await NotificationLogModel.create({
@@ -261,6 +377,10 @@ class NotificationsService {
         relatedId: dto.relatedId,
         sentBy: dto.sentBy,
         sentAt: new Date(),
+        jobId: dto.idempotencyKey,
+        status,
+        platforms: dto.platforms,
+        scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
       });
 
       logger.info(`Sent ${sentCount} notifications, ${failedCount} failed, ${deviceNotRegisteredTokens.length} tokens deactivated`);
@@ -270,6 +390,7 @@ class NotificationsService {
         failedCount,
         totalRecipients: sentTokens.length,
         deactivatedTokens: deviceNotRegisteredTokens.length,
+        status,
       };
     } catch (error: any) {
       logger.error('Send push notification error:', error);
@@ -290,9 +411,9 @@ class NotificationsService {
     receiptIdToTokenMap: Map<string, string>,
     dto: SendNotificationDTO
   ): Promise<void> {
-    // Wait 15 minutes before checking receipts (as per Expo recommendation)
-    const RECEIPT_CHECK_DELAY = 15 * 60 * 1000; // 15 minutes in milliseconds
-    await this.sleep(RECEIPT_CHECK_DELAY);
+    // Wait before checking receipts (as per Expo recommendation)
+    const receiptDelay = env.PUSH_RECEIPT_DELAY_MS || 15 * 60 * 1000;
+    await this.sleep(receiptDelay);
 
     try {
       // Get receipts in chunks (max 1000 per request)
@@ -371,54 +492,86 @@ class NotificationsService {
   }
 
   /**
+   * Build a best-effort idempotency key to deduplicate enqueue requests
+   */
+  private buildIdempotencyKey(dto: SendNotificationDTO): string {
+    const base = dto.relatedId ? `${dto.type}:${dto.relatedId}` : `${dto.type}:${dto.title}`;
+    return `${base}:${Date.now()}`;
+  }
+
+  /**
    * Send notification for new news article
    */
-  async sendNewsNotification(newsId: string, title: string, excerpt: string): Promise<any> {
-    return this.sendPushNotification({
-      title: 'New News Article',
-      body: title,
-      data: {
+  async sendNewsNotification(
+    newsId: string,
+    title: string,
+    excerpt: string,
+    options?: SendNotificationOptions
+  ): Promise<any> {
+    return this.sendPushNotification(
+      {
+        title: 'New News Article',
+        body: title,
+        data: {
+          type: 'news',
+          newsId,
+          screen: 'NewsDetail',
+        },
         type: 'news',
-        newsId,
-        screen: 'NewsDetail',
+        relatedId: newsId,
       },
-      type: 'news',
-      relatedId: newsId,
-    });
+      options
+    );
   }
 
   /**
    * Send notification for new tender
    */
-  async sendTenderNotification(tenderId: string, title: string, closingDate: string): Promise<any> {
-    return this.sendPushNotification({
-      title: 'New Tender Available',
-      body: `${title} - Closes: ${closingDate}`,
-      data: {
+  async sendTenderNotification(
+    tenderId: string,
+    title: string,
+    closingDate: string,
+    options?: SendNotificationOptions
+  ): Promise<any> {
+    return this.sendPushNotification(
+      {
+        title: 'New Tender Available',
+        body: `${title} - Closes: ${closingDate}`,
+        data: {
+          type: 'tender',
+          tenderId,
+          screen: 'Tenders',
+        },
         type: 'tender',
-        tenderId,
-        screen: 'Tenders',
+        relatedId: tenderId,
       },
-      type: 'tender',
-      relatedId: tenderId,
-    });
+      options
+    );
   }
 
   /**
    * Send notification for new vacancy
    */
-  async sendVacancyNotification(vacancyId: string, title: string, closingDate: string): Promise<any> {
-    return this.sendPushNotification({
-      title: 'New Job Vacancy',
-      body: `${title} - Closes: ${closingDate}`,
-      data: {
+  async sendVacancyNotification(
+    vacancyId: string,
+    title: string,
+    closingDate: string,
+    options?: SendNotificationOptions
+  ): Promise<any> {
+    return this.sendPushNotification(
+      {
+        title: 'New Job Vacancy',
+        body: `${title} - Closes: ${closingDate}`,
+        data: {
+          type: 'vacancy',
+          vacancyId,
+          screen: 'Vacancies',
+        },
         type: 'vacancy',
-        vacancyId,
-        screen: 'Vacancies',
+        relatedId: vacancyId,
       },
-      type: 'vacancy',
-      relatedId: vacancyId,
-    });
+      options
+    );
   }
 
   /**
@@ -464,6 +617,18 @@ class NotificationsService {
     } catch (error: any) {
       logger.error('Get active push tokens count error:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Get queue metrics for observability
+   */
+  async getQueueStats(): Promise<Record<string, number>> {
+    try {
+      return await getPushQueueStats();
+    } catch (error) {
+      logger.warn('Failed to fetch push queue stats', error as any);
+      return {};
     }
   }
 

@@ -14,7 +14,7 @@ class ChatbotController {
    */
   async queryStream(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { question, sessionId } = req.body;
+      const { question, sessionId, userLocation } = req.body;
 
       // Validate input
       if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -51,6 +51,213 @@ class ChatbotController {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no');
+
+      // Check if this is a traffic query
+      if (chatbotService.isTrafficQuery(normalizedQuestion)) {
+        logger.info('Traffic query detected, processing traffic status', { question: normalizedQuestion });
+
+        const trafficResponse = await chatbotService.processTrafficQuery(normalizedQuestion);
+
+        const metadata = {
+          type: 'metadata',
+          sources: [],
+          confidence: 1.0,
+          traffic: {
+            congestionLevel: trafficResponse.metadata?.type === 'traffic_status' ? trafficResponse.metadata.congestionLevel : undefined,
+            estimatedDelayMinutes: trafficResponse.metadata?.type === 'traffic_status' ? trafficResponse.metadata.estimatedDelayMinutes : undefined,
+          },
+        };
+        res.write(`data: ${JSON.stringify(metadata)}\n\n`);
+
+        const words = trafficResponse.answer.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          const chunkData = {
+            type: 'chunk',
+            content: words[i] + (i < words.length - 1 ? ' ' : ''),
+          };
+          res.write(`data: ${JSON.stringify(chunkData)}\n\n`);
+        }
+
+        const completeData = { type: 'done' };
+        res.write(`data: ${JSON.stringify(completeData)}\n\n`);
+
+        interactionsService
+          .logInteraction({
+            question: normalizedQuestion,
+            answer: trafficResponse.answer,
+            sessionId: finalSessionId,
+          })
+          .then((interaction) => {
+            const interactionData = {
+              type: 'interactionId',
+              interactionId: interaction._id.toString(),
+            };
+            res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
+            logger.info('Traffic query interaction logged in stream', {
+              interactionId: interaction._id,
+            });
+          })
+          .catch((error: any) => {
+            logger.error('Failed to log traffic query interaction in stream:', error);
+          });
+
+        res.end();
+        return;
+      }
+
+      // Check if this is an incident query
+      if (chatbotService.isIncidentQuery(normalizedQuestion)) {
+        logger.info('Incident query detected, processing incidents', { question: normalizedQuestion });
+        const incidentResponse = await chatbotService.processIncidentQuery(normalizedQuestion);
+
+        const metadata = {
+          type: 'metadata',
+          sources: [],
+          confidence: 1.0,
+          incidents: incidentResponse.metadata?.type === 'incident' ? incidentResponse.metadata.incidents : [],
+        };
+        res.write(`data: ${JSON.stringify(metadata)}\n\n`);
+
+        const words = incidentResponse.answer.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          const chunkData = {
+            type: 'chunk',
+            content: words[i] + (i < words.length - 1 ? ' ' : ''),
+          };
+          res.write(`data: ${JSON.stringify(chunkData)}\n\n`);
+        }
+
+        const completeData = { type: 'done' };
+        res.write(`data: ${JSON.stringify(completeData)}\n\n`);
+
+        interactionsService
+          .logInteraction({
+            question: normalizedQuestion,
+            answer: incidentResponse.answer,
+            sessionId: finalSessionId,
+          })
+          .then((interaction) => {
+            const interactionData = {
+              type: 'interactionId',
+              interactionId: interaction._id.toString(),
+            };
+            res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
+            logger.info('Incident query interaction logged in stream', {
+              interactionId: interaction._id,
+            });
+          })
+          .catch((error: any) => {
+            logger.error('Failed to log incident query interaction in stream:', error);
+          });
+
+        res.end();
+        return;
+      }
+
+      // Check if this is a roadworks query
+      if (chatbotService.isRoadworkQuery(normalizedQuestion)) {
+        logger.info('Roadwork query detected, processing roadworks', { question: normalizedQuestion });
+        const roadworkResponse = await chatbotService.processRoadworkQuery(normalizedQuestion);
+
+        const metadata = {
+          type: 'metadata',
+          sources: [],
+          confidence: 1.0,
+          roadworks: roadworkResponse.metadata?.type === 'roadwork' ? roadworkResponse.metadata.roadworks : [],
+        };
+        res.write(`data: ${JSON.stringify(metadata)}\n\n`);
+
+        const words = roadworkResponse.answer.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          const chunkData = {
+            type: 'chunk',
+            content: words[i] + (i < words.length - 1 ? ' ' : ''),
+          };
+          res.write(`data: ${JSON.stringify(chunkData)}\n\n`);
+        }
+
+        const completeData = { type: 'done' };
+        res.write(`data: ${JSON.stringify(completeData)}\n\n`);
+
+        interactionsService
+          .logInteraction({
+            question: normalizedQuestion,
+            answer: roadworkResponse.answer,
+            sessionId: finalSessionId,
+          })
+          .then((interaction) => {
+            const interactionData = {
+              type: 'interactionId',
+              interactionId: interaction._id.toString(),
+            };
+            res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
+            logger.info('Roadwork query interaction logged in stream', {
+              interactionId: interaction._id,
+            });
+          })
+          .catch((error: any) => {
+            logger.error('Failed to log roadwork query interaction in stream:', error);
+          });
+
+        res.end();
+        return;
+      }
+
+      // Check if this is a location query
+      if (chatbotService.isLocationQuery(normalizedQuestion)) {
+        logger.info('Location query detected, processing location query', { question: normalizedQuestion });
+        
+        // Process location query
+        const userLat = userLocation?.latitude;
+        const userLon = userLocation?.longitude;
+        const locationResponse = await chatbotService.processLocationQuery(userLat, userLon);
+
+        // Stream the location response
+        // Send metadata first (empty sources for location query)
+        const metadata = {
+          type: 'metadata',
+          sources: [],
+          confidence: 1.0,
+        };
+        res.write(`data: ${JSON.stringify(metadata)}\n\n`);
+
+        // Stream the answer word by word for natural feel
+        const words = locationResponse.answer.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          const chunkData = {
+            type: 'chunk',
+            content: words[i] + (i < words.length - 1 ? ' ' : ''),
+          };
+          res.write(`data: ${JSON.stringify(chunkData)}\n\n`);
+        }
+
+        // Send completion signal
+        const completeData = { type: 'done' };
+        res.write(`data: ${JSON.stringify(completeData)}\n\n`);
+
+        // Log interaction asynchronously
+        interactionsService.logInteraction({
+          question: normalizedQuestion,
+          answer: locationResponse.answer,
+          sessionId: finalSessionId,
+        })
+          .then((interaction) => {
+            const interactionData = {
+              type: 'interactionId',
+              interactionId: interaction._id.toString(),
+            };
+            res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
+            logger.info('Location query interaction logged in stream', { 
+              interactionId: interaction._id,
+            });
+          })
+          .catch((error: any) => {
+            logger.error('Failed to log location query interaction in stream:', error);
+          });
+
+        res.end();
+        return;
+      }
 
       // Forward streaming request to RAG service
       const ragResponse = await axios.post(
@@ -182,7 +389,7 @@ class ChatbotController {
    */
   async query(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { question, sessionId } = req.body;
+      const { question, sessionId, userLocation } = req.body;
 
       // Validate input
       if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -216,29 +423,48 @@ class ChatbotController {
       let response: ChatbotResponse;
       let fromCache = false;
 
-      // Try to get cached response first
-      const cachedResponse = await cacheService.get<ChatbotResponse>('chatbot', normalizedQuestion);
-      if (cachedResponse) {
-        logger.info('Serving chatbot response from cache', { question: normalizedQuestion.substring(0, 50) });
-        response = { ...cachedResponse };
-        fromCache = true;
+      // Check if this is a traffic query
+      if (chatbotService.isTrafficQuery(normalizedQuestion)) {
+        logger.info('Traffic query detected, processing traffic status', { question: normalizedQuestion });
+        response = await chatbotService.processTrafficQuery(normalizedQuestion);
+      } else if (chatbotService.isIncidentQuery(normalizedQuestion)) {
+        logger.info('Incident query detected, processing incidents', { question: normalizedQuestion });
+        response = await chatbotService.processIncidentQuery(normalizedQuestion);
+      } else if (chatbotService.isRoadworkQuery(normalizedQuestion)) {
+        logger.info('Roadwork query detected, processing roadworks', { question: normalizedQuestion });
+        response = await chatbotService.processRoadworkQuery(normalizedQuestion);
+      } else if (chatbotService.isLocationQuery(normalizedQuestion)) {
+        logger.info('Location query detected, processing location query', { question: normalizedQuestion });
+        
+        // Process location query (don't cache location queries as they depend on user location)
+        const userLat = userLocation?.latitude;
+        const userLon = userLocation?.longitude;
+        response = await chatbotService.processLocationQuery(userLat, userLon);
       } else {
-        // Cache miss - process query
-        const queryRequest: ChatbotQueryRequest = {
-          question: normalizedQuestion,
-          sessionId: finalSessionId,
-        };
+        // Try to get cached response first
+        const cachedResponse = await cacheService.get<ChatbotResponse>('chatbot', normalizedQuestion);
+        if (cachedResponse) {
+          logger.info('Serving chatbot response from cache', { question: normalizedQuestion.substring(0, 50) });
+          response = { ...cachedResponse };
+          fromCache = true;
+        } else {
+          // Cache miss - process query
+          const queryRequest: ChatbotQueryRequest = {
+            question: normalizedQuestion,
+            sessionId: finalSessionId,
+          };
 
-        response = await chatbotService.processQuery(queryRequest);
+            response = await chatbotService.processQuery(queryRequest);
 
-        // Cache the response (without interactionId, as it's per-request)
-        // Create a clean response object without interactionId for caching
-        const responseToCache: ChatbotResponse = {
-          answer: response.answer,
-          sources: response.sources,
-          timestamp: response.timestamp,
-        };
-        await cacheService.set('chatbot', normalizedQuestion, responseToCache, 3600);
+          // Cache the response (without interactionId, as it's per-request)
+          // Create a clean response object without interactionId for caching
+          const responseToCache: ChatbotResponse = {
+            answer: response.answer,
+            sources: response.sources,
+            timestamp: response.timestamp,
+          };
+          await cacheService.set('chatbot', normalizedQuestion, responseToCache, 3600);
+        }
       }
 
       // Log interaction to database (always log, even for cached responses)

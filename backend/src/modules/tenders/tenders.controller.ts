@@ -115,7 +115,8 @@ export class TendersController {
           const notifResult = await notificationsService.sendTenderNotification(
             tender._id.toString(),
             tender.title,
-            new Date(tender.closingDate).toLocaleDateString()
+            new Date(tender.closingDate).toLocaleDateString(),
+            { useQueue: false }
           );
           
           if (notifResult.sentCount > 0) {
@@ -355,7 +356,8 @@ export class TendersController {
           const notifResult = await notificationsService.sendTenderNotification(
             tender._id.toString(),
             tender.title,
-            new Date(tender.closingDate).toLocaleDateString()
+            new Date(tender.closingDate).toLocaleDateString(),
+            { useQueue: false }
           );
           
           if (notifResult.sentCount > 0) {

@@ -15,6 +15,10 @@ export default function PLNInfoScreen({ navigation }) {
     navigation.navigate('PLNApplication');
   };
 
+  const handleTrackApplication = () => {
+    navigation.navigate('PLNTracking');
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -134,7 +138,7 @@ export default function PLNInfoScreen({ navigation }) {
           </View>
         </Card>
 
-        {/* Apply Button */}
+        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Button
             label="Apply for PLN"
@@ -143,6 +147,15 @@ export default function PLNInfoScreen({ navigation }) {
             size="large"
             fullWidth
             iconName="document-text-outline"
+          />
+          <Button
+            label="Track Application"
+            onPress={handleTrackApplication}
+            variant="outline"
+            size="large"
+            fullWidth
+            iconName="search-outline"
+            style={styles.trackButton}
           />
         </View>
       </ScrollView>
@@ -266,8 +279,13 @@ function getStyles(colors) {
     buttonContainer: {
       marginTop: 10,
       marginBottom: 20,
+      gap: 12,
+    },
+    trackButton: {
+      marginTop: 0,
     },
   });
 }
+
 
 

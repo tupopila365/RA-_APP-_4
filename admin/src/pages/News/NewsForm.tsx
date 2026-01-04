@@ -140,19 +140,56 @@ const NewsForm = () => {
 
   if (loading && isEditMode) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-        <CircularProgress />
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400,
+          gap: 2,
+        }}
+      >
+        <CircularProgress size={48} sx={{ color: 'primary.main' }} />
+        <Typography variant="body2" color="text.secondary">
+          Loading article...
+        </Typography>
       </Box>
     );
   }
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Button startIcon={<BackIcon />} onClick={handleBack} sx={{ mr: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          mb: 4,
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Button
+          startIcon={<BackIcon />}
+          onClick={handleBack}
+          sx={{
+            mr: { xs: 0, sm: 2 },
+            fontWeight: 600,
+          }}
+        >
           Back
         </Button>
-        <Typography variant="h4" component="h1">
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, #00B4E6 0%, #0090C0 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}
+        >
           {isEditMode ? 'Edit News Article' : 'Create News Article'}
         </Typography>
       </Box>
@@ -170,9 +207,26 @@ const NewsForm = () => {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+        <Card
+          sx={{
+            mb: 3,
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{
+                fontWeight: 700,
+                mb: 3,
+                color: 'text.primary',
+                fontSize: '1.25rem',
+                pb: 2,
+                borderBottom: '2px solid',
+                borderBottomColor: 'primary.main',
+              }}
+            >
               Basic Information
             </Typography>
 
@@ -267,9 +321,26 @@ const NewsForm = () => {
           </CardContent>
         </Card>
 
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+        <Card
+          sx={{
+            mb: 3,
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{
+                fontWeight: 700,
+                mb: 3,
+                color: 'text.primary',
+                fontSize: '1.25rem',
+                pb: 2,
+                borderBottom: '2px solid',
+                borderBottomColor: 'primary.main',
+              }}
+            >
               Featured Image
             </Typography>
 
@@ -294,9 +365,26 @@ const NewsForm = () => {
           </CardContent>
         </Card>
 
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+        <Card
+          sx={{
+            mb: 3,
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{
+                fontWeight: 700,
+                mb: 3,
+                color: 'text.primary',
+                fontSize: '1.25rem',
+                pb: 2,
+                borderBottom: '2px solid',
+                borderBottomColor: 'primary.main',
+              }}
+            >
               Publishing Options
             </Typography>
 
@@ -318,8 +406,25 @@ const NewsForm = () => {
           </CardContent>
         </Card>
 
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-          <Button variant="outlined" onClick={handleBack}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            justifyContent: 'flex-end',
+            mt: 4,
+            pt: 3,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Button
+            variant="outlined"
+            onClick={handleBack}
+            sx={{
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
             Cancel
           </Button>
           <Button
@@ -327,6 +432,10 @@ const NewsForm = () => {
             variant="contained"
             startIcon={<SaveIcon />}
             disabled={loading}
+            sx={{
+              fontWeight: 600,
+              px: 4,
+            }}
           >
             {loading ? 'Saving...' : isEditMode ? 'Update' : 'Create'}
           </Button>

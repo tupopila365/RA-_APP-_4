@@ -1,9 +1,11 @@
 import { Response, NextFunction, Request } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
 import { plnService } from './pln.service';
+import { pdfService } from '../../services/pdf.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 import { PLNStatus } from './pln.model';
+import * as path from 'path';
 
 export class PLNController {
   /**
@@ -17,74 +19,35 @@ export class PLNController {
         hasFile: !!req.file,
       });
 
-      // Parse form data (FormData sends JSON strings)
-      let plateChoices = req.body.plateChoices;
-      if (typeof plateChoices === 'string') {
-        try {
-          plateChoices = JSON.parse(plateChoices);
-        } catch (error) {
-          res.status(400).json({
-            success: false,
-            error: {
-              code: ERROR_CODES.VALIDATION_ERROR,
-              message: 'Invalid plate choices format',
-            },
-            timestamp: new Date().toISOString(),
-          });
-          return;
+      // Parse form data (FormData sends JSON strings for complex objects)
+      const parseJSONField = (field: any) => {
+        if (typeof field === 'string') {
+          try {
+            return JSON.parse(field);
+          } catch {
+            return field;
+          }
         }
-      }
+        return field;
+      };
 
-      const { fullName, idNumber, phoneNumber } = req.body;
+      let plateChoices = parseJSONField(req.body.plateChoices);
+      const postalAddress = parseJSONField(req.body.postalAddress);
+      const streetAddress = parseJSONField(req.body.streetAddress);
+      const telephoneHome = parseJSONField(req.body.telephoneHome);
+      const telephoneDay = parseJSONField(req.body.telephoneDay);
+      const cellNumber = parseJSONField(req.body.cellNumber);
 
-      // Validate required fields
-      if (!fullName || !fullName.trim()) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Full name is required',
-          },
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pln.controller.ts:41',message:'Controller received request body',data:{hasIdType:!!req.body.idType,hasSurname:!!req.body.surname,hasPostalAddress:!!postalAddress,postalAddressType:typeof postalAddress,postalAddressValue:postalAddress,hasFullName:!!req.body.fullName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
 
-      if (!idNumber || !idNumber.trim()) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'ID number is required',
-          },
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
+      // Check if using new structure or legacy
+      const isNewStructure = req.body.idType && req.body.surname && postalAddress;
 
-      if (!phoneNumber || !phoneNumber.trim()) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Phone number is required',
-          },
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
-
-      if (!plateChoices || !Array.isArray(plateChoices) || plateChoices.length !== 3) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Exactly 3 plate choices are required',
-          },
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pln.controller.ts:42',message:'Controller structure check',data:{isNewStructure,idTypeCheck:!!req.body.idType,surnameCheck:!!req.body.surname,postalAddressCheck:!!postalAddress},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
 
       // Validate document file
       if (!req.file) {
@@ -99,16 +62,112 @@ export class PLNController {
         return;
       }
 
-      // Create application
-      const application = await plnService.createApplication(
-        {
+      // Build DTO based on structure
+      let dto: any;
+
+      if (isNewStructure) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pln.controller.ts:59',message:'Using new structure path',data:{hasIdType:!!req.body.idType,hasSurname:!!req.body.surname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        // New comprehensive structure
+        dto = {
+          idType: req.body.idType,
+          trafficRegisterNumber: req.body.trafficRegisterNumber,
+          businessRegNumber: req.body.businessRegNumber,
+          surname: req.body.surname,
+          initials: req.body.initials,
+          businessName: req.body.businessName,
+          postalAddress,
+          streetAddress,
+          telephoneHome,
+          telephoneDay,
+          cellNumber,
+          email: req.body.email,
+          plateFormat: req.body.plateFormat,
+          quantity: req.body.quantity ? parseInt(req.body.quantity, 10) : 1,
+          plateChoices,
+          hasRepresentative: req.body.hasRepresentative === 'true',
+          representativeIdType: req.body.representativeIdType,
+          representativeIdNumber: req.body.representativeIdNumber,
+          representativeSurname: req.body.representativeSurname,
+          representativeInitials: req.body.representativeInitials,
+          currentLicenceNumber: req.body.currentLicenceNumber,
+          vehicleRegisterNumber: req.body.vehicleRegisterNumber,
+          chassisNumber: req.body.chassisNumber,
+          vehicleMake: req.body.vehicleMake,
+          seriesName: req.body.seriesName,
+          declarationAccepted: req.body.declarationAccepted === 'true',
+          declarationPlace: req.body.declarationPlace,
+          declarationRole: req.body.declarationRole || 'applicant',
+        };
+      } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pln.controller.ts:92',message:'Using legacy structure path',data:{hasFullName:!!req.body.fullName,hasIdNumber:!!req.body.idNumber,hasPhoneNumber:!!req.body.phoneNumber},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        // Legacy structure
+        const { fullName, idNumber, phoneNumber } = req.body;
+
+        if (!fullName || !fullName.trim()) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pln.controller.ts:95',message:'Legacy validation failed - fullName required',data:{hasFullName:!!fullName,fullNameValue:fullName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          res.status(400).json({
+            success: false,
+            error: {
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'Full name is required',
+            },
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!idNumber || !idNumber.trim()) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'ID number is required',
+            },
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!phoneNumber || !phoneNumber.trim()) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'Phone number is required',
+            },
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!plateChoices || !Array.isArray(plateChoices) || plateChoices.length !== 3) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'Exactly 3 plate choices are required',
+            },
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        dto = {
           fullName: fullName.trim(),
           idNumber: idNumber.trim(),
           phoneNumber: phoneNumber.trim(),
           plateChoices,
-        },
-        req.file
-      );
+        };
+      }
+
+      // Create application
+      const application = await plnService.createApplication(dto, req.file);
 
       logger.info(`PLN application created successfully: ${application._id}`);
 
@@ -433,8 +492,45 @@ export class PLNController {
       next(error);
     }
   }
+
+  /**
+   * Download application form as PDF (admin)
+   * GET /api/pln/applications/:id/download-pdf
+   */
+  async downloadPDF(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      // Get application data
+      const application = await plnService.getApplicationById(id);
+
+      // Resolve path to static PDF template file
+      // __dirname in dev: backend/src/modules/pln
+      // __dirname in prod: backend/dist/modules/pln
+      // Need to go up 3 levels to reach backend root, then into data/forms
+      const templatePath = path.join(__dirname, '../../../data/forms/PLN-FORM.pdf');
+
+      // Fill the PDF template with application data
+      const pdfBuffer = await pdfService.fillPLNFormPDF(application, templatePath);
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="PLN-Application-${application.referenceId}.pdf"`
+      );
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
+
+      // Send filled PDF
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      logger.error('Download PDF error:', error);
+      next(error);
+    }
+  }
 }
 
 export const plnController = new PLNController();
+
 
 

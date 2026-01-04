@@ -111,6 +111,19 @@ router.get(
   plnController.getDashboardStats.bind(plnController)
 );
 
+/**
+ * @route   GET /api/pln/applications/:id/download-pdf
+ * @desc    Download application form as PDF (admin)
+ * @access  Private (requires pln:manage permission)
+ */
+router.get(
+  '/applications/:id/download-pdf',
+  authenticate,
+  requirePermission('pln:manage'),
+  plnController.downloadPDF.bind(plnController)
+);
+
 export default router;
+
 
 

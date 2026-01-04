@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { plnService } from '../services/plnService';
@@ -17,6 +16,7 @@ import { FormInput } from '../components/FormInput';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { StatusStepper } from '../components/StatusStepper';
+import { EmptyState } from '../components/EmptyState';
 
 export default function PLNTrackingScreen({ navigation }) {
   const { colors } = useTheme();
@@ -61,26 +61,22 @@ export default function PLNTrackingScreen({ navigation }) {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
-        style={styles.header}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Track Application</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+  const hasSearched = application !== null || error !== null;
 
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        {/* Initial Empty State */}
+        {!hasSearched && (
+          <View style={styles.emptyStateContainer}>
+            <EmptyState
+              icon="search-outline"
+              title="Track Your Application"
+              message="Enter your Reference ID and ID Number to check the status of your Personalized Number Plate application."
+            />
+          </View>
+        )}
+
         {/* Search Form */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Enter Application Details</Text>
@@ -114,9 +110,23 @@ export default function PLNTrackingScreen({ navigation }) {
           <Card style={styles.errorCard}>
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={24} color={colors.error} />
-              <Text style={styles.errorText}>{error}</Text>
+              <View style={styles.errorTextContainer}>
+                <Text style={styles.errorTitle}>Unable to Find Application</Text>
+                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorHint}>
+                  Please verify your Reference ID and ID Number are correct.
+                </Text>
+              </View>
             </View>
           </Card>
+        )}
+
+        {/* Success Indicator */}
+        {application && !error && (
+          <View style={styles.successIndicator}>
+            <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+            <Text style={styles.successText}>Application Found</Text>
+          </View>
         )}
 
         {/* Application Details */}
@@ -184,7 +194,7 @@ export default function PLNTrackingScreen({ navigation }) {
           </>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -194,30 +204,15 @@ function getStyles(colors) {
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
-      paddingTop: 20,
-      paddingBottom: 20,
-      paddingHorizontal: 20,
-      borderBottomLeftRadius: 30,
-      borderBottomRightRadius: 30,
-    },
-    headerContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    backButton: {
-      marginRight: 12,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#FFFFFF',
-    },
     scrollView: {
       flex: 1,
     },
     content: {
       padding: 20,
+    },
+    emptyStateContainer: {
+      marginTop: 40,
+      marginBottom: 30,
     },
     section: {
       marginBottom: 20,
@@ -235,16 +230,46 @@ function getStyles(colors) {
       backgroundColor: colors.error + '10',
       borderColor: colors.error,
       borderWidth: 1,
+      marginBottom: 20,
     },
     errorContainer: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: 12,
     },
-    errorText: {
+    errorTextContainer: {
       flex: 1,
+    },
+    errorTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.error,
+      marginBottom: 6,
+    },
+    errorText: {
       fontSize: 14,
       color: colors.error,
+      marginBottom: 8,
+      lineHeight: 20,
+    },
+    errorHint: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+    },
+    successIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: colors.success + '15',
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 20,
+    },
+    successText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.success,
     },
     infoRow: {
       flexDirection: 'row',
@@ -301,5 +326,6 @@ function getStyles(colors) {
     },
   });
 }
+
 
 

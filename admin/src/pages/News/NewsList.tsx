@@ -164,11 +164,41 @@ const NewsList = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 4,
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, #00B4E6 0%, #0090C0 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}
+        >
           News Management
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleCreateNew}
+          sx={{
+            px: 3,
+            py: 1.25,
+            fontSize: '0.9375rem',
+            fontWeight: 600,
+            borderRadius: 2,
+          }}
+        >
           Create News
         </Button>
       </Box>
@@ -179,16 +209,25 @@ const NewsList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 3, width: '100%', boxSizing: 'border-box' }}>
-        <CardContent sx={{ width: '100%', boxSizing: 'border-box' }}>
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 2, 
-            flexWrap: 'wrap', 
-            alignItems: 'center',
-            width: '100%',
-            boxSizing: 'border-box',
-          }}>
+      <Card
+        sx={{
+          mb: 3,
+          width: '100%',
+          boxSizing: 'border-box',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+        }}
+      >
+        <CardContent sx={{ width: '100%', boxSizing: 'border-box', p: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              width: '100%',
+              boxSizing: 'border-box',
+            }}
+          >
             <TextField
               label="Search"
               variant="outlined"
@@ -197,14 +236,24 @@ const NewsList = () => {
               onChange={handleSearchChange}
               placeholder="Search by title..."
               InputProps={{
-                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                startAdornment: (
+                  <SearchIcon
+                    sx={{
+                      mr: 1,
+                      color: 'primary.main',
+                    }}
+                  />
+                ),
               }}
-              sx={{ 
+              sx={{
                 flexGrow: 0,
                 flexShrink: 0,
                 minWidth: { xs: '100%', sm: '250px' },
                 maxWidth: { sm: '400px' },
                 width: { xs: '100%', sm: '250px' },
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'background.paper',
+                },
               }}
             />
             <FormControl 
@@ -255,10 +304,30 @@ const NewsList = () => {
         </CardContent>
       </Card>
 
-      <TableContainer component={Paper}>
+      <TableContainer
+        component={Paper}
+        sx={{
+          borderRadius: 3,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          overflow: 'hidden',
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow>
+            <TableRow
+              sx={{
+                '& .MuiTableCell-head': {
+                  backgroundColor: '#F7FAFC',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  letterSpacing: '0.02em',
+                  textTransform: 'uppercase',
+                  color: 'text.primary',
+                  borderBottom: '2px solid',
+                  borderBottomColor: 'primary.main',
+                },
+              }}
+            >
               <TableCell>Image</TableCell>
               <TableCell>Title</TableCell>
               <TableCell>Category</TableCell>
@@ -272,15 +341,32 @@ const NewsList = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                  <CircularProgress />
+                <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={48} sx={{ color: 'primary.main' }} />
                 </TableCell>
               </TableRow>
             ) : news.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                  <Typography variant="body2" color="text.secondary">
+                <TableCell
+                  colSpan={8}
+                  align="center"
+                  sx={{
+                    py: 6,
+                    borderBottom: 'none',
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      color: 'text.secondary',
+                      fontWeight: 500,
+                      mb: 1,
+                    }}
+                  >
                     No news articles found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Try adjusting your search or filters
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -324,6 +410,11 @@ const NewsList = () => {
                       label={newsItem.published ? 'Published' : 'Draft'}
                       color={newsItem.published ? 'success' : 'default'}
                       size="small"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        height: 28,
+                      }}
                     />
                   </TableCell>
                   <TableCell>
@@ -331,20 +422,53 @@ const NewsList = () => {
                   </TableCell>
                   <TableCell>{formatDate(newsItem.createdAt)}</TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => handleView(newsItem._id)} title="View">
-                      <ViewIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => handleEdit(newsItem._id)} title="Edit">
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDeleteClick(newsItem)}
-                      title="Delete"
-                      color="error"
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleView(newsItem._id)}
+                        title="View"
+                        sx={{
+                          color: 'primary.main',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 180, 230, 0.1)',
+                            transform: 'scale(1.1)',
+                          },
+                        }}
+                      >
+                        <ViewIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEdit(newsItem._id)}
+                        title="Edit"
+                        sx={{
+                          color: 'info.main',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 180, 230, 0.1)',
+                            transform: 'scale(1.1)',
+                          },
+                        }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteClick(newsItem)}
+                        title="Delete"
+                        sx={{
+                          color: 'error.main',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            transform: 'scale(1.1)',
+                          },
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))
@@ -362,16 +486,50 @@ const NewsList = () => {
         />
       </TableContainer>
 
-      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete "{newsToDelete?.title}"? This action cannot be undone.
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 700,
+            pb: 1,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          Confirm Delete
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <DialogContentText sx={{ fontSize: '0.9375rem', lineHeight: 1.6 }}>
+            Are you sure you want to delete <strong>"{newsToDelete?.title}"</strong>? This action
+            cannot be undone.
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+        <DialogActions sx={{ p: 2.5, pt: 2 }}>
+          <Button
+            onClick={handleDeleteCancel}
+            sx={{
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            sx={{
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
             Delete
           </Button>
         </DialogActions>

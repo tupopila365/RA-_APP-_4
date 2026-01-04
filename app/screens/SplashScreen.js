@@ -1,57 +1,111 @@
-import { useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, Image, ActivityIndicator } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, Image, ActivityIndicator, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import RAIcon from '../assets/icon.png';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function SplashScreen() {
-  const fadeAnim = new Animated.Value(0);
-  const scaleAnim = new Animated.Value(0.8);
+  // Refined animation values - smooth and professional
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const logoFadeAnim = useRef(new Animated.Value(0)).current;
+  const textFadeAnim = useRef(new Animated.Value(0)).current;
+  const loadingFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Logo fade in and scale animation
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
+    // Professional, smooth fade-in sequence
+    Animated.sequence([
+      // Logo appears first
+      Animated.timing(logoFadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: 600,
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
+      // Text appears
+      Animated.timing(textFadeAnim, {
         toValue: 1,
-        tension: 50,
-        friction: 7,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      // Loading indicator appears
+      Animated.timing(loadingFadeAnim, {
+        toValue: 1,
+        duration: 400,
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Overall container fade
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   return (
     <LinearGradient
-      colors={['#00B4E6', '#0090C0']}
+      colors={['#00B4E6', '#0090C0', '#0078A3']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
       style={styles.container}
     >
+      {/* Subtle overlay for depth */}
+      <View style={styles.overlay} />
+
       <Animated.View
         style={[
-          styles.logoContainer,
+          styles.contentContainer,
           {
             opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
           },
         ]}
       >
-        <Image 
-          source={RAIcon} 
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        {/* Logo - clean and centered */}
+        <Animated.View
+          style={[
+            styles.logoWrapper,
+            {
+              opacity: logoFadeAnim,
+            },
+          ]}
+        >
+          <View style={styles.logoContainer}>
+            <Image 
+              source={RAIcon} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+        </Animated.View>
         
-        <Text style={styles.title}>Roads Authority</Text>
-        <Text style={styles.subtitle}>of Namibia</Text>
+        {/* Title - authoritative typography */}
+        <Animated.View
+          style={[
+            styles.textWrapper,
+            {
+              opacity: textFadeAnim,
+            },
+          ]}
+        >
+          <Text style={styles.title}>Roads Authority</Text>
+          <Text style={styles.subtitle}>of Namibia</Text>
+        </Animated.View>
         
-        <View style={styles.spinnerContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
-        </View>
+        {/* Minimal loading indicator */}
+        <Animated.View
+          style={[
+            styles.loadingContainer,
+            {
+              opacity: loadingFadeAnim,
+            },
+          ]}
+        >
+          <ActivityIndicator 
+            size="small" 
+            color="#FFFFFF" 
+          />
+        </Animated.View>
       </Animated.View>
     </LinearGradient>
   );
@@ -63,31 +117,93 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoContainer: {
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  contentContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 40,
+  },
+  logoWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  logoContainer: {
+    width: width * 0.3,
+    height: width * 0.3,
+    borderRadius: (width * 0.3) / 2,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.3,
+      },
+    }),
   },
   logo: {
-    width: width * 0.5,
-    height: width * 0.5,
-    marginBottom: 30,
+    width: width * 0.25,
+    height: width * 0.25,
+  },
+  textWrapper: {
+    alignItems: 'center',
+    marginBottom: 60,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#FFFFFF',
-    marginTop: 20,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    marginBottom: 8,
+    ...Platform.select({
+      ios: {
+        fontFamily: 'SF Pro Display',
+        fontWeight: '600',
+      },
+      android: {
+        fontFamily: 'Roboto',
+        fontWeight: '500',
+      },
+    }),
   },
   subtitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#FFD700',
-    marginTop: 5,
-    letterSpacing: 0.5,
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#E0E0E0',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    opacity: 0.95,
+    ...Platform.select({
+      ios: {
+        fontFamily: 'SF Pro Text',
+        fontWeight: '400',
+      },
+      android: {
+        fontFamily: 'Roboto',
+        fontWeight: '300',
+      },
+    }),
   },
-  spinnerContainer: {
-    marginTop: 40,
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
   },
 });
-

@@ -37,11 +37,11 @@ export default function PLNApplicationScreen({ navigation }) {
   const { user } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [documentLoading, setDocumentLoading] = useState(false);
+  const [currentSection, setCurrentSection] = useState('A');
 
   // Check authentication on mount
   useEffect(() => {
     if (!user) {
-      // Redirect to login screen with return navigation
       navigation.replace('Auth', {
         screen: 'Login',
         params: {
@@ -51,24 +51,56 @@ export default function PLNApplicationScreen({ navigation }) {
     }
   }, [user, navigation]);
 
-  // Form state
-  const [fullName, setFullName] = useState('');
-  const [idNumber, setIdNumber] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  // Section A - Owner/Transferor
+  const [idType, setIdType] = useState('Namibia ID-doc');
+  const [trafficRegisterNumber, setTrafficRegisterNumber] = useState('');
+  const [businessRegNumber, setBusinessRegNumber] = useState('');
+  const [surname, setSurname] = useState('');
+  const [initials, setInitials] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [postalAddress, setPostalAddress] = useState({ line1: '', line2: '', line3: '' });
+  const [streetAddress, setStreetAddress] = useState({ line1: '', line2: '', line3: '' });
+  const [telephoneHome, setTelephoneHome] = useState({ code: '264', number: '' });
+  const [telephoneDay, setTelephoneDay] = useState({ code: '264', number: '' });
+  const [cellNumber, setCellNumber] = useState({ code: '264', number: '' });
+  const [email, setEmail] = useState('');
+
+  // Section B - Plate
+  const [plateFormat, setPlateFormat] = useState('Normal');
+  const [quantity, setQuantity] = useState(1);
   const [plateChoices, setPlateChoices] = useState([
     { text: '', meaning: '' },
     { text: '', meaning: '' },
     { text: '', meaning: '' },
   ]);
+
+  // Section C - Representative (optional)
+  const [hasRepresentative, setHasRepresentative] = useState(false);
+  const [representativeIdType, setRepresentativeIdType] = useState('Namibia ID-doc');
+  const [representativeIdNumber, setRepresentativeIdNumber] = useState('');
+  const [representativeSurname, setRepresentativeSurname] = useState('');
+  const [representativeInitials, setRepresentativeInitials] = useState('');
+
+  // Section D - Vehicle (optional)
+  const [hasVehicle, setHasVehicle] = useState(false);
+  const [currentLicenceNumber, setCurrentLicenceNumber] = useState('');
+  const [vehicleRegisterNumber, setVehicleRegisterNumber] = useState('');
+  const [chassisNumber, setChassisNumber] = useState('');
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [seriesName, setSeriesName] = useState('');
+
+  // Section E - Declaration
+  const [declarationAccepted, setDeclarationAccepted] = useState(false);
+  const [declarationPlace, setDeclarationPlace] = useState('');
+
+  // Document
   const [document, setDocument] = useState(null);
-  const [declaration, setDeclaration] = useState(false);
 
   // Validation errors
   const [errors, setErrors] = useState({});
 
   const styles = getStyles(colors);
 
-  // Don't render if not authenticated
   if (!user) {
     return null;
   }
@@ -77,7 +109,6 @@ export default function PLNApplicationScreen({ navigation }) {
     const updated = [...plateChoices];
     updated[index] = { ...updated[index], [field]: value };
     setPlateChoices(updated);
-    // Clear error for this field
     if (errors[`plate${index}${field}`]) {
       const newErrors = { ...errors };
       delete newErrors[`plate${index}${field}`];
@@ -88,18 +119,16 @@ export default function PLNApplicationScreen({ navigation }) {
   const pickDocument = async () => {
     try {
       setDocumentLoading(true);
-
       if (!DocumentPicker && !ImagePicker) {
         Alert.alert(
           'Document Picker Unavailable',
-          'Document picker requires a development build. Please build the app with: npx expo run:android',
+          'Document picker requires a development build.',
           [{ text: 'OK' }]
         );
         setDocumentLoading(false);
         return;
       }
 
-      // Show action sheet for document selection
       Alert.alert(
         'Select Document',
         'Choose document type',
@@ -113,18 +142,16 @@ export default function PLNApplicationScreen({ navigation }) {
                   setDocumentLoading(false);
                   return;
                 }
-
                 const result = await DocumentPicker.getDocumentAsync({
                   type: 'application/pdf',
                   copyToCacheDirectory: true,
                 });
-
                 if (!result.canceled && result.assets[0]) {
                   setDocument(result.assets[0]);
                 }
               } catch (error) {
                 console.error('Document picker error:', error);
-                Alert.alert('Error', 'Failed to pick document. Please try again.');
+                Alert.alert('Error', 'Failed to pick document.');
               } finally {
                 setDocumentLoading(false);
               }
@@ -139,20 +166,17 @@ export default function PLNApplicationScreen({ navigation }) {
                   setDocumentLoading(false);
                   return;
                 }
-
                 const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (status !== 'granted') {
                   Alert.alert('Permission Required', 'Media library permission is required.');
                   setDocumentLoading(false);
                   return;
                 }
-
                 const result = await ImagePicker.launchImageLibraryAsync({
                   mediaTypes: ImagePicker.MediaTypeOptions.Images,
                   allowsEditing: true,
                   quality: 0.8,
                 });
-
                 if (!result.canceled && result.assets[0]) {
                   setDocument({
                     uri: result.assets[0].uri,
@@ -162,7 +186,7 @@ export default function PLNApplicationScreen({ navigation }) {
                 }
               } catch (error) {
                 console.error('Image picker error:', error);
-                Alert.alert('Error', 'Failed to pick image. Please try again.');
+                Alert.alert('Error', 'Failed to pick image.');
               } finally {
                 setDocumentLoading(false);
               }
@@ -184,24 +208,63 @@ export default function PLNApplicationScreen({ navigation }) {
   const validateForm = () => {
     const newErrors = {};
 
-    // Validate full name
-    if (!validators.required(fullName)) {
-      newErrors.fullName = getErrorMessage('Full name', 'required');
+    // Section A validation
+    if (!idType) {
+      newErrors.idType = 'ID type is required';
     }
 
-    // Validate ID number
-    if (!validators.required(idNumber)) {
-      newErrors.idNumber = getErrorMessage('ID number', 'required');
+    if (idType === 'Traffic Register Number' || idType === 'Namibia ID-doc') {
+      if (!trafficRegisterNumber || !trafficRegisterNumber.trim()) {
+        newErrors.trafficRegisterNumber = 'ID number is required';
+      }
+    } else if (idType === 'Business Reg. No') {
+      if (!businessRegNumber || !businessRegNumber.trim()) {
+        newErrors.businessRegNumber = 'Business registration number is required';
+      }
+      if (!businessName || !businessName.trim()) {
+        newErrors.businessName = 'Business name is required';
+      }
     }
 
-    // Validate phone number
-    if (!validators.required(phoneNumber)) {
-      newErrors.phoneNumber = getErrorMessage('Phone number', 'required');
-    } else if (!validators.phone(phoneNumber)) {
-      newErrors.phoneNumber = getErrorMessage('Phone number', 'phone');
+    if (!surname || !surname.trim()) {
+      newErrors.surname = 'Surname is required';
     }
 
-    // Validate plate choices
+    if (!initials || !initials.trim()) {
+      newErrors.initials = 'Initials are required';
+    }
+
+    if (!postalAddress.line1 || !postalAddress.line1.trim()) {
+      newErrors.postalAddress = 'Postal address line 1 is required';
+    }
+
+    if (!streetAddress.line1 || !streetAddress.line1.trim()) {
+      newErrors.streetAddress = 'Street address line 1 is required';
+    }
+
+    // At least one contact method
+    if (
+      (!cellNumber.number || !cellNumber.number.trim()) &&
+      (!telephoneDay.number || !telephoneDay.number.trim()) &&
+      (!telephoneHome.number || !telephoneHome.number.trim()) &&
+      (!email || !email.trim() || !validators.email(email))
+    ) {
+      newErrors.contact = 'At least one contact method (phone or email) is required';
+    }
+
+    if (email && email.trim() && !validators.email(email)) {
+      newErrors.email = getErrorMessage('Email', 'email');
+    }
+
+    // Section B validation
+    if (!plateFormat) {
+      newErrors.plateFormat = 'Plate format is required';
+    }
+
+    if (quantity !== 1 && quantity !== 2) {
+      newErrors.quantity = 'Quantity must be 1 or 2';
+    }
+
     plateChoices.forEach((choice, index) => {
       if (!validators.required(choice.text)) {
         newErrors[`plate${index}text`] = `Plate choice ${index + 1} text is required`;
@@ -213,14 +276,28 @@ export default function PLNApplicationScreen({ navigation }) {
       }
     });
 
-    // Validate document
-    if (!document) {
-      newErrors.document = 'Certified ID document is required';
+    // Section C validation (if applicable)
+    if (hasRepresentative) {
+      if (!representativeIdNumber || !representativeIdNumber.trim()) {
+        newErrors.representativeIdNumber = 'Representative ID number is required';
+      }
+      if (!representativeSurname || !representativeSurname.trim()) {
+        newErrors.representativeSurname = 'Representative surname is required';
+      }
     }
 
-    // Validate declaration
-    if (!declaration) {
-      newErrors.declaration = 'You must accept the declaration';
+    // Section E validation
+    if (!declarationAccepted) {
+      newErrors.declarationAccepted = 'You must accept the declaration';
+    }
+
+    if (!declarationPlace || !declarationPlace.trim()) {
+      newErrors.declarationPlace = 'Declaration place is required';
+    }
+
+    // Document validation
+    if (!document) {
+      newErrors.document = 'Certified ID document is required';
     }
 
     setErrors(newErrors);
@@ -237,18 +314,58 @@ export default function PLNApplicationScreen({ navigation }) {
       setLoading(true);
 
       const applicationData = {
-        fullName: fullName.trim(),
-        idNumber: idNumber.trim(),
-        phoneNumber: phoneNumber.trim(),
+        // Section A
+        idType,
+        trafficRegisterNumber: idType !== 'Business Reg. No' ? trafficRegisterNumber.trim() : undefined,
+        businessRegNumber: idType === 'Business Reg. No' ? businessRegNumber.trim() : undefined,
+        surname: surname.trim(),
+        initials: initials.trim(),
+        businessName: idType === 'Business Reg. No' ? businessName.trim() : undefined,
+        postalAddress: {
+          line1: postalAddress.line1.trim(),
+          line2: postalAddress.line2?.trim(),
+          line3: postalAddress.line3?.trim(),
+        },
+        streetAddress: {
+          line1: streetAddress.line1.trim(),
+          line2: streetAddress.line2?.trim(),
+          line3: streetAddress.line3?.trim(),
+        },
+        telephoneHome: telephoneHome.number.trim() ? telephoneHome : undefined,
+        telephoneDay: telephoneDay.number.trim() ? telephoneDay : undefined,
+        cellNumber: cellNumber.number.trim() ? cellNumber : undefined,
+        email: email.trim() || undefined,
+        // Section B
+        plateFormat,
+        quantity,
         plateChoices: plateChoices.map((choice) => ({
           text: choice.text.trim().toUpperCase(),
           meaning: choice.meaning.trim(),
         })),
+        // Section C
+        hasRepresentative,
+        representativeIdType: hasRepresentative ? representativeIdType : undefined,
+        representativeIdNumber: hasRepresentative ? representativeIdNumber.trim() : undefined,
+        representativeSurname: hasRepresentative ? representativeSurname.trim() : undefined,
+        representativeInitials: hasRepresentative ? representativeInitials.trim() : undefined,
+        // Section D
+        currentLicenceNumber: hasVehicle ? currentLicenceNumber.trim() : undefined,
+        vehicleRegisterNumber: hasVehicle ? vehicleRegisterNumber.trim() : undefined,
+        chassisNumber: hasVehicle ? chassisNumber.trim() : undefined,
+        vehicleMake: hasVehicle ? vehicleMake.trim() : undefined,
+        seriesName: hasVehicle ? seriesName.trim() : undefined,
+        // Section E
+        declarationAccepted: true,
+        declarationPlace: declarationPlace.trim(),
+        declarationRole: 'applicant',
       };
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PLNApplicationScreen.js:362',message:'Form prepared applicationData',data:{hasIdType:!!applicationData.idType,hasSurname:!!applicationData.surname,hasPostalAddress:!!applicationData.postalAddress,hasFullName:!!applicationData.fullName,postalAddressLine1:applicationData.postalAddress?.line1},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       const application = await plnService.submitApplication(applicationData, document.uri);
 
-      // Navigate to confirmation screen
       navigation.replace('PLNConfirmation', {
         referenceId: application.referenceId,
       });
@@ -292,65 +409,354 @@ export default function PLNApplicationScreen({ navigation }) {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Applicant Details */}
+          {/* Progress Indicator */}
+          <View style={styles.progressContainer}>
+            <Text style={styles.progressTitle}>Application Progress</Text>
+            <View style={styles.progressSteps}>
+              {['A', 'B', 'C', 'D', 'E'].map((section, index) => {
+                const isActive = currentSection === section;
+                const isCompleted = ['A', 'B', 'C', 'D', 'E'].indexOf(currentSection) > index;
+                return (
+                  <TouchableOpacity
+                    key={section}
+                    style={styles.progressStep}
+                    onPress={() => setCurrentSection(section)}
+                  >
+                    <View
+                      style={[
+                        styles.progressStepCircle,
+                        isActive && { backgroundColor: colors.primary },
+                        isCompleted && { backgroundColor: colors.success },
+                      ]}
+                    >
+                      {isCompleted ? (
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      ) : (
+                        <Text style={[styles.progressStepText, isActive && { color: '#FFFFFF' }]}>
+                          {section}
+                        </Text>
+                      )}
+                    </View>
+                    {index < 4 && (
+                      <View
+                        style={[
+                          styles.progressStepLine,
+                          isCompleted && { backgroundColor: colors.success },
+                        ]}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Section A: Owner/Transferor */}
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Applicant Details</Text>
+            <Text style={styles.sectionTitle}>A. PARTICULARS OF OWNER/TRANSFEROR</Text>
+            
+            <Text style={styles.fieldLabel}>Type of identification *</Text>
+            <View style={styles.radioGroup}>
+              {['Traffic Register Number', 'Namibia ID-doc', 'Business Reg. No'].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.radioOption}
+                  onPress={() => {
+                    setIdType(type);
+                    if (errors.idType) {
+                      const newErrors = { ...errors };
+                      delete newErrors.idType;
+                      setErrors(newErrors);
+                    }
+                  }}
+                >
+                  <View style={styles.radioCircle}>
+                    {idType === type && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.radioLabel}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {errors.idType && <Text style={styles.errorText}>{errors.idType}</Text>}
+
+            {(idType === 'Traffic Register Number' || idType === 'Namibia ID-doc') && (
+              <FormInput
+                label={`${idType} Number *`}
+                value={trafficRegisterNumber}
+                onChangeText={(text) => {
+                  setTrafficRegisterNumber(text);
+                  if (errors.trafficRegisterNumber) {
+                    const newErrors = { ...errors };
+                    delete newErrors.trafficRegisterNumber;
+                    setErrors(newErrors);
+                  }
+                }}
+                placeholder={`Enter your ${idType.toLowerCase()} number`}
+                error={errors.trafficRegisterNumber}
+              />
+            )}
+
+            {idType === 'Business Reg. No' && (
+              <>
+                <FormInput
+                  label="Business Registration Number *"
+                  value={businessRegNumber}
+                  onChangeText={(text) => {
+                    setBusinessRegNumber(text);
+                    if (errors.businessRegNumber) {
+                      const newErrors = { ...errors };
+                      delete newErrors.businessRegNumber;
+                      setErrors(newErrors);
+                    }
+                  }}
+                  placeholder="Enter business registration number"
+                  error={errors.businessRegNumber}
+                />
+                <FormInput
+                  label="Business Name *"
+                  value={businessName}
+                  onChangeText={(text) => {
+                    setBusinessName(text);
+                    if (errors.businessName) {
+                      const newErrors = { ...errors };
+                      delete newErrors.businessName;
+                      setErrors(newErrors);
+                    }
+                  }}
+                  placeholder="Enter business name"
+                  error={errors.businessName}
+                />
+              </>
+            )}
+
             <FormInput
-              label="Full Name"
-              value={fullName}
+              label="Surname *"
+              value={surname}
               onChangeText={(text) => {
-                setFullName(text);
-                if (errors.fullName) {
+                setSurname(text);
+                if (errors.surname) {
                   const newErrors = { ...errors };
-                  delete newErrors.fullName;
+                  delete newErrors.surname;
                   setErrors(newErrors);
                 }
               }}
-              placeholder="Enter your full name"
-              error={errors.fullName}
+              placeholder="Enter your surname"
+              error={errors.surname}
             />
+
             <FormInput
-              label="ID Number"
-              value={idNumber}
+              label="Initials *"
+              value={initials}
               onChangeText={(text) => {
-                setIdNumber(text);
-                if (errors.idNumber) {
+                setInitials(text);
+                if (errors.initials) {
                   const newErrors = { ...errors };
-                  delete newErrors.idNumber;
+                  delete newErrors.initials;
                   setErrors(newErrors);
                 }
               }}
-              placeholder="Enter your ID number"
-              error={errors.idNumber}
+              placeholder="Enter your initials"
+              error={errors.initials}
             />
+
+            <Text style={styles.fieldLabel}>Postal Address *</Text>
             <FormInput
-              label="Phone Number"
-              value={phoneNumber}
+              label="Line 1 *"
+              value={postalAddress.line1}
               onChangeText={(text) => {
-                setPhoneNumber(text);
-                if (errors.phoneNumber) {
+                setPostalAddress({ ...postalAddress, line1: text });
+                if (errors.postalAddress) {
                   const newErrors = { ...errors };
-                  delete newErrors.phoneNumber;
+                  delete newErrors.postalAddress;
                   setErrors(newErrors);
                 }
               }}
-              placeholder="Enter your phone number"
-              keyboardType="phone-pad"
-              error={errors.phoneNumber}
+              placeholder="Postal address line 1"
+              error={errors.postalAddress}
             />
+            <FormInput
+              label="Line 2"
+              value={postalAddress.line2}
+              onChangeText={(text) => setPostalAddress({ ...postalAddress, line2: text })}
+              placeholder="Postal address line 2 (optional)"
+            />
+            <FormInput
+              label="Line 3"
+              value={postalAddress.line3}
+              onChangeText={(text) => setPostalAddress({ ...postalAddress, line3: text })}
+              placeholder="Postal address line 3 (optional)"
+            />
+
+            <Text style={styles.fieldLabel}>Street Address *</Text>
+            <FormInput
+              label="Line 1 *"
+              value={streetAddress.line1}
+              onChangeText={(text) => {
+                setStreetAddress({ ...streetAddress, line1: text });
+                if (errors.streetAddress) {
+                  const newErrors = { ...errors };
+                  delete newErrors.streetAddress;
+                  setErrors(newErrors);
+                }
+              }}
+              placeholder="Street address line 1"
+              error={errors.streetAddress}
+            />
+            <FormInput
+              label="Line 2"
+              value={streetAddress.line2}
+              onChangeText={(text) => setStreetAddress({ ...streetAddress, line2: text })}
+              placeholder="Street address line 2 (optional)"
+            />
+            <FormInput
+              label="Line 3"
+              value={streetAddress.line3}
+              onChangeText={(text) => setStreetAddress({ ...streetAddress, line3: text })}
+              placeholder="Street address line 3 (optional)"
+            />
+
+            <Text style={styles.fieldLabel}>Contact Information</Text>
+            <View style={styles.phoneRow}>
+              <FormInput
+                label="Home Phone Code"
+                value={telephoneHome.code}
+                onChangeText={(text) => setTelephoneHome({ ...telephoneHome, code: text })}
+                placeholder="264"
+                style={styles.phoneCode}
+              />
+              <FormInput
+                label="Home Phone Number"
+                value={telephoneHome.number}
+                onChangeText={(text) => setTelephoneHome({ ...telephoneHome, number: text })}
+                placeholder="Enter phone number"
+                keyboardType="phone-pad"
+                style={styles.phoneNumber}
+              />
+            </View>
+
+            <View style={styles.phoneRow}>
+              <FormInput
+                label="Day Phone Code"
+                value={telephoneDay.code}
+                onChangeText={(text) => setTelephoneDay({ ...telephoneDay, code: text })}
+                placeholder="264"
+                style={styles.phoneCode}
+              />
+              <FormInput
+                label="Day Phone Number"
+                value={telephoneDay.number}
+                onChangeText={(text) => setTelephoneDay({ ...telephoneDay, number: text })}
+                placeholder="Enter phone number"
+                keyboardType="phone-pad"
+                style={styles.phoneNumber}
+              />
+            </View>
+
+            <View style={styles.phoneRow}>
+              <FormInput
+                label="Cell Code"
+                value={cellNumber.code}
+                onChangeText={(text) => setCellNumber({ ...cellNumber, code: text })}
+                placeholder="264"
+                style={styles.phoneCode}
+              />
+              <FormInput
+                label="Cell Number"
+                value={cellNumber.number}
+                onChangeText={(text) => {
+                  setCellNumber({ ...cellNumber, number: text });
+                  if (errors.contact) {
+                    const newErrors = { ...errors };
+                    delete newErrors.contact;
+                    setErrors(newErrors);
+                  }
+                }}
+                placeholder="Enter cell number"
+                keyboardType="phone-pad"
+                style={styles.phoneNumber}
+              />
+            </View>
+
+            <FormInput
+              label="Email"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (errors.email || errors.contact) {
+                  const newErrors = { ...errors };
+                  delete newErrors.email;
+                  delete newErrors.contact;
+                  setErrors(newErrors);
+                }
+              }}
+              placeholder="Enter email address"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={errors.email}
+            />
+            {errors.contact && <Text style={styles.errorText}>{errors.contact}</Text>}
           </Card>
 
-          {/* Plate Choices */}
+          {/* Section B: Plate Format & Choices */}
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Plate Choices (3 choices required)</Text>
+            <Text style={styles.sectionTitle}>B. PERSONALISED NUMBER PLATE</Text>
+            
+            <Text style={styles.fieldLabel}>Number plate format *</Text>
+            <View style={styles.radioGroup}>
+              {['Long/German', 'Normal', 'American', 'Square', 'Small motorcycle'].map((format) => (
+                <TouchableOpacity
+                  key={format}
+                  style={styles.radioOption}
+                  onPress={() => {
+                    setPlateFormat(format);
+                    if (errors.plateFormat) {
+                      const newErrors = { ...errors };
+                      delete newErrors.plateFormat;
+                      setErrors(newErrors);
+                    }
+                  }}
+                >
+                  <View style={styles.radioCircle}>
+                    {plateFormat === format && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.radioLabel}>{format}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {errors.plateFormat && <Text style={styles.errorText}>{errors.plateFormat}</Text>}
+
+            <Text style={styles.fieldLabel}>Quantity *</Text>
+            <View style={styles.radioGroup}>
+              {[1, 2].map((qty) => (
+                <TouchableOpacity
+                  key={qty}
+                  style={styles.radioOption}
+                  onPress={() => {
+                    setQuantity(qty);
+                    if (errors.quantity) {
+                      const newErrors = { ...errors };
+                      delete newErrors.quantity;
+                      setErrors(newErrors);
+                    }
+                  }}
+                >
+                  <View style={styles.radioCircle}>
+                    {quantity === qty && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.radioLabel}>{qty}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
+
+            <Text style={styles.fieldLabel}>Plate Choices (3 choices required) *</Text>
             {plateChoices.map((choice, index) => (
               <View key={index} style={styles.plateChoiceContainer}>
                 <Text style={styles.plateChoiceLabel}>Choice {index + 1}</Text>
                 <FormInput
-                  label="Plate Text (max 7 alphanumeric)"
+                  label="Plate Text (max 7 alphanumeric) *"
                   value={choice.text}
                   onChangeText={(text) => {
-                    // Convert to uppercase and limit to 7 chars
                     const upperText = text.toUpperCase().slice(0, 7);
                     updatePlateChoice(index, 'text', upperText);
                   }}
@@ -359,17 +765,149 @@ export default function PLNApplicationScreen({ navigation }) {
                   error={errors[`plate${index}text`]}
                 />
                 <FormInput
-                  label="Meaning"
+                  label="Meaning *"
                   value={choice.meaning}
-                  onChangeText={(text) => {
-                    updatePlateChoice(index, 'meaning', text);
-                  }}
+                  onChangeText={(text) => updatePlateChoice(index, 'meaning', text)}
                   placeholder="Explain the meaning of this plate"
                   textArea
                   error={errors[`plate${index}meaning`]}
                 />
               </View>
             ))}
+          </Card>
+
+          {/* Section C: Representative (Optional) */}
+          <Card style={styles.section}>
+            <View style={styles.toggleContainer}>
+              <Text style={styles.sectionTitle}>C. APPLICANT'S REPRESENTATIVE / PROXY</Text>
+              <Switch
+                value={hasRepresentative}
+                onValueChange={(value) => {
+                  setHasRepresentative(value);
+                  if (!value) {
+                    setRepresentativeIdNumber('');
+                    setRepresentativeSurname('');
+                    setRepresentativeInitials('');
+                  }
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {hasRepresentative && (
+              <>
+                <Text style={styles.fieldLabel}>Type of identification *</Text>
+                <View style={styles.radioGroup}>
+                  {['Traffic Register Number', 'Namibia ID-doc'].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={styles.radioOption}
+                      onPress={() => setRepresentativeIdType(type)}
+                    >
+                      <View style={styles.radioCircle}>
+                        {representativeIdType === type && <View style={styles.radioInner} />}
+                      </View>
+                      <Text style={styles.radioLabel}>{type}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <FormInput
+                  label="Identification Number *"
+                  value={representativeIdNumber}
+                  onChangeText={(text) => {
+                    setRepresentativeIdNumber(text);
+                    if (errors.representativeIdNumber) {
+                      const newErrors = { ...errors };
+                      delete newErrors.representativeIdNumber;
+                      setErrors(newErrors);
+                    }
+                  }}
+                  placeholder="Enter identification number"
+                  error={errors.representativeIdNumber}
+                />
+
+                <FormInput
+                  label="Surname *"
+                  value={representativeSurname}
+                  onChangeText={(text) => {
+                    setRepresentativeSurname(text);
+                    if (errors.representativeSurname) {
+                      const newErrors = { ...errors };
+                      delete newErrors.representativeSurname;
+                      setErrors(newErrors);
+                    }
+                  }}
+                  placeholder="Enter surname"
+                  error={errors.representativeSurname}
+                />
+
+                <FormInput
+                  label="Initials"
+                  value={representativeInitials}
+                  onChangeText={(text) => setRepresentativeInitials(text)}
+                  placeholder="Enter initials"
+                />
+              </>
+            )}
+          </Card>
+
+          {/* Section D: Vehicle (Optional) */}
+          <Card style={styles.section}>
+            <View style={styles.toggleContainer}>
+              <Text style={styles.sectionTitle}>D. PARTICULARS OF VEHICLE</Text>
+              <Switch
+                value={hasVehicle}
+                onValueChange={(value) => {
+                  setHasVehicle(value);
+                  if (!value) {
+                    setCurrentLicenceNumber('');
+                    setVehicleRegisterNumber('');
+                    setChassisNumber('');
+                    setVehicleMake('');
+                    setSeriesName('');
+                  }
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {hasVehicle && (
+              <>
+                <FormInput
+                  label="Current Licence Number"
+                  value={currentLicenceNumber}
+                  onChangeText={(text) => setCurrentLicenceNumber(text)}
+                  placeholder="Enter current licence number"
+                />
+                <FormInput
+                  label="Vehicle Register Number"
+                  value={vehicleRegisterNumber}
+                  onChangeText={(text) => setVehicleRegisterNumber(text)}
+                  placeholder="Enter vehicle register number"
+                />
+                <FormInput
+                  label="Chassis Number/VIN"
+                  value={chassisNumber}
+                  onChangeText={(text) => setChassisNumber(text)}
+                  placeholder="Enter chassis number"
+                />
+                <FormInput
+                  label="Vehicle Make"
+                  value={vehicleMake}
+                  onChangeText={(text) => setVehicleMake(text)}
+                  placeholder="Enter vehicle make"
+                />
+                <FormInput
+                  label="Series Name"
+                  value={seriesName}
+                  onChangeText={(text) => setSeriesName(text)}
+                  placeholder="Enter series name"
+                />
+              </>
+            )}
           </Card>
 
           {/* Document Upload */}
@@ -398,33 +936,55 @@ export default function PLNApplicationScreen({ navigation }) {
                 </>
               )}
             </TouchableOpacity>
-            {errors.document && (
-              <Text style={styles.errorText}>{errors.document}</Text>
-            )}
+            {errors.document && <Text style={styles.errorText}>{errors.document}</Text>}
           </Card>
 
-          {/* Declaration */}
+          {/* Section E: Declaration */}
           <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>E. DECLARATION</Text>
+            <Text style={styles.declarationText}>
+              I the applicant / holder of a personalised licence number declare that:{'\n\n'}
+              (a) I am aware that a personalised licence number or the right to use it may be subject to copyright or other intellectual property rights.{'\n\n'}
+              (b) In the event of surrender of a personalised licence number, I declare that the personalised licence plates have been destroyed.{'\n\n'}
+              (c) I declare that all the particulars furnished by me are true and correct.{'\n\n'}
+              (d) I am aware that a false declaration is punishable by law.
+            </Text>
+
+            <FormInput
+              label="Place *"
+              value={declarationPlace}
+              onChangeText={(text) => {
+                setDeclarationPlace(text);
+                if (errors.declarationPlace) {
+                  const newErrors = { ...errors };
+                  delete newErrors.declarationPlace;
+                  setErrors(newErrors);
+                }
+              }}
+              placeholder="Enter declaration place"
+              error={errors.declarationPlace}
+            />
+
             <View style={styles.declarationContainer}>
               <Switch
-                value={declaration}
+                value={declarationAccepted}
                 onValueChange={(value) => {
-                  setDeclaration(value);
-                  if (errors.declaration) {
+                  setDeclarationAccepted(value);
+                  if (errors.declarationAccepted) {
                     const newErrors = { ...errors };
-                    delete newErrors.declaration;
+                    delete newErrors.declarationAccepted;
                     setErrors(newErrors);
                   }
                 }}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor="#FFFFFF"
               />
-              <Text style={styles.declarationText}>
-                I declare that the information provided is correct.
+              <Text style={styles.declarationAcceptText}>
+                I accept the declaration *
               </Text>
             </View>
-            {errors.declaration && (
-              <Text style={styles.errorText}>{errors.declaration}</Text>
+            {errors.declarationAccepted && (
+              <Text style={styles.errorText}>{errors.declarationAccepted}</Text>
             )}
           </Card>
 
@@ -484,7 +1044,7 @@ function getStyles(colors) {
       marginBottom: 20,
     },
     sectionTitle: {
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: 'bold',
       color: colors.text,
       marginBottom: 16,
@@ -493,6 +1053,51 @@ function getStyles(colors) {
       fontSize: 14,
       color: colors.textSecondary,
       marginBottom: 12,
+    },
+    fieldLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    radioGroup: {
+      marginBottom: 12,
+    },
+    radioOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    radioCircle: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      marginRight: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    radioInner: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: colors.primary,
+    },
+    radioLabel: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    phoneRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    phoneCode: {
+      flex: 0.3,
+    },
+    phoneNumber: {
+      flex: 0.7,
     },
     plateChoiceContainer: {
       marginBottom: 20,
@@ -505,6 +1110,12 @@ function getStyles(colors) {
       fontWeight: '600',
       color: colors.text,
       marginBottom: 12,
+    },
+    toggleContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
     },
     uploadButton: {
       flexDirection: 'row',
@@ -526,12 +1137,19 @@ function getStyles(colors) {
       color: colors.text,
       fontWeight: '600',
     },
+    declarationText: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+      marginBottom: 16,
+    },
     declarationContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
+      marginTop: 12,
     },
-    declarationText: {
+    declarationAcceptText: {
       flex: 1,
       fontSize: 16,
       color: colors.text,
@@ -545,6 +1163,55 @@ function getStyles(colors) {
       marginTop: 10,
       marginBottom: 20,
     },
+    progressContainer: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 20,
+      marginHorizontal: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    progressTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 16,
+      textAlign: 'center',
+    },
+    progressSteps: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    progressStep: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    progressStepCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: colors.border,
+    },
+    progressStepText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    progressStepLine: {
+      flex: 1,
+      height: 2,
+      backgroundColor: colors.border,
+      marginHorizontal: 4,
+    },
   });
 }
-

@@ -22,6 +22,10 @@ import NewsScreen from './screens/NewsScreen';
 import NewsDetailScreen from './screens/NewsDetailScreen';
 import VacanciesScreen from './screens/VacanciesScreen';
 import TendersScreen from './screens/TendersScreen';
+import ProcurementScreen from './screens/ProcurementScreen';
+import ProcurementLegislationScreen from './screens/ProcurementLegislationScreen';
+import ProcurementPlanScreen from './screens/ProcurementPlanScreen';
+import OpeningRegisterScreen from './screens/OpeningRegisterScreen';
 import ChatbotScreen from './screens/ChatbotScreen';
 import FAQsScreen from './screens/FAQsScreen';
 import FindOfficesScreen from './screens/FindOfficesScreen';
@@ -55,10 +59,6 @@ function getTabBarIcon(route, focused, color, size) {
     iconName = focused ? 'home' : 'home-outline';
   } else if (route.name === 'News') {
     iconName = focused ? 'newspaper' : 'newspaper-outline';
-  } else if (route.name === 'Vacancies') {
-    iconName = focused ? 'briefcase' : 'briefcase-outline';
-  } else if (route.name === 'Tenders') {
-    iconName = focused ? 'document-text' : 'document-text-outline';
   } else if (route.name === 'Chatbot') {
     iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
   } else if (route.name === 'Settings') {
@@ -88,6 +88,33 @@ function NewsStack() {
     >
       <Stack.Screen name="NewsList" component={NewsScreen} options={{ title: 'News' }} />
       <Stack.Screen name="NewsDetail" component={NewsDetailScreen} options={{ title: 'Article' }} />
+    </Stack.Navigator>
+  );
+}
+
+function ProcurementStack() {
+  const colorScheme = useColorScheme();
+  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerBackTitleVisible: false,
+        gestureEnabled: true,
+        headerStyle: {
+          backgroundColor: colors.primary,
+        },
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen name="ProcurementMain" component={ProcurementScreen} options={{ title: 'Procurement' }} />
+      <Stack.Screen name="ProcurementLegislation" component={ProcurementLegislationScreen} options={{ title: 'Legislation' }} />
+      <Stack.Screen name="ProcurementPlan" component={ProcurementPlanScreen} options={{ title: 'Procurement Plan' }} />
+      <Stack.Screen name="OpeningRegister" component={OpeningRegisterScreen} options={{ title: 'Opening Register' }} />
+      <Stack.Screen name="BidsRFQs" component={TendersScreen} options={{ title: 'Bids/RFQs' }} />
     </Stack.Navigator>
   );
 }
@@ -134,14 +161,6 @@ function MainTabs() {
         name="News" 
         component={NewsStack}
         options={{ headerShown: false }}
-      />
-      <Tab.Screen 
-        name="Vacancies" 
-        component={VacanciesScreen} 
-      />
-      <Tab.Screen 
-        name="Tenders" 
-        component={TendersScreen} 
       />
       <Tab.Screen 
         name="Chatbot" 
@@ -240,6 +259,16 @@ function AppNavigator() {
         options={{ title: 'FAQs' }}
       />
       <Stack.Screen 
+        name="Vacancies" 
+        component={VacanciesScreen}
+        options={{ title: 'Vacancies' }}
+      />
+      <Stack.Screen
+        name="Procurement"
+        component={ProcurementStack}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
         name="Find Offices" 
         component={FindOfficesScreen}
         options={{ title: 'Find Offices' }}
@@ -267,12 +296,12 @@ function AppNavigator() {
       <Stack.Screen 
         name="PLNInfo" 
         component={PLNInfoScreen}
-        options={{ title: 'Personalized Number Plates' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="PLNApplication" 
         component={PLNApplicationScreen}
-        options={{ title: 'PLN Application' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="PLNConfirmation" 

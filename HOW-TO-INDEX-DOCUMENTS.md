@@ -105,6 +105,56 @@ The script will show progress through 4 steps:
 - ✂️ STEP 3/4: Chunking text
 - 🔢 STEP 4/4: Generating embeddings and storing in ChromaDB
 
+## Method 3B: Index All PDFs in Data Folder (Batch)
+
+If you want to index all PDF files in the `backend/data/documents` folder at once:
+
+### Steps:
+1. **Navigate to rag-service directory**:
+   ```bash
+   cd rag-service
+   ```
+
+2. **Activate virtual environment** (if using one):
+   ```bash
+   # Windows
+   venv\Scripts\activate
+   
+   # Linux/Mac
+   source venv/bin/activate
+   ```
+
+3. **Run the batch indexing script**:
+   ```bash
+   python index_all_local_pdfs.py
+   ```
+
+   Or specify a custom folder path:
+   ```bash
+   python index_all_local_pdfs.py "../backend/data/documents"
+   ```
+
+### Features:
+- Automatically finds all PDF files in the specified folder
+- Generates document IDs and titles from filenames
+- Indexes each PDF sequentially with progress logging
+- Provides a summary at the end with success/error counts
+- Adds small delays between files to avoid overwhelming the system
+
+### Example Output:
+```
+📚 Found 3 PDF file(s) to index
+📁 Folder: ../backend/data/documents
+
+[Processing each file...]
+
+📊 INDEXING SUMMARY
+Total PDF files found: 3
+✅ Successfully indexed: 3
+❌ Failed: 0
+📦 Total chunks indexed: 450
+```
+
 ## Method 4: Re-index an Existing Document
 
 If a document failed to index or you want to re-index it:

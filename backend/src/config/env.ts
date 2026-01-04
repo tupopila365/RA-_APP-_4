@@ -9,6 +9,11 @@ interface EnvConfig {
   REDIS_HOST: string;
   REDIS_PORT: number;
   REDIS_PASSWORD?: string;
+  PUSH_EXPO_ACCESS_TOKEN?: string;
+  PUSH_QUEUE_PREFIX: string;
+  PUSH_JOB_ATTEMPTS: number;
+  PUSH_JOB_BACKOFF_MS: number;
+  PUSH_RECEIPT_DELAY_MS: number;
   JWT_SECRET: string;
   JWT_ACCESS_EXPIRY: string;
   JWT_REFRESH_EXPIRY: string;
@@ -22,10 +27,13 @@ interface EnvConfig {
   GOOGLE_DRIVE_REDIRECT_URI?: string;
   GOOGLE_DRIVE_REFRESH_TOKEN?: string;
   GOOGLE_DRIVE_FOLDER_ID?: string;
+  GOOGLE_MAPS_API_KEY?: string;
   RAG_SERVICE_URL: string;
   CORS_ORIGIN: string;
   GEOCODING_API_KEY?: string;
   GEOCODING_SERVICE?: 'nominatim' | 'google';
+  TRAFFIC_CACHE_TTL_SECONDS?: number;
+  TRAFFIC_DIRECTIONS_TIMEOUT_MS?: number;
   SMTP_HOST?: string;
   SMTP_PORT?: number;
   SMTP_USER?: string;
@@ -52,6 +60,11 @@ export const env: EnvConfig = {
   REDIS_HOST: process.env.REDIS_HOST || '',
   REDIS_PORT: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 0,
   REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+  PUSH_EXPO_ACCESS_TOKEN: process.env.PUSH_EXPO_ACCESS_TOKEN,
+  PUSH_QUEUE_PREFIX: process.env.PUSH_QUEUE_PREFIX || 'push',
+  PUSH_JOB_ATTEMPTS: process.env.PUSH_JOB_ATTEMPTS ? parseInt(process.env.PUSH_JOB_ATTEMPTS, 10) : 3,
+  PUSH_JOB_BACKOFF_MS: process.env.PUSH_JOB_BACKOFF_MS ? parseInt(process.env.PUSH_JOB_BACKOFF_MS, 10) : 2000,
+  PUSH_RECEIPT_DELAY_MS: process.env.PUSH_RECEIPT_DELAY_MS ? parseInt(process.env.PUSH_RECEIPT_DELAY_MS, 10) : 15 * 60 * 1000,
   JWT_SECRET: getEnvVar('JWT_SECRET'),
   JWT_ACCESS_EXPIRY: getEnvVar('JWT_ACCESS_EXPIRY', '15m'),
   JWT_REFRESH_EXPIRY: getEnvVar('JWT_REFRESH_EXPIRY', '7d'),
@@ -67,10 +80,17 @@ export const env: EnvConfig = {
   GOOGLE_DRIVE_REDIRECT_URI: process.env.GOOGLE_DRIVE_REDIRECT_URI,
   GOOGLE_DRIVE_REFRESH_TOKEN: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
   GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID,
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY || process.env.GEOCODING_API_KEY,
   RAG_SERVICE_URL: getEnvVar('RAG_SERVICE_URL', 'http://localhost:8001'),
   CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000'),
   GEOCODING_API_KEY: process.env.GEOCODING_API_KEY,
   GEOCODING_SERVICE: (process.env.GEOCODING_SERVICE as 'nominatim' | 'google') || 'nominatim',
+  TRAFFIC_CACHE_TTL_SECONDS: process.env.TRAFFIC_CACHE_TTL_SECONDS
+    ? parseInt(process.env.TRAFFIC_CACHE_TTL_SECONDS, 10)
+    : 180,
+  TRAFFIC_DIRECTIONS_TIMEOUT_MS: process.env.TRAFFIC_DIRECTIONS_TIMEOUT_MS
+    ? parseInt(process.env.TRAFFIC_DIRECTIONS_TIMEOUT_MS, 10)
+    : 8000,
   SMTP_HOST: process.env.SMTP_HOST,
   SMTP_PORT: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
   SMTP_USER: process.env.SMTP_USER,

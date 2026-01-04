@@ -17,22 +17,40 @@ class PLNService {
     try {
       const url = `${API_BASE_URL}/pln/applications`;
 
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plnService.js:16',message:'Service received applicationData',data:{hasIdType:!!applicationData.idType,hasSurname:!!applicationData.surname,hasPostalAddress:!!applicationData.postalAddress,hasFullName:!!applicationData.fullName,hasIdNumber:!!applicationData.idNumber,hasPhoneNumber:!!applicationData.phoneNumber},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
       console.log('Submitting PLN application:', {
         url,
         fullName: applicationData.fullName,
         hasDocument: !!documentUri,
       });
 
-      // Validate required fields
-      if (!applicationData.fullName || !applicationData.fullName.trim()) {
-        throw new Error('Full name is required');
+      // Check if new structure (has idType) or legacy structure
+      const isNewStructure = applicationData.idType && applicationData.surname && applicationData.postalAddress;
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plnService.js:25',message:'Structure check result',data:{isNewStructure,hasIdType:!!applicationData.idType,hasSurname:!!applicationData.surname,hasPostalAddress:!!applicationData.postalAddress},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      // Validate based on structure
+      if (!isNewStructure) {
+        // Legacy structure validation
+        if (!applicationData.fullName || !applicationData.fullName.trim()) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plnService.js:30',message:'Legacy validation failed - fullName missing',data:{hasFullName:!!applicationData.fullName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          throw new Error('Full name is required');
+        }
+        if (!applicationData.idNumber || !applicationData.idNumber.trim()) {
+          throw new Error('ID number is required');
+        }
+        if (!applicationData.phoneNumber || !applicationData.phoneNumber.trim()) {
+          throw new Error('Phone number is required');
+        }
       }
-      if (!applicationData.idNumber || !applicationData.idNumber.trim()) {
-        throw new Error('ID number is required');
-      }
-      if (!applicationData.phoneNumber || !applicationData.phoneNumber.trim()) {
-        throw new Error('Phone number is required');
-      }
+
       if (!applicationData.plateChoices || applicationData.plateChoices.length !== 3) {
         throw new Error('Exactly 3 plate choices are required');
       }
@@ -64,11 +82,104 @@ class PLNService {
       };
       formData.append('document', documentFile);
 
-      // Add application data
-      formData.append('fullName', applicationData.fullName.trim());
-      formData.append('idNumber', applicationData.idNumber.trim());
-      formData.append('phoneNumber', applicationData.phoneNumber.trim());
+      // Add application data (new comprehensive structure)
+      // Section A
+      if (applicationData.idType) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plnService.js:69',message:'Adding new structure fields to FormData',data:{idType:applicationData.idType,hasSurname:!!applicationData.surname,hasPostalAddress:!!applicationData.postalAddress,postalAddressStr:JSON.stringify(applicationData.postalAddress)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        formData.append('idType', applicationData.idType);
+        if (applicationData.trafficRegisterNumber) {
+          formData.append('trafficRegisterNumber', applicationData.trafficRegisterNumber);
+        }
+        if (applicationData.businessRegNumber) {
+          formData.append('businessRegNumber', applicationData.businessRegNumber);
+        }
+        formData.append('surname', applicationData.surname);
+        formData.append('initials', applicationData.initials);
+        if (applicationData.businessName) {
+          formData.append('businessName', applicationData.businessName);
+        }
+        formData.append('postalAddress', JSON.stringify(applicationData.postalAddress));
+        formData.append('streetAddress', JSON.stringify(applicationData.streetAddress));
+        if (applicationData.telephoneHome) {
+          formData.append('telephoneHome', JSON.stringify(applicationData.telephoneHome));
+        }
+        if (applicationData.telephoneDay) {
+          formData.append('telephoneDay', JSON.stringify(applicationData.telephoneDay));
+        }
+        if (applicationData.cellNumber) {
+          formData.append('cellNumber', JSON.stringify(applicationData.cellNumber));
+        }
+        if (applicationData.email) {
+          formData.append('email', applicationData.email);
+        }
+      } else {
+        // Legacy fields for backward compatibility
+        if (applicationData.fullName) {
+          formData.append('fullName', applicationData.fullName.trim());
+        }
+        if (applicationData.idNumber) {
+          formData.append('idNumber', applicationData.idNumber.trim());
+        }
+        if (applicationData.phoneNumber) {
+          formData.append('phoneNumber', applicationData.phoneNumber.trim());
+        }
+      }
+      
+      // Section B
+      if (applicationData.plateFormat) {
+        formData.append('plateFormat', applicationData.plateFormat);
+      }
+      if (applicationData.quantity) {
+        formData.append('quantity', applicationData.quantity.toString());
+      }
       formData.append('plateChoices', JSON.stringify(applicationData.plateChoices));
+      
+      // Section C
+      if (applicationData.hasRepresentative) {
+        formData.append('hasRepresentative', 'true');
+        if (applicationData.representativeIdType) {
+          formData.append('representativeIdType', applicationData.representativeIdType);
+        }
+        if (applicationData.representativeIdNumber) {
+          formData.append('representativeIdNumber', applicationData.representativeIdNumber);
+        }
+        if (applicationData.representativeSurname) {
+          formData.append('representativeSurname', applicationData.representativeSurname);
+        }
+        if (applicationData.representativeInitials) {
+          formData.append('representativeInitials', applicationData.representativeInitials);
+        }
+      }
+      
+      // Section D
+      if (applicationData.currentLicenceNumber) {
+        formData.append('currentLicenceNumber', applicationData.currentLicenceNumber);
+      }
+      if (applicationData.vehicleRegisterNumber) {
+        formData.append('vehicleRegisterNumber', applicationData.vehicleRegisterNumber);
+      }
+      if (applicationData.chassisNumber) {
+        formData.append('chassisNumber', applicationData.chassisNumber);
+      }
+      if (applicationData.vehicleMake) {
+        formData.append('vehicleMake', applicationData.vehicleMake);
+      }
+      if (applicationData.seriesName) {
+        formData.append('seriesName', applicationData.seriesName);
+      }
+      
+      // Section E
+      if (applicationData.declarationAccepted !== undefined) {
+        formData.append('declarationAccepted', applicationData.declarationAccepted.toString());
+      }
+      if (applicationData.declarationPlace) {
+        formData.append('declarationPlace', applicationData.declarationPlace);
+      }
+      if (applicationData.declarationRole) {
+        formData.append('declarationRole', applicationData.declarationRole);
+      }
 
       console.log('Sending request to:', url);
 
@@ -223,5 +334,6 @@ class PLNService {
 }
 
 export const plnService = new PLNService();
+
 
 

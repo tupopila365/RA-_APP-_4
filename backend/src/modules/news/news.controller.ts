@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
 import { newsService } from './news.service';
+import { notificationsService } from '../notifications/notifications.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -38,6 +39,21 @@ export class NewsController {
       });
 
       logger.info(`News article created successfully: ${news._id}`);
+
+      // Send push notification if published
+      if (news.published === true) {
+        try {
+          const notifResult = await notificationsService.sendNewsNotification(
+            news._id.toString(),
+            news.title,
+            news.excerpt,
+            { useQueue: false }
+          );
+          logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+        } catch (notifError: any) {
+          logger.error('Failed to send notification for news:', notifError);
+        }
+      }
 
       res.status(201).json({
         success: true,
@@ -160,6 +176,13 @@ export class NewsController {
       const { id } = req.params;
       const { title, content, excerpt, category, author, imageUrl, published } = req.body;
 
+      // Check if publish toggle from false -> true
+      let wasPublishedBefore = false;
+      if (published === true) {
+        const existing = await newsService.getNewsById(id);
+        wasPublishedBefore = existing.published === true;
+      }
+
       // Build update object with only provided fields
       const updateData: any = {};
       if (title !== undefined) updateData.title = title;
@@ -173,6 +196,21 @@ export class NewsController {
       const news = await newsService.updateNews(id, updateData);
 
       logger.info(`News article updated successfully: ${id}`);
+
+      // Send push notification only on first publish
+      if (published === true && !wasPublishedBefore) {
+        try {
+          const notifResult = await notificationsService.sendNewsNotification(
+            news._id.toString(),
+            news.title,
+            news.excerpt,
+            { useQueue: false }
+          );
+          logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+        } catch (notifError: any) {
+          logger.error('Failed to send notification for news:', notifError);
+        }
+      }
 
       res.status(200).json({
         success: true,

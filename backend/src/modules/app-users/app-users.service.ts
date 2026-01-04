@@ -7,6 +7,7 @@ import { ERROR_CODES } from '../../constants/errors';
 import { env } from '../../config/env';
 import { getRedisClient } from '../../config/redis';
 import { emailService } from '../../services/email.service';
+import { safeRedisDel } from '../../utils/redis';
 
 interface AuthTokens {
   accessToken: string;
@@ -393,11 +394,17 @@ export class AppUsersService {
 
       if (redisClient) {
         const key = `appuser:token:refresh:${userId}`;
-        await redisClient.del(key);
-        logger.info(`App user logged out: ${userId}`);
+        // Use timeout-protected Redis delete (2 second timeout)
+        const deleted = await safeRedisDel(redisClient, key, 2000);
+        if (deleted) {
+          logger.info(`App user logged out: ${userId}`);
+        } else {
+          logger.warn(`App user logout: Redis operation timed out or failed for user ${userId}, but logout continues`);
+        }
       } else {
         logger.warn('Redis not configured - cannot invalidate refresh token');
       }
+      // Logout succeeds regardless of Redis status
     } catch (error: any) {
       logger.error('Logout error:', error);
       // Don't throw error - logout should succeed even if Redis fails

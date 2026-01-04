@@ -23,12 +23,71 @@ export interface IPlateChoice {
   meaning: string;
 }
 
+export type IdType = 'Traffic Register Number' | 'Namibia ID-doc' | 'Business Reg. No';
+export type PlateFormat = 'Long/German' | 'Normal' | 'American' | 'Square' | 'Small motorcycle';
+
+export interface IAddress {
+  line1: string;
+  line2?: string;
+  line3?: string;
+}
+
+export interface IPhoneNumber {
+  code: string;
+  number: string;
+}
+
 export interface IPLN extends MongooseDocument {
   referenceId: string;
-  fullName: string;
-  idNumber: string;
-  phoneNumber: string;
+  
+  // Transaction Type (fixed to "New Personalised Licence Number")
+  transactionType: string;
+  
+  // Section A - Owner/Transferor
+  idType: IdType;
+  trafficRegisterNumber?: string;
+  businessRegNumber?: string;
+  surname: string;
+  initials: string;
+  businessName?: string; // For businesses
+  postalAddress: IAddress;
+  streetAddress: IAddress;
+  telephoneHome?: IPhoneNumber;
+  telephoneDay?: IPhoneNumber;
+  cellNumber?: IPhoneNumber;
+  email?: string;
+  
+  // Legacy fields (for backward compatibility)
+  fullName?: string; // Computed from surname + initials
+  idNumber?: string; // Computed from idType + corresponding number
+  phoneNumber?: string; // Computed from cellNumber or telephoneDay
+  
+  // Section B - Personalised Number Plate
+  plateFormat: PlateFormat;
+  quantity: 1 | 2;
   plateChoices: IPlateChoice[]; // Array of 3 choices
+  
+  // Section C - Representative/Proxy (optional)
+  hasRepresentative?: boolean;
+  representativeIdType?: 'Traffic Register Number' | 'Namibia ID-doc';
+  representativeIdNumber?: string;
+  representativeSurname?: string;
+  representativeInitials?: string;
+  
+  // Section D - Vehicle Particulars (optional)
+  currentLicenceNumber?: string;
+  vehicleRegisterNumber?: string;
+  chassisNumber?: string;
+  vehicleMake?: string;
+  seriesName?: string;
+  
+  // Section E - Declaration
+  declarationAccepted: boolean;
+  declarationDate: Date;
+  declarationPlace: string;
+  declarationRole?: 'applicant' | 'proxy' | 'representative';
+  
+  // Document and status
   documentUrl: string; // Certified ID document
   status: PLNStatus;
   statusHistory: IStatusHistory[];
@@ -92,6 +151,23 @@ const plateChoiceSchema = new Schema<IPlateChoice>(
   { _id: false }
 );
 
+const addressSchema = new Schema<IAddress>(
+  {
+    line1: { type: String, required: true, trim: true },
+    line2: { type: String, trim: true },
+    line3: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
+const phoneNumberSchema = new Schema<IPhoneNumber>(
+  {
+    code: { type: String, required: true, trim: true },
+    number: { type: String, required: true, trim: true },
+  },
+  { _id: false }
+);
+
 const plnSchema = new Schema<IPLN>(
   {
     referenceId: {
@@ -101,22 +177,90 @@ const plnSchema = new Schema<IPLN>(
       trim: true,
       index: true,
     },
+    transactionType: {
+      type: String,
+      default: 'New Personalised Licence Number',
+      trim: true,
+    },
+    // Section A
+    idType: {
+      type: String,
+      required: [true, 'ID type is required'],
+      enum: ['Traffic Register Number', 'Namibia ID-doc', 'Business Reg. No'],
+    },
+    trafficRegisterNumber: {
+      type: String,
+      trim: true,
+    },
+    businessRegNumber: {
+      type: String,
+      trim: true,
+    },
+    surname: {
+      type: String,
+      required: [true, 'Surname is required'],
+      trim: true,
+      maxlength: [100, 'Surname cannot exceed 100 characters'],
+    },
+    initials: {
+      type: String,
+      required: [true, 'Initials are required'],
+      trim: true,
+      maxlength: [10, 'Initials cannot exceed 10 characters'],
+    },
+    businessName: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Business name cannot exceed 200 characters'],
+    },
+    postalAddress: {
+      type: addressSchema,
+      required: [true, 'Postal address is required'],
+    },
+    streetAddress: {
+      type: addressSchema,
+      required: [true, 'Street address is required'],
+    },
+    telephoneHome: {
+      type: phoneNumberSchema,
+    },
+    telephoneDay: {
+      type: phoneNumberSchema,
+    },
+    cellNumber: {
+      type: phoneNumberSchema,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      maxlength: [200, 'Email cannot exceed 200 characters'],
+    },
+    // Legacy fields (for backward compatibility)
     fullName: {
       type: String,
-      required: [true, 'Full name is required'],
       trim: true,
       maxlength: [200, 'Full name cannot exceed 200 characters'],
     },
     idNumber: {
       type: String,
-      required: [true, 'ID number is required'],
       trim: true,
       index: true,
     },
     phoneNumber: {
       type: String,
-      required: [true, 'Phone number is required'],
       trim: true,
+    },
+    // Section B
+    plateFormat: {
+      type: String,
+      required: [true, 'Plate format is required'],
+      enum: ['Long/German', 'Normal', 'American', 'Square', 'Small motorcycle'],
+    },
+    quantity: {
+      type: Number,
+      required: [true, 'Quantity is required'],
+      enum: [1, 2],
     },
     plateChoices: {
       type: [plateChoiceSchema],
@@ -126,6 +270,78 @@ const plnSchema = new Schema<IPLN>(
         message: 'Exactly 3 plate choices are required',
       },
     },
+    // Section C
+    hasRepresentative: {
+      type: Boolean,
+      default: false,
+    },
+    representativeIdType: {
+      type: String,
+      enum: ['Traffic Register Number', 'Namibia ID-doc'],
+    },
+    representativeIdNumber: {
+      type: String,
+      trim: true,
+    },
+    representativeSurname: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Representative surname cannot exceed 100 characters'],
+    },
+    representativeInitials: {
+      type: String,
+      trim: true,
+      maxlength: [10, 'Representative initials cannot exceed 10 characters'],
+    },
+    // Section D
+    currentLicenceNumber: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'Current licence number cannot exceed 20 characters'],
+    },
+    vehicleRegisterNumber: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'Vehicle register number cannot exceed 20 characters'],
+    },
+    chassisNumber: {
+      type: String,
+      trim: true,
+      maxlength: [30, 'Chassis number cannot exceed 30 characters'],
+    },
+    vehicleMake: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Vehicle make cannot exceed 100 characters'],
+    },
+    seriesName: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Series name cannot exceed 100 characters'],
+    },
+    // Section E
+    declarationAccepted: {
+      type: Boolean,
+      required: [true, 'Declaration acceptance is required'],
+      default: false,
+    },
+    declarationDate: {
+      type: Date,
+      required: [true, 'Declaration date is required'],
+      default: Date.now,
+    },
+    declarationPlace: {
+      type: String,
+      required: [true, 'Declaration place is required'],
+      trim: true,
+      maxlength: [100, 'Declaration place cannot exceed 100 characters'],
+    },
+    declarationRole: {
+      type: String,
+      enum: ['applicant', 'proxy', 'representative'],
+      default: 'applicant',
+    },
+    // Document and status
     documentUrl: {
       type: String,
       required: [true, 'Document URL is required'],
@@ -176,8 +392,36 @@ plnSchema.index({ status: 1, createdAt: -1 });
 plnSchema.index({ createdAt: -1 });
 plnSchema.index({ 'plateChoices.text': 1 });
 
-// Auto-add initial status to history on creation
+// Auto-compute legacy fields for backward compatibility
 plnSchema.pre('save', function (next) {
+  // Compute fullName from surname + initials
+  if (this.surname && this.initials && !this.fullName) {
+    this.fullName = `${this.surname} ${this.initials}`.trim();
+  }
+  
+  // Compute idNumber based on idType
+  if (!this.idNumber) {
+    if (this.idType === 'Traffic Register Number' && this.trafficRegisterNumber) {
+      this.idNumber = this.trafficRegisterNumber;
+    } else if (this.idType === 'Namibia ID-doc' && this.trafficRegisterNumber) {
+      this.idNumber = this.trafficRegisterNumber;
+    } else if (this.idType === 'Business Reg. No' && this.businessRegNumber) {
+      this.idNumber = this.businessRegNumber;
+    }
+  }
+  
+  // Compute phoneNumber from cellNumber or telephoneDay
+  if (!this.phoneNumber) {
+    if (this.cellNumber) {
+      this.phoneNumber = `${this.cellNumber.code}${this.cellNumber.number}`;
+    } else if (this.telephoneDay) {
+      this.phoneNumber = `${this.telephoneDay.code}${this.telephoneDay.number}`;
+    } else if (this.telephoneHome) {
+      this.phoneNumber = `${this.telephoneHome.code}${this.telephoneHome.number}`;
+    }
+  }
+  
+  // Auto-add initial status to history on creation
   if (this.isNew && this.statusHistory.length === 0) {
     this.statusHistory.push({
       status: this.status,
@@ -186,9 +430,11 @@ plnSchema.pre('save', function (next) {
       comment: 'Application submitted',
     });
   }
+  
   next();
 });
 
 export const PLNModel = mongoose.model<IPLN>('PLN', plnSchema);
+
 
 

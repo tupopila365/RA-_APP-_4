@@ -319,7 +319,7 @@ export default function VacanciesScreen() {
             message={vacancies.length === 0 ? 'No vacancies available' : 'No vacancies match your search'}
             accessibilityLabel="No vacancies found"
           />
-        ) : 
+        ) : (
           filteredVacancies.map((vacancy) => {
             const isExpanded = expandedVacancy === vacancy._id;
             const isVacancyDownloading = isDownloading && currentDownloadId === vacancy._id;
@@ -443,7 +443,7 @@ export default function VacanciesScreen() {
               </TouchableOpacity>
             );
           })
-        }
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -491,79 +491,90 @@ function getStyles(colors) {
     },
     vacancyCard: {
       backgroundColor: colors.card,
-      borderRadius: 15,
+      borderRadius: 16,
       padding: 20,
-      marginBottom: 15,
+      marginBottom: 16,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
-      shadowRadius: 4,
+      shadowRadius: 6,
       elevation: 3,
-      minHeight: 140,
+      borderWidth: 1,
+      borderColor: colors.border + '40',
     },
     vacancyHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 14,
     },
     typeBadge: {
       paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
+      paddingVertical: 7,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.secondary + '40',
     },
     typeText: {
       fontSize: 12,
-      fontWeight: '600',
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     vacancyTitle: {
       fontSize: 18,
-      fontWeight: 'bold',
+      fontWeight: '700',
       color: colors.text,
-      marginBottom: 12,
+      marginBottom: 14,
+      lineHeight: 24,
     },
     vacancyDetails: {
       flexDirection: 'row',
-      marginBottom: 12,
+      marginBottom: 14,
       flexWrap: 'wrap',
+      gap: 12,
     },
     detailItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginRight: 20,
-      marginBottom: 5,
+      marginRight: 16,
+      marginBottom: 6,
+      gap: 6,
     },
     detailText: {
       fontSize: 14,
       color: colors.textSecondary,
-      marginLeft: 5,
+      flex: 1,
     },
     closingDate: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 8,
+      marginTop: 10,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border + '40',
+      gap: 6,
     },
     closingDateText: {
       fontSize: 14,
       fontWeight: '600',
-      marginLeft: 5,
     },
     expandedContent: {
-      marginTop: 15,
+      marginTop: 16,
     },
     divider: {
       height: 1,
-      backgroundColor: colors.border,
-      marginBottom: 15,
+      backgroundColor: colors.border + '60',
+      marginBottom: 16,
     },
     section: {
-      marginBottom: 15,
+      marginBottom: 18,
     },
     sectionTitle: {
       fontSize: 16,
-      fontWeight: 'bold',
+      fontWeight: '700',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: 10,
     },
     sectionText: {
       fontSize: 14,
@@ -591,19 +602,24 @@ function getStyles(colors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
+      paddingVertical: 14,
       paddingHorizontal: 20,
-      borderRadius: 10,
-      marginTop: 10,
+      borderRadius: 12,
+      marginTop: 12,
+      gap: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 3,
     },
     downloadButtonDisabled: {
       opacity: 0.7,
     },
     downloadButtonText: {
       color: '#FFFFFF',
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600',
-      marginLeft: 8,
     },
     progressBarContainer: {
       height: 4,

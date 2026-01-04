@@ -143,9 +143,12 @@ export default function RegisterScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
+        colors={['#00B4E6', '#0090C0', '#0078A3']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
         style={styles.header}
       >
+        <View style={styles.overlay} />
         <SafeAreaView edges={['top']}>
           <View style={styles.headerContent}>
             {navigation.canGoBack() && (
@@ -157,7 +160,9 @@ export default function RegisterScreen({ navigation }) {
               </TouchableOpacity>
             )}
             <View style={styles.logoContainer}>
-              <Image source={RAIcon} style={styles.logo} />
+              <View style={styles.logoWrapper}>
+                <Image source={RAIcon} style={styles.logo} />
+              </View>
               <Text style={styles.headerTitle}>Create Account</Text>
               <Text style={styles.headerSubtitle}>Join Roads Authority Namibia</Text>
             </View>
@@ -282,46 +287,79 @@ export default function RegisterScreen({ navigation }) {
 const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F4F6F8',
   },
   header: {
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingTop: spacing.xl + 10,
+    paddingBottom: spacing.xxl + 20,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
   },
   headerContent: {
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     position: 'relative',
+    zIndex: 1,
   },
   backButton: {
     position: 'absolute',
     left: spacing.md,
     top: 0,
     padding: spacing.sm,
-    zIndex: 1,
+    zIndex: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
   },
   logoContainer: {
     alignItems: 'center',
     marginTop: spacing.lg,
   },
+  logoWrapper: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 60,
+    padding: 12,
+    marginBottom: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   logo: {
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
     resizeMode: 'contain',
-    marginBottom: spacing.md,
   },
   headerTitle: {
     ...typography.h3,
+    fontSize: 28,
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: spacing.xs,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    ...Platform.select({
+      ios: { fontFamily: 'System' },
+      android: { fontFamily: 'Roboto' },
+    }),
   },
   headerSubtitle: {
     ...typography.bodyLarge,
-    color: '#FFFFFF',
-    opacity: 0.9,
+    fontSize: 16,
+    color: '#E0E0E0',
+    opacity: 0.95,
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -330,18 +368,33 @@ const getStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: spacing.md,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxxl * 2, // Extra padding to ensure footer is reachable
+    padding: spacing.lg,
+    paddingTop: spacing.xl + 10,
+    paddingBottom: spacing.xxxl * 2,
   },
   formCard: {
     marginBottom: spacing.lg,
+    borderRadius: 16,
+    borderWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    backgroundColor: '#FFFFFF',
   },
   formSection: {
     marginBottom: spacing.md,
+    gap: spacing.md,
   },
   submitButton: {
     marginTop: spacing.md,
+    shadowColor: '#00B4E6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+    borderRadius: 12,
   },
   footer: {
     flexDirection: 'row',
@@ -349,16 +402,18 @@ const getStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.xl,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
   },
   footerText: {
     ...typography.bodyMedium,
+    fontSize: 15,
     color: colors.textSecondary,
   },
   footerLink: {
     ...typography.bodyMedium,
-    color: colors.primary,
-    fontWeight: 'bold',
+    fontSize: 15,
+    color: '#00B4E6',
+    fontWeight: '600',
     marginLeft: spacing.xs,
   },
 });

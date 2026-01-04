@@ -265,3 +265,7 @@ const getStyles = (colors) => StyleSheet.create({
 });
 
 
+
+
+
+

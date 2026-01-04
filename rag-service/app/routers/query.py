@@ -2,6 +2,7 @@
 
 import logging
 import json
+import re
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from app.models.schemas import QueryRequest, QueryResponse, SourceDocument, ErrorResponse
@@ -13,6 +14,105 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/query", tags=["query"])
+
+
+def is_greeting(question: str) -> bool:
+    """
+    Detect if the user input is a greeting.
+    
+    Args:
+        question: User's input text
+        
+    Returns:
+        True if input is detected as a greeting, False otherwise
+    """
+    if not question or not question.strip():
+        return False
+    
+    # Normalize the question: lowercase and remove extra spaces
+    normalized = question.lower().strip()
+    
+    # Remove punctuation for matching
+    normalized_no_punct = re.sub(r'[^\w\s]', '', normalized)
+    
+    # Common greeting patterns
+    greeting_patterns = [
+        # Simple greetings
+        r'^(hi|hello|hey|greetings|hiya|hallo|hullo)\s*$',
+        r'^(hi|hello|hey|greetings|hiya|hallo|hullo)\s+(there|you|everyone|all|guys|folks|people|friend|friends)\s*$',
+        
+        # Time-based greetings
+        r'^(good\s+(morning|afternoon|evening|day|night))\s*$',
+        r'^(good\s+(morning|afternoon|evening|day|night)\s*(to\s+you|there|everyone|all|guys|folks|people|sir|madam|ma\'?am)?)\s*$',
+        
+        # Casual greetings
+        r'^(sup|what\'?s\s+up|whatsup|wassup|yo|howdy|g\'?day|gidday)\s*$',
+        r'^(sup|what\'?s\s+up|whatsup|wassup|yo|howdy)\s+(there|you|man|dude|buddy|friend)\s*$',
+        
+        # How are you variations (without other content)
+        r'^(how\s+are\s+you\s*(\?|$))',
+        r'^(how\s+are\s+you\s+(doing|today|going|feeling)?\s*(\?|$))',
+        r'^(how\s+do\s+you\s+do\s*(\?|$))',
+        r'^(how\'?s\s+it\s+going\s*(\?|$))',
+        r'^(how\'?s\s+everything\s*(\?|$))',
+        r'^(how\'?s\s+life\s*(\?|$))',
+        
+        # Combined greetings
+        r'^(hi|hello|hey)\s*[,!]?\s*(how\s+are\s+you|how\'?s\s+it\s+going|how\s+are\s+things)\s*(\?|$)|^(how\s+are\s+you|how\'?s\s+it\s+going)\s*[,!]?\s*(hi|hello|hey)\s*(\?|$)',
+    ]
+    
+    # Check against patterns
+    for pattern in greeting_patterns:
+        if re.match(pattern, normalized_no_punct, re.IGNORECASE):
+            return True
+    
+    # Check if it's a very short input (1-2 words) that matches common greetings
+    words = normalized_no_punct.split()
+    if len(words) <= 3:
+        common_greetings = [
+            'hi', 'hello', 'hey', 'sup', 'yo', 'howdy', 'greetings',
+            'good morning', 'good afternoon', 'good evening', 'good day', 'good night',
+            'how are you', 'hows it going', 'how are things',
+            'gday', 'gidday', 'hiya', 'hallo', 'hullo'
+        ]
+        question_phrase = ' '.join(words)
+        if question_phrase in common_greetings or any(q.startswith(question_phrase) or question_phrase.startswith(q) for q in common_greetings if len(question_phrase) <= 15):
+            return True
+    
+    return False
+
+
+def get_greeting_response(question: str) -> str:
+    """
+    Generate an appropriate greeting response.
+    
+    Args:
+        question: The user's greeting input
+        
+    Returns:
+        A short greeting response followed by "How can I help you today?"
+    """
+    normalized = question.lower().strip()
+    normalized_no_punct = re.sub(r'[^\w\s]', '', normalized)
+    
+    # Detect greeting type to provide appropriate response
+    if re.search(r'good\s+(morning|afternoon|evening)', normalized_no_punct):
+        if 'morning' in normalized_no_punct:
+            greeting = "Good morning!"
+        elif 'afternoon' in normalized_no_punct:
+            greeting = "Good afternoon!"
+        elif 'evening' in normalized_no_punct:
+            greeting = "Good evening!"
+        else:
+            greeting = "Hello!"
+    elif re.search(r'how\s+are\s+you|how\'?s\s+it\s+going|how\s+are\s+things', normalized_no_punct):
+        greeting = "Hello! I'm doing well, thank you for asking."
+    elif re.search(r'hi|hello|hey', normalized_no_punct):
+        greeting = "Hello!"
+    else:
+        greeting = "Hi there!"
+    
+    return f"{greeting} How can I help you today?"
 
 
 @router.post(
@@ -49,6 +149,16 @@ async def query_documents(request: QueryRequest):
         HTTPException: If any step of the pipeline fails
     """
     logger.info(f"Processing query: {request.question[:100]}...")
+    
+    # Check for greetings first - handle them without RAG processing
+    if is_greeting(request.question):
+        logger.info("Detected greeting, returning greeting response")
+        greeting_answer = get_greeting_response(request.question)
+        return QueryResponse(
+            answer=greeting_answer,
+            sources=[],
+            confidence=1.0
+        )
     
     try:
         # Step 1: Generate embedding for the question
@@ -227,6 +337,43 @@ async def query_documents_stream(request: QueryRequest):
         Streaming response with JSON chunks containing answer parts and metadata
     """
     logger.info(f"Processing streaming query: {request.question[:100]}...")
+    
+    # Check for greetings first - handle them without RAG processing
+    if is_greeting(request.question):
+        logger.info("Detected greeting, returning greeting response")
+        greeting_answer = get_greeting_response(request.question)
+        
+        async def greeting_stream():
+            # Send metadata first (empty sources for greeting)
+            metadata = {
+                "type": "metadata",
+                "sources": [],
+                "confidence": 1.0
+            }
+            yield f"data: {json.dumps(metadata)}\n\n"
+            
+            # Stream the greeting answer word by word for natural feel
+            words = greeting_answer.split()
+            for i, word in enumerate(words):
+                chunk_data = {
+                    "type": "chunk",
+                    "content": word + (" " if i < len(words) - 1 else "")
+                }
+                yield f"data: {json.dumps(chunk_data)}\n\n"
+            
+            # Send completion signal
+            complete_data = {"type": "done"}
+            yield f"data: {json.dumps(complete_data)}\n\n"
+        
+        return StreamingResponse(
+            greeting_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
     
     async def generate_stream():
         try:

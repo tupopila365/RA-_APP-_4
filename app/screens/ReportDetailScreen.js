@@ -14,15 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
 
-const STATUS_COLORS = {
-  pending: '#FFA500',
-  assigned: '#3498DB',
-  'in-progress': '#9B59B6',
-  fixed: '#4ECDC4',
-  duplicate: '#95A5A6',
-  invalid: '#E74C3C',
-};
-
 const STATUS_LABELS = {
   pending: 'Pending',
   assigned: 'Assigned',
@@ -32,10 +23,26 @@ const STATUS_LABELS = {
   invalid: 'Invalid',
 };
 
-const SEVERITY_COLORS = {
-  small: '#4ECDC4',
-  medium: '#FFA500',
-  dangerous: '#FF6B6B',
+// Helper functions to get theme-based colors
+const getStatusColor = (status, colors) => {
+  const colorMap = {
+    pending: colors.secondary,
+    assigned: colors.primary,
+    'in-progress': colors.primary,
+    fixed: colors.success,
+    duplicate: colors.textSecondary,
+    invalid: colors.error,
+  };
+  return colorMap[status] || colors.textSecondary;
+};
+
+const getSeverityColor = (severity, colors) => {
+  const colorMap = {
+    small: colors.success,
+    medium: colors.secondary,
+    dangerous: colors.error,
+  };
+  return colorMap[severity] || colors.textSecondary;
 };
 
 export default function ReportDetailScreen({ navigation, route }) {
@@ -111,8 +118,11 @@ export default function ReportDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Reference Code */}
         {report.referenceCode && (
           <View style={styles.referenceContainer}>
@@ -132,16 +142,16 @@ export default function ReportDetailScreen({ navigation, route }) {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: STATUS_COLORS[report.status] + '20' },
+                { backgroundColor: getStatusColor(report.status, colors) + '15' },
               ]}
             >
               <View
                 style={[
                   styles.statusDot,
-                  { backgroundColor: STATUS_COLORS[report.status] },
+                  { backgroundColor: getStatusColor(report.status, colors) },
                 ]}
               />
-              <Text style={[styles.statusText, { color: STATUS_COLORS[report.status] }]}>
+              <Text style={[styles.statusText, { color: getStatusColor(report.status, colors) }]}>
                 {STATUS_LABELS[report.status]}
               </Text>
             </View>
@@ -151,19 +161,19 @@ export default function ReportDetailScreen({ navigation, route }) {
             <View
               style={[
                 styles.severityBadge,
-                { backgroundColor: SEVERITY_COLORS[report.severity] + '20' },
+                { backgroundColor: getSeverityColor(report.severity, colors) + '15' },
               ]}
             >
               <View
                 style={[
                   styles.severityDot,
-                  { backgroundColor: SEVERITY_COLORS[report.severity] },
+                  { backgroundColor: getSeverityColor(report.severity, colors) },
                 ]}
               />
               <Text
                 style={[
                   styles.severityText,
-                  { color: SEVERITY_COLORS[report.severity] },
+                  { color: getSeverityColor(report.severity, colors) },
                 ]}
               >
                 {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
@@ -294,6 +304,7 @@ function getStyles(colors) {
     },
     content: {
       padding: 20,
+      paddingBottom: 40,
     },
     referenceContainer: {
       backgroundColor: colors.card,

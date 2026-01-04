@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,21 +14,290 @@ import {
   Pressable,
   Keyboard,
   StatusBar as RNStatusBar,
+  Animated,
+  Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+// Conditionally import Clipboard - fallback if not available
+let Clipboard = null;
+try {
+  Clipboard = require('expo-clipboard');
+} catch (error) {
+  console.warn('Clipboard module not available:', error.message);
+}
 import { RATheme } from '../theme/colors';
 import { chatbotService } from '../services/chatbotService';
+// Conditionally import Location - fallback if not available
+let Location = null;
+try {
+  Location = require('expo-location');
+} catch (error) {
+  console.warn('Location module not available:', error.message);
+}
+import { OfficeMessage } from '../components';
 
 const CHAT_HISTORY_KEY = 'chatbot_history';
 const SESSION_ID_KEY = 'chatbot_session_id';
 
+// Message Item Component with animations
+function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, formatMessageTime, getTypingAnimation, handleStop }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const typingAnimRef = useRef(null);
+  
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+  
+  // Start typing animation if streaming
+  useEffect(() => {
+    if (message.isStreaming && message.text === '') {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:53',message:'Typing animation init',data:{messageId:message.id,isStreaming:message.isStreaming,text:message.text,getTypingAnimationExists:!!getTypingAnimation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      typingAnimRef.current = getTypingAnimation(message.id);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:55',message:'Typing animation ref set',data:{messageId:message.id,refCurrentExists:!!typingAnimRef.current,hasDot1:!!(typingAnimRef.current?.dot1),hasStart:!!(typingAnimRef.current?.start)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      typingAnimRef.current.start();
+      return () => {
+        if (typingAnimRef.current) {
+          typingAnimRef.current.stop();
+        }
+      };
+    }
+  }, [message.isStreaming, message.text, message.id, getTypingAnimation]);
+  
+  return (
+    <Animated.View
+      style={[
+        styles.messageContainer,
+        message.sender === 'user' ? styles.userMessage : styles.botMessage,
+        { opacity: fadeAnim },
+      ]}
+    >
+      {message.sender === 'bot' && (
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+          <Ionicons name="chatbubble-ellipses" size={22} color="#FFFFFF" />
+        </View>
+      )}
+      <Pressable
+        onLongPress={() => {
+          if (message.text && Clipboard) {
+            Clipboard.setStringAsync(message.text).then(() => {
+              Alert.alert('Copied', 'Message copied to clipboard');
+            }).catch((error) => {
+              console.warn('Failed to copy to clipboard:', error);
+            });
+          }
+        }}
+      >
+        <View
+          style={[
+            styles.messageBubble,
+            message.sender === 'user'
+              ? { backgroundColor: colors.primary }
+              : message.isError
+              ? { backgroundColor: colors.error, opacity: 0.9 }
+              : { backgroundColor: colors.card },
+            // Make office messages wider
+            message.metadata?.type === 'location_query' && message.metadata?.offices?.length > 0
+              ? { maxWidth: '95%' }
+              : {},
+          ]}
+        >
+          {message.isStreaming && message.text === '' ? (
+            <View style={styles.loadingContainer}>
+              <View style={styles.typingIndicator}>
+                {(() => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:100',message:'Typing animation render check',data:{messageId:message.id,refCurrentExists:!!typingAnimRef.current,hasDot1:!!(typingAnimRef.current?.dot1),hasStart:!!(typingAnimRef.current?.start)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                  // #endregion
+                  return typingAnimRef.current;
+                })() ? (
+                  <>
+                    <Animated.View
+                      style={[
+                        styles.typingDot,
+                        { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot1 },
+                      ]}
+                    />
+                    <Animated.View
+                      style={[
+                        styles.typingDot,
+                        { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot2 },
+                      ]}
+                    />
+                    <Animated.View
+                      style={[
+                        styles.typingDot,
+                        { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot3 },
+                      ]}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
+                    <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
+                    <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
+                  </>
+                )}
+              </View>
+              {handleStop && (
+                <TouchableOpacity
+                  style={[styles.stopButton, { borderColor: colors.error }]}
+                  onPress={handleStop}
+                  accessibilityLabel="Stop loading"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="close-circle" size={18} color={colors.error} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <>
+              {/* Check if this is a location query response with office data */}
+              {message.metadata?.type === 'location_query' && message.metadata?.offices && message.metadata.offices.length > 0 ? (
+                <View style={styles.officesContainer}>
+                  {message.metadata.offices.map((office, index) => (
+                    <OfficeMessage 
+                      key={office.id || index} 
+                      office={office} 
+                      colors={colors}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <Text
+                  style={[
+                    styles.messageText,
+                    message.sender === 'user' || message.isError
+                      ? { color: '#FFFFFF' }
+                      : { color: colors.text },
+                  ]}
+                >
+                  {message.text}
+                </Text>
+              )}
+              {message.timestamp && (
+                <Text
+                  style={[
+                    styles.messageTimestamp,
+                    {
+                      color:
+                        message.sender === 'user'
+                          ? 'rgba(255,255,255,0.7)'
+                          : colors.textSecondary,
+                    },
+                  ]}
+                >
+                  {formatMessageTime(message.timestamp)}
+                </Text>
+              )}
+            </>
+          )}
+          
+          {message.isError && (
+            <TouchableOpacity
+              style={[styles.retryButton, { borderColor: colors.error }]}
+              onPress={() => {
+                // Retry will be handled by parent component
+                if (message.onRetry) {
+                  message.onRetry();
+                }
+              }}
+            >
+              <Ionicons name="refresh" size={16} color={colors.error} />
+              <Text style={[styles.retryButtonText, { color: colors.error }]}>Retry</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Feedback buttons for bot messages with interactionId - hide after feedback is submitted */}
+          {(() => {
+            // #region agent log
+            const feedbackState = feedbackStates[message.id];
+            fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:182',message:'Feedback states access check',data:{messageId:message.id,feedbackStatesExists:!!feedbackStates,feedbackStateExists:!!feedbackState,feedbackStateValue:feedbackState,submitted:feedbackState?.submitted},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+            return message.sender === 'bot' && 
+             message.interactionId && 
+             !message.isError &&
+             !feedbackStates[message.id]?.submitted;
+          })() && (
+            <View style={[styles.feedbackContainer, { borderTopColor: colors.border }]}>
+              <View style={styles.feedbackButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackButton,
+                    { 
+                      borderColor: feedbackStates[message.id]?.feedback === 'like' 
+                        ? colors.primary 
+                        : colors.border,
+                      backgroundColor: feedbackStates[message.id]?.feedback === 'like' 
+                        ? colors.primary + '15' 
+                        : 'transparent',
+                    },
+                    feedbackStates[message.id]?.submitting && styles.feedbackButtonDisabled,
+                  ]}
+                  onPress={() => handleFeedback(message.id, 'like')}
+                  disabled={feedbackStates[message.id]?.submitting || feedbackStates[message.id]?.submitted}
+                  accessibilityLabel="Like this answer"
+                  accessibilityRole="button"
+                >
+                  <Ionicons
+                    name={feedbackStates[message.id]?.feedback === 'like' ? 'thumbs-up' : 'thumbs-up-outline'}
+                    size={18}
+                    color={feedbackStates[message.id]?.feedback === 'like' ? colors.primary : colors.textSecondary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.feedbackButton,
+                    { 
+                      borderColor: feedbackStates[message.id]?.feedback === 'dislike' 
+                        ? colors.error 
+                        : colors.border,
+                      backgroundColor: feedbackStates[message.id]?.feedback === 'dislike' 
+                        ? colors.error + '15' 
+                        : 'transparent',
+                    },
+                    feedbackStates[message.id]?.submitting && styles.feedbackButtonDisabled,
+                  ]}
+                  onPress={() => handleFeedback(message.id, 'dislike')}
+                  disabled={feedbackStates[message.id]?.submitting || feedbackStates[message.id]?.submitted}
+                  accessibilityLabel="Dislike this answer"
+                  accessibilityRole="button"
+                >
+                  <Ionicons
+                    name={feedbackStates[message.id]?.feedback === 'dislike' ? 'thumbs-down' : 'thumbs-down-outline'}
+                    size={18}
+                    color={feedbackStates[message.id]?.feedback === 'dislike' ? colors.error : colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </Pressable>
+      {message.sender === 'user' && (
+        <View style={[styles.avatar, { backgroundColor: colors.secondary }]}>
+          <Ionicons name="person" size={22} color={colors.text} />
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+
 export default function ChatbotScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
@@ -43,19 +312,147 @@ export default function ChatbotScreen() {
   const [sessionId, setSessionId] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
   const scrollViewRef = useRef();
   const inputRef = useRef();
+  const typingAnimations = useRef({});
+  const abortControllerRef = useRef(null);
 
   // Load chat history on mount
   useEffect(() => {
     loadChatHistory();
     loadSessionId();
+    requestLocationPermission(false); // Silent request on mount
   }, []);
+
+  // Request location permission and get current location
+  const requestLocationPermission = async (showAlert = false) => {
+    try {
+      if (!Location) {
+        console.warn('Location module not available');
+        return false;
+      }
+
+      // Check current permission status first
+      const { status: currentStatus } = await Location.getForegroundPermissionsAsync();
+      
+      if (currentStatus === 'granted') {
+        // Permission already granted, just get location
+        try {
+          const currentLocation = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+            timeout: 10000, // 10 second timeout
+          });
+          setUserLocation({
+            latitude: currentLocation.coords.latitude,
+            longitude: currentLocation.coords.longitude,
+          });
+          return true;
+        } catch (locationError) {
+          console.error('Error getting location:', locationError);
+          if (showAlert) {
+            Alert.alert(
+              'Location Error',
+              'We couldn\'t get your current location. You can still ask about office locations, but we won\'t be able to show distances.',
+              [{ text: 'OK' }]
+            );
+          }
+          return false;
+        }
+      }
+
+      if (currentStatus === 'denied') {
+        if (showAlert) {
+          Alert.alert(
+            'Location Permission Required',
+            'To find the nearest offices, we need your location. Please enable location access in your device settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Open Settings', 
+                onPress: () => {
+                  if (Platform.OS === 'ios') {
+                    Linking.openURL('app-settings:');
+                  } else {
+                    Linking.openSettings();
+                  }
+                }
+              }
+            ]
+          );
+        }
+        return false;
+      }
+
+      // Request permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        if (showAlert) {
+          Alert.alert(
+            'Location Permission',
+            'Location access is optional but helps us show you the nearest offices. You can still ask about office locations without it.',
+            [{ text: 'OK' }]
+          );
+        }
+        return false;
+      }
+
+      // Get current location
+      try {
+        const currentLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeout: 10000, // 10 second timeout
+        });
+
+        setUserLocation({
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+        });
+        
+        return true;
+      } catch (locationError) {
+        console.error('Error getting location:', locationError);
+        if (showAlert) {
+          Alert.alert(
+            'Location Error',
+            'We couldn\'t get your location. You can still ask about office locations, but we won\'t be able to show distances.',
+            [{ text: 'OK' }]
+          );
+        }
+        return false;
+      }
+    } catch (error) {
+      console.error('Error requesting location permission:', error);
+      if (showAlert) {
+        Alert.alert(
+          'Location Error',
+          'We couldn\'t access your location. You can still ask about office locations, but we won\'t be able to show distances.',
+          [{ text: 'OK' }]
+        );
+      }
+      return false;
+    }
+  };
+
+  // Refresh location manually
+  const refreshLocation = async () => {
+    const success = await requestLocationPermission(true);
+    if (success) {
+      // Optionally show success message
+      // Alert.alert('Success', 'Location updated successfully');
+    }
+  };
 
   // Save chat history whenever messages change
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:303',message:'SaveChatHistory useEffect triggered',data:{messagesLength:messages.length,messagesCount:messages?.length,firstMessageId:messages[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     saveChatHistory();
-  }, [messages]);
+  }, [saveChatHistory]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -107,25 +504,34 @@ export default function ChatbotScreen() {
     }
   };
 
-  const saveChatHistory = async () => {
+  const saveChatHistory = useCallback(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:357',message:'SaveChatHistory called',data:{messagesLength:messages.length,messagesCount:messages?.length,firstMessageId:messages[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     try {
       await SecureStore.setItemAsync(CHAT_HISTORY_KEY, JSON.stringify(messages));
     } catch (error) {
       console.error('Error saving chat history:', error);
     }
-  };
+  }, [messages]);
 
   const loadSessionId = async () => {
     try {
       let id = await SecureStore.getItemAsync(SESSION_ID_KEY);
       if (!id) {
-        id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:368',message:'Using substring method',data:{calledBefore:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         await SecureStore.setItemAsync(SESSION_ID_KEY, id);
       }
       setSessionId(id);
     } catch (error) {
       console.error('Error loading session ID:', error);
-      setSessionId(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:374',message:'Using substring method in error handler',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      setSessionId(`session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`);
     }
   };
 
@@ -189,27 +595,42 @@ export default function ChatbotScreen() {
     let fullAnswer = '';
     let receivedSources = [];
     let interactionId = null;
+    let receivedMetadata = null;
+
+    // Create abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       // Use streaming for real-time response
-      await chatbotService.queryStream(question, sessionId, {
-        onMetadata: (metadata) => {
+      await chatbotService.queryStream(question, sessionId, userLocation, {
+        abortController,
+        onMetadata: (metadataObj) => {
           // Update sources when metadata arrives
-          if (metadata.sources) {
-            receivedSources = metadata.sources.map((source) => ({
+          if (metadataObj.sources) {
+            receivedSources = metadataObj.sources.map((source) => ({
               documentId: source.document_id || source.documentId || '',
               title: source.document_title || source.title || 'Unknown Document',
               relevance: source.relevance || source.score || 0,
             }));
-            
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === botMessageId
-                  ? { ...msg, sources: receivedSources }
-                  : msg
-              )
-            );
           }
+          
+          // Update metadata (e.g., location_query metadata)
+          if (metadataObj.metadata) {
+            receivedMetadata = metadataObj.metadata;
+          }
+          
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botMessageId
+                ? { 
+                    ...msg, 
+                    sources: receivedSources,
+                    ...(receivedMetadata && { metadata: receivedMetadata })
+                  }
+                : msg
+            )
+          );
         },
         onChunk: (chunk, accumulatedAnswer) => {
           // Update message text as chunks arrive
@@ -233,9 +654,10 @@ export default function ChatbotScreen() {
             )
           );
         },
-        onComplete: (finalAnswer, finalInteractionId) => {
+        onComplete: (finalAnswer, finalInteractionId, metadata) => {
           fullAnswer = finalAnswer;
           interactionId = finalInteractionId || interactionId;
+          receivedMetadata = metadata || null;
 
           // Update final message state
           setMessages((prev) =>
@@ -246,6 +668,7 @@ export default function ChatbotScreen() {
                     text: finalAnswer,
                     sources: receivedSources.length > 0 ? receivedSources : msg.sources,
                     interactionId: interactionId,
+                    metadata: receivedMetadata,
                     isStreaming: false,
                   }
                 : msg
@@ -253,8 +676,17 @@ export default function ChatbotScreen() {
           );
           
           setIsLoading(false);
+          abortControllerRef.current = null;
         },
         onError: (error) => {
+          // Don't show error if request was cancelled
+          if (abortController.signal.aborted || error.message === 'Request cancelled') {
+            setMessages((prev) => prev.filter((msg) => msg.id !== botMessageId));
+            setIsLoading(false);
+            abortControllerRef.current = null;
+            return;
+          }
+
           console.error('Chatbot streaming error:', error);
           
           let errorMessage = 'I apologize, but I\'m having trouble connecting to the server. Please check your internet connection and try again.';
@@ -282,9 +714,19 @@ export default function ChatbotScreen() {
           );
           
           setIsLoading(false);
+          abortControllerRef.current = null;
         },
       });
     } catch (error) {
+      // Don't show error if request was cancelled
+      if (abortController.signal.aborted || error.message === 'Request cancelled') {
+        // Remove the streaming message
+        setMessages((prev) => prev.filter((msg) => msg.id !== botMessageId));
+        setIsLoading(false);
+        abortControllerRef.current = null;
+        return;
+      }
+
       console.error('Chatbot error:', error);
       
       let errorMessage = 'I apologize, but I\'m having trouble connecting to the server. Please check your internet connection and try again.';
@@ -312,21 +754,102 @@ export default function ChatbotScreen() {
       );
       
       setIsLoading(false);
+    } finally {
+      abortControllerRef.current = null;
     }
   };
 
-  const handleSourcePress = (source) => {
-    Alert.alert(
-      'Document Source',
-      `Title: ${source.title}\nDocument ID: ${source.documentId}\nRelevance: ${(source.relevance * 100).toFixed(0)}%`,
-      [
-        { text: 'OK', style: 'default' },
-      ]
-    );
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      
+      // Remove the streaming message
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.isStreaming && lastMessage.text === '') {
+          return prev.slice(0, -1);
+        }
+        return prev.map((msg) =>
+          msg.isStreaming
+            ? { ...msg, isStreaming: false, text: msg.text || 'Request cancelled by user.' }
+            : msg
+        );
+      });
+    }
   };
 
-  const handleFeedback = async (messageId, feedback) => {
+
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / 60000);
+    
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
+
+  const getTypingAnimation = useCallback((messageId) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:581',message:'GetTypingAnimation called',data:{messageId,exists:!!typingAnimations.current[messageId]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    if (!typingAnimations.current[messageId]) {
+      const anim1 = new Animated.Value(0.4);
+      const anim2 = new Animated.Value(0.4);
+      const anim3 = new Animated.Value(0.4);
+      
+      const createAnimation = (anim, delay) => {
+        return Animated.loop(
+          Animated.sequence([
+            Animated.delay(delay),
+            Animated.timing(anim, {
+              toValue: 1,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+            Animated.timing(anim, {
+              toValue: 0.4,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+          ])
+        );
+      };
+      
+      typingAnimations.current[messageId] = {
+        dot1: anim1,
+        dot2: anim2,
+        dot3: anim3,
+        start: () => {
+          createAnimation(anim1, 0).start();
+          createAnimation(anim2, 200).start();
+          createAnimation(anim3, 400).start();
+        },
+        stop: () => {
+          anim1.stopAnimation();
+          anim2.stopAnimation();
+          anim3.stopAnimation();
+        },
+      };
+    }
+    return typingAnimations.current[messageId];
+  }, []);
+
+  const handleFeedback = useCallback(async (messageId, feedback) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:624',message:'HandleFeedback called',data:{messageId,feedback,messagesLength:messages.length,allMessageIds:messages.map(m=>m.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     const message = messages.find((m) => m.id === messageId);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:625',message:'HandleFeedback message found',data:{messageId,messageExists:!!message,interactionId:message?.interactionId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     if (!message || !message.interactionId) {
       console.warn('Cannot submit feedback: interactionId not found');
       return;
@@ -355,7 +878,7 @@ export default function ChatbotScreen() {
       });
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
     }
-  };
+  }, [messages]);
 
   const styles = getStyles(colors);
 
@@ -384,7 +907,7 @@ export default function ChatbotScreen() {
   return (
     <>
       <StatusBar style="light" backgroundColor={colors.primary} />
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
@@ -393,7 +916,7 @@ export default function ChatbotScreen() {
         >
           {/* Modern floating header with gradient */}
           <View style={styles.modernHeader}>
-          <View style={styles.headerGradient}>
+          <View style={[styles.headerGradient, { paddingTop: insets.top + 16 }]}>
             <View style={styles.headerContent}>
               <View style={styles.botAvatarContainer}>
                 <View style={[styles.botAvatar, { backgroundColor: colors.primary }]}>
@@ -402,7 +925,7 @@ export default function ChatbotScreen() {
                 <View style={styles.botInfo}>
                   <Text style={[styles.botName, { color: '#FFFFFF' }]}>RA Assistant</Text>
                   <View style={styles.statusIndicator}>
-                    <View style={[styles.statusDot, { backgroundColor: '#34C759' }]} />
+                    <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
                     <Text style={styles.statusText}>Online</Text>
                   </View>
                 </View>
@@ -463,175 +986,85 @@ export default function ChatbotScreen() {
                 scrollViewRef.current?.scrollToEnd({ animated: true });
               }, 100);
             }}
+            onScroll={(event) => {
+              const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+              const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
+              setShowScrollToBottom(!isNearBottom && messages.length > 3);
+            }}
+            scrollEventThrottle={400}
             keyboardShouldPersistTaps="handled"
             onScrollBeginDrag={() => setShowMenu(false)}
             showsVerticalScrollIndicator={true}
           >
-          {messages.map((message) => (
-            <View
-              key={message.id}
-              style={[
-                styles.messageContainer,
-                message.sender === 'user' ? styles.userMessage : styles.botMessage,
-              ]}
-            >
-              {message.sender === 'bot' && (
-                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="chatbubble-ellipses" size={22} color="#FFFFFF" />
-                </View>
-              )}
-              <View
-                style={[
-                  styles.messageBubble,
-                  message.sender === 'user'
-                    ? { backgroundColor: colors.primary }
-                    : message.isError
-                    ? { backgroundColor: colors.error, opacity: 0.9 }
-                    : { backgroundColor: colors.card },
-                ]}
-              >
-                {message.isStreaming && message.text === '' ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-                      Thinking...
-                    </Text>
-                  </View>
-                ) : (
-                  <Text
-                    style={[
-                      styles.messageText,
-                      message.sender === 'user' || message.isError
-                        ? { color: '#FFFFFF' }
-                        : { color: colors.text },
-                    ]}
-                  >
-                    {message.text}
+          {messages.map((message) => {
+            // Add retry handler to error messages
+            const messageWithRetry = message.isError
+              ? {
+                  ...message,
+                  onRetry: () => {
+                    const userMessageIndex = messages.findIndex((m) => m.id === message.id) - 1;
+                    if (userMessageIndex >= 0) {
+                      const userMessage = messages[userMessageIndex];
+                      setInputText(userMessage.text);
+                      setTimeout(() => handleSend(), 100);
+                    }
+                  },
+                }
+              : message;
+            
+            return (
+              <MessageItem
+                key={message.id}
+                message={messageWithRetry}
+                colors={colors}
+                styles={styles}
+                feedbackStates={feedbackStates}
+                handleFeedback={handleFeedback}
+                formatMessageTime={formatMessageTime}
+                getTypingAnimation={getTypingAnimation}
+                handleStop={message.isStreaming && message.text === '' ? handleStop : null}
+              />
+            );
+          })}
+          
+          {/* Suggested Questions */}
+          {messages.length === 1 && messages[0].id === 'welcome' && (
+            <View style={styles.suggestedQuestionsContainer}>
+              <Text style={styles.suggestedQuestionsTitle}>Try asking:</Text>
+              {[
+                'How do I apply for a personalized number plate?',
+                'What documents do I need for vehicle registration?',
+                'How do I report road damage?',
+              ].map((question, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.suggestedQuestion, { borderColor: colors.primary }]}
+                  onPress={() => {
+                    setInputText(question);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <Text style={[styles.suggestedQuestionText, { color: colors.primary }]}>
+                    {question}
                   </Text>
-                )}
-                
-                {message.sources && message.sources.length > 0 && (
-                  <View style={styles.sourcesContainer}>
-                    <Text style={[styles.sourcesTitle, { color: colors.textSecondary }]}>
-                      Sources:
-                    </Text>
-                    {message.sources.map((source, index) => (
-                      <TouchableOpacity
-                        key={`${message.id}_source_${index}`}
-                        style={[styles.sourceItem, { borderColor: colors.border }]}
-                        onPress={() => handleSourcePress(source)}
-                        accessibilityLabel={`View source: ${source.title}`}
-                        accessibilityRole="button"
-                      >
-                        <Ionicons
-                          name="document-text-outline"
-                          size={14}
-                          color={colors.primary}
-                          style={styles.sourceIcon}
-                        />
-                        <Text
-                          style={[styles.sourceText, { color: colors.primary }]}
-                          numberOfLines={1}
-                        >
-                          {source.title}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-                {/* Feedback buttons for bot messages with interactionId - hide after feedback is submitted */}
-                {message.sender === 'bot' && 
-                 message.interactionId && 
-                 !message.isError &&
-                 !feedbackStates[message.id]?.submitted && (
-                  <View style={[styles.feedbackContainer, { borderTopColor: colors.border }]}>
-                    <View style={styles.feedbackButtons}>
-                      <TouchableOpacity
-                        style={[
-                          styles.feedbackButton,
-                          { 
-                            borderColor: feedbackStates[message.id]?.feedback === 'like' 
-                              ? colors.primary 
-                              : colors.border,
-                            backgroundColor: feedbackStates[message.id]?.feedback === 'like' 
-                              ? colors.primary + '15' 
-                              : 'transparent',
-                            marginRight: 8,
-                          },
-                          feedbackStates[message.id]?.submitting && styles.feedbackButtonDisabled,
-                        ]}
-                        onPress={() => handleFeedback(message.id, 'like')}
-                        disabled={feedbackStates[message.id]?.submitting || feedbackStates[message.id]?.submitted}
-                        accessibilityLabel="Like this answer"
-                        accessibilityRole="button"
-                      >
-                        <Ionicons
-                          name={feedbackStates[message.id]?.feedback === 'like' ? 'thumbs-up' : 'thumbs-up-outline'}
-                          size={16}
-                          color={feedbackStates[message.id]?.feedback === 'like' ? colors.primary : colors.textSecondary}
-                        />
-                        <Text
-                          style={[
-                            styles.feedbackButtonText,
-                            { 
-                              color: feedbackStates[message.id]?.feedback === 'like' 
-                                ? colors.primary 
-                                : colors.textSecondary 
-                            },
-                          ]}
-                        >
-                          Helpful
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.feedbackButton,
-                          { 
-                            borderColor: feedbackStates[message.id]?.feedback === 'dislike' 
-                              ? colors.error 
-                              : colors.border,
-                            backgroundColor: feedbackStates[message.id]?.feedback === 'dislike' 
-                              ? colors.error + '15' 
-                              : 'transparent',
-                          },
-                          feedbackStates[message.id]?.submitting && styles.feedbackButtonDisabled,
-                        ]}
-                        onPress={() => handleFeedback(message.id, 'dislike')}
-                        disabled={feedbackStates[message.id]?.submitting || feedbackStates[message.id]?.submitted}
-                        accessibilityLabel="Dislike this answer"
-                        accessibilityRole="button"
-                      >
-                        <Ionicons
-                          name={feedbackStates[message.id]?.feedback === 'dislike' ? 'thumbs-down' : 'thumbs-down-outline'}
-                          size={16}
-                          color={feedbackStates[message.id]?.feedback === 'dislike' ? colors.error : colors.textSecondary}
-                        />
-                        <Text
-                          style={[
-                            styles.feedbackButtonText,
-                            { 
-                              color: feedbackStates[message.id]?.feedback === 'dislike' 
-                                ? colors.error 
-                                : colors.textSecondary 
-                            },
-                          ]}
-                        >
-                          Not helpful
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-              </View>
-              {message.sender === 'user' && (
-                <View style={[styles.avatar, { backgroundColor: colors.secondary }]}>
-                  <Ionicons name="person" size={22} color="#000000" />
-                </View>
-              )}
+                </TouchableOpacity>
+              ))}
             </View>
-          ))}
+          )}
           </ScrollView>
+          
+          {/* Scroll to Bottom Button */}
+          {showScrollToBottom && (
+            <TouchableOpacity
+              style={[styles.scrollToBottomButton, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+                setShowScrollToBottom(false);
+              }}
+            >
+              <Ionicons name="arrow-down" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
 
           <View 
             style={[
@@ -642,12 +1075,21 @@ export default function ChatbotScreen() {
               }
             ]}
           >
-          <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.inputWrapper,
+              {
+                backgroundColor: colors.surface,
+                borderColor: inputFocused ? colors.primary : colors.border,
+                borderWidth: inputFocused ? 2 : 1,
+              },
+            ]}
+          >
             <TextInput
               ref={inputRef}
               style={[
                 styles.input,
-                { 
+                {
                   color: colors.text,
                 },
               ]}
@@ -661,23 +1103,37 @@ export default function ChatbotScreen() {
               onSubmitEditing={handleSend}
               blurOnSubmit={false}
               onFocus={() => {
+                setInputFocused(true);
                 // Scroll to bottom when input is focused to show typing indicator
                 setTimeout(() => {
                   scrollViewRef.current?.scrollToEnd({ animated: true });
                 }, Platform.OS === 'ios' ? 300 : 400);
               }}
+              onBlur={() => setInputFocused(false)}
               accessibilityLabel="Message input"
               accessibilityHint="Type your question here"
             />
             {inputText.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setInputText('')}
-                style={styles.clearInputButton}
-                accessibilityLabel="Clear input"
-                accessibilityRole="button"
-              >
-                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
+              <>
+                <View style={styles.charCountContainer}>
+                  <Text
+                    style={[
+                      styles.charCount,
+                      { color: inputText.length > 450 ? colors.error : colors.textSecondary },
+                    ]}
+                  >
+                    {inputText.length}/500
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setInputText('')}
+                  style={styles.clearInputButton}
+                  accessibilityLabel="Clear input"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </>
             )}
           </View>
           <TouchableOpacity
@@ -720,7 +1176,6 @@ function getStyles(colors) {
       backgroundColor: colors.background,
     },
     modernHeader: {
-      paddingTop: 8,
       paddingBottom: 12,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -734,7 +1189,7 @@ function getStyles(colors) {
       borderBottomLeftRadius: 24,
       borderBottomRightRadius: 24,
       paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingBottom: 16,
     },
     headerContent: {
       flexDirection: 'row',
@@ -833,7 +1288,7 @@ function getStyles(colors) {
     },
     messageContainer: {
       flexDirection: 'row',
-      marginBottom: 20,
+      marginBottom: 16,
       alignItems: 'flex-end',
     },
     userMessage: {
@@ -843,22 +1298,27 @@ function getStyles(colors) {
       justifyContent: 'flex-start',
     },
     avatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
-      marginHorizontal: 10,
+      marginHorizontal: 8,
       flexShrink: 0,
-    },
-    messageBubble: {
-      maxWidth: '78%',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: 20,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    messageBubble: {
+      maxWidth: '80%',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 18,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 2,
     },
@@ -867,55 +1327,114 @@ function getStyles(colors) {
       lineHeight: 22,
       letterSpacing: 0.2,
     },
-    sourcesContainer: {
-      marginTop: 14,
-      paddingTop: 14,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    sourcesTitle: {
-      fontSize: 11,
-      fontWeight: '700',
-      marginBottom: 8,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      opacity: 0.7,
-    },
-    sourceItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      marginTop: 6,
-      borderRadius: 10,
-      borderWidth: 1,
-      backgroundColor: colors.background,
-    },
-    sourceIcon: {
-      marginRight: 6,
-      flexShrink: 0,
-    },
-    sourceText: {
-      fontSize: 13,
-      fontWeight: '500',
-      flex: 1,
+    officesContainer: {
+      gap: 12,
+      marginVertical: 4,
     },
     loadingContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 2,
+      paddingVertical: 4,
+      gap: 10,
+    },
+    stopButton: {
+      padding: 6,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      marginLeft: 8,
+    },
+    typingIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginRight: 8,
+    },
+    typingDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
     },
     loadingText: {
       fontSize: 14,
-      marginLeft: 12,
       fontStyle: 'italic',
-      opacity: 0.7,
+      opacity: 0.8,
+    },
+    messageTimestamp: {
+      fontSize: 11,
+      marginTop: 4,
+      opacity: 0.6,
+    },
+    suggestedQuestionsContainer: {
+      marginTop: 20,
+      marginBottom: 16,
+      padding: 16,
+      backgroundColor: colors.surface || colors.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border + '40',
+    },
+    suggestedQuestionsTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 12,
+    },
+    suggestedQuestion: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      marginBottom: 8,
+      backgroundColor: colors.background,
+    },
+    suggestedQuestionText: {
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    charCountContainer: {
+      position: 'absolute',
+      bottom: 8,
+      right: 12,
+    },
+    charCount: {
+      fontSize: 11,
+      fontWeight: '500',
+    },
+    scrollToBottomButton: {
+      position: 'absolute',
+      bottom: 20,
+      right: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    retryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1.5,
+      alignSelf: 'flex-start',
+      gap: 6,
+    },
+    retryButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
     },
     inputContainer: {
       flexDirection: 'row',
       paddingHorizontal: 16,
       paddingTop: 12,
-      paddingBottom: 16,
+      paddingBottom: 8,
       borderTopWidth: 1,
       alignItems: 'flex-end',
       shadowColor: '#000',
@@ -963,10 +1482,10 @@ function getStyles(colors) {
       elevation: 4,
     },
     feedbackContainer: {
-      marginTop: 14,
-      paddingTop: 14,
+      marginTop: 16,
+      paddingTop: 16,
       borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderTopColor: colors.border + '40',
     },
     feedbackLabel: {
       fontSize: 12,
@@ -975,15 +1494,19 @@ function getStyles(colors) {
     },
     feedbackButtons: {
       flexDirection: 'row',
+      gap: 16,
     },
     feedbackButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 8,
-      paddingHorizontal: 14,
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 10,
       borderRadius: 20,
       borderWidth: 1.5,
       backgroundColor: 'transparent',
+      minWidth: 40,
+      minHeight: 40,
     },
     feedbackButtonDisabled: {
       opacity: 0.5,
@@ -991,7 +1514,6 @@ function getStyles(colors) {
     feedbackButtonText: {
       fontSize: 13,
       fontWeight: '600',
-      marginLeft: 6,
       letterSpacing: 0.2,
     },
   });
