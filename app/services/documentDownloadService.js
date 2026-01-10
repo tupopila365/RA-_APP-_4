@@ -1,7 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { Linking, Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { Linking, Platform, Alert } from 'react-native';
 
 // Error messages for different failure scenarios
 const ERROR_MESSAGES = {
@@ -253,8 +254,7 @@ const downloadFile = async (url, filename, onProgress) => {
 
 /**
  * Open a file in the device's default viewer
- * Handles Android file:// URI security restrictions by using expo-sharing
- * which automatically converts file:// URIs to content:// URIs on Android
+ * Uses multiple approaches to ensure the file opens properly
  * 
  * @param {string} fileUri - The URI of the file to open
  * @returns {Promise<{success: boolean, error?: string}>}
@@ -268,34 +268,64 @@ const openFile = async (fileUri) => {
       };
     }
 
-    // On Android, file:// URIs cannot be directly opened with Linking.openURL()
-    // due to security restrictions. We must use expo-sharing which handles
-    // the conversion to content:// URIs automatically.
-    
-    // On iOS, we can use Linking.openURL() directly
-    if (Platform.OS === 'ios') {
+    console.log('Attempting to open file:', fileUri);
+
+    // First, check if the file exists
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    if (!fileInfo.exists) {
+      return {
+        success: false,
+        error: 'File not found',
+      };
+    }
+
+    console.log('File exists, size:', fileInfo.size);
+
+    // Method 1: Try using Linking.openURL (works well on iOS and some Android versions)
+    try {
+      console.log('Trying Linking.openURL...');
       const canOpen = await Linking.canOpenURL(fileUri);
+      console.log('Can open with Linking:', canOpen);
+      
       if (canOpen) {
         await Linking.openURL(fileUri);
+        console.log('File opened successfully with Linking.openURL');
         return {
           success: true,
         };
-      } else {
-        return {
-          success: false,
-          error: 'Cannot open this file type',
-        };
       }
+    } catch (linkingError) {
+      console.log('Linking.openURL failed:', linkingError.message);
     }
 
-    // For Android, use expo-sharing which properly handles file:// URIs
-    // by converting them to content:// URIs that can be shared with other apps
+    // Method 2: Try using WebBrowser to open the file (alternative approach)
+    try {
+      console.log('Trying WebBrowser.openBrowserAsync...');
+      const result = await WebBrowser.openBrowserAsync(fileUri, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        showTitle: true,
+        toolbarColor: '#00B4E6',
+        controlsColor: '#FFFFFF',
+      });
+      
+      if (result.type !== 'cancel') {
+        console.log('File opened successfully with WebBrowser');
+        return {
+          success: true,
+        };
+      }
+    } catch (webBrowserError) {
+      console.log('WebBrowser.openBrowserAsync failed:', webBrowserError.message);
+    }
+
+    // Method 3: Use expo-sharing as fallback (shows "Open with" dialog)
+    console.log('Trying Sharing.shareAsync as fallback...');
     const isAvailable = await Sharing.isAvailableAsync();
     
     if (!isAvailable) {
       return {
         success: false,
-        error: 'File sharing is not available on this device',
+        error: 'File opening is not available on this device',
       };
     }
 
@@ -303,27 +333,20 @@ const openFile = async (fileUri) => {
     // that can open PDFs, and the user can select one to open the file
     await Sharing.shareAsync(fileUri, {
       mimeType: 'application/pdf',
-      dialogTitle: 'Open PDF',
+      dialogTitle: 'Open with...',
       UTI: 'com.adobe.pdf', // iOS Universal Type Identifier for PDF
     });
 
+    console.log('File opened successfully with Sharing.shareAsync');
     return {
       success: true,
     };
   } catch (error) {
     console.error('Error opening file:', error);
     
-    // If sharing fails on Android, provide helpful error message
-    if (Platform.OS === 'android') {
-      return {
-        success: false,
-        error: 'Failed to open file. Please ensure you have a PDF viewer app installed.',
-      };
-    }
-    
     return {
       success: false,
-      error: error.message || 'Failed to open file',
+      error: error.message || 'Failed to open file. Please ensure you have a PDF viewer app installed.',
     };
   }
 };

@@ -25,6 +25,10 @@ exports.ERROR_CODES = {
     RAG_SERVICE_UNAVAILABLE: 'RAG_001',
     RAG_INDEXING_FAILED: 'RAG_002',
     RAG_QUERY_FAILED: 'RAG_003',
+    // Traffic service errors (TRAFFIC_xxx)
+    TRAFFIC_CONFIG_MISSING: 'TRAFFIC_001',
+    TRAFFIC_DATA_UNAVAILABLE: 'TRAFFIC_002',
+    TRAFFIC_UPSTREAM_ERROR: 'TRAFFIC_003',
     // General errors
     NOT_FOUND: 'NOT_FOUND',
     SERVER_ERROR: 'SERVER_ERROR',
@@ -49,6 +53,9 @@ exports.ERROR_MESSAGES = {
     [exports.ERROR_CODES.RAG_SERVICE_UNAVAILABLE]: 'RAG service is unavailable',
     [exports.ERROR_CODES.RAG_INDEXING_FAILED]: 'Document indexing failed',
     [exports.ERROR_CODES.RAG_QUERY_FAILED]: 'Query processing failed',
+    [exports.ERROR_CODES.TRAFFIC_CONFIG_MISSING]: 'Traffic data provider not configured',
+    [exports.ERROR_CODES.TRAFFIC_DATA_UNAVAILABLE]: 'Traffic data unavailable for the requested location',
+    [exports.ERROR_CODES.TRAFFIC_UPSTREAM_ERROR]: 'Failed to retrieve traffic data from provider',
     [exports.ERROR_CODES.NOT_FOUND]: 'Resource not found',
     [exports.ERROR_CODES.SERVER_ERROR]: 'Internal server error',
     [exports.ERROR_CODES.BAD_REQUEST]: 'Bad request',

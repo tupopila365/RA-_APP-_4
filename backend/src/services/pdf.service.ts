@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit';
-import { PDFDocument as PDFLibDocument } from 'pdf-lib';
+import { PDFDocument as PDFLibDocument, degrees, rgb } from 'pdf-lib';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { IPLN } from '../modules/pln/pln.model';
@@ -517,6 +517,412 @@ class PDFService {
   }
 
   /**
+   * Overlay text on the static PDF template (when PDF has no fillable fields)
+   * Loads field positions from field-positions.json configuration file
+   * @param application - The PLN application data
+   * @param pdfDoc - The loaded PDF document
+   * @returns Buffer containing the filled PDF
+   */
+  private async overlayTextOnPDF(application: IPLN, pdfDoc: PDFLibDocument): Promise<Buffer> {
+    try {
+      logger.info('Starting PDF overlay process', {
+        hasApplication: !!application,
+        referenceId: application?.referenceId,
+        surname: application?.surname,
+        initials: application?.initials,
+        idType: application?.idType,
+        idNumber: application?.idNumber,
+        trafficRegisterNumber: application?.trafficRegisterNumber,
+        hasPlateChoices: !!application?.plateChoices?.length,
+        plateChoices: application?.plateChoices?.map(c => c.text),
+        declarationPlace: application?.declarationPlace,
+        declarationDate: application?.declarationDate,
+        email: application?.email,
+      });
+
+      const pages = pdfDoc.getPages();
+      if (pages.length === 0) {
+        throw new Error('PDF has no pages');
+      }
+      const firstPage = pages[0];
+      
+      // CRITICAL: Ensure page rotation is 0 to prevent vertical text rendering
+      try {
+        firstPage.setRotation(degrees(0));
+        logger.info('Set page rotation to 0 degrees');
+      } catch (error: any) {
+        logger.warn('Could not set page rotation', { error: error.message });
+      }
+      
+      // Get page dimensions
+      const { width, height } = firstPage.getSize();
+      logger.info(`PDF page dimensions: ${width} x ${height}`);
+      
+      // Embed fonts to ensure text renders correctly
+      let helveticaFont;
+      let helveticaBoldFont;
+      try {
+        helveticaFont = await pdfDoc.embedFont('Helvetica');
+        helveticaBoldFont = await pdfDoc.embedFont('Helvetica-Bold');
+        logger.info('Fonts embedded successfully');
+      } catch (fontError: any) {
+        logger.warn('Could not embed fonts, using default', { error: fontError.message });
+        helveticaFont = undefined;
+        helveticaBoldFont = undefined;
+      }
+      
+      // Load field positions from configuration file (support multiple possible locations)
+      let fieldPositions: any = null;
+      const candidatePaths = [
+        path.resolve(__dirname, '..', '..', 'data', 'forms', 'field-positions.json'), // dist/services -> backend/data/forms
+        path.resolve(__dirname, '../../../', 'data', 'forms', 'field-positions.json'), // project-level data/forms (legacy)
+        path.resolve(process.cwd(), 'data', 'forms', 'field-positions.json'), // cwd/data/forms
+        path.resolve(process.cwd(), 'backend', 'data', 'forms', 'field-positions.json'), // cwd/backend/data/forms
+      ];
+      let loadedPath: string | null = null;
+      for (const candidate of candidatePaths) {
+        try {
+          const positionsData = await fs.readFile(candidate, 'utf-8');
+          fieldPositions = JSON.parse(positionsData);
+          loadedPath = candidate;
+          break;
+        } catch (_) {
+          // Try next path
+        }
+      }
+      if (fieldPositions) {
+        logger.info('Loaded field positions from configuration file', {
+          path: loadedPath,
+          fieldCount: Object.keys(fieldPositions?.fields || {}).length,
+        });
+      } else {
+        logger.warn('Could not load field-positions.json from any known location, using default coordinates', {
+          triedPaths: candidatePaths,
+        });
+      }
+    
+    // Helper to get field position from config or use default
+    const getFieldPos = (fieldKey: string, defaultX: number, defaultY: number) => {
+      if (fieldPositions?.fields?.[fieldKey]) {
+        return {
+          x: fieldPositions.fields[fieldKey].x,
+          y: fieldPositions.fields[fieldKey].y,
+          fontSize: fieldPositions.fields[fieldKey].fontSize || 9,
+        };
+      }
+      return { x: defaultX, y: defaultY, fontSize: 9 };
+    };
+    
+    // Helper function to draw text at coordinates (PDF coordinates are from bottom-left)
+    // Renders text as a SINGLE HORIZONTAL LINE - no character-by-character loops, no line breaks
+    const drawText = (text: string | undefined | null, x: number, y: number, options?: { size?: number; font?: any; withBackground?: boolean }) => {
+      if (text === null || text === undefined) {
+        return;
+      }
+
+      try {
+        // Ensure a single-line string with no newlines
+        let textValue = String(text).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (textValue.length === 0) {
+          return;
+        }
+
+        // PDF coordinate system: y from bottom
+        const pdfY = height - y;
+        const fontSize = options?.size || 10;
+
+        // Bounds check
+        if (x < 0 || x > width || pdfY < 0 || pdfY > height) {
+          logger.warn(`Text coordinates out of bounds: (${x}, ${y}) -> PDF(${x}, ${pdfY}), page size: ${width}x${height}`);
+          return;
+        }
+
+        // Optional light background to improve visibility on scanned PDFs
+        const approxTextWidth = Math.max(textValue.length * (fontSize * 0.5), 40);
+        firstPage.drawRectangle({
+          x: x - 1,
+          y: pdfY - fontSize - 1,
+          width: approxTextWidth + 2,
+          height: fontSize + 2,
+          color: rgb(1, 1, 1),
+          opacity: 0.85,
+        });
+
+        // Single draw call: no character loops, no per-character y-offsets
+        const fontToUse = options?.font || helveticaFont;
+        firstPage.drawText(textValue, {
+          x,
+          y: pdfY,
+          size: fontSize,
+          color: rgb(0, 0, 0),
+          font: fontToUse,
+          rotate: degrees(0),
+          opacity: 1.0,
+        });
+
+        logger.info(`✓ Drew text "${textValue.substring(0, 30)}" at (${x}, ${y}) -> PDF(${x}, ${pdfY}), size: ${fontSize}`);
+      } catch (error: any) {
+        logger.error(`Error drawing text at (${x}, ${y}): ${error.message}`, {
+          text: text?.toString().substring(0, 20),
+          stack: error.stack,
+        });
+      }
+    };
+
+    // Helper function to draw checkbox (X mark)
+    const drawCheckbox = (x: number, y: number) => {
+      try {
+        // Convert Y coordinate: our y is from top, PDF y is from bottom
+        const pdfY = height - y;
+        
+        // Validate coordinates are within page bounds
+        if (x < 0 || x > width || pdfY < 0 || pdfY > height) {
+          logger.warn(`Checkbox coordinates out of bounds: (${x}, ${y}) -> PDF(${x}, ${pdfY}), page size: ${width}x${height}`);
+          return;
+        }
+        
+        firstPage.drawText('X', {
+          x,
+          y: pdfY,
+          size: 12,
+          color: rgb(0, 0, 0), // Black X
+          font: helveticaBoldFont,
+          rotate: degrees(0),
+          opacity: 1.0, // Ensure full opacity
+        });
+        logger.info(`✓ Drew checkbox X at (${x}, ${y}) -> PDF(${x}, ${pdfY})`);
+      } catch (error: any) {
+        logger.error(`Error drawing checkbox at (${x}, ${y}): ${error.message}`, {
+          stack: error.stack,
+        });
+      }
+    };
+
+    // Use field positions from configuration file (with defaults as fallback)
+    const pos = getFieldPos;
+    
+    // Transaction type: Mark "New Personalised Licence Number" with X
+    const transPos = pos('transactionNewPLN', 60, 140);
+    drawCheckbox(transPos.x, transPos.y);
+    logger.info(`Drew transaction checkbox at (${transPos.x}, ${transPos.y})`);
+
+    // Section A: PARTICULARS OF OWNER/TRANSFEROR
+    
+    // ID Type checkboxes
+    if (application.idType === 'Traffic Register Number') {
+      const idPos = pos('idTypeTrafficRegister', 60, 195);
+      drawCheckbox(idPos.x, idPos.y);
+    } else if (application.idType === 'Namibia ID-doc') {
+      const idPos = pos('idTypeNamibiaID', 180, 195);
+      drawCheckbox(idPos.x, idPos.y);
+    } else if (application.idType === 'Business Reg. No') {
+      const idPos = pos('idTypeBusinessReg', 320, 195);
+      drawCheckbox(idPos.x, idPos.y);
+    }
+
+    // Identification number
+    let idNumber = '';
+    if (application.idType === 'Traffic Register Number' || application.idType === 'Namibia ID-doc') {
+      idNumber = application.trafficRegisterNumber || application.idNumber || '';
+    } else if (application.idType === 'Business Reg. No') {
+      idNumber = application.businessRegNumber || application.idNumber || '';
+    }
+    const idNumPos = pos('idNumber', 80, 228);
+    if (!idNumber) {
+      logger.warn('⚠️  ID number is empty or missing!', {
+        idType: application.idType,
+        trafficRegisterNumber: application.trafficRegisterNumber,
+        businessRegNumber: application.businessRegNumber,
+        idNumber: application.idNumber,
+      });
+    }
+    drawText(idNumber, idNumPos.x, idNumPos.y, { size: idNumPos.fontSize });
+
+      // Surname and initials / Business Name
+      if (application.idType === 'Business Reg. No' && application.businessName) {
+        const bizPos = pos('businessName', 80, 258);
+        drawText(application.businessName, bizPos.x, bizPos.y, { size: bizPos.fontSize });
+        logger.info(`Attempted to draw business name: "${application.businessName}" at (${bizPos.x}, ${bizPos.y})`);
+      } else {
+        const surnamePos = pos('surname', 80, 258);
+        const initialsPos = pos('initials', 330, 258);
+        if (!application.surname) {
+          logger.warn('⚠️  Surname is missing!');
+        }
+        if (!application.initials) {
+          logger.warn('⚠️  Initials are missing!');
+        }
+        drawText(application.surname, surnamePos.x, surnamePos.y, { size: surnamePos.fontSize });
+        drawText('and', 300, surnamePos.y, { size: 9 }); // Use same Y as surname
+        drawText(application.initials, initialsPos.x, initialsPos.y, { size: initialsPos.fontSize });
+      }
+
+    // Postal address (3 lines)
+    const postal1Pos = pos('postalAddressLine1', 80, 293);
+    const postal2Pos = pos('postalAddressLine2', 80, 311);
+    const postal3Pos = pos('postalAddressLine3', 80, 329);
+    drawText(application.postalAddress?.line1, postal1Pos.x, postal1Pos.y, { size: postal1Pos.fontSize });
+    drawText(application.postalAddress?.line2, postal2Pos.x, postal2Pos.y, { size: postal2Pos.fontSize });
+    drawText(application.postalAddress?.line3, postal3Pos.x, postal3Pos.y, { size: postal3Pos.fontSize });
+
+    // Street address (3 lines)
+    const street1Pos = pos('streetAddressLine1', 80, 363);
+    const street2Pos = pos('streetAddressLine2', 80, 381);
+    const street3Pos = pos('streetAddressLine3', 80, 399);
+    drawText(application.streetAddress?.line1, street1Pos.x, street1Pos.y, { size: street1Pos.fontSize });
+    drawText(application.streetAddress?.line2, street2Pos.x, street2Pos.y, { size: street2Pos.fontSize });
+    drawText(application.streetAddress?.line3, street3Pos.x, street3Pos.y, { size: street3Pos.fontSize });
+
+    // Phone numbers
+    if (application.telephoneHome) {
+      const phoneHomeCodePos = pos('telephoneHomeCode', 200, 433);
+      const phoneHomeNumPos = pos('telephoneHomeNumber', 280, 433);
+      drawText(application.telephoneHome.code, phoneHomeCodePos.x, phoneHomeCodePos.y, { size: phoneHomeCodePos.fontSize });
+      drawText(application.telephoneHome.number, phoneHomeNumPos.x, phoneHomeNumPos.y, { size: phoneHomeNumPos.fontSize });
+    }
+    if (application.telephoneDay) {
+      const phoneDayCodePos = pos('telephoneDayCode', 200, 451);
+      const phoneDayNumPos = pos('telephoneDayNumber', 280, 451);
+      drawText(application.telephoneDay.code, phoneDayCodePos.x, phoneDayCodePos.y, { size: phoneDayCodePos.fontSize });
+      drawText(application.telephoneDay.number, phoneDayNumPos.x, phoneDayNumPos.y, { size: phoneDayNumPos.fontSize });
+    }
+    if (application.cellNumber) {
+      const cellCodePos = pos('cellNumberCode', 200, 469);
+      const cellNumPos = pos('cellNumberNumber', 280, 469);
+      drawText(application.cellNumber.code, cellCodePos.x, cellCodePos.y, { size: cellCodePos.fontSize });
+      drawText(application.cellNumber.number, cellNumPos.x, cellNumPos.y, { size: cellNumPos.fontSize });
+    }
+    const emailPos = pos('email', 200, 487);
+    drawText(application.email, emailPos.x, emailPos.y, { size: emailPos.fontSize });
+
+    // Section B: PERSONALISED NUMBER PLATE
+    
+    // Plate format checkboxes and quantity
+    const plateFormatMap: Record<string, string> = {
+      'Long/German': 'plateFormatLongGerman',
+      'Normal': 'plateFormatNormal',
+      'American': 'plateFormatAmerican',
+      'Square': 'plateFormatSquare',
+      'Small motorcycle': 'plateFormatMotorcycle',
+    };
+
+    if (application.plateFormat && plateFormatMap[application.plateFormat]) {
+      const formatPos = pos(plateFormatMap[application.plateFormat], 60, 575);
+      const quantityPos = pos('plateQuantity', 230, formatPos.y);
+      drawCheckbox(formatPos.x, formatPos.y);
+      drawText(application.quantity?.toString(), quantityPos.x, quantityPos.y, { size: quantityPos.fontSize });
+      
+      // Plate choices use the same Y position as the selected format
+      const plate1Pos = pos('plateChoice1', 300, formatPos.y);
+      const plate2Pos = pos('plateChoice2', 380, formatPos.y);
+      const plate3Pos = pos('plateChoice3', 460, formatPos.y);
+      application.plateChoices?.forEach((choice, index) => {
+        const positions = [plate1Pos, plate2Pos, plate3Pos];
+        if (positions[index]) {
+          drawText(choice.text, positions[index].x, positions[index].y, { size: positions[index].fontSize });
+        }
+      });
+    }
+
+    // Section C: REPRESENTATIVE/PROXY
+    if (application.hasRepresentative) {
+      if (application.representativeIdType === 'Traffic Register Number') {
+        const repIdPos = pos('representativeIdTypeTraffic', 60, 673);
+        drawCheckbox(repIdPos.x, repIdPos.y);
+      } else if (application.representativeIdType === 'Namibia ID-doc') {
+        const repIdPos = pos('representativeIdTypeIDDoc', 180, 673);
+        drawCheckbox(repIdPos.x, repIdPos.y);
+      }
+      const repIdNumPos = pos('representativeIdNumber', 80, 698);
+      const repSurnamePos = pos('representativeSurname', 80, 723);
+      const repInitialsPos = pos('representativeInitials', 330, 723);
+      drawText(application.representativeIdNumber, repIdNumPos.x, repIdNumPos.y, { size: repIdNumPos.fontSize });
+      drawText(application.representativeSurname, repSurnamePos.x, repSurnamePos.y, { size: repSurnamePos.fontSize });
+      drawText('and', 300, repSurnamePos.y, { size: 9 }); // Use same Y as representative surname
+      drawText(application.representativeInitials, repInitialsPos.x, repInitialsPos.y, { size: repInitialsPos.fontSize });
+    }
+
+    // Section D: VEHICLE PARTICULARS
+    if (application.currentLicenceNumber) {
+      const vehLicPos = pos('vehicleCurrentLicence', 250, 763);
+      drawText(application.currentLicenceNumber, vehLicPos.x, vehLicPos.y, { size: vehLicPos.fontSize });
+    }
+    if (application.vehicleRegisterNumber) {
+      const vehRegPos = pos('vehicleRegisterNumber', 250, 781);
+      drawText(application.vehicleRegisterNumber, vehRegPos.x, vehRegPos.y, { size: vehRegPos.fontSize });
+    }
+    if (application.chassisNumber) {
+      const vehChassisPos = pos('vehicleChassisNumber', 250, 799);
+      drawText(application.chassisNumber, vehChassisPos.x, vehChassisPos.y, { size: vehChassisPos.fontSize });
+    }
+    if (application.vehicleMake) {
+      const vehMakePos = pos('vehicleMake', 250, 817);
+      drawText(application.vehicleMake, vehMakePos.x, vehMakePos.y, { size: vehMakePos.fontSize });
+    }
+    if (application.seriesName) {
+      const vehSeriesPos = pos('vehicleSeries', 250, 835);
+      drawText(application.seriesName, vehSeriesPos.x, vehSeriesPos.y, { size: vehSeriesPos.fontSize });
+    }
+
+    // Section E: DECLARATION
+    // Declaration role checkbox
+    if (application.declarationRole === 'applicant') {
+      const rolePos = pos('declarationRoleApplicant', 60, 493);
+      drawCheckbox(rolePos.x, rolePos.y);
+    } else if (application.declarationRole === 'proxy') {
+      const rolePos = pos('declarationRoleProxy', 180, 493);
+      drawCheckbox(rolePos.x, rolePos.y);
+    } else if (application.declarationRole === 'representative') {
+      const rolePos = pos('declarationRoleRepresentative', 320, 493);
+      drawCheckbox(rolePos.x, rolePos.y);
+    }
+
+    // Declaration place
+    const declPlacePos = pos('declarationPlace', 450, 813);
+    drawText(application.declarationPlace, declPlacePos.x, declPlacePos.y, { size: declPlacePos.fontSize });
+
+    // Declaration date
+    const date = application.declarationDate ? new Date(application.declarationDate) : new Date();
+    const year = date.getFullYear().toString().slice(2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const yearPos = pos('declarationYear', 490, 831);
+    const monthPos = pos('declarationMonth', 510, 831);
+    const dayPos = pos('declarationDay', 530, 831);
+    drawText(year, yearPos.x, yearPos.y, { size: yearPos.fontSize });
+    drawText(month, monthPos.x, monthPos.y, { size: monthPos.fontSize });
+    drawText(day, dayPos.x, dayPos.y, { size: dayPos.fontSize });
+
+      // Log summary of what was drawn
+      logger.info('PDF overlay completed', {
+        fieldsDrawn: {
+          hasIdNumber: !!idNumber,
+          hasSurname: !!application.surname,
+          hasPlateChoices: !!application.plateChoices?.length,
+          hasDeclarationPlace: !!application.declarationPlace,
+        },
+      });
+
+      // Save and return the PDF
+      logger.info('Saving filled PDF');
+      const pdfBytes = await pdfDoc.save();
+      logger.info(`PDF saved successfully, size: ${pdfBytes.length} bytes`);
+      return Buffer.from(pdfBytes);
+    } catch (error: any) {
+      logger.error('Error in overlayTextOnPDF:', {
+        error: error.message,
+        stack: error.stack,
+        applicationData: {
+          hasSurname: !!application?.surname,
+          hasIdType: !!application?.idType,
+          hasPlateChoices: !!application?.plateChoices,
+        },
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Fill the static PLN form PDF template with application data
    * @param application - The PLN application data
    * @param templatePath - Path to the PDF template file
@@ -530,6 +936,27 @@ class PDFService {
       // Load the PDF document
       const pdfDoc = await PDFLibDocument.load(templateBytes);
       const form = pdfDoc.getForm();
+      const fields = form.getFields();
+
+      // Check if PDF has fillable form fields
+      if (fields.length === 0) {
+        // PDF doesn't have fillable fields - try overlay text on the PDF
+        logger.info('PDF template has no fillable fields, attempting text overlay method');
+        try {
+          const overlayResult = await this.overlayTextOnPDF(application, pdfDoc);
+          logger.info('Text overlay method completed successfully');
+          return overlayResult;
+        } catch (overlayError: any) {
+          logger.warn('Text overlay failed, falling back to PDF generation from scratch', {
+            error: overlayError.message,
+          });
+          // Fallback to generating PDF from scratch (which matches the form layout)
+          return this.generatePLNFormPDF(application);
+        }
+      }
+
+      // PDF has fillable fields - use form field filling method
+      logger.info(`PDF template has ${fields.length} fillable fields, using form field method`);
 
       // Helper function to safely set a text field
       const setTextField = (fieldName: string, value: string | undefined | null) => {

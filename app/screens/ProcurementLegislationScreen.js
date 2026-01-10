@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,70 +7,152 @@ import {
   TouchableOpacity,
   useColorScheme,
   Image,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import RAIcon from '../assets/icon.png';
+import { DetailCard, LoadingSpinner, ErrorState, EmptyState } from '../components';
+import { procurementLegislationService } from '../services/procurementService';
+import { documentDownloadService } from '../services/documentDownloadService';
+import useDocumentDownload from '../hooks/useDocumentDownload';
 
 export default function ProcurementLegislationScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
   const styles = getStyles(colors);
 
-  // Document sections - Add your documents here
+  const [legislationData, setLegislationData] = useState({
+    act: [],
+    regulations: [],
+    guidelines: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [currentDownloadId, setCurrentDownloadId] = useState(null);
+
+  // Use the document download hook
+  const {
+    isDownloading,
+    progress,
+    error: downloadError,
+    downloadedUri,
+    startDownload,
+    resetDownload,
+  } = useDocumentDownload();
+
+  const fetchLegislation = useCallback(async (isRefresh = false) => {
+    try {
+      if (!isRefresh) {
+        setLoading(true);
+      }
+      setError(null);
+
+      // Fetch all sections
+      const [actItems, regulationsItems, guidelinesItems] = await Promise.all([
+        procurementLegislationService.getLegislationBySection('act'),
+        procurementLegislationService.getLegislationBySection('regulations'),
+        procurementLegislationService.getLegislationBySection('guidelines'),
+      ]);
+
+      setLegislationData({
+        act: actItems || [],
+        regulations: regulationsItems || [],
+        guidelines: guidelinesItems || [],
+      });
+    } catch (err) {
+      console.error('Error fetching legislation:', err);
+      setError(err.message || 'Failed to load legislation documents');
+      if (isRefresh) {
+        Alert.alert('Error', 'Failed to refresh legislation. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLegislation();
+  }, [fetchLegislation]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchLegislation(true);
+  }, [fetchLegislation]);
+
+  const handleDownload = async (document) => {
+    if (!document.documentUrl) {
+      Alert.alert('Error', 'No document available for download');
+      return;
+    }
+
+    try {
+      setCurrentDownloadId(document.id);
+      resetDownload();
+      await startDownload(document.documentUrl, document.documentFileName || document.title);
+      setCurrentDownloadId(null);
+    } catch (err) {
+      console.error('Download error:', err);
+      Alert.alert('Error', 'Failed to download document. Please try again.');
+      setCurrentDownloadId(null);
+    }
+  };
+
   const legislationSections = [
     {
       id: 'act',
       title: 'Act',
-      documents: [
-        {
-          id: 'act-1',
-          title: 'Public Procurement Act - 15 of 2015',
-          downloadUrl: '', // Add download URL here
-        },
-        // Add more Act documents here
-      ],
+      documents: legislationData.act,
     },
     {
       id: 'regulations',
       title: 'Regulations',
-      documents: [
-        {
-          id: 'reg-1',
-          title: 'Regulations',
-          downloadUrl: '', // Add download URL here
-        },
-        // Add more Regulations documents here
-      ],
+      documents: legislationData.regulations,
     },
     {
       id: 'guidelines',
       title: 'Guidelines',
-      documents: [
-        {
-          id: 'guide-1',
-          title: 'Guidelines',
-          downloadUrl: '', // Add download URL here
-        },
-        // Add more Guidelines documents here
-      ],
+      documents: legislationData.guidelines,
     },
   ];
 
-  const handleDownload = (document) => {
-    if (!document.downloadUrl) {
-      // TODO: Implement download functionality
-      console.log('Download:', document.title);
-      return;
-    }
-    // TODO: Implement actual download using documentDownloadService
-    console.log('Download:', document.title, document.downloadUrl);
-  };
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.container}>
+        <LoadingSpinner message="Loading legislation..." />
+      </View>
+    );
+  }
+
+  if (error && !refreshing) {
+    return (
+      <View style={styles.container}>
+        <ErrorState
+          message={error}
+          onRetry={() => fetchLegislation()}
+        />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
         <View style={styles.header}>
           <Image source={RAIcon} style={styles.logo} resizeMode="contain" />
           <Text style={styles.headerTitle}>Procurement Legislation</Text>
@@ -84,21 +166,30 @@ export default function ProcurementLegislationScreen() {
               <Text style={styles.sectionTitle}>{section.title}</Text>
             </View>
 
-            {section.documents.map((document) => (
-              <View key={document.id} style={styles.documentItem}>
-                <Text style={styles.documentTitle}>{document.title}</Text>
-                <TouchableOpacity
-                  style={[styles.downloadButton, { backgroundColor: colors.primary }]}
-                  onPress={() => handleDownload(document)}
-                  activeOpacity={0.8}
-                  accessibilityLabel={`Download ${document.title}`}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="download-outline" size={18} color="#FFFFFF" style={styles.downloadIcon} />
-                  <Text style={styles.downloadButtonText}>Download PDF</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+            {section.documents.length === 0 ? (
+              <EmptyState
+                icon="document-text-outline"
+                message={`No ${section.title.toLowerCase()} documents available`}
+              />
+            ) : (
+              section.documents.map((document) => {
+                const isItemDownloading = isDownloading && currentDownloadId === document.id;
+                return (
+                  <DetailCard
+                    key={document.id}
+                    title={document.title}
+                    titleStyle={{ color: colors.primary, fontSize: 16, fontWeight: '500' }}
+                    downloadButton={!!document.documentUrl}
+                    downloadButtonText="Download PDF"
+                    downloadButtonDisabled={isItemDownloading}
+                    isDownloading={isItemDownloading}
+                    downloadProgress={progress}
+                    onDownloadPress={() => handleDownload(document)}
+                    style={{ marginBottom: 12 }}
+                  />
+                );
+              })
+            )}
           </View>
         ))}
       </ScrollView>
@@ -116,8 +207,8 @@ function getStyles(colors) {
       flex: 1,
     },
     content: {
-      padding: 16,
-      paddingBottom: 32,
+      padding: 15,
+      paddingBottom: 25,
     },
     header: {
       alignItems: 'center',
@@ -164,35 +255,6 @@ function getStyles(colors) {
       fontSize: 20,
       fontWeight: '700',
       color: colors.text,
-    },
-    documentItem: {
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    documentTitle: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: colors.primary,
-      marginBottom: 12,
-      lineHeight: 22,
-    },
-    downloadButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 8,
-      alignSelf: 'flex-start',
-    },
-    downloadIcon: {
-      marginRight: 8,
-    },
-    downloadButtonText: {
-      color: '#FFFFFF',
-      fontSize: 15,
-      fontWeight: '600',
     },
   });
 }

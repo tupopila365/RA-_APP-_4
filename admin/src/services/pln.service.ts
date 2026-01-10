@@ -23,20 +23,103 @@ export interface StatusHistory {
   comment?: string;
 }
 
+export interface Address {
+  line1: string;
+  line2?: string;
+  line3?: string;
+}
+
+export interface PhoneNumber {
+  code: string;
+  number: string;
+}
+
 export interface PLNApplication {
   id: string;
   _id?: string;
   referenceId: string;
-  fullName: string;
-  idNumber: string;
-  phoneNumber: string;
+  
+  // Transaction Type
+  transactionType: string;
+  
+  // Section A - Owner/Transferor
+  idType: 'Traffic Register Number' | 'Namibia ID-doc' | 'Business Reg. No';
+  trafficRegisterNumber?: string;
+  businessRegNumber?: string;
+  surname: string;
+  initials: string;
+  businessName?: string;
+  postalAddress: Address;
+  streetAddress: Address;
+  telephoneHome?: PhoneNumber;
+  telephoneDay?: PhoneNumber;
+  cellNumber?: PhoneNumber;
+  email?: string;
+  
+  // Legacy fields (for backward compatibility)
+  fullName?: string;
+  idNumber?: string;
+  phoneNumber?: string;
+  
+  // Section B - Personalised Number Plate
+  plateFormat: 'Long/German' | 'Normal' | 'American' | 'Square' | 'Small motorcycle';
+  quantity: 1 | 2;
   plateChoices: PlateChoice[];
+  
+  // Section C - Representative/Proxy (optional)
+  hasRepresentative?: boolean;
+  representativeIdType?: 'Traffic Register Number' | 'Namibia ID-doc';
+  representativeIdNumber?: string;
+  representativeSurname?: string;
+  representativeInitials?: string;
+  
+  // Section D - Vehicle Particulars (optional)
+  hasVehicle?: boolean;
+  currentLicenceNumber?: string;
+  vehicleRegisterNumber?: string;
+  chassisNumber?: string;
+  vehicleMake?: string;
+  seriesName?: string;
+  
+  // Section E - Declaration
+  declarationAccepted: boolean;
+  declarationDate: string;
+  declarationPlace: string;
+  declarationRole?: 'applicant' | 'proxy' | 'representative';
+  
+  // Document and status
   documentUrl: string;
   status: PLNStatus;
   statusHistory: StatusHistory[];
   adminComments?: string;
   paymentDeadline?: string;
   paymentReceivedAt?: string;
+  
+  // Additional admin fields
+  assignedTo?: string;
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  tags?: string[];
+  internalNotes?: string;
+  
+  // Payment information
+  paymentAmount?: number;
+  paymentMethod?: string;
+  paymentReference?: string;
+  
+  // Processing information
+  processedBy?: string;
+  processedAt?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  
+  // Plate production information
+  plateOrderNumber?: string;
+  plateSupplier?: string;
+  plateOrderedAt?: string;
+  plateDeliveredAt?: string;
+  plateCollectedAt?: string;
+  plateCollectedBy?: string;
+  
   createdAt: string;
   updatedAt: string;
 }
@@ -67,27 +150,68 @@ export interface PLNStatsResponse {
     stats: {
       total: number;
       byStatus: Record<PLNStatus, number>;
+      recentApplications: PLNApplication[];
+      paymentOverdue: number;
+      monthlyStats: { month: string; count: number }[];
     };
   };
 }
 
 /**
- * Submit a new PLN application (public)
+ * Submit a new PLN application (public) - Enhanced for new structure
  */
 export const submitApplication = async (
   data: {
-    fullName: string;
-    idNumber: string;
-    phoneNumber: string;
+    // New structure fields
+    idType?: string;
+    trafficRegisterNumber?: string;
+    businessRegNumber?: string;
+    surname?: string;
+    initials?: string;
+    businessName?: string;
+    postalAddress?: Address;
+    streetAddress?: Address;
+    telephoneHome?: PhoneNumber;
+    telephoneDay?: PhoneNumber;
+    cellNumber?: PhoneNumber;
+    email?: string;
+    plateFormat?: string;
+    quantity?: number;
     plateChoices: PlateChoice[];
+    hasRepresentative?: boolean;
+    representativeIdType?: string;
+    representativeIdNumber?: string;
+    representativeSurname?: string;
+    representativeInitials?: string;
+    currentLicenceNumber?: string;
+    vehicleRegisterNumber?: string;
+    chassisNumber?: string;
+    vehicleMake?: string;
+    seriesName?: string;
+    declarationAccepted?: boolean;
+    declarationPlace?: string;
+    declarationRole?: string;
+    
+    // Legacy fields (for backward compatibility)
+    fullName?: string;
+    idNumber?: string;
+    phoneNumber?: string;
   },
   file: File
 ): Promise<PLNResponse> => {
   const formData = new FormData();
-  formData.append('fullName', data.fullName);
-  formData.append('idNumber', data.idNumber);
-  formData.append('phoneNumber', data.phoneNumber);
-  formData.append('plateChoices', JSON.stringify(data.plateChoices));
+  
+  // Add all fields to FormData
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      if (typeof value === 'object') {
+        formData.append(key, JSON.stringify(value));
+      } else {
+        formData.append(key, value.toString());
+      }
+    }
+  });
+  
   formData.append('document', file);
 
   const response = await apiClient.post<PLNResponse>('/pln/applications', formData, {
@@ -172,6 +296,39 @@ export const markReadyForCollection = async (id: string): Promise<PLNResponse> =
 };
 
 /**
+ * Update admin comments (admin)
+ */
+export const updateAdminComments = async (id: string, comments: string): Promise<PLNResponse> => {
+  const response = await apiClient.put<PLNResponse>(`/pln/applications/${id}/comments`, {
+    comments,
+  });
+  return response.data;
+};
+
+/**
+ * Assign application to admin (admin)
+ */
+export const assignToAdmin = async (id: string, assignedTo: string): Promise<PLNResponse> => {
+  const response = await apiClient.put<PLNResponse>(`/pln/applications/${id}/assign`, {
+    assignedTo,
+  });
+  return response.data;
+};
+
+/**
+ * Set application priority (admin)
+ */
+export const setPriority = async (
+  id: string,
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
+): Promise<PLNResponse> => {
+  const response = await apiClient.put<PLNResponse>(`/pln/applications/${id}/priority`, {
+    priority,
+  });
+  return response.data;
+};
+
+/**
  * Get dashboard statistics (admin)
  */
 export const getDashboardStats = async (): Promise<PLNStatsResponse> => {
@@ -193,6 +350,26 @@ export const downloadApplicationPDF = async (id: string): Promise<void> => {
   const link = document.createElement('a');
   link.href = url;
   link.download = `PLN-Application-${id}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+/**
+ * Download blank PLN form PDF (public)
+ */
+export const downloadBlankForm = async (): Promise<void> => {
+  const response = await apiClient.get('/pln/form', {
+    responseType: 'blob',
+  });
+
+  // Create blob URL and trigger download
+  const blob = new Blob([response.data], { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'PLN-FORM.pdf';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

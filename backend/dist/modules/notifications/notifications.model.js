@@ -69,7 +69,6 @@ const PushTokenSchema = new mongoose_1.Schema({
     timestamps: true,
 });
 // Index for efficient queries
-PushTokenSchema.index({ pushToken: 1 });
 PushTokenSchema.index({ userId: 1 });
 PushTokenSchema.index({ active: 1 });
 exports.PushTokenModel = mongoose_1.default.model('PushToken', PushTokenSchema);
@@ -107,6 +106,22 @@ const NotificationLogSchema = new mongoose_1.Schema({
     sentBy: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: 'User',
+    },
+    jobId: {
+        type: String,
+        index: true,
+    },
+    status: {
+        type: String,
+        enum: ['queued', 'sent', 'failed', 'partial'],
+        default: 'queued',
+    },
+    platforms: [{
+            type: String,
+            enum: ['ios', 'android'],
+        }],
+    scheduledAt: {
+        type: Date,
     },
     sentAt: {
         type: Date,

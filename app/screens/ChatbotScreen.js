@@ -16,10 +16,12 @@ import {
   StatusBar as RNStatusBar,
   Animated,
   Linking,
+  useWindowDimensions,
+  LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 // Conditionally import Clipboard - fallback if not available
@@ -43,29 +45,67 @@ import { OfficeMessage } from '../components';
 const CHAT_HISTORY_KEY = 'chatbot_history';
 const SESSION_ID_KEY = 'chatbot_session_id';
 
+// Format bot answer with better parsing for lists and paragraphs
+const formatBotAnswer = (text, styles, colors) => {
+  if (!text) return null;
+  
+  // Split into paragraphs for better readability
+  return text.split('\n\n').map((paragraph, index) => {
+    const trimmedParagraph = paragraph.trim();
+    
+    // Check if it's a list item (bullet point)
+    if (trimmedParagraph.startsWith('•') || trimmedParagraph.startsWith('-')) {
+      return (
+        <Text key={index} style={[styles.messageText, styles.listItem, { marginVertical: 4, color: colors.text }]}>
+          {trimmedParagraph}
+        </Text>
+      );
+    }
+    
+    // Check if it's a numbered item
+    if (/^\d+\./.test(trimmedParagraph)) {
+      return (
+        <Text key={index} style={[styles.messageText, styles.numberedItem, { marginVertical: 4, color: colors.text }]}>
+          {trimmedParagraph}
+        </Text>
+      );
+    }
+    
+    // Regular paragraph
+    return (
+      <Text key={index} style={[styles.messageText, { marginVertical: 4, color: colors.text }]}>
+        {trimmedParagraph}
+      </Text>
+    );
+  });
+};
+
 // Message Item Component with animations
 function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, formatMessageTime, getTypingAnimation, handleStop }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const typingAnimRef = useRef(null);
   
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
   
   // Start typing animation if streaming
   useEffect(() => {
     if (message.isStreaming && message.text === '') {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:53',message:'Typing animation init',data:{messageId:message.id,isStreaming:message.isStreaming,text:message.text,getTypingAnimationExists:!!getTypingAnimation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       typingAnimRef.current = getTypingAnimation(message.id);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:55',message:'Typing animation ref set',data:{messageId:message.id,refCurrentExists:!!typingAnimRef.current,hasDot1:!!(typingAnimRef.current?.dot1),hasStart:!!(typingAnimRef.current?.start)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       typingAnimRef.current.start();
       return () => {
         if (typingAnimRef.current) {
@@ -80,14 +120,12 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
       style={[
         styles.messageContainer,
         message.sender === 'user' ? styles.userMessage : styles.botMessage,
-        { opacity: fadeAnim },
+        { 
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        },
       ]}
     >
-      {message.sender === 'bot' && (
-        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-          <Ionicons name="chatbubble-ellipses" size={22} color="#FFFFFF" />
-        </View>
-      )}
       <Pressable
         onLongPress={() => {
           if (message.text && Clipboard) {
@@ -103,25 +141,16 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
           style={[
             styles.messageBubble,
             message.sender === 'user'
-              ? { backgroundColor: colors.primary }
+              ? styles.userMessageBubble
               : message.isError
-              ? { backgroundColor: colors.error, opacity: 0.9 }
-              : { backgroundColor: colors.card },
-            // Make office messages wider
-            message.metadata?.type === 'location_query' && message.metadata?.offices?.length > 0
-              ? { maxWidth: '95%' }
-              : {},
+              ? styles.errorMessageBubble
+              : styles.botMessageBubble,
           ]}
         >
           {message.isStreaming && message.text === '' ? (
             <View style={styles.loadingContainer}>
               <View style={styles.typingIndicator}>
-                {(() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:100',message:'Typing animation render check',data:{messageId:message.id,refCurrentExists:!!typingAnimRef.current,hasDot1:!!(typingAnimRef.current?.dot1),hasStart:!!(typingAnimRef.current?.start)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                  // #endregion
-                  return typingAnimRef.current;
-                })() ? (
+                {typingAnimRef.current ? (
                   <>
                     <Animated.View
                       style={[
@@ -175,16 +204,56 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
                   ))}
                 </View>
               ) : (
-                <Text
-                  style={[
-                    styles.messageText,
-                    message.sender === 'user' || message.isError
-                      ? { color: '#FFFFFF' }
-                      : { color: colors.text },
-                  ]}
-                >
-                  {message.text}
-                </Text>
+                <>
+                  {message.sender === 'bot' && !message.isError ? (
+                    <View>
+                      {formatBotAnswer(message.text, styles, colors)}
+                    </View>
+                  ) : (
+                    <Text
+                      style={[
+                        styles.messageText,
+                        message.sender === 'user' || message.isError
+                          ? { color: '#FFFFFF' }
+                          : { color: colors.text },
+                      ]}
+                    >
+                      {message.text}
+                    </Text>
+                  )}
+                  
+                  {/* Source References */}
+                  {message.sources && message.sources.length > 0 && (
+                    <View style={styles.sourcesContainer}>
+                      <View style={styles.sourcesHeader}>
+                        <Ionicons name="document-text" size={16} color={colors.primary} />
+                        <Text style={styles.sourcesTitle}>
+                          Sources ({message.sources.length})
+                        </Text>
+                      </View>
+                      {message.sources.map((source, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.sourceItem}
+                          onPress={() => {
+                            // Could navigate to document detail if implemented
+                            Alert.alert('Source Document', source.title || 'Unknown Document');
+                          }}
+                          accessibilityLabel={`Source document: ${source.title}`}
+                          accessibilityRole="button"
+                        >
+                          <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+                          <Text style={styles.sourceText} numberOfLines={2}>
+                            {source.title || 'Unknown Document'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                      <Text style={styles.trustSourceText}>
+                        Based on official Roads Authority documents
+                      </Text>
+                    </View>
+                  )}
+                </>
               )}
               {message.timestamp && (
                 <Text
@@ -219,77 +288,8 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
             </TouchableOpacity>
           )}
 
-          {/* Feedback buttons for bot messages with interactionId - hide after feedback is submitted */}
-          {(() => {
-            // #region agent log
-            const feedbackState = feedbackStates[message.id];
-            fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:182',message:'Feedback states access check',data:{messageId:message.id,feedbackStatesExists:!!feedbackStates,feedbackStateExists:!!feedbackState,feedbackStateValue:feedbackState,submitted:feedbackState?.submitted},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
-            return message.sender === 'bot' && 
-             message.interactionId && 
-             !message.isError &&
-             !feedbackStates[message.id]?.submitted;
-          })() && (
-            <View style={[styles.feedbackContainer, { borderTopColor: colors.border }]}>
-              <View style={styles.feedbackButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.feedbackButton,
-                    { 
-                      borderColor: feedbackStates[message.id]?.feedback === 'like' 
-                        ? colors.primary 
-                        : colors.border,
-                      backgroundColor: feedbackStates[message.id]?.feedback === 'like' 
-                        ? colors.primary + '15' 
-                        : 'transparent',
-                    },
-                    feedbackStates[message.id]?.submitting && styles.feedbackButtonDisabled,
-                  ]}
-                  onPress={() => handleFeedback(message.id, 'like')}
-                  disabled={feedbackStates[message.id]?.submitting || feedbackStates[message.id]?.submitted}
-                  accessibilityLabel="Like this answer"
-                  accessibilityRole="button"
-                >
-                  <Ionicons
-                    name={feedbackStates[message.id]?.feedback === 'like' ? 'thumbs-up' : 'thumbs-up-outline'}
-                    size={18}
-                    color={feedbackStates[message.id]?.feedback === 'like' ? colors.primary : colors.textSecondary}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.feedbackButton,
-                    { 
-                      borderColor: feedbackStates[message.id]?.feedback === 'dislike' 
-                        ? colors.error 
-                        : colors.border,
-                      backgroundColor: feedbackStates[message.id]?.feedback === 'dislike' 
-                        ? colors.error + '15' 
-                        : 'transparent',
-                    },
-                    feedbackStates[message.id]?.submitting && styles.feedbackButtonDisabled,
-                  ]}
-                  onPress={() => handleFeedback(message.id, 'dislike')}
-                  disabled={feedbackStates[message.id]?.submitting || feedbackStates[message.id]?.submitted}
-                  accessibilityLabel="Dislike this answer"
-                  accessibilityRole="button"
-                >
-                  <Ionicons
-                    name={feedbackStates[message.id]?.feedback === 'dislike' ? 'thumbs-down' : 'thumbs-down-outline'}
-                    size={18}
-                    color={feedbackStates[message.id]?.feedback === 'dislike' ? colors.error : colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
         </View>
       </Pressable>
-      {message.sender === 'user' && (
-        <View style={[styles.avatar, { backgroundColor: colors.secondary }]}>
-          <Ionicons name="person" size={22} color={colors.text} />
-        </View>
-      )}
     </Animated.View>
   );
 }
@@ -298,19 +298,20 @@ export default function ChatbotScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
-      text: 'Hello! I\'m the Roads Authority chatbot. I can answer questions about our services, policies, and procedures based on official documents. How can I assist you today?',
+      text: 'Welcome to RA Assistant\n\nI\'m your official Roads Authority helper. I can answer questions about:\n\n✓ Vehicle Registration & Licensing\n✓ Personalized Number Plates\n✓ Road Conditions & Safety\n✓ Procurement & Tenders\n✓ Office Locations & Services\n\nI answer based only on official Roads Authority documents. If information isn\'t available in our documents, I\'ll let you know.\n\nHow can I help you today?',
       sender: 'bot',
       timestamp: new Date().toISOString(),
     },
   ]);
-  const [feedbackStates, setFeedbackStates] = useState({}); // Track feedback state per message
+  const [feedbackStates, setFeedbackStates] = useState({});
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [showMenu, setShowMenu] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
@@ -319,12 +320,14 @@ export default function ChatbotScreen() {
   const inputRef = useRef();
   const typingAnimations = useRef({});
   const abortControllerRef = useRef(null);
+  const keyboardTimeoutRef = useRef(null);
+  const isKeyboardStableRef = useRef(false);
 
   // Load chat history on mount
   useEffect(() => {
     loadChatHistory();
     loadSessionId();
-    requestLocationPermission(false); // Silent request on mount
+    requestLocationPermission(false);
   }, []);
 
   // Request location permission and get current location
@@ -335,15 +338,13 @@ export default function ChatbotScreen() {
         return false;
       }
 
-      // Check current permission status first
       const { status: currentStatus } = await Location.getForegroundPermissionsAsync();
       
       if (currentStatus === 'granted') {
-        // Permission already granted, just get location
         try {
           const currentLocation = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
-            timeout: 10000, // 10 second timeout
+            timeout: 10000,
           });
           setUserLocation({
             latitude: currentLocation.coords.latitude,
@@ -352,59 +353,24 @@ export default function ChatbotScreen() {
           return true;
         } catch (locationError) {
           console.error('Error getting location:', locationError);
-          if (showAlert) {
-            Alert.alert(
-              'Location Error',
-              'We couldn\'t get your current location. You can still ask about office locations, but we won\'t be able to show distances.',
-              [{ text: 'OK' }]
-            );
-          }
           return false;
         }
       }
 
       if (currentStatus === 'denied') {
-        if (showAlert) {
-          Alert.alert(
-            'Location Permission Required',
-            'To find the nearest offices, we need your location. Please enable location access in your device settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'Open Settings', 
-                onPress: () => {
-                  if (Platform.OS === 'ios') {
-                    Linking.openURL('app-settings:');
-                  } else {
-                    Linking.openSettings();
-                  }
-                }
-              }
-            ]
-          );
-        }
         return false;
       }
 
-      // Request permission
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        if (showAlert) {
-          Alert.alert(
-            'Location Permission',
-            'Location access is optional but helps us show you the nearest offices. You can still ask about office locations without it.',
-            [{ text: 'OK' }]
-          );
-        }
         return false;
       }
 
-      // Get current location
       try {
         const currentLocation = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
-          timeout: 10000, // 10 second timeout
+          timeout: 10000,
         });
 
         setUserLocation({
@@ -415,42 +381,16 @@ export default function ChatbotScreen() {
         return true;
       } catch (locationError) {
         console.error('Error getting location:', locationError);
-        if (showAlert) {
-          Alert.alert(
-            'Location Error',
-            'We couldn\'t get your location. You can still ask about office locations, but we won\'t be able to show distances.',
-            [{ text: 'OK' }]
-          );
-        }
         return false;
       }
     } catch (error) {
       console.error('Error requesting location permission:', error);
-      if (showAlert) {
-        Alert.alert(
-          'Location Error',
-          'We couldn\'t access your location. You can still ask about office locations, but we won\'t be able to show distances.',
-          [{ text: 'OK' }]
-        );
-      }
       return false;
-    }
-  };
-
-  // Refresh location manually
-  const refreshLocation = async () => {
-    const success = await requestLocationPermission(true);
-    if (success) {
-      // Optionally show success message
-      // Alert.alert('Success', 'Location updated successfully');
     }
   };
 
   // Save chat history whenever messages change
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:303',message:'SaveChatHistory useEffect triggered',data:{messagesLength:messages.length,messagesCount:messages?.length,firstMessageId:messages[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     saveChatHistory();
   }, [saveChatHistory]);
 
@@ -461,7 +401,7 @@ export default function ChatbotScreen() {
     }, 100);
   }, [messages]);
 
-    // Handle keyboard show/hide events
+  // Handle keyboard show/hide events with debouncing
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -469,24 +409,69 @@ export default function ChatbotScreen() {
     const keyboardWillShowListener = Keyboard.addListener(
       showEvent,
       (e) => {
+        // Clear any existing timeout
+        if (keyboardTimeoutRef.current) {
+          clearTimeout(keyboardTimeoutRef.current);
+        }
+        
         const height = e.endCoordinates.height;
-        setKeyboardHeight(height);
-        // Scroll to bottom when keyboard appears to show typing indicator
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, Platform.OS === 'ios' ? 100 : 300);
+        console.log('Keyboard showing, height:', height);
+        
+        // Debounce keyboard height changes to prevent flickering
+        keyboardTimeoutRef.current = setTimeout(() => {
+          // Use LayoutAnimation for smooth transitions on Android
+          if (Platform.OS === 'android') {
+            LayoutAnimation.configureNext({
+              duration: 200,
+              create: { type: 'easeInEaseOut', property: 'opacity' },
+              update: { type: 'easeInEaseOut' },
+            });
+          }
+          
+          setKeyboardHeight(height);
+          isKeyboardStableRef.current = true;
+          
+          // Auto-scroll to bottom when keyboard appears (with delay for stability)
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }, Platform.OS === 'ios' ? 50 : 300);
+        }, 50); // Small delay to debounce rapid events
       }
     );
+    
     const keyboardWillHideListener = Keyboard.addListener(
       hideEvent,
       () => {
-        setKeyboardHeight(0);
+        // Clear any existing timeout
+        if (keyboardTimeoutRef.current) {
+          clearTimeout(keyboardTimeoutRef.current);
+        }
+        
+        console.log('Keyboard hiding');
+        
+        // Debounce keyboard hide to prevent flickering
+        keyboardTimeoutRef.current = setTimeout(() => {
+          // Use LayoutAnimation for smooth transitions on Android
+          if (Platform.OS === 'android') {
+            LayoutAnimation.configureNext({
+              duration: 200,
+              create: { type: 'easeInEaseOut', property: 'opacity' },
+              update: { type: 'easeInEaseOut' },
+            });
+          }
+          
+          setKeyboardHeight(0);
+          isKeyboardStableRef.current = false;
+        }, 50);
       }
     );
 
     return () => {
       keyboardWillShowListener.remove();
       keyboardWillHideListener.remove();
+      if (keyboardTimeoutRef.current) {
+        clearTimeout(keyboardTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -505,9 +490,6 @@ export default function ChatbotScreen() {
   };
 
   const saveChatHistory = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:357',message:'SaveChatHistory called',data:{messagesLength:messages.length,messagesCount:messages?.length,firstMessageId:messages[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     try {
       await SecureStore.setItemAsync(CHAT_HISTORY_KEY, JSON.stringify(messages));
     } catch (error) {
@@ -519,18 +501,12 @@ export default function ChatbotScreen() {
     try {
       let id = await SecureStore.getItemAsync(SESSION_ID_KEY);
       if (!id) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:368',message:'Using substring method',data:{calledBefore:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         await SecureStore.setItemAsync(SESSION_ID_KEY, id);
       }
       setSessionId(id);
     } catch (error) {
       console.error('Error loading session ID:', error);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:374',message:'Using substring method in error handler',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       setSessionId(`session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`);
     }
   };
@@ -550,7 +526,7 @@ export default function ChatbotScreen() {
               setMessages([
                 {
                   id: 'welcome',
-                  text: 'Hello! I\'m the Roads Authority chatbot. I can answer questions about our services, policies, and procedures based on official documents. How can I assist you today?',
+                  text: 'Welcome to RA Assistant\n\nI\'m your official Roads Authority helper. I can answer questions about:\n\n✓ Vehicle Registration & Licensing\n✓ Personalized Number Plates\n✓ Road Conditions & Safety\n✓ Procurement & Tenders\n✓ Office Locations & Services\n\nI answer based only on official Roads Authority documents. If information isn\'t available in our documents, I\'ll let you know.\n\nHow can I help you today?',
                   sender: 'bot',
                   timestamp: new Date().toISOString(),
                 },
@@ -606,7 +582,6 @@ export default function ChatbotScreen() {
       await chatbotService.queryStream(question, sessionId, userLocation, {
         abortController,
         onMetadata: (metadataObj) => {
-          // Update sources when metadata arrives
           if (metadataObj.sources) {
             receivedSources = metadataObj.sources.map((source) => ({
               documentId: source.document_id || source.documentId || '',
@@ -615,7 +590,6 @@ export default function ChatbotScreen() {
             }));
           }
           
-          // Update metadata (e.g., location_query metadata)
           if (metadataObj.metadata) {
             receivedMetadata = metadataObj.metadata;
           }
@@ -633,7 +607,6 @@ export default function ChatbotScreen() {
           );
         },
         onChunk: (chunk, accumulatedAnswer) => {
-          // Update message text as chunks arrive
           fullAnswer = accumulatedAnswer;
           setMessages((prev) =>
             prev.map((msg) =>
@@ -644,7 +617,6 @@ export default function ChatbotScreen() {
           );
         },
         onInteractionId: (id) => {
-          // Update interactionId when received
           interactionId = id;
           setMessages((prev) =>
             prev.map((msg) =>
@@ -659,7 +631,6 @@ export default function ChatbotScreen() {
           interactionId = finalInteractionId || interactionId;
           receivedMetadata = metadata || null;
 
-          // Update final message state
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === botMessageId
@@ -679,7 +650,6 @@ export default function ChatbotScreen() {
           abortControllerRef.current = null;
         },
         onError: (error) => {
-          // Don't show error if request was cancelled
           if (abortController.signal.aborted || error.message === 'Request cancelled') {
             setMessages((prev) => prev.filter((msg) => msg.id !== botMessageId));
             setIsLoading(false);
@@ -695,9 +665,10 @@ export default function ChatbotScreen() {
             errorMessage = 'The chatbot service is temporarily unavailable. Please try again in a few moments.';
           } else if (error.message?.includes('408') || error.status === 408) {
             errorMessage = 'The request timed out. Please try asking a simpler question.';
+          } else if (error.message?.includes('no information') || error.message?.includes('not available')) {
+            errorMessage = 'This information is not available in the provided official documents.\n\nFor this information, please:\n• Visit a Roads Authority office\n• Call: 061-123-4567\n• Email: info@ra.org.na';
           }
 
-          // Replace streaming message with error message
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === botMessageId
@@ -718,9 +689,7 @@ export default function ChatbotScreen() {
         },
       });
     } catch (error) {
-      // Don't show error if request was cancelled
       if (abortController.signal.aborted || error.message === 'Request cancelled') {
-        // Remove the streaming message
         setMessages((prev) => prev.filter((msg) => msg.id !== botMessageId));
         setIsLoading(false);
         abortControllerRef.current = null;
@@ -735,9 +704,10 @@ export default function ChatbotScreen() {
         errorMessage = 'The chatbot service is temporarily unavailable. Please try again in a few moments.';
       } else if (error.status === 408) {
         errorMessage = 'The request timed out. Please try asking a simpler question.';
+      } else if (error.message?.includes('no information') || error.message?.includes('not available')) {
+        errorMessage = 'This information is not available in the provided official documents.\n\nFor this information, please:\n• Visit a Roads Authority office\n• Call: 061-123-4567\n• Email: info@ra.org.na';
       }
 
-      // Replace streaming message with error message
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === botMessageId
@@ -765,7 +735,6 @@ export default function ChatbotScreen() {
       abortControllerRef.current = null;
       setIsLoading(false);
       
-      // Remove the streaming message
       setMessages((prev) => {
         const lastMessage = prev[prev.length - 1];
         if (lastMessage && lastMessage.isStreaming && lastMessage.text === '') {
@@ -779,7 +748,6 @@ export default function ChatbotScreen() {
       });
     }
   };
-
 
   const formatMessageTime = (timestamp) => {
     if (!timestamp) return '';
@@ -797,9 +765,6 @@ export default function ChatbotScreen() {
   };
 
   const getTypingAnimation = useCallback((messageId) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:581',message:'GetTypingAnimation called',data:{messageId,exists:!!typingAnimations.current[messageId]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
     if (!typingAnimations.current[messageId]) {
       const anim1 = new Animated.Value(0.4);
       const anim2 = new Animated.Value(0.4);
@@ -843,34 +808,39 @@ export default function ChatbotScreen() {
   }, []);
 
   const handleFeedback = useCallback(async (messageId, feedback) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:624',message:'HandleFeedback called',data:{messageId,feedback,messagesLength:messages.length,allMessageIds:messages.map(m=>m.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     const message = messages.find((m) => m.id === messageId);
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatbotScreen.js:625',message:'HandleFeedback message found',data:{messageId,messageExists:!!message,interactionId:message?.interactionId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    if (!message || !message.interactionId) {
-      console.warn('Cannot submit feedback: interactionId not found');
+    if (!message) {
+      console.warn('Cannot submit feedback: message not found');
       return;
     }
 
-    // Update local state immediately for UI feedback
     setFeedbackStates((prev) => ({
       ...prev,
       [messageId]: { feedback, submitting: true },
     }));
 
+    if (!message.interactionId) {
+      setFeedbackStates((prev) => ({
+        ...prev,
+        [messageId]: { feedback, submitted: false },
+      }));
+      return;
+    }
+
     try {
       await chatbotService.submitFeedback(message.interactionId, feedback);
-      // Update state to show feedback was submitted
       setFeedbackStates((prev) => ({
         ...prev,
         [messageId]: { feedback, submitted: true },
       }));
+      
+      Alert.alert(
+        'Thank you!',
+        'Your feedback has been sent successfully.',
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       console.error('Error submitting feedback:', error);
-      // Reset state on error
       setFeedbackStates((prev) => {
         const newState = { ...prev };
         delete newState[messageId];
@@ -880,7 +850,7 @@ export default function ChatbotScreen() {
     }
   }, [messages]);
 
-  const styles = getStyles(colors);
+  const styles = getStyles(colors, screenWidth, colorScheme);
 
   // Set status bar style when component mounts and when screen is focused
   useEffect(() => {
@@ -892,7 +862,6 @@ export default function ChatbotScreen() {
     RNStatusBar.setHidden(false);
   }, [colors.primary]);
 
-  // Ensure status bar is set when screen is focused (important for tab navigator)
   useFocusEffect(
     React.useCallback(() => {
       if (Platform.OS === 'android') {
@@ -905,79 +874,25 @@ export default function ChatbotScreen() {
   );
 
   return (
-    <>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar style="light" backgroundColor={colors.primary} />
-      <SafeAreaView style={styles.container} edges={[]}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-          style={{ flex: 1 }}
-          enabled={true}
-        >
-          {/* Modern floating header with gradient */}
-          <View style={styles.modernHeader}>
-          <View style={[styles.headerGradient, { paddingTop: insets.top + 16 }]}>
-            <View style={styles.headerContent}>
-              <View style={styles.botAvatarContainer}>
-                <View style={[styles.botAvatar, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="chatbubble-ellipses" size={28} color="#FFFFFF" />
-                </View>
-                <View style={styles.botInfo}>
-                  <Text style={[styles.botName, { color: '#FFFFFF' }]}>RA Assistant</Text>
-                  <View style={styles.statusIndicator}>
-                    <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
-                    <Text style={styles.statusText}>Online</Text>
-                  </View>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.menuButton}
-                onPress={() => setShowMenu(!showMenu)}
-                accessibilityLabel="Open menu"
-                accessibilityRole="button"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
-          {/* Dropdown Menu */}
-          {showMenu && (
-            <>
-              <Pressable
-                style={styles.menuOverlay}
-                onPress={() => setShowMenu(false)}
-                accessibilityLabel="Close menu"
-              />
-              <View style={[styles.menuDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setShowMenu(false);
-                    clearChatHistory();
-                  }}
-                  accessibilityLabel="Clear chat history"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="trash-outline" size={20} color={colors.text} />
-                  <Text style={[styles.menuItemText, { color: colors.text }]}>Clear Chat</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </View>
-
-        <View style={{ flex: 1 }}>
+      
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+        style={{ flex: 1 }}
+        enabled={Platform.OS === 'ios'}
+      >
+        {/* Messages Area */}
+        <View style={styles.messagesArea}>
           <ScrollView
             ref={scrollViewRef}
             contentContainerStyle={[
               styles.messagesContainer,
               { 
                 paddingBottom: Platform.OS === 'android' && keyboardHeight > 0 
-                  ? keyboardHeight + 100 
-                  : keyboardHeight > 0 
-                  ? 100 
-                  : 80 
+                  ? keyboardHeight + 80 // Keyboard height + input area height
+                  : 80 // Just input area height when no keyboard
               }
             ]}
             style={{ flex: 1 }}
@@ -993,303 +908,213 @@ export default function ChatbotScreen() {
             }}
             scrollEventThrottle={400}
             keyboardShouldPersistTaps="handled"
-            onScrollBeginDrag={() => setShowMenu(false)}
-            showsVerticalScrollIndicator={true}
+            onScrollBeginDrag={() => {}}
+            showsVerticalScrollIndicator={false}
           >
-          {messages.map((message) => {
-            // Add retry handler to error messages
-            const messageWithRetry = message.isError
-              ? {
-                  ...message,
-                  onRetry: () => {
-                    const userMessageIndex = messages.findIndex((m) => m.id === message.id) - 1;
-                    if (userMessageIndex >= 0) {
-                      const userMessage = messages[userMessageIndex];
-                      setInputText(userMessage.text);
-                      setTimeout(() => handleSend(), 100);
-                    }
-                  },
-                }
-              : message;
+            {messages.map((message) => {
+              const messageWithRetry = message.isError
+                ? {
+                    ...message,
+                    onRetry: () => {
+                      const userMessageIndex = messages.findIndex((m) => m.id === message.id) - 1;
+                      if (userMessageIndex >= 0) {
+                        const userMessage = messages[userMessageIndex];
+                        setInputText(userMessage.text);
+                        setTimeout(() => handleSend(), 100);
+                      }
+                    },
+                  }
+                : message;
+              
+              return (
+                <MessageItem
+                  key={message.id}
+                  message={messageWithRetry}
+                  colors={colors}
+                  styles={styles}
+                  feedbackStates={feedbackStates}
+                  handleFeedback={handleFeedback}
+                  formatMessageTime={formatMessageTime}
+                  getTypingAnimation={getTypingAnimation}
+                  handleStop={message.isStreaming && message.text === '' ? handleStop : null}
+                />
+              );
+            })}
             
-            return (
-              <MessageItem
-                key={message.id}
-                message={messageWithRetry}
-                colors={colors}
-                styles={styles}
-                feedbackStates={feedbackStates}
-                handleFeedback={handleFeedback}
-                formatMessageTime={formatMessageTime}
-                getTypingAnimation={getTypingAnimation}
-                handleStop={message.isStreaming && message.text === '' ? handleStop : null}
-              />
-            );
-          })}
-          
-          {/* Suggested Questions */}
-          {messages.length === 1 && messages[0].id === 'welcome' && (
-            <View style={styles.suggestedQuestionsContainer}>
-              <Text style={styles.suggestedQuestionsTitle}>Try asking:</Text>
-              {[
-                'How do I apply for a personalized number plate?',
-                'What documents do I need for vehicle registration?',
-                'How do I report road damage?',
-              ].map((question, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.suggestedQuestion, { borderColor: colors.primary }]}
-                  onPress={() => {
-                    setInputText(question);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  <Text style={[styles.suggestedQuestionText, { color: colors.primary }]}>
-                    {question}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+            {/* Quick Actions for first time users */}
+            {messages.length === 1 && messages[0].id === 'welcome' && (
+              <View style={styles.quickActionsContainer}>
+                <Text style={styles.quickActionsTitle}>Quick Actions</Text>
+                <View style={styles.quickActionsGrid}>
+                  {[
+                    { icon: 'car-outline', title: 'Vehicle Registration', query: 'How do I register my vehicle?' },
+                    { icon: 'card-outline', title: 'Number Plates', query: 'How do I apply for personalized plates?' },
+                    { icon: 'map-outline', title: 'Road Status', query: 'How do I check road conditions?' },
+                    { icon: 'location-outline', title: 'Find Offices', query: 'Where are your offices located?' },
+                  ].map((action, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.quickActionCard}
+                      onPress={() => {
+                        setInputText(action.query);
+                        inputRef.current?.focus();
+                      }}
+                    >
+                      <View style={styles.quickActionIcon}>
+                        <Ionicons name={action.icon} size={20} color="#FFFFFF" />
+                      </View>
+                      <Text style={styles.quickActionTitle} numberOfLines={2}>{action.title}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
           </ScrollView>
           
           {/* Scroll to Bottom Button */}
           {showScrollToBottom && (
             <TouchableOpacity
-              style={[styles.scrollToBottomButton, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-                setShowScrollToBottom(false);
-              }}
+              style={[styles.scrollToBottomButton, { bottom: 80 }]} // Adjusted position
+              onPress={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+              accessibilityLabel="Scroll to bottom"
+              accessibilityRole="button"
             >
-              <Ionicons name="arrow-down" size={20} color="#FFFFFF" />
+              <Ionicons name="chevron-down" size={20} color={colors.primary} />
             </TouchableOpacity>
           )}
-
-          <View 
-            style={[
-              styles.inputContainer, 
-              { 
-                borderTopColor: colors.border, 
-                backgroundColor: colors.card,
-              }
-            ]}
-          >
-          <View
-            style={[
-              styles.inputWrapper,
-              {
-                backgroundColor: colors.surface,
-                borderColor: inputFocused ? colors.primary : colors.border,
-                borderWidth: inputFocused ? 2 : 1,
-              },
-            ]}
-          >
-            <TextInput
-              ref={inputRef}
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                },
-              ]}
-              placeholder="Ask me anything about Roads Authority..."
-              placeholderTextColor={colors.textSecondary}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={500}
-              editable={!isLoading}
-              onSubmitEditing={handleSend}
-              blurOnSubmit={false}
-              onFocus={() => {
-                setInputFocused(true);
-                // Scroll to bottom when input is focused to show typing indicator
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollToEnd({ animated: true });
-                }, Platform.OS === 'ios' ? 300 : 400);
-              }}
-              onBlur={() => setInputFocused(false)}
-              accessibilityLabel="Message input"
-              accessibilityHint="Type your question here"
-            />
-            {inputText.length > 0 && (
-              <>
-                <View style={styles.charCountContainer}>
-                  <Text
-                    style={[
-                      styles.charCount,
-                      { color: inputText.length > 450 ? colors.error : colors.textSecondary },
-                    ]}
-                  >
-                    {inputText.length}/500
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setInputText('')}
-                  style={styles.clearInputButton}
-                  accessibilityLabel="Clear input"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              { 
-                backgroundColor: inputText.trim() && !isLoading ? colors.primary : colors.border,
-                shadowColor: inputText.trim() && !isLoading ? colors.primary : 'transparent',
-              },
-            ]}
-            onPress={handleSend}
-            disabled={!inputText.trim() || isLoading}
-            accessibilityLabel="Send message"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !inputText.trim() || isLoading }}
-            activeOpacity={0.7}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons
-                name="send"
-                size={20}
-                color={inputText.trim() && !isLoading ? '#FFFFFF' : colors.textSecondary}
-              />
-            )}
-          </TouchableOpacity>
-          </View>
         </View>
+
+        {/* Input Area */}
+        {Platform.OS === 'android' && keyboardHeight > 0 && isKeyboardStableRef.current ? (
+          // Android: Absolute positioning when keyboard is visible
+          <View style={[
+            styles.inputArea,
+            {
+              position: 'absolute',
+              bottom: keyboardHeight + 10,
+              left: 0,
+              right: 0,
+              zIndex: 1000,
+            }
+          ]}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                ref={inputRef}
+                style={styles.textInput}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder="Type your message..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                maxLength={500}
+                onFocus={() => {
+                  setInputFocused(true);
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 200);
+                }}
+                onBlur={() => setInputFocused(false)}
+                onSubmitEditing={handleSend}
+                blurOnSubmit={false}
+                returnKeyType="send"
+                accessibilityLabel="Message input"
+                accessibilityHint="Type your question here"
+              />
+              <TouchableOpacity
+                style={styles.sendButton}
+                onPress={handleSend}
+                disabled={isLoading || !inputText.trim()}
+                accessibilityLabel="Send message"
+                accessibilityRole="button"
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons 
+                    name="send" 
+                    size={20} 
+                    color="#FFFFFF"
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          // Default positioning (iOS or Android without keyboard)
+          <View style={styles.inputArea}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                ref={inputRef}
+                style={styles.textInput}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder="Type your message..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                maxLength={500}
+                onFocus={() => {
+                  setInputFocused(true);
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 200);
+                }}
+                onBlur={() => setInputFocused(false)}
+                onSubmitEditing={handleSend}
+                blurOnSubmit={false}
+                returnKeyType="send"
+                accessibilityLabel="Message input"
+                accessibilityHint="Type your question here"
+              />
+              <TouchableOpacity
+                style={styles.sendButton}
+                onPress={handleSend}
+                disabled={isLoading || !inputText.trim()}
+                accessibilityLabel="Send message"
+                accessibilityRole="button"
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons 
+                    name="send" 
+                    size={20} 
+                    color="#FFFFFF"
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
-    </>
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, screenWidth, colorScheme) {
+  const isTablet = screenWidth > 600;
+  
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface, // Use RA surface color
     },
-    modernHeader: {
-      paddingBottom: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-      zIndex: 10,
-    },
-    headerGradient: {
-      backgroundColor: colors.primary,
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24,
-      paddingHorizontal: 20,
-      paddingBottom: 16,
-    },
-    headerContent: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    botAvatarContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    
+    // Messages Area
+    messagesArea: {
       flex: 1,
-    },
-    botAvatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    botInfo: {
-      flex: 1,
-    },
-    botName: {
-      fontSize: 18,
-      fontWeight: '700',
-      marginBottom: 4,
-    },
-    statusIndicator: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    statusDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      marginRight: 6,
-    },
-    statusText: {
-      fontSize: 12,
-      color: '#FFFFFF',
-      opacity: 0.9,
-      fontWeight: '500',
-    },
-    menuButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    },
-    menuOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 999,
-    },
-    menuDropdown: {
-      position: 'absolute',
-      top: 70,
-      right: 20,
-      borderRadius: 12,
-      borderWidth: 1,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 5,
-      minWidth: 160,
-      paddingVertical: 8,
-      zIndex: 1000,
-    },
-    menuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-    },
-    menuItemText: {
-      fontSize: 15,
-      fontWeight: '500',
-      marginLeft: 12,
+      position: 'relative',
     },
     messagesContainer: {
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      paddingBottom: 16,
-      flexGrow: 1,
+      padding: 16,
+      paddingTop: 8,
     },
+    
+    // Message Items
     messageContainer: {
       flexDirection: 'row',
-      marginBottom: 16,
+      marginVertical: 2,
       alignItems: 'flex-end',
+      paddingHorizontal: 8,
     },
     userMessage: {
       justifyContent: 'flex-end',
@@ -1298,224 +1123,330 @@ function getStyles(colors) {
       justifyContent: 'flex-start',
     },
     avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
       justifyContent: 'center',
       alignItems: 'center',
-      marginHorizontal: 8,
-      flexShrink: 0,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 3,
+      marginHorizontal: 6,
+      shadowColor: colors.text,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.2,
+      shadowRadius: 6,
+      elevation: 4,
+      // Add subtle border for definition
+      borderWidth: 2,
+      borderColor: colors.background,
     },
     messageBubble: {
       maxWidth: '80%',
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      borderRadius: 18,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginVertical: 1,
+      minHeight: 36,
+      justifyContent: 'center',
+    },
+    
+    // User Message Bubble - WhatsApp style with RA colors
+    userMessageBubble: {
+      backgroundColor: colors.primary, // RA sky blue
+      borderTopLeftRadius: 8,
+      borderTopRightRadius: 8,
+      borderBottomLeftRadius: 8,
+      borderBottomRightRadius: 2,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
       elevation: 2,
+      marginRight: 8,
+      marginLeft: 50,
+      position: 'relative',
+    },
+    
+    // Bot Message Bubble - WhatsApp style with RA colors
+    botMessageBubble: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 2,
+      borderTopRightRadius: 8,
+      borderBottomLeftRadius: 8,
+      borderBottomRightRadius: 8,
+      shadowColor: colors.text,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 1,
+      marginLeft: 8,
+      marginRight: 50,
+      position: 'relative',
+      // Add subtle RA accent border
+      borderLeftWidth: 3,
+      borderLeftColor: colors.secondary, // RA yellow accent
+    },
+    
+    // Error Message Bubble - WhatsApp style with RA error colors
+    errorMessageBubble: {
+      backgroundColor: colors.error + '20', // RA error color with transparency
+      borderTopLeftRadius: 2,
+      borderTopRightRadius: 8,
+      borderBottomLeftRadius: 8,
+      borderBottomRightRadius: 8,
+      shadowColor: colors.error,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 1,
+      marginLeft: 8,
+      marginRight: 50,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.error, // RA error color
     },
     messageText: {
-      fontSize: 15,
-      lineHeight: 22,
-      letterSpacing: 0.2,
+      fontSize: 16,
+      lineHeight: 20,
+      fontWeight: '400',
+      letterSpacing: 0.1,
+      color: colors.text, // Ensure proper color for dark mode
     },
-    officesContainer: {
-      gap: 12,
-      marginVertical: 4,
+    listItem: {
+      marginLeft: 8,
+      color: colors.text,
     },
+    numberedItem: {
+      marginLeft: 8,
+      color: colors.text,
+    },
+    messageTimestamp: {
+      fontSize: 11,
+      marginTop: 4,
+      fontWeight: '400',
+      opacity: 0.6,
+      textAlign: 'right',
+      marginLeft: 'auto',
+      color: colors.textSecondary,
+    },
+    
+    // Typing Indicator
     loadingContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 4,
-      gap: 10,
-    },
-    stopButton: {
-      padding: 6,
-      borderRadius: 16,
-      borderWidth: 1.5,
-      marginLeft: 8,
+      justifyContent: 'space-between',
     },
     typingIndicator: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      marginRight: 8,
+      paddingVertical: 4,
     },
     typingDot: {
       width: 8,
       height: 8,
       borderRadius: 4,
+      marginHorizontal: 2,
     },
-    loadingText: {
-      fontSize: 14,
-      fontStyle: 'italic',
-      opacity: 0.8,
+    stopButton: {
+      marginLeft: 12,
+      padding: 4,
+      borderRadius: 12,
+      borderWidth: 1,
     },
-    messageTimestamp: {
+    
+    // Sources
+    sourcesContainer: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border + '30',
+    },
+    sourcesHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    sourcesTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+      marginLeft: 6,
+    },
+    sourceItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    sourceText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginLeft: 6,
+      flex: 1,
+    },
+    trustSourceText: {
       fontSize: 11,
-      marginTop: 4,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+      marginTop: 6,
+    },
+    
+    // Feedback
+    feedbackContainerOutside: {
+      marginTop: 8,
+      alignItems: 'flex-start',
+    },
+    feedbackButtons: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    feedbackButton: {
+      padding: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      minWidth: 44,
+      alignItems: 'center',
+    },
+    feedbackButtonDisabled: {
       opacity: 0.6,
     },
-    suggestedQuestionsContainer: {
-      marginTop: 20,
-      marginBottom: 16,
-      padding: 16,
-      backgroundColor: colors.surface || colors.card,
+    
+    // Retry Button
+    retryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: colors.border + '40',
     },
-    suggestedQuestionsTitle: {
-      fontSize: 14,
+    retryButtonText: {
+      fontSize: 12,
       fontWeight: '600',
+      marginLeft: 4,
+    },
+    
+    // Office Messages
+    officesContainer: {
+      gap: 8,
+    },
+    
+    // Quick Actions
+    quickActionsContainer: {
+      marginTop: 16,
+      padding: 16,
+      backgroundColor: 'transparent',
+      borderRadius: 0,
+    },
+    quickActionsTitle: {
+      fontSize: 14,
+      fontWeight: '400',
       color: colors.textSecondary,
       marginBottom: 12,
+      textAlign: 'center',
     },
-    suggestedQuestion: {
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      marginBottom: 8,
-      backgroundColor: colors.background,
+    quickActionsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
     },
-    suggestedQuestionText: {
-      fontSize: 14,
-      fontWeight: '500',
+    quickActionCard: {
+      width: '48%', // Use percentage for better responsiveness
+      backgroundColor: colors.card,
+      borderRadius: 8,
+      padding: 12,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: colors.text,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+      marginBottom: 8, // Add margin between rows
+      minHeight: 80, // Ensure consistent height
     },
-    charCountContainer: {
-      position: 'absolute',
-      bottom: 8,
-      right: 12,
+    quickActionIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.primary, // RA sky blue
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 6,
     },
-    charCount: {
+    quickActionTitle: {
       fontSize: 11,
       fontWeight: '500',
+      color: colors.text,
+      textAlign: 'center',
+      lineHeight: 14,
+      numberOfLines: 2, // Allow text wrapping
     },
+    
+    // Scroll to Bottom
     scrollToBottomButton: {
       position: 'absolute',
-      bottom: 20,
       right: 20,
       width: 44,
       height: 44,
       borderRadius: 22,
+      backgroundColor: colors.card,
       justifyContent: 'center',
       alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      elevation: 5,
+      shadowColor: colors.text,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
+      borderWidth: 1,
+      borderColor: colors.border + '20',
     },
-    retryButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 12,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      borderWidth: 1.5,
-      alignSelf: 'flex-start',
-      gap: 6,
-    },
-    retryButtonText: {
-      fontSize: 13,
-      fontWeight: '600',
+    
+    // Input Area - RA style
+    inputArea: {
+      backgroundColor: colors.card,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      paddingBottom: 4, // Minimal bottom padding
+      borderTopWidth: 1,
+      borderTopColor: colors.border + '30',
+      minHeight: 60, // Ensure minimum height
     },
     inputContainer: {
       flexDirection: 'row',
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 8,
-      borderTopWidth: 1,
       alignItems: 'flex-end',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 5,
-      backgroundColor: colors.card,
-      ...(Platform.OS === 'android' && {
-        width: '100%',
-      }),
-    },
-    inputWrapper: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 24,
+      backgroundColor: colors.background,
+      borderRadius: 25,
+      paddingHorizontal: 16,
+      paddingVertical: 6, // Reduced vertical padding
+      marginHorizontal: 8,
+      marginVertical: 2, // Reduced vertical margin
       borderWidth: 1,
-      marginRight: 10,
-      minHeight: 48,
-      maxHeight: 120,
+      borderColor: colors.border,
+      shadowColor: colors.text,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+      minHeight: 48, // Ensure minimum touch target
     },
-    input: {
+    textInput: {
       flex: 1,
-      minHeight: 48,
-      maxHeight: 120,
-      fontSize: 15,
-      paddingHorizontal: 18,
-      paddingVertical: 14,
-    },
-    clearInputButton: {
-      padding: 8,
-      marginRight: 8,
+      fontSize: 16,
+      color: colors.text,
+      maxHeight: 100,
+      minHeight: 40, // Ensure minimum height
+      paddingVertical: 6, // Reduced vertical padding
+      paddingRight: 12,
+      lineHeight: 20,
+      backgroundColor: 'transparent', // Ensure transparent background
     },
     sendButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      justifyContent: 'center',
-      alignItems: 'center',
-      flexShrink: 0,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 6,
-      elevation: 4,
-    },
-    feedbackContainer: {
-      marginTop: 16,
-      paddingTop: 16,
-      borderTopWidth: 1,
-      borderTopColor: colors.border + '40',
-    },
-    feedbackLabel: {
-      fontSize: 12,
-      fontWeight: '500',
-      marginBottom: 8,
-    },
-    feedbackButtons: {
-      flexDirection: 'row',
-      gap: 16,
-    },
-    feedbackButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 10,
+      width: 40,
+      height: 40,
       borderRadius: 20,
-      borderWidth: 1.5,
-      backgroundColor: 'transparent',
-      minWidth: 40,
-      minHeight: 40,
-    },
-    feedbackButtonDisabled: {
-      opacity: 0.5,
-    },
-    feedbackButtonText: {
-      fontSize: 13,
-      fontWeight: '600',
-      letterSpacing: 0.2,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
+      backgroundColor: colors.primary, // RA sky blue
     },
   });
 }
-

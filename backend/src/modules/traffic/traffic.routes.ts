@@ -12,3 +12,8 @@ router.get('/status', trafficController.getStatus.bind(trafficController));
 
 export default router;
 
+
+
+
+
+

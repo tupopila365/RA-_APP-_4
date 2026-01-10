@@ -75,6 +75,7 @@ export interface IPLN extends MongooseDocument {
   representativeInitials?: string;
   
   // Section D - Vehicle Particulars (optional)
+  hasVehicle?: boolean;
   currentLicenceNumber?: string;
   vehicleRegisterNumber?: string;
   chassisNumber?: string;
@@ -94,6 +95,32 @@ export interface IPLN extends MongooseDocument {
   adminComments?: string;
   paymentDeadline?: Date;
   paymentReceivedAt?: Date;
+  
+  // Additional admin fields
+  assignedTo?: string; // Admin user ID
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  tags?: string[]; // For categorization
+  internalNotes?: string; // Internal admin notes
+  
+  // Payment information
+  paymentAmount?: number;
+  paymentMethod?: string;
+  paymentReference?: string;
+  
+  // Processing information
+  processedBy?: string; // Admin who processed
+  processedAt?: Date;
+  reviewedBy?: string; // Admin who reviewed
+  reviewedAt?: Date;
+  
+  // Plate production information
+  plateOrderNumber?: string;
+  plateSupplier?: string;
+  plateOrderedAt?: Date;
+  plateDeliveredAt?: Date;
+  plateCollectedAt?: Date;
+  plateCollectedBy?: string;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -138,7 +165,7 @@ const plateChoiceSchema = new Schema<IPlateChoice>(
       type: String,
       required: [true, 'Plate text is required'],
       trim: true,
-      maxlength: [7, 'Plate text cannot exceed 7 characters'],
+      maxlength: [8, 'Plate text cannot exceed 8 characters'],
       uppercase: true,
     },
     meaning: {
@@ -379,6 +406,83 @@ const plnSchema = new Schema<IPLN>(
     paymentReceivedAt: {
       type: Date,
     },
+    // Additional admin fields
+    assignedTo: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Assigned to cannot exceed 200 characters'],
+    },
+    priority: {
+      type: String,
+      enum: ['LOW', 'NORMAL', 'HIGH', 'URGENT'],
+      default: 'NORMAL',
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
+    internalNotes: {
+      type: String,
+      trim: true,
+      maxlength: [2000, 'Internal notes cannot exceed 2000 characters'],
+    },
+    // Payment information
+    paymentAmount: {
+      type: Number,
+      min: [0, 'Payment amount cannot be negative'],
+    },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Payment method cannot exceed 100 characters'],
+    },
+    paymentReference: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Payment reference cannot exceed 100 characters'],
+    },
+    // Processing information
+    processedBy: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Processed by cannot exceed 200 characters'],
+    },
+    processedAt: {
+      type: Date,
+    },
+    reviewedBy: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Reviewed by cannot exceed 200 characters'],
+    },
+    reviewedAt: {
+      type: Date,
+    },
+    // Plate production information
+    plateOrderNumber: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Plate order number cannot exceed 100 characters'],
+    },
+    plateSupplier: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Plate supplier cannot exceed 200 characters'],
+    },
+    plateOrderedAt: {
+      type: Date,
+    },
+    plateDeliveredAt: {
+      type: Date,
+    },
+    plateCollectedAt: {
+      type: Date,
+    },
+    plateCollectedBy: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Plate collected by cannot exceed 200 characters'],
+    },
   },
   {
     timestamps: true,
@@ -388,9 +492,16 @@ const plnSchema = new Schema<IPLN>(
 // Indexes for efficient queries
 plnSchema.index({ referenceId: 1 });
 plnSchema.index({ idNumber: 1 });
+plnSchema.index({ trafficRegisterNumber: 1 });
+plnSchema.index({ businessRegNumber: 1 });
 plnSchema.index({ status: 1, createdAt: -1 });
 plnSchema.index({ createdAt: -1 });
+plnSchema.index({ assignedTo: 1 });
+plnSchema.index({ priority: 1 });
 plnSchema.index({ 'plateChoices.text': 1 });
+plnSchema.index({ surname: 1 });
+plnSchema.index({ businessName: 1 });
+plnSchema.index({ email: 1 });
 
 // Auto-compute legacy fields for backward compatibility
 plnSchema.pre('save', function (next) {

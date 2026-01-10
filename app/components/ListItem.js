@@ -59,7 +59,7 @@ export function ListItem({
           disabled={disabled}
         />
       )}
-      {rightElement}
+      {rightElement && (typeof rightElement === 'string' ? <Text style={styles.rightText}>{rightElement}</Text> : rightElement)}
       {showChevron && !isToggle && !rightElement && (
         <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
       )}
@@ -111,7 +111,17 @@ const getStyles = (colors) =>
       ...typography.bodySmall,
       color: colors.textSecondary,
     },
+    rightText: {
+      ...typography.body,
+      color: colors.text,
+      marginLeft: spacing.sm,
+    },
   });
+
+
+
+
+
 
 
 

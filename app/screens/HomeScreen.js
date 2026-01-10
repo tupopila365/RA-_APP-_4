@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import {
   View,
@@ -6,61 +6,161 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   Image,
   ImageBackground,
   ActivityIndicator,
-  Animated,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../hooks/useTheme';
 import { SearchInput } from '../components/SearchInput';
+import { Card, Badge } from '../components';
 import { bannersService } from '../services/bannersService';
+import { notificationsService } from '../services/notificationsService';
 import RAIcon from '../assets/icon.png';
 import Poster1 from '../assets/poster-1.png';
 import Poster2 from '../assets/poster-2.png';
 import Poster3 from '../assets/poster-3.png';
 
-const { width } = Dimensions.get('window');
+// Responsive breakpoints (in dp)
+const BREAKPOINTS = {
+  PHONE: 600,
+  TABLET: 840,
+  LARGE_TABLET: 1024,
+};
 
-// Default poster banners (fallback)
-const defaultPosterBanners = [
-  {
-    id: 'poster-1',
-    source: Poster1,
-    title: 'Roads Authority Namibia',
-    description: 'Safe Roads to Prosperity',
-    isLocal: true,
-  },
-  {
-    id: 'poster-2',
-    source: Poster2,
-    title: 'Contact the NaTIS Office in Your Town',
-    description: '#WeBuildTheJourney',
-    isLocal: true,
-  },
-  {
-    id: 'poster-3',
-    source: Poster3,
-    title: 'Serving Namibia with Purpose',
-    description: '#WeBuildTheJourney',
-    isLocal: true,
-  },
-];
+// Minimum touch target size (Material Design & iOS guidelines)
+const MIN_TOUCH_TARGET = 48;
+
+/**
+ * Determine device type and get responsive values based on screen width
+ */
+const getResponsiveConfig = (screenWidth, screenHeight) => {
+  const isLandscape = screenWidth > screenHeight;
+  const isPhone = screenWidth < BREAKPOINTS.PHONE;
+  const isTablet = screenWidth >= BREAKPOINTS.PHONE && screenWidth < BREAKPOINTS.TABLET;
+  const isLargeTablet = screenWidth >= BREAKPOINTS.TABLET;
+  
+  // Column counts based on device type and orientation
+  // Phones: Always 3 columns for optimal fit
+  // Tablets: More columns for better space utilization
+  let primaryColumns, secondaryColumns;
+  
+  if (isPhone) {
+    // Phones: Always 3 columns regardless of orientation for consistent layout
+    primaryColumns = 3;
+    secondaryColumns = 3;
+  } else if (isTablet) {
+    primaryColumns = isLandscape ? 4 : 3;
+    secondaryColumns = isLandscape ? 5 : 4;
+  } else {
+    // Large tablets/iPads
+    primaryColumns = isLandscape ? 5 : 4;
+    secondaryColumns = isLandscape ? 6 : 5;
+  }
+  
+  // Scale factor for icons and spacing
+  const scaleFactor = Math.min(screenWidth / 375, 1.5); // Base width 375dp (iPhone SE)
+  
+  return {
+    isPhone,
+    isTablet,
+    isLargeTablet,
+    isLandscape,
+    primaryColumns,
+    secondaryColumns,
+    scaleFactor,
+    screenWidth,
+    screenHeight,
+  };
+};
+
+/**
+ * Format timestamp to relative time (e.g., "2 hours ago", "Yesterday")
+ */
+const formatTimeAgo = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'Just now';
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays === 1) {
+    return 'Yesterday';
+  }
+  if (diffInDays < 7) {
+    return `${diffInDays} days ago`;
+  }
+
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+/**
+ * Get icon name for notification type
+ */
+const getNotificationIcon = (type) => {
+  const iconMap = {
+    news: 'newspaper-outline',
+    tender: 'document-text-outline',
+    vacancy: 'briefcase-outline',
+    general: 'notifications-outline',
+  };
+  return iconMap[type] || 'notifications-outline';
+};
 
 export default function HomeScreen({ navigation, showMenuOnly = false }) {
   const { colors } = useTheme();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  
+  // Get responsive configuration based on current screen dimensions
+  const responsiveConfig = useMemo(
+    () => getResponsiveConfig(screenWidth, screenHeight),
+    [screenWidth, screenHeight]
+  );
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [banners, setBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
-  const [isAutoScrolling, setIsAutoScrolling] = useState(true);
-  const bannerScrollRef = useRef(null);
-  const autoScrollTimerRef = useRef(null);
-  const inactivityTimerRef = useRef(null);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState([]);
+  
+  // Calculate item width based on columns and spacing
+  const getItemWidth = (columns, horizontalPadding = 20, gap = 8) => {
+    const totalPadding = horizontalPadding * 2;
+    const totalGap = gap * (columns - 1);
+    return (screenWidth - totalPadding - totalGap) / columns;
+  };
+  
+  // Calculate responsive icon sizes (available for use in render)
+  // Default values to prevent errors if responsiveConfig is not yet available
+  const scaleFactor = responsiveConfig?.scaleFactor || 1;
+  const isLargeTablet = responsiveConfig?.isLargeTablet || false;
+  const primaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(72 * scaleFactor, isLargeTablet ? 80 : 72));
+  const secondaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(56 * scaleFactor, isLargeTablet ? 64 : 56));
 
   const handleNatisOnline = async () => {
     await WebBrowser.openBrowserAsync('https://online.ra.org.na/#/');
@@ -73,61 +173,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
   // Fetch banners from API
   useEffect(() => {
     fetchBanners();
-    
-    // Cleanup timers on unmount
-    return () => {
-      if (autoScrollTimerRef.current) {
-        clearInterval(autoScrollTimerRef.current);
-      }
-      if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
-      }
-    };
   }, []);
-
-  // Banner auto-scroll functionality
-  useEffect(() => {
-    if (banners.length > 1 && isAutoScrolling) {
-      autoScrollTimerRef.current = setInterval(() => {
-        setActiveBannerIndex((prevIndex) => {
-          const nextIndex = (prevIndex + 1) % banners.length;
-          const scrollPosition = nextIndex * (width - 48 + 15);
-          
-          bannerScrollRef.current?.scrollTo({
-            x: scrollPosition,
-            animated: true,
-          });
-          return nextIndex;
-        });
-      }, 3000);
-    }
-
-    return () => {
-      if (autoScrollTimerRef.current) {
-        clearInterval(autoScrollTimerRef.current);
-      }
-    };
-  }, [banners.length, isAutoScrolling]);
-
-  // Handle banner scroll to pause auto-scroll
-  const handleBannerScroll = (event) => {
-    const scrollPosition = event.nativeEvent.contentOffset.x;
-    const index = Math.round(scrollPosition / (width - 48 + 15));
-    setActiveBannerIndex(index);
-    
-    // Pause auto-scroll on user interaction
-    setIsAutoScrolling(false);
-    
-    // Clear existing inactivity timer
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-    }
-    
-    // Resume after 5 seconds of inactivity
-    inactivityTimerRef.current = setTimeout(() => {
-      setIsAutoScrolling(true);
-    }, 5000);
-  };
 
   const fetchBanners = async () => {
     try {
@@ -150,6 +196,30 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     }
   };
 
+  // Default poster banners (fallback)
+  const defaultPosterBanners = [
+    {
+      id: 'poster-1',
+      source: Poster1,
+      title: 'Roads Authority Namibia',
+      description: 'Safe Roads to Prosperity',
+      isLocal: true,
+    },
+    {
+      id: 'poster-2',
+      source: Poster2,
+      title: 'Contact the NaTIS Office in Your Town',
+      description: '#WeBuildTheJourney',
+      isLocal: true,
+    },
+    {
+      id: 'poster-3',
+      source: Poster3,
+      title: 'Serving Namibia with Purpose',
+      description: '#WeBuildTheJourney',
+      isLocal: true,
+    },
+  ];
 
   // Handle banner press (open link if available)
   const handleBannerPress = async (banner) => {
@@ -162,166 +232,192 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     }
   };
 
-  // Navigation helper function
-  const navigateToChatbot = () => {
-    const tabNavigator = navigation?.getParent('MainTabs');
-    if (tabNavigator) {
-      tabNavigator.navigate('Chatbot');
-    } else {
-      navigation?.navigate('MainTabs', { screen: 'Chatbot' });
-    }
-  };
-
-  // Menu categories with theme-based colors
-  const menuCategories = [
+  // Primary actions - most important, larger emphasis
+  const primaryMenuItems = [
     {
-      id: 'primary',
-      title: 'Primary Services',
-      icon: 'star-outline',
-      color: colors.primary,
-      items: [
-        {
-          id: 1,
-          title: 'NATIS Online',
-          icon: 'car-outline',
-          onPress: handleNatisOnline,
-        },
-        {
-          id: 2,
-          title: 'E-Recruitment',
-          icon: 'person-add-outline',
-          onPress: handleERecruitment,
-        },
-        {
-          id: 3,
-          title: 'Report Road Damage',
-          icon: 'warning-outline',
-          onPress: () => navigation?.navigate('ReportPothole'),
-        },
-      ],
+      id: 1,
+      title: 'NATIS Online',
+      icon: 'car-outline',
+      color: '#007AFF', // System blue for primary services
+      backgroundColor: '#E3F2FD', // Light blue tint
+      isPrimary: true,
+      onPress: handleNatisOnline,
     },
     {
-      id: 'information',
-      title: 'Information',
-      icon: 'information-circle-outline',
-      color: colors.secondary,
-      items: [
-        {
-          id: 4,
-          title: 'News',
-          icon: 'newspaper-outline',
-          onPress: () => navigation?.navigate('News'),
-        },
-        {
-          id: 5,
-          title: 'Vacancies',
-          icon: 'briefcase-outline',
-          onPress: () => navigation?.navigate('Vacancies'),
-        },
-        {
-          id: 6,
-          title: 'Procurement',
-          icon: 'document-text-outline',
-          onPress: () => navigation?.navigate('Procurement'),
-        },
-      ],
+      id: 2.5,
+      title: 'Report Road Damage',
+      icon: 'alert-circle-outline',
+      color: '#FF3B30', // Red for critical/danger actions
+      backgroundColor: '#FFEBEE', // Light red tint
+      isPrimary: true,
+      onPress: () => navigation?.navigate('ReportPothole'),
     },
     {
-      id: 'support',
-      title: 'Support',
-      icon: 'help-buoy-outline',
-      color: colors.success,
-      items: [
-        {
-          id: 7,
-          title: 'RA Chatbot',
-          icon: 'chatbubbles-outline',
-          onPress: navigateToChatbot,
-        },
-        {
-          id: 8,
-          title: 'FAQs',
-          icon: 'help-circle-outline',
-          onPress: () => navigation?.navigate('FAQs'),
-        },
-        {
-          id: 9,
-          title: 'Find Offices',
-          icon: 'location-outline',
-          onPress: () => navigation?.navigate('Find Offices'),
-        },
-      ],
-    },
-    {
-      id: 'account',
-      title: 'Account',
-      icon: 'person-outline',
-      color: colors.textSecondary,
-      items: [
-        {
-          id: 10,
-          title: 'Personalized Plates',
-          icon: 'car-sport-outline',
-          onPress: () => navigation?.navigate('PLNInfo'),
-        },
-        {
-          id: 11,
-          title: 'Settings',
-          icon: 'settings-outline',
-          onPress: () => navigation?.navigate('Settings'),
-        },
-      ],
+      id: 8.5,
+      title: 'Road Status',
+      icon: 'map-outline',
+      color: '#007AFF', // Blue for informational/service
+      backgroundColor: '#E3F2FD',
+      isPrimary: true,
+      onPress: () => navigation?.navigate('RoadStatus'),
     },
   ];
 
-  // Flatten all menu items for search
-  const allMenuItems = menuCategories.flatMap(category => 
-    category.items.map(item => ({ ...item, categoryColor: category.color }))
+  // Secondary actions - standard size, neutral styling
+  const secondaryMenuItems = [
+    {
+      id: 1,
+      title: 'E-Recruitment',
+      icon: 'briefcase-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: handleERecruitment,
+    },
+    {
+      id: 2,
+      title: 'News',
+      icon: 'newspaper-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('News'),
+    },
+    {
+      id: 3,
+      title: 'Careers',
+      icon: 'document-text-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('Vacancies'),
+    },
+    {
+      id: 4,
+      title: 'Procurement',
+      icon: 'business-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('Procurement'),
+    },
+    {
+      id: 5,
+      title: 'Personalized Number Plates',
+      icon: 'card-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('PLNInfo'),
+    },
+    {
+      id: 6,
+      title: 'FAQs',
+      icon: 'help-circle-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('FAQs'),
+    },
+    {
+      id: 7,
+      title: 'Find Offices',
+      icon: 'location-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('Find Offices'),
+    },
+    {
+      id: 8,
+      title: 'Settings',
+      icon: 'settings-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('MainTabs', { screen: 'Settings' }),
+    },
+    {
+      id: 8.5,
+      title: 'Alerts',
+      icon: 'notifications-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('Notifications'),
+    },
+    {
+      id: 9,
+      title: 'Chat',
+      icon: 'chatbubble-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('MainTabs', { screen: 'Chatbot' }),
+    },
+    {
+      id: 10,
+      title: 'Applications',
+      icon: 'document-text-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('Applications'),
+    },
+  ];
+
+  // Combine all items for filtering/search
+  const menuItems = [...primaryMenuItems, ...secondaryMenuItems];
+
+  // Generate responsive styles based on current screen dimensions
+  const styles = useMemo(
+    () => getStyles(colors, responsiveConfig),
+    [colors, responsiveConfig]
   );
 
-  const styles = getStyles(colors);
-
-  // Filter menu items based on search query
-  const getFilteredMenuItems = () => {
-    if (!searchQuery.trim()) return allMenuItems;
-    const query = searchQuery.toLowerCase();
-    return allMenuItems.filter(item => 
-      item.title.toLowerCase().includes(query)
-    );
+  const handleNotificationPress = (notification) => {
+    // Navigate based on notification type
+    if (notification.type === 'news') {
+      navigation?.navigate('News');
+    } else if (notification.type === 'vacancy') {
+      navigation?.navigate('Vacancies');
+    } else {
+      // Navigate to Notifications tab
+      const tabNavigator = navigation?.getParent('MainTabs');
+      if (tabNavigator) {
+        tabNavigator.navigate('Notifications');
+      } else {
+        navigation?.navigate('MainTabs', { screen: 'Notifications' });
+      }
+    }
   };
-
-  const filteredItems = getFilteredMenuItems();
 
   if (showMenuOnly) {
     return (
       <View style={styles.container}>
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-          {menuCategories.map((category) => (
-            <View key={category.id} style={styles.categorySection}>
-              <View style={styles.categoryHeader}>
-                <Ionicons name={category.icon} size={20} color={category.color} />
-                <Text style={[styles.categoryTitle, { color: category.color }]}>
-                  {category.title}
+          <View style={styles.menuGrid}>
+            {menuItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={item.isPrimary ? styles.menuItemPrimary : styles.menuItem}
+                onPress={item.onPress}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  item.isPrimary ? styles.menuIconContainerPrimary : styles.menuIconContainer, 
+                  { backgroundColor: item.backgroundColor || '#F5F5F7' }
+                ]}>
+                  <Ionicons name={item.icon} size={item.isPrimary ? 40 : 32} color={item.color} />
+                </View>
+                <Text style={item.isPrimary ? styles.menuItemTextPrimary : styles.menuItemText}>
+                  {item.title}
                 </Text>
-              </View>
-              <View style={styles.menuGrid}>
-                {category.items.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.menuItem}
-                    onPress={item.onPress}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.menuIconContainer, { backgroundColor: category.color + '15' }]}>
-                      <Ionicons name={item.icon} size={32} color={category.color} />
-                    </View>
-                    <Text style={styles.menuItemText}>{item.title}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          ))}
+              </TouchableOpacity>
+            ))}
+          </View>
         </ScrollView>
+
       </View>
     );
   }
@@ -342,14 +438,38 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
               <Text style={styles.subtitleText}>Namibia</Text>
             </View>
           </View>
+          
+          <TouchableOpacity
+            style={styles.alertButton}
+            onPress={() => {
+              const tabNavigator = navigation?.getParent('MainTabs');
+              if (tabNavigator) {
+                tabNavigator.navigate('Notifications');
+              } else {
+                navigation?.navigate('MainTabs', { screen: 'Notifications' });
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="notifications" size={24} color="#FFFFFF" />
+            {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
+              <View style={styles.alertBadge}>
+                <Text style={styles.alertBadgeText}>
+                  {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 9 
+                    ? '9+' 
+                    : notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
         <SearchInput
-          placeholder="Search services, news, and more..."
+          placeholder="Search..."
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery('')}
-          accessibilityLabel="Search services, news, and more"
+          accessibilityLabel="Search menu items"
           accessibilityHint="Type to filter available menu options"
         />
         </SafeAreaView>
@@ -358,7 +478,6 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
       >
         {/* Banner Section */}
         <View style={styles.bannerContainer}>
@@ -369,18 +488,21 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
           ) : banners.length > 0 ? (
             <>
               <ScrollView
-                ref={bannerScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 snapToAlignment="start"
                 decelerationRate="fast"
                 pagingEnabled
                 contentContainerStyle={styles.bannerScrollContent}
-                onScroll={handleBannerScroll}
+                onScroll={(event) => {
+                  const scrollPosition = event.nativeEvent.contentOffset.x;
+                  const bannerWidth = screenWidth - (responsiveConfig.isPhone ? 32 : responsiveConfig.isTablet ? 48 : 64) - (responsiveConfig.isPhone ? 8 : 12);
+                  const index = Math.round(scrollPosition / bannerWidth);
+                  setActiveBannerIndex(index);
+                }}
                 scrollEventThrottle={16}
-                onScrollBeginDrag={() => setIsAutoScrolling(false)}
               >
-                {banners.map((banner, index) => (
+                {banners.map((banner) => (
                   <TouchableOpacity
                     key={banner.id}
                     activeOpacity={banner.linkUrl ? 0.8 : 1}
@@ -398,14 +520,6 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                           <Text style={styles.bannerSubtext}>{banner.description}</Text>
                         )}
                       </View>
-                      {/* Banner Counter - only show on active banner */}
-                      {banners.length > 1 && index === activeBannerIndex && (
-                        <View style={styles.bannerCounter}>
-                          <Text style={styles.bannerCounterText}>
-                            {activeBannerIndex + 1} / {banners.length}
-                          </Text>
-                        </View>
-                      )}
                     </ImageBackground>
                   </TouchableOpacity>
                 ))}
@@ -429,123 +543,237 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
           ) : null}
         </View>
 
-        {/* Primary Services - Featured Horizontal Scroll */}
-        {!searchQuery.trim() && (
-          <View style={styles.primaryServicesSection}>
+        {/* Recent Alerts Section */}
+        {!searchQuery.trim() && 
+         !loadingNotifications && 
+         notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
+          <View style={styles.notificationsSection}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="star" size={22} color={colors.primary} />
-              <Text style={styles.sectionTitle}>Primary Services</Text>
+              <Text style={styles.sectionTitle}>Recent Alerts</Text>
+              <TouchableOpacity onPress={() => {
+                // Navigate to Notifications tab in MainTabs
+                const tabNavigator = navigation?.getParent('MainTabs');
+                if (tabNavigator) {
+                  tabNavigator.navigate('Notifications');
+                } else {
+                  navigation?.navigate('MainTabs', { screen: 'Notifications' });
+                }
+              }}>
+                <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
+              </TouchableOpacity>
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.primaryServicesScroll}
-            >
-              {menuCategories[0].items.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.primaryServiceCard}
-                  onPress={item.onPress}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.primaryServiceIconContainer, { backgroundColor: colors.primary + '15' }]}>
-                    <Ionicons name={item.icon} size={36} color={colors.primary} />
-                  </View>
-                  <Text style={styles.primaryServiceText}>{item.title}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <View style={styles.notificationsList}>
+              {notifications
+                .filter(n => !dismissedNotificationIds.includes(n.id))
+                .slice(0, 3)
+                .map((notification, index, array) => (
+                  <TouchableOpacity
+                    key={notification.id}
+                    onPress={() => handleNotificationPress(notification)}
+                    activeOpacity={0.7}
+                  >
+                    <Card style={[
+                      styles.notificationCard,
+                      index < array.length - 1 && { 
+                        borderBottomWidth: 1, 
+                        borderBottomColor: colors.border + '30',
+                        borderRadius: 0 
+                      },
+                      index === array.length - 1 && { 
+                        borderBottomLeftRadius: 20,
+                        borderBottomRightRadius: 20 
+                      },
+                      index === 0 && {
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20
+                      }
+                    ]}>
+                      <View style={styles.notificationContent}>
+                        <View style={[styles.notificationIconContainer, { backgroundColor: colors.secondary + '20' }]}>
+                          <Ionicons
+                            name={getNotificationIcon(notification.type)}
+                            size={20}
+                            color={colors.secondary}
+                          />
+                        </View>
+                        <View style={styles.notificationTextContainer}>
+                          <View style={styles.notificationHeaderRow}>
+                            <Text style={styles.notificationTitle} numberOfLines={1}>
+                              {notification.title}
+                            </Text>
+                            <Badge
+                              label={notification.type}
+                              variant={notification.type === 'news' ? 'info' : notification.type === 'vacancy' ? 'success' : 'default'}
+                            />
+                          </View>
+                          <Text style={styles.notificationBody} numberOfLines={2}>
+                            {notification.body}
+                          </Text>
+                          <Text style={styles.notificationTime}>
+                            {formatTimeAgo(notification.sentAt)}
+                          </Text>
+                        </View>
+                      </View>
+                    </Card>
+                  </TouchableOpacity>
+                ))}
+            </View>
           </View>
         )}
 
-        {/* Other Menu Categories */}
-        {!searchQuery.trim() ? (
-          menuCategories.slice(1).map((category) => (
-            <View key={category.id} style={styles.categorySection}>
-              <View style={styles.categoryHeader}>
-                <Ionicons name={category.icon} size={20} color={category.color} />
-                <Text style={[styles.categoryTitle, { color: category.color }]}>
-                  {category.title}
-                </Text>
-              </View>
-              <View style={styles.menuGrid}>
-                {category.items.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.menuItem}
-                    onPress={item.onPress}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.menuIconContainer, { backgroundColor: category.color + '15' }]}>
-                      <Ionicons name={item.icon} size={32} color={category.color} />
-                    </View>
-                    <Text style={styles.menuItemText}>{item.title}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          ))
-        ) : (
-          /* Search Results */
+        {/* Primary Actions Section */}
+        {!searchQuery.trim() && (
           <View style={styles.menuSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                Search Results {filteredItems.length > 0 && `(${filteredItems.length})`}
-              </Text>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <View style={styles.menuGrid}>
+              {primaryMenuItems.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.menuItemPrimary}
+                  onPress={item.onPress}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.menuIconContainerPrimary, { backgroundColor: item.backgroundColor }]}>
+                    <Ionicons 
+                      name={item.icon} 
+                      size={Math.max(32, Math.min(primaryIconSize - 8, 40))} 
+                      color={item.color} 
+                    />
+                  </View>
+                  <Text style={styles.menuItemTextPrimary}>{item.title}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-            {filteredItems.length > 0 ? (
-              <View style={styles.menuGrid}>
-                {filteredItems.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.menuItem}
-                    onPress={item.onPress}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.menuIconContainer, { backgroundColor: item.categoryColor + '15' }]}>
-                      <Ionicons name={item.icon} size={32} color={item.categoryColor} />
-                    </View>
-                    <Text style={styles.menuItemText}>{item.title}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.noResultsText}>No results found for "{searchQuery}"</Text>
-            )}
           </View>
         )}
+
+        {/* All Services Section */}
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>{searchQuery.trim() ? 'Search Results' : 'All Services'}</Text>
+          <View style={styles.menuGrid}>
+            {(searchQuery.trim() ? menuItems : secondaryMenuItems)
+              .filter((item) => {
+                if (!searchQuery.trim()) return true;
+                return item.title.toLowerCase().includes(searchQuery.toLowerCase());
+              })
+              .map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.menuItem}
+                  onPress={item.onPress}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: item.backgroundColor || '#F5F5F7' }]}>
+                    <Ionicons 
+                      name={item.icon} 
+                      size={Math.max(24, Math.min(secondaryIconSize - 8, 32))} 
+                      color={item.color} 
+                    />
+                  </View>
+                  <Text style={styles.menuItemText}>{item.title}</Text>
+                </TouchableOpacity>
+              ))}
+          </View>
+          {searchQuery.trim() && menuItems.filter((item) => 
+            item.title.toLowerCase().includes(searchQuery.toLowerCase())
+          ).length === 0 && (
+            <Text style={styles.noResultsText}>No results found for "{searchQuery}"</Text>
+          )}
+        </View>
       </ScrollView>
-      {/* FAB - Report Road Damage */}
-      <TouchableOpacity 
-        style={styles.reportFAB} 
-        activeOpacity={0.85} 
-        onPress={() => navigation?.navigate('ReportPothole')}
-      >
-        <Ionicons name="warning" size={24} color="#FFFFFF" />
-        <Text style={styles.reportFABText}>Report Issue</Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, config) {
+  const {
+    isPhone,
+    isTablet,
+    isLargeTablet,
+    isLandscape,
+    primaryColumns,
+    secondaryColumns,
+    scaleFactor,
+    screenWidth,
+  } = config;
+  
+  // Responsive spacing and sizing
+  // Reduced padding on phones to maximize usable space
+  const horizontalPadding = isPhone ? 12 : isTablet ? 24 : 32;
+  const verticalPadding = isPhone ? 12 : 20;
+  const gridGap = isPhone ? 6 : 12; // Smaller gap on phones to fit items better
+  
+  // Calculate item widths dynamically
+  const primaryItemWidth = (screenWidth - horizontalPadding * 2 - gridGap * (primaryColumns - 1)) / primaryColumns;
+  const secondaryItemWidth = (screenWidth - horizontalPadding * 2 - gridGap * (secondaryColumns - 1)) / secondaryColumns;
+  
+  // Icon sizes are calculated in component scope, calculate containers here
+  // Note: primaryIconSize and secondaryIconSize are defined in component scope above
+  // These need to be passed in or recalculated here
+  const calculatedPrimaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(72 * scaleFactor, isLargeTablet ? 80 : 72));
+  const calculatedSecondaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(56 * scaleFactor, isLargeTablet ? 64 : 56));
+  const iconContainerPrimary = calculatedPrimaryIconSize + 8; // Add padding
+  const iconContainerSecondary = calculatedSecondaryIconSize + 8;
+  
+  // Responsive font sizes with accessibility support
+  const baseFontSize = isPhone ? 12 : isTablet ? 13 : 14;
+  const titleFontSize = isPhone ? 22 : isTablet ? 24 : 26;
+  const sectionFontSize = isPhone ? 20 : isTablet ? 22 : 24;
+  
+  // Banner height responsive to screen size
+  const bannerHeight = isPhone ? (isLandscape ? 140 : 180) : isTablet ? (isLandscape ? 200 : 220) : 240;
+  
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: 16,
-      paddingBottom: 16,
-      paddingHorizontal: 16,
-      borderBottomLeftRadius: 30,
-      borderBottomRightRadius: 30,
+      paddingTop: isPhone ? 24 : 30,
+      paddingBottom: isPhone ? 20 : 25,
+      paddingHorizontal: horizontalPadding,
+      borderBottomLeftRadius: isPhone ? 24 : 32,
+      borderBottomRightRadius: isPhone ? 24 : 32,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
     },
     headerContent: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 16,
+      marginBottom: 20,
+      position: 'relative',
+    },
+    alertButton: {
+      width: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
+      height: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
+      borderRadius: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor) / 2,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative',
+    },
+    alertBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: '#FF4444',
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    },
+    alertBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '700',
     },
     brandContainer: {
       flexDirection: 'row',
@@ -555,91 +783,94 @@ function getStyles(colors) {
       marginLeft: 12,
     },
     brandLogo: {
-      width: 70,
-      height: 70,
+      width: isPhone ? 56 : isTablet ? 64 : 72,
+      height: isPhone ? 56 : isTablet ? 64 : 72,
       resizeMode: 'contain',
+      borderRadius: isPhone ? 14 : 16,
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      padding: isPhone ? 6 : 8,
     },
     welcomeText: {
       color: '#FFFFFF',
-      fontSize: 16,
-      opacity: 0.9,
+      fontSize: isPhone ? 12 : 14,
+      opacity: 0.95,
+      fontWeight: '500',
+      letterSpacing: 0.3,
     },
     titleText: {
       color: '#FFFFFF',
-      fontSize: 28,
-      fontWeight: 'bold',
-      marginTop: 4,
+      fontSize: titleFontSize,
+      fontWeight: '700',
+      marginTop: 2,
+      letterSpacing: -0.5,
     },
     subtitleText: {
       color: '#FFFFFF',
-      fontSize: 18,
+      fontSize: isPhone ? 13 : 15,
       opacity: 0.9,
       marginTop: 2,
+      fontWeight: '500',
     },
 
     scrollView: {
       flex: 1,
     },
     content: {
-      padding: 16,
-      paddingBottom: 100,
+      padding: horizontalPadding,
+      paddingBottom: isPhone ? 80 : 100,
+      paddingTop: isPhone ? 12 : 20, // Reduced top padding on phones
     },
     bannerContainer: {
       marginBottom: 24,
       position: 'relative',
     },
     bannerLoadingContainer: {
-      width: width - 48,
-      height: 200,
-      borderRadius: 20,
+      width: screenWidth - horizontalPadding * 2,
+      height: bannerHeight,
+      borderRadius: isPhone ? 16 : 20,
       backgroundColor: colors.card,
       justifyContent: 'center',
       alignItems: 'center',
     },
     bannerScrollContent: {
-      paddingRight: 16,
+      paddingRight: horizontalPadding,
     },
     banner: {
-      width: width - 48,
-      height: 200,
-      borderRadius: 20,
+      width: screenWidth - horizontalPadding * 2,
+      height: bannerHeight,
+      borderRadius: isPhone ? 16 : 20,
       overflow: 'hidden',
-      marginRight: 15,
+      marginRight: gridGap,
       justifyContent: 'flex-end',
-      position: 'relative',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 8,
     },
     bannerImage: {
-      borderRadius: 20,
+      borderRadius: 24,
       resizeMode: 'cover',
     },
     bannerOverlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.45)',
-      padding: 16,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      padding: 20,
+      borderBottomLeftRadius: 24,
+      borderBottomRightRadius: 24,
     },
     bannerText: {
       color: '#FFFFFF',
       fontSize: 20,
-      fontWeight: 'bold',
+      fontWeight: '700',
+      letterSpacing: -0.3,
+      lineHeight: 26,
     },
     bannerSubtext: {
       color: '#FFFFFF',
-      fontSize: 14,
-      marginTop: 6,
-      opacity: 0.9,
-    },
-    bannerCounter: {
-      position: 'absolute',
-      top: 12,
-      right: 12,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    bannerCounterText: {
-      color: '#FFFFFF',
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: 13,
+      marginTop: 8,
+      opacity: 0.95,
+      fontWeight: '500',
     },
     paginationContainer: {
       flexDirection: 'row',
@@ -656,130 +887,197 @@ function getStyles(colors) {
       opacity: 0.3,
     },
     paginationDotActive: {
-      backgroundColor: colors.secondary,
+      backgroundColor: colors.primary,
       opacity: 1,
       width: 28,
       height: 8,
+      borderRadius: 4,
     },
     menuSection: {
-      marginTop: 24,
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 16,
-      gap: 8,
+      marginTop: 8,
     },
     sectionTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
+      fontSize: sectionFontSize,
+      fontWeight: '700',
       color: colors.text,
-    },
-    primaryServicesSection: {
-      marginBottom: 24,
-    },
-    primaryServicesScroll: {
-      paddingRight: 16,
-    },
-    primaryServiceCard: {
-      width: width * 0.35,
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      padding: 16,
-      marginRight: 12,
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-      elevation: 4,
-    },
-    primaryServiceIconContainer: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    primaryServiceText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.text,
-      textAlign: 'center',
-    },
-    categorySection: {
-      marginBottom: 24,
-    },
-    categoryHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 12,
-      gap: 8,
-    },
-    categoryTitle: {
-      fontSize: 18,
-      fontWeight: '600',
+      marginBottom: isPhone ? 12 : 18, // Reduced margin on phones
+      letterSpacing: -0.3,
     },
     menuGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      justifyContent: 'space-between',
+      gap: gridGap,
     },
-    menuItem: {
-      width: (width - 48) / 2,
+    // Primary menu items - larger, more prominent, responsive width
+    menuItemPrimary: {
+      width: primaryItemWidth,
+      minWidth: MIN_TOUCH_TARGET * 2, // Ensure minimum usable size
       backgroundColor: colors.card,
-      borderRadius: 15,
-      padding: 16,
-      marginBottom: 12,
+      borderRadius: isPhone ? 14 : 20,
+      padding: isPhone ? 12 : 20, // Reduced padding on phones
+      marginBottom: isPhone ? 10 : 16,
       alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.border + '40',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      elevation: 5,
+    },
+    menuIconContainerPrimary: {
+      width: iconContainerPrimary,
+      height: iconContainerPrimary,
+      minWidth: MIN_TOUCH_TARGET,
+      minHeight: MIN_TOUCH_TARGET,
+      borderRadius: isPhone ? 14 : 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: isPhone ? 8 : 14, // Reduced margin on phones
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    menuItemTextPrimary: {
+      fontSize: baseFontSize,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+      letterSpacing: -0.2,
+      lineHeight: baseFontSize + 4,
+    },
+    // Secondary menu items - standard size, neutral, responsive width
+    menuItem: {
+      width: secondaryItemWidth,
+      minWidth: MIN_TOUCH_TARGET * 1.8,
+      backgroundColor: colors.card,
+      borderRadius: isPhone ? 12 : 16,
+      padding: isPhone ? 10 : 14, // Reduced padding on phones
+      marginBottom: isPhone ? 10 : 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.border + '20',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    menuIconContainer: {
+      width: iconContainerSecondary,
+      height: iconContainerSecondary,
+      minWidth: MIN_TOUCH_TARGET,
+      minHeight: MIN_TOUCH_TARGET,
+      borderRadius: isPhone ? 12 : 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: isPhone ? 6 : 10, // Reduced margin on phones
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    menuItemText: {
+      fontSize: isPhone ? 10 : 11,
+      fontWeight: '600',
+      color: colors.text,
+      textAlign: 'center',
+      letterSpacing: -0.1,
+      lineHeight: (isPhone ? 10 : 11) + 3,
+      // Support dynamic text sizing (accessibility)
+      ...(Platform.OS === 'ios' && {
+        allowFontScaling: true,
+      }),
+    },
+    notificationsSection: {
+      marginBottom: 24,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    viewAllText: {
+      fontSize: 14,
+      fontWeight: '600',
+      letterSpacing: -0.2,
+    },
+    notificationsList: {
+      gap: 0,
+      marginHorizontal: -20,
+      borderRadius: 20,
+      overflow: 'hidden',
+      backgroundColor: colors.card,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    notificationCard: {
+      padding: 16,
+      marginBottom: 0,
+      borderRadius: 0,
+      marginHorizontal: 0,
+      borderBottomWidth: 0,
+    },
+    notificationContent: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+    },
+    notificationIconContainer: {
+      width: Math.max(MIN_TOUCH_TARGET, 40 * scaleFactor),
+      height: Math.max(MIN_TOUCH_TARGET, 40 * scaleFactor),
+      borderRadius: isPhone ? 10 : 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
-      elevation: 3,
+      elevation: 2,
     },
-    menuIconContainer: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 8,
+    notificationTextContainer: {
+      flex: 1,
     },
-    menuItemText: {
-      fontSize: 14,
+    notificationHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 6,
+      gap: 8,
+    },
+    notificationTitle: {
+      flex: 1,
+      fontSize: 15,
       fontWeight: '600',
       color: colors.text,
-      textAlign: 'center',
+      letterSpacing: -0.2,
+      lineHeight: 20,
+    },
+    notificationBody: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      lineHeight: 18,
+      marginBottom: 6,
+      marginTop: 2,
+    },
+    notificationTime: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      fontWeight: '500',
     },
     noResultsText: {
       fontSize: 16,
       color: colors.textSecondary,
       textAlign: 'center',
       marginTop: 20,
-    },
-    reportFAB: {
-      position: 'absolute',
-      right: 16,
-      bottom: 30,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.error,
-      paddingHorizontal: 18,
-      height: 56,
-      borderRadius: 28,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      elevation: 8,
-      gap: 10,
-    },
-    reportFABText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
     },
   });
 }

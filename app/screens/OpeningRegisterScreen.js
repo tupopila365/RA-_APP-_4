@@ -1,105 +1,110 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   useColorScheme,
-  Image,
+  TouchableOpacity,
+  Pressable,
   RefreshControl,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { EmptyState, LoadingSpinner, TabBar, ProcurementTable } from '../components';
-import RAIcon from '../assets/icon.png';
+import { EmptyState, LoadingSpinner, TabBar, DetailCard, Badge, SearchInput } from '../components';
+import { procurementOpeningRegisterService } from '../services/procurementService';
+import useDocumentDownload from '../hooks/useDocumentDownload';
+
+/**
+ * Format date for display
+ */
+function formatDate(dateString) {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  } catch (error) {
+    return dateString;
+  }
+}
+
+/**
+ * Get status color for badge
+ */
+function getStatusColor(status, colors) {
+  const statusLower = status?.toLowerCase() || '';
+  if (statusLower === 'open' || statusLower === 'active') {
+    return colors.success;
+  } else if (statusLower === 'closed') {
+    return colors.textSecondary;
+  }
+  return colors.primary;
+}
 
 export default function OpeningRegisterScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const styles = getStyles(colors);
 
   const [activeTab, setActiveTab] = useState('opportunities');
+  const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [procurementOpportunities, setProcurementOpportunities] = useState([]);
+  const [rfqs, setRfqs] = useState([]);
+  const [error, setError] = useState(null);
+  const [currentDownloadId, setCurrentDownloadId] = useState(null);
 
-  // Mock data - Replace with actual API calls
-  const procurementOpportunities = [
-    {
-      id: '1',
-      reference: 'NCS/ONB/RA-01/2025',
-      description: 'Provision of Cash-in-Transit Services at different Roads Authority NaTIS Offices',
-      bidOpeningDate: '2025-11-20',
-      status: 'Closed',
-      noticeUrl: 'https://example.com/Bid Opening - Cash-in-Transit.20.11.2025_rotated.pdf',
-      noticeFileName: 'Bid Opening - Cash-in-Transit.20.11.2025_rotated.pdf',
-    },
-    {
-      id: '2',
-      reference: 'W/ONB/RA-03/2025',
-      description: 'Mowing of Grass in the Road Reserves in the Windhoek /Otjiwarongo / Rundu Regions',
-      bidOpeningDate: '2025-09-04',
-      status: 'Closed',
-      noticeUrl: 'https://example.com/Mowing of Grass in Whk-Ott-Run.pdf',
-      noticeFileName: 'Mowing of Grass in Whk-Ott-Run.pdf',
-    },
-    {
-      id: '3',
-      reference: 'W/ONB/RA-04/2025',
-      description: 'Painting of Road Traffic Markings on Surface Roads in the Oshakati Region',
-      bidOpeningDate: '2025-08-28',
-      status: 'Closed',
-      noticeUrl: 'https://example.com/Bid Opening - Painting of Road Markings. 28.08.2025_rotated.pdf',
-      noticeFileName: 'Bid Opening - Painting of Road Markings. 28.08.2025_rotated.pdf',
-    },
-  ];
+  // Use the document download hook
+  const {
+    isDownloading,
+    progress,
+    error: downloadError,
+    downloadedUri,
+    startDownload,
+    resetDownload,
+  } = useDocumentDownload();
 
-  const rfqs = [
-    {
-      id: 'rfq1',
-      reference: 'W/RFQ/RA-07/2025',
-      description: 'Minor repairs at NaTIS Valley Office',
-      bidOpeningDate: '2025-12-09',
-      status: 'Closed',
-      noticeUrl: 'https://example.com/doc00161320251209103346_rotated.pdf',
-      noticeFileName: 'doc00161320251209103346_rotated.pdf',
-    },
-    {
-      id: 'rfq2',
-      reference: 'W/RFQ/RA-06/2025',
-      description: 'Minor repairs at the Western NaTIS Offices',
-      bidOpeningDate: '2025-12-08',
-      status: 'Closed',
-      noticeUrl: 'https://example.com/doc00181520251211074124_rotated.pdf',
-      noticeFileName: 'doc00181520251211074124_rotated.pdf',
-    },
-    {
-      id: 'rfq3',
-      reference: 'NCS/RFQ/RA-21/2025',
-      description: 'Provision of Leasing Photocopier Machines Services',
-      bidOpeningDate: '2025-12-08',
-      status: 'Closed',
-      noticeUrl: 'https://example.com/doc00181320251211073956_rotated.pdf',
-      noticeFileName: 'doc00181320251211073956_rotated.pdf',
-    },
-    {
-      id: 'rfq4',
-      reference: 'G/RFQ/RA-45/2025',
-      description: 'Supply and Delivery of Office Furniture',
-      bidOpeningDate: '2025-12-04',
-      status: 'Closed',
-      noticeUrl: 'https://example.com/doc00135620251208091357_rotated.pdf',
-      noticeFileName: 'doc00135620251208091357_rotated.pdf',
-    },
-    {
-      id: 'rfq5',
-      reference: 'G/RFQ/RA-44/2025',
-      description: 'Supply and Delivery of Office Furniture',
-      bidOpeningDate: '2025-11-25',
-      status: 'Closed',
-      noticeUrl: 'https://example.com/1937_001_rotated.pdf',
-      noticeFileName: '1937_001_rotated.pdf',
-    },
-  ];
+  const fetchItems = useCallback(async (isRefresh = false) => {
+    try {
+      if (!isRefresh) {
+        setLoading(true);
+      }
+      setError(null);
+
+      // Fetch both types
+      const [opportunities, rfqItems] = await Promise.all([
+        procurementOpeningRegisterService.getItemsByType('opportunities'),
+        procurementOpeningRegisterService.getItemsByType('rfq'),
+      ]);
+
+      setProcurementOpportunities(opportunities || []);
+      setRfqs(rfqItems || []);
+    } catch (err) {
+      console.error('Error fetching opening register items:', err);
+      setError(err.message || 'Failed to load items');
+      if (isRefresh) {
+        Alert.alert('Error', 'Failed to refresh items. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
 
   const tabs = [
     {
@@ -114,26 +119,77 @@ export default function OpeningRegisterScreen() {
     },
   ];
 
-  const currentData = activeTab === 'opportunities' ? procurementOpportunities : rfqs;
+  // Get base data based on active tab
+  const baseData = activeTab === 'opportunities' ? procurementOpportunities : rfqs;
+  
+  // Generate suggestions from the data
+  const suggestions = useMemo(() => {
+    const uniqueSuggestions = new Set();
+    
+    baseData.forEach((item) => {
+      // Add reference numbers
+      if (item.reference) {
+        uniqueSuggestions.add(item.reference);
+      }
+      
+      // Add key words from descriptions (split and add meaningful words)
+      if (item.description) {
+        const words = item.description
+          .split(/[\s,.-]+/)
+          .filter(word => word.length > 3) // Only words longer than 3 chars
+          .slice(0, 3); // Take first 3 meaningful words
+        
+        words.forEach(word => uniqueSuggestions.add(word));
+        
+        // Also add the full description
+        uniqueSuggestions.add(item.description);
+      }
+    });
+    
+    return Array.from(uniqueSuggestions).sort();
+  }, [baseData]);
+  
+  // Apply search filter
+  const filteredData = baseData.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    
+    const searchLower = searchQuery.toLowerCase();
+    const matchesReference = item.reference?.toLowerCase().includes(searchLower);
+    const matchesDescription = item.description?.toLowerCase().includes(searchLower);
+    const matchesDate = formatDate(item.bidOpeningDate).toLowerCase().includes(searchLower);
+    
+    return matchesReference || matchesDescription || matchesDate;
+  });
 
-  const handleDownload = (item) => {
-    // TODO: Implement download functionality using documentDownloadService
-    console.log('Download notice:', item.noticeUrl);
-    // Example: documentDownloadService.download(item.noticeUrl, item.noticeFileName);
+  const handleDownload = async (item) => {
+    if (!item.noticeUrl) {
+      Alert.alert('Error', 'No document available for download');
+      return;
+    }
+
+    try {
+      setCurrentDownloadId(item.id);
+      resetDownload();
+      await startDownload(item.noticeUrl, item.noticeFileName || item.reference);
+      setCurrentDownloadId(null);
+    } catch (err) {
+      console.error('Download error:', err);
+      Alert.alert('Error', 'Failed to download document. Please try again.');
+      setCurrentDownloadId(null);
+    }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // TODO: Fetch fresh data from API
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
-    setRefreshing(false);
+    await fetchItems(true);
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -142,33 +198,104 @@ export default function OpeningRegisterScreen() {
             tintColor={colors.primary}
           />
         }
+        showsVerticalScrollIndicator={true}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Image source={RAIcon} style={styles.logo} resizeMode="contain" />
+          <Ionicons name="list-outline" size={48} color={colors.primary} />
           <Text style={styles.headerTitle}>Opening Register</Text>
-          <Text style={styles.headerSubtitle}>Roads Authority Namibia</Text>
+          <Text style={styles.headerSubtitle}>Track procurement opportunities and RFQ openings</Text>
         </View>
 
         {/* Tabs */}
-        <TabBar
-          tabs={tabs}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          testID="opening-register-tabs"
-        />
-
-        {/* Table */}
-        {loading ? (
-          <LoadingSpinner />
-        ) : currentData.length === 0 ? (
-          <EmptyState
-            icon="document-text-outline"
-            message={`No ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQS'} available`}
-            accessibilityLabel="No data available"
+        <View style={styles.tabBarContainer}>
+          <TabBar
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            testID="opening-register-tabs"
           />
+        </View>
+
+        {/* Search Input */}
+        <View style={styles.searchInputContainer}>
+          <SearchInput
+            placeholder={`Search ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQS'}...`}
+            onSearch={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            suggestions={suggestions}
+            showSuggestions={true}
+            onSuggestionSelect={setSearchQuery}
+            maxSuggestions={7}
+            style={styles.searchInput}
+            testID="opening-register-search"
+            accessibilityLabel={`Search ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQS'}`}
+            accessibilityHint="Type to search and see suggestions"
+          />
+        </View>
+
+        {/* Results Count */}
+        {filteredData.length > 0 && searchQuery.trim() && (
+          <View style={styles.resultsCountContainer}>
+            <Text style={styles.resultsCount}>
+              {filteredData.length} {filteredData.length === 1 ? 'item' : 'items'} found
+            </Text>
+          </View>
+        )}
+
+        {/* Content */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <LoadingSpinner />
+          </View>
+        ) : filteredData.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <EmptyState
+              icon="document-text-outline"
+              message={
+                searchQuery.trim()
+                  ? `No ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQS'} found matching "${searchQuery}"`
+                  : `No ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQS'} available`
+              }
+              accessibilityLabel="No data available"
+            />
+          </View>
         ) : (
-          <ProcurementTable items={currentData} onDownload={handleDownload} />
+          <View style={styles.content}>
+            {filteredData.map((item) => {
+            const statusColor = getStatusColor(item.status, colors);
+            const isItemDownloading = isDownloading && currentDownloadId === item.id;
+            
+            return (
+              <DetailCard
+                key={item.id}
+                badgeLabel={item.status || 'N/A'}
+                badgeColor={statusColor}
+                badgeBackgroundColor={statusColor + '20'}
+                title={item.reference}
+                titleStyle={{ color: colors.primary, fontSize: 16, fontWeight: '700', fontFamily: 'monospace' }}
+                metadata={[
+                  {
+                    icon: 'calendar-outline',
+                    text: `Opening: ${formatDate(item.bidOpeningDate)}`,
+                    iconColor: colors.primary,
+                  },
+                ]}
+                footer={
+                  <View style={styles.footerContent}>
+                    <Text style={styles.footerText}>{item.description}</Text>
+                  </View>
+                }
+                downloadButton={!!item.noticeUrl}
+                downloadButtonText={item.noticeFileName || 'Download Notice'}
+                downloadButtonDisabled={isItemDownloading}
+                isDownloading={isItemDownloading}
+                downloadProgress={progress}
+                onDownloadPress={() => handleDownload(item)}
+              />
+            );
+          })}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -184,31 +311,71 @@ function getStyles(colors) {
     scrollView: {
       flex: 1,
     },
-    content: {
-      padding: 16,
-      paddingBottom: 32,
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: 20,
+      padding: 20,
     },
     header: {
       alignItems: 'center',
-      marginBottom: 32,
-      paddingVertical: 24,
-    },
-    logo: {
-      width: 120,
-      height: 120,
-      marginBottom: 16,
+      marginBottom: 30,
+      marginTop: 20,
     },
     headerTitle: {
       fontSize: 24,
-      fontWeight: '700',
+      fontWeight: 'bold',
       color: colors.text,
-      marginBottom: 8,
+      marginTop: 20,
       textAlign: 'center',
     },
     headerSubtitle: {
-      fontSize: 16,
+      fontSize: 14,
       color: colors.textSecondary,
+      marginTop: 5,
       textAlign: 'center',
+    },
+    tabBarContainer: {
+      paddingHorizontal: 0,
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    searchInputContainer: {
+      paddingHorizontal: 0,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    searchInput: {
+      margin: 0,
+    },
+    resultsCountContainer: {
+      paddingHorizontal: 0,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    resultsCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    loadingContainer: {
+      padding: 20,
+    },
+    emptyStateContainer: {
+      padding: 20,
+      minHeight: 300,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    content: {
+      padding: 0,
+    },
+    footerContent: {
+      flex: 1,
+    },
+    footerText: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
     },
   });
 }

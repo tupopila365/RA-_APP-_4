@@ -182,11 +182,11 @@ class PLNService {
             message: `Plate choice ${i + 1} text is required`,
           };
         }
-        if (choice.text.length > 7) {
+        if (choice.text.length > 8) {
           throw {
             statusCode: 400,
             code: ERROR_CODES.VALIDATION_ERROR,
-            message: `Plate choice ${i + 1} text cannot exceed 7 characters`,
+            message: `Plate choice ${i + 1} text cannot exceed 8 characters`,
           };
         }
         if (!/^[a-zA-Z0-9]*$/.test(choice.text)) {
@@ -341,6 +341,7 @@ class PLNService {
           dto.vehicleMake ||
           dto.seriesName
         ) {
+          applicationData.hasVehicle = true;
           if (dto.currentLicenceNumber) {
             applicationData.currentLicenceNumber = dto.currentLicenceNumber.trim();
           }
@@ -359,14 +360,14 @@ class PLNService {
         }
       } else {
         // Legacy structure - convert to new structure
-        applicationData.fullName = dto.fullName.trim();
-        applicationData.idNumber = dto.idNumber.trim();
-        applicationData.phoneNumber = dto.phoneNumber.trim();
+        applicationData.fullName = dto.fullName?.trim() || '';
+        applicationData.idNumber = dto.idNumber?.trim() || '';
+        applicationData.phoneNumber = dto.phoneNumber?.trim() || '';
         // Default values for new fields
         applicationData.idType = 'Namibia ID-doc';
-        applicationData.surname = dto.fullName.split(' ')[0] || dto.fullName;
-        applicationData.initials = dto.fullName.split(' ').slice(1).join(' ').substring(0, 10) || '';
-        applicationData.trafficRegisterNumber = dto.idNumber.trim();
+        applicationData.surname = dto.fullName?.split(' ')[0] || dto.fullName || '';
+        applicationData.initials = dto.fullName?.split(' ').slice(1).join(' ').substring(0, 10) || '';
+        applicationData.trafficRegisterNumber = dto.idNumber?.trim() || '';
         applicationData.postalAddress = { line1: 'Not provided' };
         applicationData.streetAddress = { line1: 'Not provided' };
         applicationData.plateFormat = 'Normal';
@@ -376,11 +377,11 @@ class PLNService {
         applicationData.declarationPlace = 'Mobile App';
         applicationData.declarationRole = 'applicant';
         // Parse phone number
-        const phoneMatch = dto.phoneNumber.match(/^(\+?264|0)?(\d+)$/);
+        const phoneMatch = dto.phoneNumber?.match(/^(\+?264|0)?(\d+)$/);
         if (phoneMatch) {
           applicationData.cellNumber = {
             code: phoneMatch[1] || '264',
-            number: phoneMatch[2] || dto.phoneNumber,
+            number: phoneMatch[2] || dto.phoneNumber || '',
           };
         }
       }
@@ -411,7 +412,11 @@ class PLNService {
     try {
       const application = await PLNModel.findOne({
         referenceId: referenceId.trim(),
-        idNumber: idNumber.trim(),
+        $or: [
+          { idNumber: idNumber.trim() },
+          { trafficRegisterNumber: idNumber.trim() },
+          { businessRegNumber: idNumber.trim() },
+        ],
       }).lean();
 
       if (!application) {
@@ -487,8 +492,13 @@ class PLNService {
         filter.$or = [
           { referenceId: { $regex: query.search, $options: 'i' } },
           { fullName: { $regex: query.search, $options: 'i' } },
+          { surname: { $regex: query.search, $options: 'i' } },
+          { businessName: { $regex: query.search, $options: 'i' } },
           { idNumber: { $regex: query.search, $options: 'i' } },
+          { trafficRegisterNumber: { $regex: query.search, $options: 'i' } },
+          { businessRegNumber: { $regex: query.search, $options: 'i' } },
           { phoneNumber: { $regex: query.search, $options: 'i' } },
+          { email: { $regex: query.search, $options: 'i' } },
           { 'plateChoices.text': { $regex: query.search, $options: 'i' } },
         ];
       }
@@ -743,9 +753,12 @@ class PLNService {
   async getDashboardStats(): Promise<{
     total: number;
     byStatus: Record<PLNStatus, number>;
+    recentApplications: IPLN[];
+    paymentOverdue: number;
+    monthlyStats: { month: string; count: number }[];
   }> {
     try {
-      const [total, statusCounts] = await Promise.all([
+      const [total, statusCounts, recentApplications, paymentOverdue, monthlyStats] = await Promise.all([
         PLNModel.countDocuments(),
         PLNModel.aggregate([
           {
@@ -753,6 +766,35 @@ class PLNService {
               _id: '$status',
               count: { $sum: 1 },
             },
+          },
+        ]),
+        PLNModel.find()
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+        PLNModel.countDocuments({
+          status: 'PAYMENT_PENDING',
+          paymentDeadline: { $lt: new Date() },
+        }),
+        PLNModel.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1),
+              },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+              },
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $sort: { '_id.year': 1, '_id.month': 1 },
           },
         ]),
       ]);
@@ -773,13 +815,156 @@ class PLNService {
         byStatus[item._id as PLNStatus] = item.count;
       });
 
-      return { total, byStatus };
+      const monthlyStatsFormatted = monthlyStats.map((item) => ({
+        month: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
+        count: item.count,
+      }));
+
+      return {
+        total,
+        byStatus,
+        recentApplications: recentApplications as unknown as IPLN[],
+        paymentOverdue,
+        monthlyStats: monthlyStatsFormatted,
+      };
     } catch (error: any) {
       logger.error('Get dashboard stats error:', error);
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
         message: 'Failed to retrieve dashboard statistics',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Update admin comments
+   */
+  async updateAdminComments(id: string, comments: string, adminId: string): Promise<IPLN> {
+    try {
+      const updated = await PLNModel.findByIdAndUpdate(
+        id,
+        {
+          adminComments: comments,
+          $push: {
+            statusHistory: {
+              status: 'UNDER_REVIEW',
+              changedBy: adminId,
+              timestamp: new Date(),
+              comment: 'Admin comments updated',
+            },
+          },
+        },
+        { new: true, runValidators: true }
+      ).lean();
+
+      if (!updated) {
+        throw {
+          statusCode: 404,
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Application not found',
+        };
+      }
+
+      return updated as unknown as IPLN;
+    } catch (error: any) {
+      logger.error('Update admin comments error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to update admin comments',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Assign application to admin
+   */
+  async assignToAdmin(id: string, assignedTo: string, adminId: string): Promise<IPLN> {
+    try {
+      const updated = await PLNModel.findByIdAndUpdate(
+        id,
+        {
+          assignedTo,
+          $push: {
+            statusHistory: {
+              status: 'UNDER_REVIEW',
+              changedBy: adminId,
+              timestamp: new Date(),
+              comment: `Application assigned to ${assignedTo}`,
+            },
+          },
+        },
+        { new: true, runValidators: true }
+      ).lean();
+
+      if (!updated) {
+        throw {
+          statusCode: 404,
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Application not found',
+        };
+      }
+
+      return updated as unknown as IPLN;
+    } catch (error: any) {
+      logger.error('Assign to admin error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to assign application',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Set application priority
+   */
+  async setPriority(id: string, priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT', adminId: string): Promise<IPLN> {
+    try {
+      const updated = await PLNModel.findByIdAndUpdate(
+        id,
+        {
+          priority,
+          $push: {
+            statusHistory: {
+              status: 'UNDER_REVIEW',
+              changedBy: adminId,
+              timestamp: new Date(),
+              comment: `Priority set to ${priority}`,
+            },
+          },
+        },
+        { new: true, runValidators: true }
+      ).lean();
+
+      if (!updated) {
+        throw {
+          statusCode: 404,
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Application not found',
+        };
+      }
+
+      return updated as unknown as IPLN;
+    } catch (error: any) {
+      logger.error('Set priority error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to set priority',
         details: error.message,
       };
     }

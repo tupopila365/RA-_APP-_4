@@ -1,10 +1,29 @@
 import apiClient from './api';
 
+// Predefined departments for Roads Authority
+export type DepartmentType = 
+  // Core Departments
+  | 'Construction & Renewal'
+  | 'Road Maintenance'
+  | 'Road Traffic Planning & Advisory'
+  | 'Road Management (RMS)'
+  | 'Transport Information & Regulatory Services (NaTIS)'
+  | 'Road & Transport Monitoring/Inspectorate'
+  // Support Departments
+  | 'Human Resources'
+  | 'Finance / Accounting'
+  | 'Corporate Communications'
+  | 'Administration / Corporate Services'
+  | 'Legal / Compliance'
+  | 'ICT / Business Systems'
+  | 'Procurement'
+  | "CEO's Office";
+
 export interface Vacancy {
   id: string;
   title: string;
   type: 'full-time' | 'part-time' | 'bursary' | 'internship';
-  department: string;
+  department: DepartmentType;
   location: string;
   description: string;
   requirements: string[];
@@ -13,6 +32,13 @@ export interface Vacancy {
   closingDate: string;
   pdfUrl?: string;
   published: boolean;
+  // Contact information
+  contactName?: string;
+  contactEmail?: string;
+  contactTelephone?: string;
+  submissionLink?: string;
+  submissionEmail?: string;
+  submissionInstructions?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -20,7 +46,7 @@ export interface Vacancy {
 export interface VacancyFormData {
   title: string;
   type: 'full-time' | 'part-time' | 'bursary' | 'internship';
-  department: string;
+  department: DepartmentType;
   location: string;
   description: string;
   requirements: string[];
@@ -29,6 +55,13 @@ export interface VacancyFormData {
   closingDate: string;
   pdfUrl?: string;
   published: boolean;
+  // Contact information
+  contactName?: string;
+  contactEmail?: string;
+  contactTelephone?: string;
+  submissionLink?: string;
+  submissionEmail?: string;
+  submissionInstructions?: string;
 }
 
 export interface VacancyListResponse {

@@ -382,24 +382,7 @@ export default function PLNApplicationScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
-        style={styles.header}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>PLN Application</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -1002,7 +985,7 @@ export default function PLNApplicationScreen({ navigation }) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1011,25 +994,6 @@ function getStyles(colors) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
-    },
-    header: {
-      paddingTop: 20,
-      paddingBottom: 20,
-      paddingHorizontal: 20,
-      borderBottomLeftRadius: 30,
-      borderBottomRightRadius: 30,
-    },
-    headerContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    backButton: {
-      marginRight: 12,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#FFFFFF',
     },
     keyboardView: {
       flex: 1,

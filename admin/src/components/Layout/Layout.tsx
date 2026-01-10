@@ -34,24 +34,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           flexGrow: 1,
           p: { xs: 2, sm: 3, md: 4 },
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+          maxWidth: '100%',
           minHeight: '100vh',
-          backgroundColor: (theme) => theme.palette.grey[50],
-          backgroundImage: 'linear-gradient(135deg, rgba(0, 180, 230, 0.02) 0%, rgba(255, 215, 0, 0.02) 100%)',
+          backgroundColor: '#F8FAFC', // Clean light gray background - banking style
           position: 'relative',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'radial-gradient(circle at 20% 50%, rgba(0, 180, 230, 0.03) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(255, 215, 0, 0.03) 0%, transparent 50%)',
-            pointerEvents: 'none',
-          },
+          overflow: 'auto',
         }}
       >
         <Toolbar />
-        <Box sx={{ position: 'relative', zIndex: 1 }}>
+        <Box sx={{ 
+          position: 'relative', 
+          zIndex: 1, 
+          width: '100%', 
+          maxWidth: '100%',
+          margin: 0,
+          padding: 0,
+        }}>
           {children}
         </Box>
       </Box>

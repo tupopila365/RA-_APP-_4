@@ -213,17 +213,40 @@ class AuthService {
 
       return response.data.user;
     } catch (error) {
-      console.error('Get current user error:', error);
-      // If 401, try to refresh token
+      // If 401, try to refresh token once
       if (error.status === 401) {
         try {
+          console.log('Token expired, attempting refresh...');
           await this.refreshToken();
-          // Retry getting user
-          return await this.getCurrentUser();
+          
+          // Retry getting user with new token
+          const accessToken = await this.getAccessToken();
+          if (!accessToken) {
+            console.log('No access token after refresh');
+            return null;
+          }
+
+          const response = await ApiClient.get('/app-users/me', {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+
+          if (response.success && response.data.user) {
+            await this.storeUser(response.data.user);
+            return response.data.user;
+          }
+          
+          return null;
         } catch (refreshError) {
+          console.log('Token refresh failed, user needs to login again');
+          // Clear invalid tokens
+          await this.logout();
           return null;
         }
       }
+      
+      console.error('Get current user error:', error.message || error);
       return null;
     }
   }

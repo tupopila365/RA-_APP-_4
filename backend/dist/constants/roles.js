@@ -15,6 +15,13 @@ exports.PERMISSIONS = {
     USERS_MANAGE: 'users:manage',
     FAQS_MANAGE: 'faqs:manage',
     POTHOLE_REPORTS_MANAGE: 'pothole-reports:manage',
+    PLN_MANAGE: 'pln:manage',
+    INCIDENTS_MANAGE: 'incidents:manage',
+    ROADWORKS_MANAGE: 'roadworks:manage',
+    PROCUREMENT_LEGISLATION_MANAGE: 'procurement:legislation:manage',
+    PROCUREMENT_PLAN_MANAGE: 'procurement:plan:manage',
+    PROCUREMENT_AWARDS_MANAGE: 'procurement:awards:manage',
+    PROCUREMENT_OPENING_REGISTER_MANAGE: 'procurement:opening-register:manage',
 };
 // Role-based permission mappings
 exports.ROLE_PERMISSIONS = {
@@ -28,6 +35,13 @@ exports.ROLE_PERMISSIONS = {
         exports.PERMISSIONS.USERS_MANAGE,
         exports.PERMISSIONS.FAQS_MANAGE,
         exports.PERMISSIONS.POTHOLE_REPORTS_MANAGE,
+        exports.PERMISSIONS.PLN_MANAGE,
+        exports.PERMISSIONS.INCIDENTS_MANAGE,
+        exports.PERMISSIONS.ROADWORKS_MANAGE,
+        exports.PERMISSIONS.PROCUREMENT_LEGISLATION_MANAGE,
+        exports.PERMISSIONS.PROCUREMENT_PLAN_MANAGE,
+        exports.PERMISSIONS.PROCUREMENT_AWARDS_MANAGE,
+        exports.PERMISSIONS.PROCUREMENT_OPENING_REGISTER_MANAGE,
     ],
     [exports.ROLES.ADMIN]: [], // Admin permissions are assigned individually
 };

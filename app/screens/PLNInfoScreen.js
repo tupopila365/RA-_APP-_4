@@ -1,43 +1,96 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { plnService } from '../services/plnService';
+import { documentDownloadService } from '../services/documentDownloadService';
+import useDocumentDownload from '../hooks/useDocumentDownload';
 
 export default function PLNInfoScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = getStyles(colors);
+  const [isDownloadingForm, setIsDownloadingForm] = useState(false);
+
+  // Use the document download hook
+  const {
+    isDownloading,
+    progress,
+    error: downloadError,
+    downloadedUri,
+    startDownload,
+    resetDownload,
+  } = useDocumentDownload();
 
   const handleApply = () => {
-    navigation.navigate('PLNApplication');
+    navigation.navigate('PLNApplicationBankStyle');
   };
 
   const handleTrackApplication = () => {
     navigation.navigate('PLNTracking');
   };
 
-  return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
-        style={styles.header}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Personalized Number Plates</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+  const handleDownloadForm = async () => {
+    try {
+      setIsDownloadingForm(true);
+      const formUrl = plnService.getFormDownloadUrl();
+      
+      const result = await startDownload(formUrl, 'PLN-FORM');
 
+      if (result.success) {
+        Alert.alert(
+          'Download Complete',
+          'The PLN form has been downloaded successfully.',
+          [
+            {
+              text: 'Open',
+              onPress: async () => {
+                const openResult = await documentDownloadService.openFile(result.uri);
+                if (!openResult.success) {
+                  Alert.alert('Error', openResult.error || 'Failed to open file');
+                }
+                resetDownload();
+                setIsDownloadingForm(false);
+              },
+            },
+            {
+              text: 'Share',
+              onPress: async () => {
+                const shareResult = await documentDownloadService.shareFile(result.uri, 'PLN-FORM.pdf');
+                if (!shareResult.success) {
+                  Alert.alert('Error', shareResult.error || 'Failed to share file');
+                }
+                resetDownload();
+                setIsDownloadingForm(false);
+              },
+            },
+            {
+              text: 'Done',
+              style: 'cancel',
+              onPress: () => {
+                resetDownload();
+                setIsDownloadingForm(false);
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      } else {
+        Alert.alert('Download Failed', result.error || 'Failed to download the form. Please try again.');
+        setIsDownloadingForm(false);
+      }
+    } catch (error) {
+      console.error('Error downloading form:', error);
+      Alert.alert('Error', error.message || 'Failed to download the form. Please try again.');
+      setIsDownloadingForm(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {/* What is PLN Section */}
         <Card style={styles.section}>
@@ -149,6 +202,21 @@ export default function PLNInfoScreen({ navigation }) {
             iconName="document-text-outline"
           />
           <Button
+            label={isDownloadingForm || isDownloading ? 'Downloading...' : 'Download Form PDF'}
+            onPress={handleDownloadForm}
+            variant="outline"
+            size="large"
+            fullWidth
+            iconName="download-outline"
+            style={styles.downloadButton}
+            disabled={isDownloadingForm || isDownloading}
+          />
+          {isDownloadingForm || isDownloading ? (
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: colors.primary }]} />
+            </View>
+          ) : null}
+          <Button
             label="Track Application"
             onPress={handleTrackApplication}
             variant="outline"
@@ -159,7 +227,7 @@ export default function PLNInfoScreen({ navigation }) {
           />
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -168,25 +236,6 @@ function getStyles(colors) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
-    },
-    header: {
-      paddingTop: 20,
-      paddingBottom: 20,
-      paddingHorizontal: 20,
-      borderBottomLeftRadius: 30,
-      borderBottomRightRadius: 30,
-    },
-    headerContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    backButton: {
-      marginRight: 12,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#FFFFFF',
     },
     scrollView: {
       flex: 1,
@@ -281,8 +330,24 @@ function getStyles(colors) {
       marginBottom: 20,
       gap: 12,
     },
+    downloadButton: {
+      marginTop: 0,
+    },
     trackButton: {
       marginTop: 0,
+    },
+    progressBarContainer: {
+      width: '100%',
+      height: 4,
+      backgroundColor: colors.border,
+      borderRadius: 2,
+      overflow: 'hidden',
+      marginTop: -8,
+      marginBottom: 4,
+    },
+    progressBar: {
+      height: '100%',
+      borderRadius: 2,
     },
   });
 }

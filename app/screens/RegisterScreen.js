@@ -114,24 +114,16 @@ export default function RegisterScreen({ navigation }) {
         phoneNumber.trim() || null
       );
 
-      // Check if email verification is required
-      if (result.emailVerificationRequired || !result.user.isEmailVerified) {
-        // Navigate to email verification screen
-        navigation.replace('EmailVerification', {
-          email: result.user.email || email.trim(),
-        });
-      } else {
-        // If email is already verified (shouldn't happen on registration, but handle it)
-        await login(result.user);
-        Alert.alert('Success', 'Account created successfully!', [
-          {
-            text: 'OK',
-            onPress: () => {
-              navigation.replace('MainTabs');
-            },
+      // Email verification disabled - log user in directly
+      await login(result.user);
+      Alert.alert('Success', 'Account created successfully!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            navigation.replace('MainTabs');
           },
-        ]);
-      }
+        },
+      ]);
     } catch (error) {
       console.error('Registration error:', error);
       Alert.alert('Registration Failed', error.message || 'An unexpected error occurred. Please try again.');
@@ -287,7 +279,7 @@ export default function RegisterScreen({ navigation }) {
 const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: colors.background,
   },
   header: {
     paddingTop: spacing.xl + 10,
@@ -381,7 +373,7 @@ const getStyles = (colors) => StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
   },
   formSection: {
     marginBottom: spacing.md,

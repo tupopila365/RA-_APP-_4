@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,66 +7,119 @@ import {
   TouchableOpacity,
   useColorScheme,
   Image,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import RAIcon from '../assets/icon.png';
+import { DetailCard, LoadingSpinner, ErrorState, EmptyState } from '../components';
+import { procurementPlanService } from '../services/procurementService';
+import useDocumentDownload from '../hooks/useDocumentDownload';
 
 export default function ProcurementPlanScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
   const styles = getStyles(colors);
 
-  // Annual Procurement Plans - Add your documents here
-  // Each plan should have: fiscalYear (e.g., "2022 - 2023") and downloadUrl
-  const annualPlans = [
-    {
-      id: 'plan-1',
-      fiscalYear: '2022 - 2023',
-      downloadUrl: '', // Add download URL here
-    },
-    {
-      id: 'plan-2',
-      fiscalYear: '2021 - 2022',
-      downloadUrl: '', // Add download URL here
-    },
-    {
-      id: 'plan-3',
-      fiscalYear: '2020 - 2021',
-      downloadUrl: '', // Add download URL here
-    },
-    {
-      id: 'plan-4',
-      fiscalYear: '2024 - 2025',
-      downloadUrl: '', // Add download URL here
-    },
-    {
-      id: 'plan-5',
-      fiscalYear: '2023 - 2024',
-      downloadUrl: '', // Add download URL here
-    },
-    {
-      id: 'plan-6',
-      fiscalYear: '2025 - 2026',
-      downloadUrl: '', // Add download URL here
-    },
-    // Add more annual plans here
-  ];
+  const [annualPlans, setAnnualPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [currentDownloadId, setCurrentDownloadId] = useState(null);
 
-  const handleDownload = (plan) => {
-    if (!plan.downloadUrl) {
-      // TODO: Implement download functionality
-      console.log('Download:', plan.fiscalYear);
+  // Use the document download hook
+  const {
+    isDownloading,
+    progress,
+    error: downloadError,
+    downloadedUri,
+    startDownload,
+    resetDownload,
+  } = useDocumentDownload();
+
+  const fetchPlans = useCallback(async (isRefresh = false) => {
+    try {
+      if (!isRefresh) {
+        setLoading(true);
+      }
+      setError(null);
+
+      const plans = await procurementPlanService.getPlans();
+      setAnnualPlans(plans || []);
+    } catch (err) {
+      console.error('Error fetching procurement plans:', err);
+      setError(err.message || 'Failed to load procurement plans');
+      if (isRefresh) {
+        Alert.alert('Error', 'Failed to refresh plans. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchPlans(true);
+  }, [fetchPlans]);
+
+  const handleDownload = async (plan) => {
+    if (!plan.documentUrl) {
+      Alert.alert('Error', 'No document available for download');
       return;
     }
-    // TODO: Implement actual download using documentDownloadService
-    console.log('Download:', plan.fiscalYear, plan.downloadUrl);
+
+    try {
+      setCurrentDownloadId(plan.id);
+      resetDownload();
+      await startDownload(plan.documentUrl, plan.documentFileName || `${plan.fiscalYear} Annual Procurement Plan`);
+      setCurrentDownloadId(null);
+    } catch (err) {
+      console.error('Download error:', err);
+      Alert.alert('Error', 'Failed to download document. Please try again.');
+      setCurrentDownloadId(null);
+    }
   };
+
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.container}>
+        <LoadingSpinner message="Loading procurement plans..." />
+      </View>
+    );
+  }
+
+  if (error && !refreshing) {
+    return (
+      <View style={styles.container}>
+        <ErrorState
+          message={error}
+          onRetry={() => fetchPlans()}
+        />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
         <View style={styles.header}>
           <Image source={RAIcon} style={styles.logo} resizeMode="contain" />
           <Text style={styles.headerTitle}>Procurement Plan</Text>
@@ -79,21 +132,30 @@ export default function ProcurementPlanScreen() {
             <Text style={styles.sectionTitle}>Annual Procurement Plans</Text>
           </View>
 
-          {annualPlans.map((plan) => (
-            <View key={plan.id} style={styles.documentItem}>
-              <Text style={styles.documentTitle}>{plan.fiscalYear} Annual Procurement Plan</Text>
-              <TouchableOpacity
-                style={[styles.downloadButton, { backgroundColor: colors.primary }]}
-                onPress={() => handleDownload(plan)}
-                activeOpacity={0.8}
-                accessibilityLabel={`Download ${plan.fiscalYear} Annual Procurement Plan`}
-                accessibilityRole="button"
-              >
-                <Ionicons name="download-outline" size={18} color="#FFFFFF" style={styles.downloadIcon} />
-                <Text style={styles.downloadButtonText}>Download PDF</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+          {annualPlans.length === 0 ? (
+            <EmptyState
+              icon="calendar-outline"
+              message="No procurement plans available"
+            />
+          ) : (
+            annualPlans.map((plan) => {
+              const isItemDownloading = isDownloading && currentDownloadId === plan.id;
+              return (
+                <DetailCard
+                  key={plan.id}
+                  title={`${plan.fiscalYear} Annual Procurement Plan`}
+                  titleStyle={{ color: colors.primary, fontSize: 16, fontWeight: '500' }}
+                  downloadButton={!!plan.documentUrl}
+                  downloadButtonText="Download PDF"
+                  downloadButtonDisabled={isItemDownloading}
+                  isDownloading={isItemDownloading}
+                  downloadProgress={progress}
+                  onDownloadPress={() => handleDownload(plan)}
+                  style={{ marginBottom: 12 }}
+                />
+              );
+            })
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -110,8 +172,8 @@ function getStyles(colors) {
       flex: 1,
     },
     content: {
-      padding: 16,
-      paddingBottom: 32,
+      padding: 15,
+      paddingBottom: 25,
     },
     header: {
       alignItems: 'center',
@@ -157,35 +219,6 @@ function getStyles(colors) {
       fontSize: 20,
       fontWeight: '700',
       color: colors.text,
-    },
-    documentItem: {
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    documentTitle: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: colors.primary,
-      marginBottom: 12,
-      lineHeight: 22,
-    },
-    downloadButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 8,
-      alignSelf: 'flex-start',
-    },
-    downloadIcon: {
-      marginRight: 8,
-    },
-    downloadButtonText: {
-      color: '#FFFFFF',
-      fontSize: 15,
-      fontWeight: '600',
     },
   });
 }

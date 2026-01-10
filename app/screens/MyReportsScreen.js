@@ -5,17 +5,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   RefreshControl,
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
 import { EmptyState } from '../components/EmptyState';
 import { SearchInput } from '../components/SearchInput';
-import { FilterBar } from '../components/FilterBar';
 
 const STATUS_LABELS = {
   pending: 'Pending',
@@ -50,6 +51,7 @@ const getSeverityColor = (severity, colors) => {
 
 export default function MyReportsScreen({ navigation }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -166,79 +168,123 @@ export default function MyReportsScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Search and Filter */}
-      {reports.length > 0 && (
-        <>
-          <SearchInput
-            placeholder="Search reports..."
-            onSearch={setSearchQuery}
-            onClear={() => setSearchQuery('')}
-            style={styles.searchInput}
-            accessibilityLabel="Search reports"
-            accessibilityHint="Search by road name, location, or reference code"
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
           />
-          <FilterBar
-            filters={statusFilters}
-            selectedFilter={selectedFilter}
-            onFilterChange={setSelectedFilter}
-            testID="reports-filter-bar"
-            accessibilityLabel="Report status filters"
-          />
-        </>
-      )}
+        }
+        showsVerticalScrollIndicator={true}
+      >
+        {/* Search Input */}
+        {reports.length > 0 && (
+          <View style={styles.searchInputContainer}>
+            <SearchInput
+              placeholder="Search reports..."
+              onSearch={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+              style={styles.searchInput}
+              accessibilityLabel="Search reports"
+              accessibilityHint="Search by road name, location, or reference code"
+            />
+          </View>
+        )}
 
-      {reports.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <EmptyState
-            icon="document-outline"
-            title="No Reports Yet"
-            message="You haven't submitted any reports. Tap 'Report Road Damage' to get started."
-          />
-        </View>
-      ) : filteredReports.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <EmptyState
-            icon="search-outline"
-            title="No Reports Found"
-            message={
-              searchQuery.trim() || selectedFilter !== 'All'
-                ? `No reports match your ${searchQuery.trim() ? 'search' : 'filter'} criteria.`
-                : 'No reports found.'
-            }
-          />
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          {/* Results Count and Sort */}
-          <View style={styles.resultsHeader}>
-            {(searchQuery.trim() || selectedFilter !== 'All') && (
-              <Text style={styles.resultsCount}>
-                {filteredReports.length} {filteredReports.length === 1 ? 'report' : 'reports'} found
-              </Text>
-            )}
+        {/* Status Filter Chips - matching Road Status design */}
+        {reports.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterContainer}
+          >
             <TouchableOpacity
-              style={styles.sortButton}
-              onPress={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
-              activeOpacity={0.7}
+              style={[
+                styles.filterChip,
+                selectedFilter === 'All' && styles.filterChipActive,
+              ]}
+              onPress={() => setSelectedFilter('All')}
             >
-              <Ionicons 
-                name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'} 
-                size={16} 
-                color={colors.primary} 
-              />
-              <Text style={styles.sortButtonText}>
-                {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selectedFilter === 'All' && styles.filterChipTextActive,
+                ]}
+              >
+                All
               </Text>
             </TouchableOpacity>
+            {statusFilters.filter(f => f !== 'All').map((filter) => {
+              const statusValue = filter.toLowerCase().replace(' ', '-');
+              const statusColor = getStatusColor(statusValue, colors);
+              return (
+                <TouchableOpacity
+                  key={filter}
+                  style={[
+                    styles.filterChip,
+                    selectedFilter === filter && styles.filterChipActive,
+                    selectedFilter === filter && {
+                      backgroundColor: statusColor + '20',
+                      borderColor: statusColor,
+                    },
+                  ]}
+                  onPress={() => setSelectedFilter(selectedFilter === filter ? 'All' : filter)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedFilter === filter && styles.filterChipTextActive,
+                      selectedFilter === filter && {
+                        color: statusColor,
+                      },
+                    ]}
+                  >
+                    {filter}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* Results Count */}
+        {filteredReports.length > 0 && (searchQuery.trim() || selectedFilter !== 'All') && (
+          <View style={styles.resultsCountContainer}>
+            <Text style={styles.resultsCount}>
+              {filteredReports.length} {filteredReports.length === 1 ? 'report' : 'reports'} found
+            </Text>
           </View>
-          {filteredReports.map((report) => (
+        )}
+
+        {/* Reports List */}
+        {reports.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <EmptyState
+              icon="document-outline"
+              title="No Reports Yet"
+              message="You haven't submitted any reports. Tap 'Report Road Damage' to get started."
+            />
+          </View>
+        ) : filteredReports.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <EmptyState
+              icon="search-outline"
+              title="No Reports Found"
+              message={
+                searchQuery.trim() || selectedFilter !== 'All'
+                  ? `No reports match your ${searchQuery.trim() ? 'search' : 'filter'} criteria.`
+                  : 'No reports found.'
+              }
+            />
+          </View>
+        ) : (
+          <View style={styles.content}>
+            {filteredReports.map((report) => (
             <TouchableOpacity
               key={report.id}
               style={styles.reportCard}
@@ -319,8 +365,9 @@ export default function MyReportsScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           ))}
-        </ScrollView>
-      )}
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -330,6 +377,58 @@ function getStyles(colors) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      padding: 20,
+    },
+    searchInputContainer: {
+      paddingHorizontal: 0,
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    searchInput: {
+      margin: 0,
+    },
+    filterContainer: {
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      gap: 10,
+    },
+    filterChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: 8,
+    },
+    filterChipActive: {
+      backgroundColor: colors.primary + '20',
+      borderColor: colors.primary,
+    },
+    filterChipText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    filterChipTextActive: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    resultsCountContainer: {
+      paddingHorizontal: 0,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    resultsCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 8,
     },
     loadingContainer: {
       flex: 1,
@@ -360,45 +459,14 @@ function getStyles(colors) {
       fontSize: 16,
       fontWeight: '600',
     },
-    emptyContainer: {
+    emptyStateContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-    },
-    searchInput: {
-      margin: 15,
-      marginTop: 20,
-      marginBottom: 10,
-    },
-    resultsHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-      paddingHorizontal: 4,
-    },
-    resultsCount: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      flex: 1,
-    },
-    sortButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-    },
-    sortButtonText: {
-      fontSize: 14,
-      color: colors.primary,
-      fontWeight: '600',
-    },
-    scrollView: {
-      flex: 1,
+      padding: 20,
     },
     content: {
-      padding: 20,
+      padding: 0,
     },
     reportCard: {
       flexDirection: 'row',

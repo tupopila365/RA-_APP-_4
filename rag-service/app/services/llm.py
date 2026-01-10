@@ -1,6 +1,7 @@
 """LLM service for answer generation using Ollama."""
 
 import logging
+import re
 from typing import List, Dict, Any, Optional
 import ollama
 import requests
@@ -37,7 +38,7 @@ class LLMService:
         context_chunks: List[Dict[str, Any]]
     ) -> str:
         """
-        Build a prompt with system instructions, context, and question.
+        Build an optimized prompt with better context organization.
         
         Args:
             question: User's question
@@ -48,66 +49,165 @@ class LLMService:
         """
         # System instructions
         system_instruction = (
-    "You are an official AI customer support assistant for the Roads Authority of Namibia.\n\n"
-    "Your role is to provide accurate, clear, and professional responses to users based ONLY on the provided official Roads Authority documents and approved content.\n\n"
-    "STRICT RULES:\n"
-    "- Use ONLY the information available in the provided official documents.\n"
-    "- Do NOT guess, assume, or add external knowledge.\n"
-    "- If the requested information is not found in the provided documents, respond exactly with:\n"
-    "  “This information is not available in the provided official documents.”\n"
-    "- Do NOT provide personal opinions or unofficial advice.\n"
-    "- Do NOT generate legal, financial, or policy interpretations beyond what is explicitly stated.\n"
-    "- Do NOT ask for sensitive personal information unless it is explicitly required by the official process described.\n\n"
-    "COMMUNICATION STYLE:\n"
-    "- Use clear, simple, and professional language.\n"
-    "- Keep responses short, direct, and easy to understand.\n"
-    "- Maintain a calm, respectful, government-level tone.\n"
-    "- Explain steps clearly when procedures are involved.\n"
-    "- Avoid unnecessary details or long explanations.\n\n"
-    "BEHAVIOR GUIDELINES:\n"
-    "- Be polite and patient at all times.\n"
-    "- Treat all users respectfully.\n"
-    "- Provide step-by-step guidance when applicable.\n"
-    "- Remain neutral and factual.\n"
-    "- Be consistent in answers for similar questions.\n\n"
-    "ERROR HANDLING:\n"
-    "- If a question is unclear, politely ask for clarification.\n"
-    "- If information is missing, use the exact fallback sentence provided.\n"
-    "- Never fabricate details.\n\n"
-    "GOAL:\n"
-    "To assist the public by providing trustworthy, official, and easy-to-understand information "
-    "about Roads Authority of Namibia services, processes, and public information."
-)
-
-        
-        # Build context from chunks
-        context_parts = []
-        for i, chunk in enumerate(context_chunks, 1):
-            document_title = chunk.get('metadata', {}).get('document_title', 'Unknown Document')
-            chunk_text = chunk.get('document', '')
+            "You are an official AI customer support assistant for the Roads Authority of Namibia.\n\n"
             
-            context_parts.append(f"[Source {i}: {document_title}]\n{chunk_text}")
+            "YOUR MISSION:\n"
+            "Provide accurate, helpful, and professional responses to help Namibians with Roads Authority services.\n\n"
+            
+            "STRICT RULES:\n"
+            "1. USE ONLY information from the provided official documents\n"
+            "2. If information is NOT in the documents, say EXACTLY:\n"
+            "   'This information is not available in our official documents. Please contact us at:\n"
+            "   📞 Phone: 061-284-7000\n"
+            "   ✉️ Email: info@ra.org.na\n"
+            "   🏢 Visit your nearest Roads Authority office'\n"
+            "3. NEVER guess, assume, or use external knowledge\n"
+            "4. NEVER provide outdated fees or dates - always reference current information\n\n"
+            
+            "ANSWER STRUCTURE (Follow this format):\n"
+            "1. Start with a DIRECT answer to the question (1-2 sentences)\n"
+            "2. Provide KEY DETAILS with bullet points (•) for clarity\n"
+            "3. Include STEP-BY-STEP instructions when applicable\n"
+            "4. End with HELPFUL CONTEXT (requirements, contacts, or next steps)\n\n"
+            
+            "COMMUNICATION EXCELLENCE:\n"
+            "• Use clear, simple language (8th-grade reading level)\n"
+            "• Break complex information into digestible parts\n"
+            "• Use emojis sparingly for emphasis (✓, •, 📍, 📞, ✉️)\n"
+            "• Format lists for easy scanning\n"
+            "• Highlight important numbers, dates, and fees\n"
+            "• Be conversational yet professional\n"
+            "• Show empathy - people often contact support when frustrated\n\n"
+            
+            "SPECIFIC INSTRUCTIONS:\n"
+            "• For PROCEDURES: Number each step (1, 2, 3...)\n"
+            "• For REQUIREMENTS: Use bullet points with clear labels\n"
+            "• For FEES: Always include currency (NAD) and specify if fees may change\n"
+            "• For LOCATIONS: Include full address, contact info, and operating hours\n"
+            "• For TIMELINES: Be specific (e.g., '5-7 business days' not 'soon')\n\n"
+            
+            "ERROR HANDLING:\n"
+            "• If question is unclear: Ask ONE specific clarifying question\n"
+            "• If partially answered: Provide what you know, then offer to clarify\n"
+            "• If multiple interpretations: Address the most common interpretation first\n\n"
+            
+            "PROHIBITED BEHAVIORS:\n"
+            "❌ Don't use phrases like 'According to the document...'\n"
+            "❌ Don't mention source limitations unless no info is found\n"
+            "❌ Don't be overly formal or bureaucratic\n"
+            "❌ Don't provide legal or financial advice beyond stated facts\n"
+            "❌ Don't request sensitive personal information\n\n"
+            
+            "FOLLOW-UP GUIDANCE:\n"
+            "When appropriate, end your answer with 1-2 related suggestions like:\n"
+            "'You might also want to know about: [related topic]'\n"
+            "'Related services: [relevant service]'\n\n"
+            
+            "GOAL:\n"
+            "Every answer should leave the user feeling helped, informed, and confident about their next steps."
+        )
         
-        context = "\n\n".join(context_parts)
+        # Group chunks by document to avoid repetition
+        chunks_by_doc = {}
+        for chunk in context_chunks:
+            doc_title = chunk.get('metadata', {}).get('document_title', 'Unknown Document')
+            if doc_title not in chunks_by_doc:
+                chunks_by_doc[doc_title] = []
+            chunks_by_doc[doc_title].append(chunk.get('document', ''))
+        
+        # Build organized context
+        context_parts = []
+        for doc_title, chunks in chunks_by_doc.items():
+            combined_text = "\n".join(chunks)
+            context_parts.append(f"[Document: {doc_title}]\n{combined_text}")
+        
+        context = "\n\n---\n\n".join(context_parts)
         
         # Construct full prompt
         prompt = f"""{system_instruction}
 
-Context:
+OFFICIAL DOCUMENTS PROVIDED:
 {context}
 
-Question: {question}
+USER QUESTION: {question}
 
-Answer:"""
+HELPFUL ANSWER (Remember to be direct, clear, and structured):"""
         
         return prompt
+    
+    def _format_answer(self, raw_answer: str) -> str:
+        """
+        Post-process the generated answer for better readability.
+        
+        Args:
+            raw_answer: Raw answer from LLM
+            
+        Returns:
+            Formatted answer
+        """
+        answer = raw_answer.strip()
+        
+        # Ensure proper spacing around bullet points
+        answer = answer.replace('\n•', '\n\n•')
+        answer = answer.replace('\n-', '\n\n-')
+        
+        # Ensure proper spacing around numbered lists
+        answer = re.sub(r'\n(\d+\.)', r'\n\n\1', answer)
+        
+        # Remove multiple blank lines
+        answer = re.sub(r'\n{3,}', '\n\n', answer)
+        
+        # Ensure contact info is properly formatted
+        if 'contact' in answer.lower() or 'phone' in answer.lower():
+            # Add extra emphasis to contact information
+            answer = answer.replace('Phone:', '📞 Phone:')
+            answer = answer.replace('Email:', '✉️ Email:')
+            answer = answer.replace('Office:', '🏢 Office:')
+        
+        return answer.strip()
+    
+    def _validate_answer_quality(self, answer: str, question: str) -> tuple:
+        """
+        Validate answer quality before returning.
+        
+        Args:
+            answer: Generated answer text
+            question: Original user question
+            
+        Returns:
+            (is_valid, error_message)
+        """
+        # Check minimum length
+        if len(answer.strip()) < 20:
+            return False, "Answer too short"
+        
+        # Check if answer is just repeating the question
+        question_words = set(question.lower().split())
+        answer_words = set(answer.lower().split())
+        if len(answer_words - question_words) < 5:
+            return False, "Answer not informative enough"
+        
+        # Check for generic non-answers
+        generic_phrases = [
+            "i don't know",
+            "i cannot help",
+            "i'm not sure",
+            "i apologize but"
+        ]
+        answer_lower = answer.lower()
+        if any(phrase in answer_lower for phrase in generic_phrases):
+            # These are acceptable if followed by proper fallback
+            if "contact" not in answer_lower and "phone" not in answer_lower:
+                return False, "Generic answer without proper fallback"
+        
+        return True, ""
     
     def generate_answer(
         self,
         question: str,
         context_chunks: List[Dict[str, Any]],
-        temperature: float = 0.7,
-        max_tokens: int = 500
+        temperature: float = 0.3,
+        max_tokens: int = 800
     ) -> str:
         """
         Generate an answer to a question using provided context.
@@ -163,10 +263,19 @@ Answer:"""
             if not answer:
                 raise LLMError("No answer generated from LLM")
             
-            logger.info(f"Successfully generated answer of length {len(answer)}")
-            logger.debug(f"Answer: {answer[:200]}...")
+            # Validate quality
+            is_valid, error_msg = self._validate_answer_quality(answer, question)
+            if not is_valid:
+                logger.warning(f"Answer quality check failed: {error_msg}")
+                # Continue anyway but log the warning
             
-            return answer
+            # Format the answer for better readability
+            formatted_answer = self._format_answer(answer)
+            
+            logger.info(f"Successfully generated and formatted answer of length {len(formatted_answer)}")
+            logger.debug(f"Answer: {formatted_answer[:200]}...")
+            
+            return formatted_answer
             
         except Exception as e:
             error_str = str(e)

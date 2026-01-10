@@ -49,7 +49,7 @@ export class NotificationsController {
    */
   async sendNotification(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { title, body, data, type, relatedId, scheduledAt, platforms, pushTokens, useQueue = true } = req.body;
+      const { title, body, data, type, relatedId } = req.body;
       
       if (!title || !body || !type) {
         return res.status(400).json({
@@ -62,24 +62,14 @@ export class NotificationsController {
         });
       }
 
-      const result = await notificationsService.sendPushNotification(
-        {
-          title,
-          body,
-          data,
-          type,
-          relatedId,
-          sentBy: req.user?.userId,
-          platforms,
-          scheduledAt,
-        },
-        {
-          useQueue,
-          scheduledAt,
-          pushTokens,
-          platforms,
-        }
-      );
+      const result = await notificationsService.sendPushNotification({
+        title,
+        body,
+        data,
+        type,
+        relatedId,
+        sentBy: req.user?.userId,
+      });
 
       res.status(200).json({
         success: true,
@@ -121,11 +111,10 @@ export class NotificationsController {
   async getStats(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const activeTokens = await notificationsService.getActivePushTokensCount();
-      const queueStats = await notificationsService.getQueueStats();
 
       res.status(200).json({
         success: true,
-        data: { activeDevices: activeTokens, queue: queueStats },
+        data: { activeDevices: activeTokens },
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,22 +10,44 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-// Conditionally import native modules - fallback if not available
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+
+// Conditionally import MapView
+let MapView = null;
+let Marker = null;
+let PROVIDER_GOOGLE = null;
+try {
+  const MapModule = require('react-native-maps');
+  MapView = MapModule.default;
+  Marker = MapModule.Marker;
+  PROVIDER_GOOGLE = MapModule.PROVIDER_GOOGLE;
+} catch (error) {
+  console.warn('MapView not available:', error.message);
+}
+
+// Conditionally import native modules
 let Location = null;
 let ImagePicker = null;
+let ImageManipulator = null;
+let MediaLibrary = null;
 
 try {
   Location = require('expo-location');
   ImagePicker = require('expo-image-picker');
+  ImageManipulator = require('expo-image-manipulator');
+  MediaLibrary = require('expo-media-library');
 } catch (error) {
   console.warn('Native modules not available:', error.message);
 }
+
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
-import { FormInput, Button, SectionTitle } from '../components';
+import { FormInput, Button } from '../components';
 import { spacing } from '../theme/spacing';
 
 const SEVERITY_OPTIONS = [
@@ -34,51 +56,189 @@ const SEVERITY_OPTIONS = [
   { value: 'dangerous', label: 'Dangerous', color: '#FF6B6B' },
 ];
 
+// ========== CONFIGURATION ==========
+const CONFIG = {
+  MAX_DISTANCE_KM: 100, // Maximum distance user can report from current location (prevents spam)
+  EXIF_PHOTO_DISTANCE_THRESHOLD_KM: 5, // If photo location differs by more than this, require manual confirmation
+  DEFAULT_MAP_ZOOM: 0.01, // Initial map zoom level (latitude/longitude delta)
+  NAMIBIA_BOUNDS: {
+    // Namibia approximate bounds for validation
+    minLat: -28.97,
+    maxLat: -16.96,
+    minLng: 11.73,
+    maxLng: 25.27,
+  },
+  GOOGLE_PLACES_API_KEY: 'AIzaSyCuzul7JRWGUN2mbGSY-FqYgioUUf1RbnQ', // Google Maps API Key
+};
+
+
+// ========== UTILITY FUNCTIONS ==========
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * @returns distance in kilometers
+ */
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+/**
+ * Check if coordinates are within Namibia bounds
+ */
+const isWithinNamibia = (latitude, longitude) => {
+  return (
+    latitude >= CONFIG.NAMIBIA_BOUNDS.minLat &&
+    latitude <= CONFIG.NAMIBIA_BOUNDS.maxLat &&
+    longitude >= CONFIG.NAMIBIA_BOUNDS.minLng &&
+    longitude <= CONFIG.NAMIBIA_BOUNDS.maxLng
+  );
+};
+
+/**
+ * Extract GPS coordinates from photo EXIF data
+ * @returns {latitude, longitude} or null if not available
+ */
+const extractPhotoLocation = async (photoUri) => {
+  if (!ImageManipulator || !MediaLibrary) {
+    console.log('EXIF reading not available');
+    return null;
+  }
+
+  try {
+    // Request permission to read media library
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status !== 'granted') {
+      return null;
+    }
+
+    // Get asset info including EXIF data
+    const asset = await MediaLibrary.getAssetInfoAsync(photoUri);
+    
+    if (asset.location && asset.location.latitude && asset.location.longitude) {
+      console.log('✅ EXIF GPS found:', asset.location);
+      return {
+        latitude: asset.location.latitude,
+        longitude: asset.location.longitude,
+        source: 'photo_exif',
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error reading photo EXIF:', error);
+    return null;
+  }
+};
+
+/**
+ * Reverse geocode coordinates to get address
+ */
+const getAddressFromCoordinates = async (latitude, longitude) => {
+  if (!Location) return null;
+
+  try {
+    const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+    if (results && results.length > 0) {
+      const address = results[0];
+      return `${address.street || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
+    }
+    return null;
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    return null;
+  }
+};
+
+/**
+ * Geocode a place name/address to coordinates
+ */
+const getCoordinatesFromAddress = async (searchQuery) => {
+  if (!Location) return null;
+
+  try {
+    const results = await Location.geocodeAsync(searchQuery);
+    if (results && results.length > 0) {
+      return {
+        latitude: results[0].latitude,
+        longitude: results[0].longitude,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    return null;
+  }
+};
+
+// ========== MAIN COMPONENT ==========
+
 export default function ReportPotholeScreen({ navigation }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const mapRef = useRef(null);
+
+  // State
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
 
-  // Form state
-  const [location, setLocation] = useState(null);
+  // Location states
+  const [currentLocation, setCurrentLocation] = useState(null); // User's current GPS location
+  const [photoLocation, setPhotoLocation] = useState(null); // Location from photo EXIF
+  const [selectedLocation, setSelectedLocation] = useState(null); // Final selected location for damage
+  const [locationAddress, setLocationAddress] = useState('');
+
+  // Form states
   const [photo, setPhoto] = useState(null);
   const [roadName, setRoadName] = useState('');
   const [severity, setSeverity] = useState('medium');
   const [description, setDescription] = useState('');
-  const [showManualLocation, setShowManualLocation] = useState(false);
-  const [manualLatitude, setManualLatitude] = useState('');
-  const [manualLongitude, setManualLongitude] = useState('');
 
-  // Request location permission and get current location
+  // UI states
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapRegion, setMapRegion] = useState(null);
+  const [locationSource, setLocationSource] = useState(null); // Track how location was determined
+  const googlePlacesRef = useRef(null);
+  const [showMoreDetails, setShowMoreDetails] = useState(false); // For expandable section
+
+  // ========== LIFECYCLE ==========
+
   useEffect(() => {
     requestLocationPermission();
   }, []);
 
+  // ========== LOCATION FUNCTIONS ==========
+
   const requestLocationPermission = async () => {
     try {
       setLocationLoading(true);
-      
+
       if (!Location) {
-        // Fallback: Allow manual location entry
         Alert.alert(
           'Location Service Unavailable',
-          'Location services are not available. You can manually enter coordinates or use a map picker.',
-          [
-            { text: 'Enter Manually', onPress: () => showManualLocationInput() },
-            { text: 'Cancel', style: 'cancel' },
-          ]
+          'Location services are required to report road damage.',
+          [{ text: 'OK' }]
         );
         setLocationLoading(false);
         return;
       }
 
       const { status } = await Location.requestForegroundPermissionsAsync();
-      
+
       if (status !== 'granted') {
         Alert.alert(
-          'Location Permission',
-          'Location permission is required to report potholes. Please enable it in settings.',
+          'Location Permission Required',
+          'Please enable location services to report road damage.',
           [{ text: 'OK' }]
         );
         setLocationLoading(false);
@@ -86,99 +246,41 @@ export default function ReportPotholeScreen({ navigation }) {
       }
 
       // Get current location
-      const currentLocation = await Location.getCurrentPositionAsync({
+      const currentLoc = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
-      setLocation({
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
-      });
+      const userLocation = {
+        latitude: currentLoc.coords.latitude,
+        longitude: currentLoc.coords.longitude,
+      };
+
+      setCurrentLocation(userLocation);
+
+      // Initially, use current location as selected location
+      // This will be updated when photo is selected or user picks on map
+      if (!selectedLocation) {
+        setSelectedLocation(userLocation);
+        setLocationSource('current_gps');
+      }
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert(
-        'Error',
-        'Failed to get your location. You can manually enter coordinates.',
-        [
-          { text: 'Enter Manually', onPress: () => showManualLocationInput() },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      Alert.alert('Error', 'Failed to get your location. Please try again.');
     } finally {
       setLocationLoading(false);
     }
   };
 
-  const showManualLocationInput = () => {
-    setShowManualLocation(true);
-  };
-
-  const handleManualLocationSubmit = () => {
-    const lat = parseFloat(manualLatitude.trim());
-    const lng = parseFloat(manualLongitude.trim());
-
-    if (isNaN(lat) || isNaN(lng)) {
-      Alert.alert('Error', 'Please enter valid latitude and longitude numbers.');
-      return;
-    }
-
-    if (lat < -90 || lat > 90) {
-      Alert.alert('Error', 'Latitude must be between -90 and 90.');
-      return;
-    }
-
-    if (lng < -180 || lng > 180) {
-      Alert.alert('Error', 'Longitude must be between -180 and 180.');
-      return;
-    }
-
-    setLocation({ latitude: lat, longitude: lng });
-    setShowManualLocation(false);
-    setManualLatitude('');
-    setManualLongitude('');
-  };
+  // ========== PHOTO FUNCTIONS ==========
 
   const pickImage = async () => {
     try {
       setPhotoLoading(true);
-      
+
       if (!ImagePicker) {
         Alert.alert(
           'Image Picker Unavailable',
-          'Image picker requires a development build. Please build the app with: npx expo run:android',
-          [{ text: 'OK' }]
-        );
-        setPhotoLoading(false);
-        return;
-      }
-
-      // Try to request permissions - this will fail in Expo Go
-      let mediaLibraryStatus;
-      try {
-        mediaLibraryStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      } catch (error) {
-        // Native module not available
-        if (error.message && error.message.includes('development build')) {
-          Alert.alert(
-            'Development Build Required',
-            'Photo capture requires a development build. Please run:\n\nnpx expo run:android\n\nThis will create a custom build with native modules enabled.',
-            [{ text: 'OK' }]
-          );
-        } else {
-          Alert.alert(
-            'Image Picker Unavailable',
-            'Image picker is not available in Expo Go. Please build a development build to enable photo capture.',
-            [{ text: 'OK' }]
-          );
-        }
-        setPhotoLoading(false);
-        return;
-      }
-
-      if (mediaLibraryStatus.status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Camera roll permission is required to upload photos.',
+          'Image picker requires a development build.',
           [{ text: 'OK' }]
         );
         setPhotoLoading(false);
@@ -193,66 +295,13 @@ export default function ReportPotholeScreen({ navigation }) {
           {
             text: 'Camera',
             onPress: async () => {
-              try {
-                const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                if (status === 'granted') {
-                  const result = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    allowsEditing: true,
-                    aspect: [4, 3],
-                    quality: 0.8,
-                  });
-
-                  if (!result.canceled && result.assets[0]) {
-                    setPhoto(result.assets[0].uri);
-                  }
-                } else {
-                  Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
-                }
-              } catch (error) {
-                console.error('Camera error:', error);
-                if (error.message && error.message.includes('development build')) {
-                  Alert.alert(
-                    'Development Build Required',
-                    'Camera requires a development build. Please run: npx expo run:android',
-                    [{ text: 'OK' }]
-                  );
-                } else {
-                  Alert.alert('Error', 'Failed to open camera. Please try again.');
-                }
-              } finally {
-                setPhotoLoading(false);
-              }
+              await handleCameraCapture();
             },
           },
           {
             text: 'Gallery',
             onPress: async () => {
-              try {
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                  allowsEditing: true,
-                  aspect: [4, 3],
-                  quality: 0.8,
-                });
-
-                if (!result.canceled && result.assets[0]) {
-                  setPhoto(result.assets[0].uri);
-                }
-              } catch (error) {
-                console.error('Gallery error:', error);
-                if (error.message && error.message.includes('development build')) {
-                  Alert.alert(
-                    'Development Build Required',
-                    'Gallery requires a development build. Please run: npx expo run:android',
-                    [{ text: 'OK' }]
-                  );
-                } else {
-                  Alert.alert('Error', 'Failed to open gallery. Please try again.');
-                }
-              } finally {
-                setPhotoLoading(false);
-              }
+              await handleGallerySelection();
             },
           },
           {
@@ -269,75 +318,403 @@ export default function ReportPotholeScreen({ navigation }) {
     }
   };
 
+  const handleCameraCapture = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required.');
+        setPhotoLoading(false);
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        exif: true, // Request EXIF data
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await processSelectedPhoto(result.assets[0]);
+      }
+      setPhotoLoading(false);
+    } catch (error) {
+      console.error('Camera error:', error);
+      Alert.alert('Error', 'Failed to capture photo.');
+      setPhotoLoading(false);
+    }
+  };
+
+  const handleGallerySelection = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Gallery permission is required.');
+        setPhotoLoading(false);
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        exif: true, // Request EXIF data
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await processSelectedPhoto(result.assets[0]);
+      }
+      setPhotoLoading(false);
+    } catch (error) {
+      console.error('Gallery error:', error);
+      Alert.alert('Error', 'Failed to select photo.');
+      setPhotoLoading(false);
+    }
+  };
+
+  /**
+   * CRITICAL FUNCTION: Process photo and determine location
+   */
+  const processSelectedPhoto = async (asset) => {
+    setPhoto(asset.uri);
+
+    // Try to extract GPS from photo EXIF
+    const exifLocation = await extractPhotoLocation(asset.uri);
+
+    if (exifLocation) {
+      // Photo has GPS data
+      setPhotoLocation(exifLocation);
+
+      // Validate the photo location
+      if (!isWithinNamibia(exifLocation.latitude, exifLocation.longitude)) {
+        Alert.alert(
+          '⚠️ Location Outside Namibia',
+          'The photo appears to be taken outside Namibia. Please confirm the actual damage location on the map.',
+          [{ text: 'OK', onPress: () => setShowMapPicker(true) }]
+        );
+        return;
+      }
+
+      // Calculate distance from current location
+      if (currentLocation) {
+        const distance = calculateDistance(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          exifLocation.latitude,
+          exifLocation.longitude
+        );
+
+        if (distance > CONFIG.EXIF_PHOTO_DISTANCE_THRESHOLD_KM) {
+          // Photo taken far from current location - require confirmation
+          Alert.alert(
+            '📍 Photo Taken Elsewhere',
+            `This photo was taken ${distance.toFixed(1)} km from your current location. Is the road damage at the photo location or your current location?`,
+            [
+              {
+                text: 'Photo Location',
+                onPress: () => {
+                  setSelectedLocation(exifLocation);
+                  setLocationSource('photo_exif');
+                  setShowMapPicker(true); // Still show map for fine-tuning
+                },
+              },
+              {
+                text: 'Current Location',
+                onPress: () => {
+                  setSelectedLocation(currentLocation);
+                  setLocationSource('current_gps');
+                  setShowMapPicker(true);
+                },
+              },
+              {
+                text: 'Pick on Map',
+                onPress: () => {
+                  setShowMapPicker(true);
+                },
+              },
+            ]
+          );
+        } else {
+          // Photo taken nearby - suggest photo location
+          setSelectedLocation(exifLocation);
+          setLocationSource('photo_exif');
+          Alert.alert(
+            '✅ Location Detected',
+            `Using location from photo (${distance.toFixed(1)} km away). You can adjust the exact location on the map.`,
+            [
+              { text: 'Adjust on Map', onPress: () => setShowMapPicker(true) },
+              { text: 'Use This Location', style: 'cancel' },
+            ]
+          );
+        }
+      } else {
+        // No current location available, use photo location
+        setSelectedLocation(exifLocation);
+        setLocationSource('photo_exif');
+      }
+    } else {
+      // No GPS in photo - require manual selection
+      Alert.alert(
+        '📍 Location Required',
+        'This photo does not contain location data. Please select the damage location on the map.',
+        [{ text: 'Pick on Map', onPress: () => setShowMapPicker(true) }]
+      );
+    }
+  };
+
+  // ========== MAP FUNCTIONS ==========
+
+  const openMapPicker = () => {
+    // Check if MapView is available
+    if (!MapView) {
+      Alert.alert(
+        'Map Not Available',
+        'Maps require a development build and are not available in Expo Go. The report will use your current location or photo location.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Prepare map region based on best available location
+    const initialLocation = selectedLocation || photoLocation || currentLocation;
+
+    if (initialLocation) {
+      setMapRegion({
+        latitude: initialLocation.latitude,
+        longitude: initialLocation.longitude,
+        latitudeDelta: CONFIG.DEFAULT_MAP_ZOOM,
+        longitudeDelta: CONFIG.DEFAULT_MAP_ZOOM,
+      });
+    } else {
+      // Default to Windhoek, Namibia
+      setMapRegion({
+        latitude: -22.5597,
+        longitude: 17.0832,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      });
+    }
+
+    setShowMapPicker(true);
+  };
+
+  const handleMapPress = async (event) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+
+    // Update selected location
+    setSelectedLocation({ latitude, longitude });
+    setLocationSource('map_selected');
+
+    // Get address for display
+    const address = await getAddressFromCoordinates(latitude, longitude);
+    if (address) {
+      setLocationAddress(address);
+    }
+  };
+
+  const handleMarkerDragEnd = async (event) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+
+    // Update selected location
+    setSelectedLocation({ latitude, longitude });
+    setLocationSource('map_selected');
+
+    // Get address for display
+    const address = await getAddressFromCoordinates(latitude, longitude);
+    if (address) {
+      setLocationAddress(address);
+    }
+  };
+
+  /**
+   * Handle Google Places selection - Yango-style
+   * Triggered when user selects a place from autocomplete dropdown
+   */
+  const handlePlaceSelect = async (data, details = null) => {
+    if (!details || !details.geometry) {
+      Alert.alert('Error', 'Could not get location details');
+      return;
+    }
+
+    const coordinates = {
+      latitude: details.geometry.location.lat,
+      longitude: details.geometry.location.lng,
+    };
+
+    // Validate location is within Namibia
+    if (!isWithinNamibia(coordinates.latitude, coordinates.longitude)) {
+      Alert.alert(
+        'Location Outside Namibia',
+        'The selected location is outside Namibia. Please select a location within Namibia.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Update map region to center on selected location
+    setMapRegion({
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      latitudeDelta: CONFIG.DEFAULT_MAP_ZOOM,
+      longitudeDelta: CONFIG.DEFAULT_MAP_ZOOM,
+    });
+
+    // Set as selected location
+    setSelectedLocation(coordinates);
+    setLocationSource('map_selected');
+
+    // Get formatted address
+    const address = details.formatted_address || details.name;
+    if (address) {
+      setLocationAddress(address);
+    }
+
+    // Animate map to the new location
+    if (mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        latitudeDelta: CONFIG.DEFAULT_MAP_ZOOM,
+        longitudeDelta: CONFIG.DEFAULT_MAP_ZOOM,
+      }, 1000);
+    }
+  };
+
+  const confirmMapLocation = () => {
+    if (!selectedLocation) {
+      Alert.alert('Error', 'Please select a location on the map.');
+      return;
+    }
+
+    // Validate location is within bounds
+    if (!isWithinNamibia(selectedLocation.latitude, selectedLocation.longitude)) {
+      Alert.alert(
+        'Invalid Location',
+        'Please select a location within Namibia.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Check distance from current location (fraud prevention)
+    if (currentLocation) {
+      const distance = calculateDistance(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        selectedLocation.latitude,
+        selectedLocation.longitude
+      );
+
+      if (distance > CONFIG.MAX_DISTANCE_KM) {
+        Alert.alert(
+          'Location Too Far',
+          `The selected location is ${distance.toFixed(0)} km from your current location. Please report damage within ${CONFIG.MAX_DISTANCE_KM} km of your location.`,
+          [{ text: 'Select Again' }]
+        );
+        return;
+      }
+    }
+
+    setShowMapPicker(false);
+  };
+
+  // ========== SUBMIT FUNCTION ==========
+
   const handleSubmit = async () => {
-    // Validation
-    if (!location) {
-      Alert.alert('Error', 'Please enable location services and try again.');
+    // Validation - Only photo and location are required!
+    if (!selectedLocation) {
+      Alert.alert('Error', 'Please select a location for the road damage.');
       return;
     }
 
     if (!photo) {
-      Alert.alert(
-        'Photo Required',
-        'A photo is required to submit a report. Please use a development build to enable photo capture, or build the app with: npx expo run:android',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error', 'Please take or select a photo of the damage.');
       return;
     }
 
-    if (!roadName.trim()) {
-      Alert.alert('Error', 'Please enter the road name or nearby landmark.');
-      return;
+    // Build confirmation message
+    let confirmMessage = '';
+    
+    if (locationAddress) {
+      confirmMessage += `Location: ${locationAddress}\n`;
+    } else {
+      confirmMessage += `Location: ${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}\n`;
     }
-
-    try {
-      setLoading(true);
-
-      const reportData = {
-        location,
-        roadName: roadName.trim(),
-        severity,
-        description: description.trim() || undefined,
-      };
-
-      const report = await potholeReportsService.createReport(reportData, photo);
-
-      // Navigate to confirmation screen
-      navigation.replace('ReportConfirmation', {
-        referenceCode: report.referenceCode,
-      });
-    } catch (error) {
-      console.error('Error submitting report:', error);
-      console.error('Error details:', {
-        message: error.message,
-        status: error.status,
-        details: error.details,
-      });
-      
-      // Show detailed error message
-      let errorMessage = error.message || 'Failed to submit report. Please try again.';
-      
-      // If we have error details from backend, show them
-      if (error.details?.error?.message) {
-        errorMessage = error.details.error.message;
-      } else if (error.details?.message) {
-        errorMessage = error.details.message;
-      }
-      
-      Alert.alert(
-        'Error Submitting Report',
-        errorMessage,
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setLoading(false);
+    
+    if (roadName.trim()) {
+      confirmMessage += `Road: ${roadName.trim()}\n`;
     }
+    
+    confirmMessage += `Severity: ${severity}\n`;
+    
+    if (description.trim()) {
+      confirmMessage += `Notes: ${description.trim()}\n`;
+    }
+    
+    confirmMessage += '\nSubmit this report?';
+
+    Alert.alert('Confirm Report', confirmMessage.trim(), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Submit',
+        onPress: async () => {
+          try {
+            setLoading(true);
+
+            const reportData = {
+              location: selectedLocation,
+              locationSource, // Track how location was determined
+              photoLocation, // Save original photo location for reference
+              currentLocation, // Save user's current location for reference
+              roadName: roadName.trim() || undefined, // Optional
+              severity,
+              description: description.trim() || undefined,
+              locationAddress,
+            };
+
+            const report = await potholeReportsService.createReport(reportData, photo);
+
+            navigation.replace('ReportConfirmation', {
+              referenceCode: report.referenceCode,
+            });
+          } catch (error) {
+            console.error('Error submitting report:', error);
+            Alert.alert('Error', error.message || 'Failed to submit report.');
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
   };
 
-  const styles = getStyles(colors);
+  const getLocationSourceLabel = (source) => {
+    const labels = {
+      current_gps: 'Current Location',
+      photo_exif: 'Photo Location',
+      map_selected: 'Manual Selection',
+    };
+    return labels[source] || 'Unknown';
+  };
+
+  // ========== RENDER ==========
+
+  const styles = getStyles(colors, insets);
+
+  // Calculate progress
+  const getProgress = () => {
+    let completed = 0;
+    if (photo) completed++;
+    if (selectedLocation) completed++;
+    if (severity) completed++;
+    return Math.round((completed / 3) * 100);
+  };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
@@ -346,209 +723,422 @@ export default function ReportPotholeScreen({ navigation }) {
           style={styles.scrollView}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* My Reports Link */}
-          <View style={styles.headerActions}>
-            <TouchableOpacity 
-              style={styles.myReportsLink}
-              onPress={() => navigation.navigate('MyReports')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="list-outline" size={20} color={colors.primary} />
-              <Text style={styles.myReportsLinkText}>View My Reports</Text>
-            </TouchableOpacity>
+          {/* Progress Indicator */}
+          <View style={styles.progressSection}>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${getProgress()}%` }]} />
+            </View>
+            <Text style={styles.progressText}>{getProgress()}% Complete</Text>
           </View>
 
-          {/* Location Section */}
-          <View style={styles.section}>
-            {showManualLocation ? (
-                <View style={styles.manualLocationContainer}>
-                <FormInput
-                  label="Latitude"
-                  value={manualLatitude}
-                  onChangeText={setManualLatitude}
-                  placeholder="e.g., -22.5700"
-                  keyboardType="numeric"
-                />
-                <FormInput
-                  label="Longitude"
-                  value={manualLongitude}
-                  onChangeText={setManualLongitude}
-                  placeholder="e.g., 17.0836"
-                  keyboardType="numeric"
-                />
-                <View style={styles.manualLocationButtons}>
-                  <Button
-                    label="Set Location"
-                    onPress={handleManualLocationSubmit}
-                    iconName="checkmark-circle"
-                    style={styles.submitButton}
-                  />
-                  <Button
-                    label="Cancel"
-                    onPress={() => {
-                      setShowManualLocation(false);
-                      setManualLatitude('');
-                      setManualLongitude('');
-                    }}
-                    variant="outline"
-                  />
-                </View>
-              </View>
-            ) : locationLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Getting your location...</Text>
-              </View>
-            ) : location ? (
-              <View style={styles.locationInfo}>
-                <Ionicons name="location" size={20} color={colors.primary} />
-                <Text style={styles.locationText}>
-                  {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                </Text>
-                <TouchableOpacity
-                  style={styles.changeButton}
-                  onPress={() => {
-                    setLocation(null);
-                    if (!Location) {
-                      setShowManualLocation(true);
-                    }
-                  }}
-                >
-                  <Text style={styles.changeButtonText}>Change</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View>
-                <Button
-                  label={Location ? 'Get Location' : 'Enter Location Manually'}
-                  onPress={Location ? requestLocationPermission : showManualLocationInput}
-                  iconName="location-outline"
-                  fullWidth
-                />
-                {!Location && (
-                  <Text style={styles.helpText}>
-                    Location services unavailable. Tap to enter coordinates manually.
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
+          {/* Photo Section - FIRST AND PROMINENT */}
+          <View style={styles.mainPhotoSection}>
+            <Text style={styles.mainSectionTitle}>📸 Step 1: Take a Photo</Text>
+            <Text style={styles.mainSectionSubtitle}>
+              Capture the road damage clearly
+            </Text>
 
-          {/* Photo Section */}
-          <View style={styles.section}>
             {photo ? (
               <View style={styles.photoContainer}>
-                <Image source={{ uri: photo }} style={styles.photo} />
-                <TouchableOpacity
-                  style={styles.changePhotoButton}
-                  onPress={pickImage}
-                >
-                  <Text style={styles.changePhotoText}>Change Photo</Text>
-                </TouchableOpacity>
+                <Image source={{ uri: photo }} style={styles.photoLarge} />
+                <View style={styles.photoOverlay}>
+                  {photoLocation && (
+                    <View style={styles.photoInfoBadgeInline}>
+                      <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                      <Text style={styles.photoInfoTextInline}>Location detected</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity 
+                    style={styles.changePhotoButtonInline} 
+                    onPress={pickImage}
+                  >
+                    <Ionicons name="camera" size={18} color="#fff" />
+                    <Text style={styles.changePhotoTextInline}>Change</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
-              <View>
-                <TouchableOpacity
-                  style={styles.photoPlaceholder}
-                  onPress={pickImage}
-                  disabled={photoLoading}
-                >
-                  {photoLoading ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <>
-                      <Ionicons name="camera-outline" size={48} color={colors.textSecondary} />
-                      <Text style={styles.photoPlaceholderText}>Tap to take or select photo</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-                {!ImagePicker && (
-                  <View style={styles.warningContainer}>
-                    <Ionicons name="information-circle" size={16} color="#FFA500" />
-                    <Text style={styles.warningText}>
-                      Photo capture requires a development build. Run: npx expo run:android
-                    </Text>
-                  </View>
+              <TouchableOpacity
+                style={styles.photoPlaceholderLarge}
+                onPress={pickImage}
+                disabled={photoLoading}
+                activeOpacity={0.7}
+              >
+                {photoLoading ? (
+                  <ActivityIndicator size="large" color={colors.primary} />
+                ) : (
+                  <>
+                    <View style={styles.cameraIconCircle}>
+                      <Ionicons name="camera" size={40} color={colors.primary} />
+                    </View>
+                    <Text style={styles.photoPlaceholderTextLarge}>Tap to Capture Photo</Text>
+                    <Text style={styles.photoPlaceholderHint}>or select from gallery</Text>
+                  </>
                 )}
-              </View>
+              </TouchableOpacity>
             )}
           </View>
 
-          {/* Road Name */}
-          <View style={styles.section}>
-            <FormInput
-              value={roadName}
-              onChangeText={setRoadName}
-              placeholder="Road Name / Landmark *"
-              label="Road Name / Landmark"
-            />
-          </View>
+          {/* Location Section - INLINE AND MINIMAL */}
+          {selectedLocation && (
+            <View style={styles.locationInline}>
+              <View style={styles.locationInlineHeader}>
+                <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+                <Text style={styles.locationInlineTitle}>Location Detected</Text>
+              </View>
+              {locationAddress ? (
+                <Text style={styles.locationInlineAddress}>{locationAddress}</Text>
+              ) : (
+                <Text style={styles.locationInlineAddress}>
+                  Near {selectedLocation.latitude.toFixed(4)}, {selectedLocation.longitude.toFixed(4)}
+                </Text>
+              )}
+              <TouchableOpacity 
+                style={styles.adjustLocationButton} 
+                onPress={openMapPicker}
+              >
+                <Ionicons name="map" size={16} color={colors.primary} />
+                <Text style={styles.adjustLocationText}>Adjust on map</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-          {/* Severity */}
-          <View style={styles.section}>
-            <View style={styles.severityContainer}>
+          {!selectedLocation && !locationLoading && (
+            <TouchableOpacity 
+              style={styles.getLocationButton} 
+              onPress={requestLocationPermission}
+            >
+              <Ionicons name="locate" size={20} color={colors.primary} />
+              <Text style={styles.getLocationText}>Get Current Location</Text>
+            </TouchableOpacity>
+          )}
+
+          {locationLoading && (
+            <View style={styles.locationLoadingInline}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.locationLoadingText}>Getting location...</Text>
+            </View>
+          )}
+
+          {/* Severity Section - BIG BUTTONS */}
+          <View style={styles.severitySectionLarge}>
+            <Text style={styles.mainSectionTitle}>🚨 Step 2: How Bad Is It?</Text>
+            <Text style={styles.mainSectionSubtitle}>
+              Select the severity level
+            </Text>
+
+            <View style={styles.severityButtonsLarge}>
               {SEVERITY_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option.value}
                   style={[
-                    styles.severityOption,
-                    severity === option.value && {
-                      backgroundColor: option.color + '20',
-                      borderColor: option.color,
-                      borderWidth: 2,
-                    },
+                    styles.severityButtonLarge,
+                    severity === option.value && styles.severityButtonLargeActive,
+                    { borderColor: option.color }
                   ]}
                   onPress={() => setSeverity(option.value)}
+                  activeOpacity={0.7}
                 >
-                  <View
-                    style={[
-                      styles.severityDot,
-                      { backgroundColor: option.color },
-                    ]}
-                  />
+                  <View style={[styles.severityDotLarge, { backgroundColor: option.color }]} />
                   <Text
                     style={[
-                      styles.severityText,
-                      severity === option.value && { color: option.color, fontWeight: 'bold' },
+                      styles.severityTextLarge,
+                      severity === option.value && { color: option.color, fontWeight: '700' },
                     ]}
                   >
                     {option.label}
                   </Text>
+                  {severity === option.value && (
+                    <Ionicons name="checkmark-circle" size={24} color={option.color} />
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          {/* Description */}
-          <View style={styles.section}>
-            <FormInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Description (Optional)"
-              label="Description"
-              textArea
+          {/* Expandable More Details Section */}
+          <View style={styles.expandableSection}>
+            <TouchableOpacity 
+              style={styles.expandableHeader}
+              onPress={() => setShowMoreDetails(!showMoreDetails)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.expandableHeaderLeft}>
+                <Ionicons 
+                  name={showMoreDetails ? "remove-circle" : "add-circle"} 
+                  size={24} 
+                  color={colors.primary} 
+                />
+                <Text style={styles.expandableHeaderText}>
+                  Add More Details (Optional)
+                </Text>
+              </View>
+              <Ionicons 
+                name={showMoreDetails ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color={colors.textSecondary} 
+              />
+            </TouchableOpacity>
+
+            {showMoreDetails && (
+              <View style={styles.expandableContent}>
+                <FormInput
+                  value={roadName}
+                  onChangeText={setRoadName}
+                  placeholder="e.g., B1 Highway, Independence Avenue"
+                  label="Road Name / Landmark"
+                  iconName="map-outline"
+                />
+                
+                <View style={styles.formSpacing} />
+                
+                <FormInput
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Any additional details..."
+                  label="Additional Notes"
+                  textArea
+                  iconName="document-text-outline"
+                />
+              </View>
+            )}
+          </View>
+
+          {/* Bottom spacing for submit button */}
+          <View style={{ height: 100 }} />
+        </ScrollView>
+
+        {/* Floating Submit Button */}
+        <View style={styles.floatingButtonContainer}>
+          <Button
+            label={loading ? "Submitting..." : "Submit Report ✓"}
+            onPress={handleSubmit}
+            loading={loading}
+            disabled={loading || !selectedLocation || !photo}
+            size="large"
+            fullWidth
+            style={styles.submitButtonFloating}
+          />
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Map Picker Modal */}
+      <Modal
+        visible={showMapPicker}
+        animationType="slide"
+        onRequestClose={() => setShowMapPicker(false)}
+      >
+        <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowMapPicker(false)}>
+              <Ionicons name="close" size={28} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Select Damage Location</Text>
+            <View style={{ width: 28 }} />
+          </View>
+
+          {/* Google Places Autocomplete - Yango Style */}
+          <View style={styles.searchWrapper}>
+            <GooglePlacesAutocomplete
+              ref={googlePlacesRef}
+              placeholder="Search for streets, shops, landmarks..."
+              onPress={handlePlaceSelect}
+              fetchDetails={true}
+              enablePoweredByContainer={false}
+              keepResultsAfterBlur={true}
+              listViewDisplayed="auto"
+              suppressDefaultStyles={false}
+              requestUrl={{
+                useOnPlatform: 'all',
+              }}
+              onFail={(error) => {
+                console.error('Google Places API Error:', error);
+                Alert.alert(
+                  'Search Error',
+                  'Unable to fetch location suggestions. Please check your internet connection or try again later.'
+                );
+              }}
+              onNotFound={() => {
+                console.log('No results found');
+              }}
+              query={{
+                key: CONFIG.GOOGLE_PLACES_API_KEY,
+                language: 'en',
+                components: 'country:na', // RESTRICT TO NAMIBIA ONLY
+                types: '(cities)|establishment|geocode', // Include cities, establishments, and addresses
+                radius: 50000, // 50km radius
+              }}
+              styles={{
+                container: {
+                  flex: 0,
+                  zIndex: 2000,
+                },
+                textInputContainer: {
+                  backgroundColor: colors.background,
+                  borderTopWidth: 0,
+                  borderBottomWidth: 0,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  zIndex: 2001,
+                },
+                textInput: {
+                  backgroundColor: colors.card,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  color: colors.text,
+                  fontSize: 15,
+                  paddingLeft: 40,
+                  height: 44,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                },
+                predefinedPlacesDescription: {
+                  color: colors.primary,
+                },
+                listView: {
+                  position: 'absolute',
+                  top: 68,
+                  left: 16,
+                  right: 16,
+                  backgroundColor: colors.card,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  maxHeight: 250,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 8,
+                  elevation: 10,
+                  zIndex: 2002,
+                },
+                row: {
+                  backgroundColor: colors.card,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border + '40',
+                  zIndex: 2003,
+                },
+                separator: {
+                  height: 0,
+                },
+                description: {
+                  color: colors.text,
+                  fontSize: 15,
+                  fontWeight: '600',
+                },
+                loader: {
+                  flexDirection: 'row',
+                  justifyContent: 'flex-end',
+                  height: 20,
+                  paddingHorizontal: 16,
+                },
+                poweredContainer: {
+                  display: 'none',
+                },
+              }}
+              textInputProps={{
+                placeholderTextColor: colors.textSecondary,
+                returnKeyType: 'search',
+                leftIcon: { type: 'ionicon', name: 'search' },
+              }}
+              renderLeftButton={() => (
+                <View style={styles.searchIconContainer}>
+                  <Ionicons name="search" size={20} color={colors.textSecondary} />
+                </View>
+              )}
+              renderRightButton={() => (
+                <TouchableOpacity
+                  style={styles.clearButtonContainer}
+                  onPress={() => {
+                    if (googlePlacesRef.current) {
+                      googlePlacesRef.current.clear();
+                    }
+                  }}
+                >
+                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+              debounce={400}
+              minLength={2}
+              nearbyPlacesAPI="GooglePlacesSearch"
+              GooglePlacesSearchQuery={{
+                rankby: 'distance',
+              }}
             />
           </View>
 
-          {/* Submit Button */}
+          <View style={styles.mapContainer}>
+            {mapRegion && MapView ? (
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                initialRegion={mapRegion}
+                onPress={handleMapPress}
+                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+              >
+                {selectedLocation && Marker && (
+                  <Marker
+                    coordinate={selectedLocation}
+                    title="Damage Location"
+                    description="Drag to adjust"
+                    draggable
+                    onDragEnd={handleMarkerDragEnd}
+                  />
+                )}
+              </MapView>
+            ) : (
+              <View style={[styles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.card }]}>
+                <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
+                <Text style={{ color: colors.textSecondary, marginTop: 16, textAlign: 'center', paddingHorizontal: 32 }}>
+                  Map view requires a development build
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.mapInstructions}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={styles.mapInstructionsText}>
+              Tap on the map or drag the pin to the exact location of the road damage
+            </Text>
+          </View>
+
+          {selectedLocation && (
+            <View style={styles.mapCoordinates}>
+              <Text style={styles.mapCoordinatesText}>
+                📍 {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
+              </Text>
+              {locationAddress && (
+                <Text style={styles.mapAddressText}>{locationAddress}</Text>
+              )}
+            </View>
+          )}
+
           <Button
-            label="Submit Report"
-            onPress={handleSubmit}
-            loading={loading}
-            disabled={loading}
-            iconName="checkmark-circle"
-            size="large"
+            label="Confirm Location"
+            onPress={confirmMapLocation}
+            disabled={!selectedLocation}
             fullWidth
-            style={styles.submitButton}
+            size="large"
+            style={styles.confirmButton}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function getStyles(colors) {
+// ========== STYLES ==========
+
+function getStyles(colors, insets) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -562,36 +1152,80 @@ function getStyles(colors) {
     },
     content: {
       padding: spacing.xl,
+      paddingBottom: spacing.xxl + (insets?.bottom || 0) + 20,
+      flexGrow: 1,
     },
     section: {
       marginBottom: spacing.xxl,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
     },
     sectionTitle: {
       fontSize: 16,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 12,
     },
     loadingContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      padding: 16,
+      backgroundColor: colors.card,
+      borderRadius: 12,
     },
     loadingText: {
       color: colors.textSecondary,
       fontSize: 14,
     },
-    locationInfo: {
+    locationCard: {
+      padding: 16,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.success + '40',
+      marginBottom: 12,
+    },
+    locationHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      padding: 12,
-      backgroundColor: colors.card,
-      borderRadius: 8,
+      gap: 6,
+      marginBottom: 8,
+    },
+    locationLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.success,
     },
     locationText: {
-      color: colors.text,
       fontSize: 14,
+      color: colors.text,
+      fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+      marginBottom: 4,
+    },
+    locationAddress: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    mapButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      padding: 14,
+      backgroundColor: colors.primary + '15',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    mapButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.primary,
     },
     photoContainer: {
       alignItems: 'center',
@@ -599,8 +1233,23 @@ function getStyles(colors) {
     photo: {
       width: '100%',
       height: 200,
-      borderRadius: 8,
+      borderRadius: 12,
       marginBottom: 12,
+    },
+    photoInfoBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      backgroundColor: colors.success + '20',
+      borderRadius: 6,
+      marginBottom: 8,
+    },
+    photoInfoText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.success,
     },
     changePhotoButton: {
       paddingVertical: 8,
@@ -611,34 +1260,11 @@ function getStyles(colors) {
       fontSize: 14,
       fontWeight: '600',
     },
-    changeButton: {
-      marginLeft: 'auto',
-      padding: 4,
-    },
-    changeButtonText: {
-      color: colors.primary,
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    helpText: {
-      marginTop: 8,
-      fontSize: 12,
-      color: colors.textSecondary,
-      fontStyle: 'italic',
-    },
-    manualLocationContainer: {
-      gap: 12,
-    },
-    manualLocationButtons: {
-      flexDirection: 'row',
-      gap: spacing.md,
-      marginTop: spacing.sm,
-    },
     photoPlaceholder: {
       width: '100%',
       height: 200,
       backgroundColor: colors.card,
-      borderRadius: 8,
+      borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
       borderWidth: 2,
@@ -649,20 +1275,6 @@ function getStyles(colors) {
       marginTop: 12,
       color: colors.textSecondary,
       fontSize: 14,
-    },
-    warningContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 8,
-      padding: 8,
-      backgroundColor: '#FFF3CD',
-      borderRadius: 6,
-      gap: 6,
-    },
-    warningText: {
-      flex: 1,
-      fontSize: 12,
-      color: '#856404',
     },
     severityContainer: {
       flexDirection: 'row',
@@ -692,25 +1304,372 @@ function getStyles(colors) {
     submitButton: {
       marginTop: spacing.sm,
     },
-    headerActions: {
-      marginBottom: spacing.lg,
-      alignItems: 'flex-end',
+
+    // NEW IMPROVED STYLES
+    // Progress Indicator
+    progressSection: {
+      marginBottom: 24,
+      alignItems: 'center',
     },
-    myReportsLink: {
+    progressBar: {
+      width: '100%',
+      height: 6,
+      backgroundColor: colors.border + '40',
+      borderRadius: 3,
+      overflow: 'hidden',
+      marginBottom: 8,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: 3,
+    },
+    progressText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+
+    // Main Photo Section
+    mainPhotoSection: {
+      marginBottom: 24,
+    },
+    mainSectionTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    mainSectionSubtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 16,
+    },
+    photoLarge: {
+      width: '100%',
+      height: 280,
+      borderRadius: 16,
+    },
+    photoOverlay: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 12,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+    },
+    photoInfoBadgeInline: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      gap: 8,
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.primary + '30',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      borderRadius: 20,
     },
-    myReportsLinkText: {
-      color: colors.primary,
-      fontSize: 15,
+    photoInfoTextInline: {
+      fontSize: 12,
       fontWeight: '600',
+      color: '#fff',
+    },
+    changePhotoButtonInline: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      backgroundColor: 'rgba(255,255,255,0.3)',
+      borderRadius: 20,
+    },
+    changePhotoTextInline: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    photoPlaceholderLarge: {
+      width: '100%',
+      height: 280,
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 3,
+      borderColor: colors.primary + '30',
+      borderStyle: 'dashed',
+    },
+    cameraIconCircle: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: colors.primary + '15',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    photoPlaceholderTextLarge: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 8,
+    },
+    photoPlaceholderHint: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+
+    // Location Inline
+    locationInline: {
+      backgroundColor: colors.success + '10',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 24,
+      borderWidth: 1,
+      borderColor: colors.success + '30',
+    },
+    locationInlineHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    locationInlineTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.success,
+    },
+    locationInlineAddress: {
+      fontSize: 14,
+      color: colors.text,
+      marginBottom: 12,
+      lineHeight: 20,
+    },
+    adjustLocationButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+    },
+    adjustLocationText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    getLocationButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      padding: 16,
+      backgroundColor: colors.primary + '15',
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      marginBottom: 24,
+    },
+    getLocationText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    locationLoadingInline: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      padding: 16,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      marginBottom: 24,
+    },
+    locationLoadingText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+
+    // Severity Section Large
+    severitySectionLarge: {
+      marginBottom: 24,
+    },
+    severityButtonsLarge: {
+      gap: 12,
+    },
+    severityButtonLarge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 20,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.border + '60',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    severityButtonLargeActive: {
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    severityDotLarge: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      marginRight: 12,
+    },
+    severityTextLarge: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+    },
+
+    // Expandable Section
+    expandableSection: {
+      marginBottom: 24,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    expandableHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+    },
+    expandableHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    expandableHeaderText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    expandableContent: {
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    formSpacing: {
+      height: 16,
+    },
+
+    // Floating Submit Button
+    floatingButtonContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: 16,
+      paddingBottom: (insets?.bottom || 0) + 16,
+      backgroundColor: colors.background,
+      borderTopWidth: 1,
+      borderTopColor: colors.border + '40',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 10,
+    },
+    submitButtonFloating: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+
+    // Modal styles
+    modalContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    searchWrapper: {
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      zIndex: 2000,
+      elevation: 10,
+      position: 'relative',
+    },
+    searchIconContainer: {
+      position: 'absolute',
+      left: 28,
+      top: 24,
+      zIndex: 1,
+    },
+    clearButtonContainer: {
+      position: 'absolute',
+      right: 28,
+      top: 24,
+      zIndex: 1,
+      padding: 4,
+    },
+    mapContainer: {
+      flex: 1,
+      zIndex: 1,
+    },
+    map: {
+      flex: 1,
+    },
+    mapInstructions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 16,
+      backgroundColor: colors.primary + '15',
+    },
+    mapInstructionsText: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    mapCoordinates: {
+      padding: 16,
+      backgroundColor: colors.card,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    mapCoordinatesText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    mapAddressText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    confirmButton: {
+      margin: 16,
+      marginTop: 0,
     },
   });
 }

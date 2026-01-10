@@ -212,7 +212,7 @@ export default function LoginScreen({ navigation, route }) {
 const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: colors.background,
   },
   header: {
     paddingTop: spacing.xl + 10,
@@ -306,7 +306,7 @@ const getStyles = (colors) => StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
   },
   formSection: {
     marginBottom: spacing.xl,

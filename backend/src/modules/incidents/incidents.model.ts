@@ -69,3 +69,8 @@ incidentSchema.index({ locationDescription: 'text', road: 'text', area: 'text' }
 
 export const IncidentModel = mongoose.model<IIncident>('Incident', incidentSchema);
 
+
+
+
+
+

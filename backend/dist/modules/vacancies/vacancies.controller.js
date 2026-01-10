@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.vacanciesController = exports.VacanciesController = void 0;
 const vacancies_service_1 = require("./vacancies.service");
+const notifications_service_1 = require("../notifications/notifications.service");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 class VacanciesController {
@@ -12,7 +13,9 @@ class VacanciesController {
     async createVacancy(req, res, next) {
         try {
             // Validate required fields
-            const { title, type, department, location, description, requirements, responsibilities, salary, closingDate, pdfUrl, published, } = req.body;
+            const { title, type, department, location, description, requirements, responsibilities, salary, closingDate, pdfUrl, published, 
+            // Contact information
+            contactName, contactEmail, contactTelephone, submissionLink, submissionEmail, submissionInstructions, } = req.body;
             if (!title || !type || !department || !location || !description || !requirements || !responsibilities || !closingDate) {
                 res.status(400).json({
                     success: false,
@@ -73,8 +76,25 @@ class VacanciesController {
                 closingDate: new Date(closingDate),
                 pdfUrl,
                 published: published === true,
+                // Contact information
+                contactName,
+                contactEmail,
+                contactTelephone,
+                submissionLink,
+                submissionEmail,
+                submissionInstructions,
             });
             logger_1.logger.info(`Vacancy created successfully: ${vacancy._id}`);
+            // Send push notification if published
+            if (vacancy.published === true) {
+                try {
+                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy._id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString(), { useQueue: false });
+                    logger_1.logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+                }
+                catch (notifError) {
+                    logger_1.logger.error('Failed to send notification for vacancy:', notifError);
+                }
+            }
             res.status(201).json({
                 success: true,
                 data: {
@@ -91,6 +111,13 @@ class VacanciesController {
                         closingDate: vacancy.closingDate,
                         pdfUrl: vacancy.pdfUrl,
                         published: vacancy.published,
+                        // Contact information
+                        contactName: vacancy.contactName,
+                        contactEmail: vacancy.contactEmail,
+                        contactTelephone: vacancy.contactTelephone,
+                        submissionLink: vacancy.submissionLink,
+                        submissionEmail: vacancy.submissionEmail,
+                        submissionInstructions: vacancy.submissionInstructions,
                         createdAt: vacancy.createdAt,
                         updatedAt: vacancy.updatedAt,
                     },
@@ -142,6 +169,13 @@ class VacanciesController {
                         closingDate: vacancy.closingDate,
                         pdfUrl: vacancy.pdfUrl,
                         published: vacancy.published,
+                        // Contact information
+                        contactName: vacancy.contactName,
+                        contactEmail: vacancy.contactEmail,
+                        contactTelephone: vacancy.contactTelephone,
+                        submissionLink: vacancy.submissionLink,
+                        submissionEmail: vacancy.submissionEmail,
+                        submissionInstructions: vacancy.submissionInstructions,
                         createdAt: vacancy.createdAt,
                         updatedAt: vacancy.updatedAt,
                     })),
@@ -184,6 +218,13 @@ class VacanciesController {
                         closingDate: vacancy.closingDate,
                         pdfUrl: vacancy.pdfUrl,
                         published: vacancy.published,
+                        // Contact information
+                        contactName: vacancy.contactName,
+                        contactEmail: vacancy.contactEmail,
+                        contactTelephone: vacancy.contactTelephone,
+                        submissionLink: vacancy.submissionLink,
+                        submissionEmail: vacancy.submissionEmail,
+                        submissionInstructions: vacancy.submissionInstructions,
                         createdAt: vacancy.createdAt,
                         updatedAt: vacancy.updatedAt,
                     },
@@ -203,7 +244,15 @@ class VacanciesController {
     async updateVacancy(req, res, next) {
         try {
             const { id } = req.params;
-            const { title, type, department, location, description, requirements, responsibilities, salary, closingDate, pdfUrl, published, } = req.body;
+            const { title, type, department, location, description, requirements, responsibilities, salary, closingDate, pdfUrl, published, 
+            // Contact information
+            contactName, contactEmail, contactTelephone, submissionLink, submissionEmail, submissionInstructions, } = req.body;
+            // Check if publishing newly
+            let wasPublishedBefore = false;
+            if (published === true) {
+                const existing = await vacancies_service_1.vacanciesService.getVacancyById(id);
+                wasPublishedBefore = existing.published === true;
+            }
             // Build update object with only provided fields
             const updateData = {};
             if (title !== undefined)
@@ -259,14 +308,67 @@ class VacanciesController {
             }
             if (salary !== undefined)
                 updateData.salary = salary;
-            if (closingDate !== undefined)
-                updateData.closingDate = new Date(closingDate);
+            if (closingDate !== undefined) {
+                // Parse the date and ensure it's valid
+                const parsedDate = new Date(closingDate);
+                if (isNaN(parsedDate.getTime())) {
+                    res.status(400).json({
+                        success: false,
+                        error: {
+                            code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                            message: 'Invalid closing date format',
+                        },
+                        timestamp: new Date().toISOString(),
+                    });
+                    return;
+                }
+                // Validate that closing date is today or in the future (only for new dates)
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Set to start of today
+                const closingDateOnly = new Date(parsedDate);
+                closingDateOnly.setHours(0, 0, 0, 0); // Set to start of closing date
+                if (closingDateOnly < today) {
+                    res.status(400).json({
+                        success: false,
+                        error: {
+                            code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                            message: 'Closing date must be today or in the future',
+                        },
+                        timestamp: new Date().toISOString(),
+                    });
+                    return;
+                }
+                updateData.closingDate = parsedDate;
+            }
             if (pdfUrl !== undefined)
                 updateData.pdfUrl = pdfUrl;
             if (published !== undefined)
                 updateData.published = published;
+            // Contact information
+            if (contactName !== undefined)
+                updateData.contactName = contactName;
+            if (contactEmail !== undefined)
+                updateData.contactEmail = contactEmail;
+            if (contactTelephone !== undefined)
+                updateData.contactTelephone = contactTelephone;
+            if (submissionLink !== undefined)
+                updateData.submissionLink = submissionLink;
+            if (submissionEmail !== undefined)
+                updateData.submissionEmail = submissionEmail;
+            if (submissionInstructions !== undefined)
+                updateData.submissionInstructions = submissionInstructions;
             const vacancy = await vacancies_service_1.vacanciesService.updateVacancy(id, updateData);
             logger_1.logger.info(`Vacancy updated successfully: ${id}`);
+            // Send push notification only on first publish
+            if (published === true && !wasPublishedBefore) {
+                try {
+                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy._id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString(), { useQueue: false });
+                    logger_1.logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+                }
+                catch (notifError) {
+                    logger_1.logger.error('Failed to send notification for vacancy:', notifError);
+                }
+            }
             res.status(200).json({
                 success: true,
                 data: {
@@ -283,6 +385,13 @@ class VacanciesController {
                         closingDate: vacancy.closingDate,
                         pdfUrl: vacancy.pdfUrl,
                         published: vacancy.published,
+                        // Contact information
+                        contactName: vacancy.contactName,
+                        contactEmail: vacancy.contactEmail,
+                        contactTelephone: vacancy.contactTelephone,
+                        submissionLink: vacancy.submissionLink,
+                        submissionEmail: vacancy.submissionEmail,
+                        submissionInstructions: vacancy.submissionInstructions,
                         createdAt: vacancy.createdAt,
                         updatedAt: vacancy.updatedAt,
                     },

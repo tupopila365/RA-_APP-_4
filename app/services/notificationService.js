@@ -32,8 +32,23 @@ try {
   Constants = null;
 }
 
-// Note: Notification handler should be configured in App.js after component mount
-// This ensures it's called after the device is ready
+// COMMENTED OUT - Configure notification behavior (only if available)
+// Push notifications will be added later
+/*
+if (Notifications && Notifications.setNotificationHandler) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (error) {
+    console.log('Could not configure notification handler:', error.message);
+  }
+}
+*/
 
 class NotificationService {
   constructor() {
@@ -82,24 +97,15 @@ class NotificationService {
 
       console.log('✅ Notification permissions granted!');
       
-      // Get Expo push token with projectId from expo-constants
-      // This ensures push tokens are attributed to the correct project even if account/project names change
-      // Note: This is called inside an async function after device is ready (via useEffect)
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+      // Get Expo push token
+      // Try to get project ID from expo-constants, otherwise let Expo auto-detect
+      const projectId = Constants?.expoConfig?.extra?.eas?.projectId || 
+                       Constants?.expoConfig?.extra?.projectId ||
+                       undefined;
       
-      if (!projectId) {
-        console.warn('⚠️ Project ID not found in config. Push token will be auto-detected by Expo.');
-        // Continue without projectId - Expo will auto-detect, but it's recommended to set it
-      }
-      
+      const tokenOptions = projectId ? { projectId } : undefined;
       console.log('🔑 Getting Expo push token...', projectId ? `(Project ID: ${projectId})` : '(auto-detect)');
-      
-      // Call getExpoPushTokenAsync inside async function after device is ready
-      // This is called from useEffect in useNotifications hook, ensuring it's not called too early
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId,
-      });
+      const tokenData = await Notifications.getExpoPushTokenAsync(tokenOptions);
 
       this.expoPushToken = tokenData.data;
       console.log('✅ Expo Push Token obtained:', this.expoPushToken);
@@ -110,7 +116,7 @@ class NotificationService {
           name: 'default',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#00B4E6', // Using app's primary color
+          lightColor: '#00B4E6',
         });
       }
 
@@ -192,10 +198,10 @@ class NotificationService {
     if (!Notifications) return;
     
     if (this.notificationListener) {
-      Notifications.removeNotificationSubscription(this.notificationListener);
+      this.notificationListener.remove();
     }
     if (this.responseListener) {
-      Notifications.removeNotificationSubscription(this.responseListener);
+      this.responseListener.remove();
     }
   }
 

@@ -331,6 +331,14 @@ class PLNService {
       throw error;
     }
   }
+
+  /**
+   * Get the URL for downloading the blank PLN form PDF
+   * @returns {string} URL to download the form PDF
+   */
+  getFormDownloadUrl() {
+    return `${API_BASE_URL}/pln/form`;
+  }
 }
 
 export const plnService = new PLNService();

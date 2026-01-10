@@ -67,10 +67,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
       sx={{
         width: { sm: `calc(100% - ${drawerWidth}px)` },
         ml: { sm: `${drawerWidth}px` },
-        backdropFilter: 'blur(20px) saturate(180%)',
-        backgroundColor: 'rgba(0, 180, 230, 0.85)',
-        background: 'linear-gradient(135deg, rgba(0, 180, 230, 0.9) 0%, rgba(0, 144, 192, 0.9) 100%)',
+        backgroundColor: '#1E3A8A', // Navy blue to match sidebar
         borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
       }}
     >
       <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
@@ -82,9 +81,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
           sx={{
             mr: 2,
             display: { sm: 'none' },
-            transition: 'transform 0.2s',
+            transition: 'background-color 0.15s ease',
             '&:hover': {
-              transform: 'scale(1.1)',
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
             },
           }}
         >
@@ -97,12 +96,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
           component="div"
           sx={{
             flexGrow: 1,
-            fontWeight: 700,
-            letterSpacing: '0.02em',
-            background: 'linear-gradient(135deg, #FFFFFF 0%, rgba(255, 255, 255, 0.9) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            fontWeight: 600,
+            letterSpacing: '0.01em',
+            color: '#FFFFFF',
+            fontSize: '1rem',
           }}
         >
           Roads Authority Admin
@@ -139,23 +136,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
             aria-haspopup="true"
             aria-expanded={anchorEl ? 'true' : undefined}
             sx={{
-              transition: 'transform 0.2s, box-shadow 0.2s',
+              transition: 'all 0.15s ease',
               '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0px 4px 12px rgba(255, 215, 0, 0.4)',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
               },
             }}
           >
             <Avatar
               sx={{
-                width: 40,
-                height: 40,
-                bgcolor: 'secondary.main',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)',
-                fontWeight: 700,
-                fontSize: '1rem',
-                color: '#1A202C',
+                width: 36,
+                height: 36,
+                bgcolor: '#EFF6FF',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: '#1E3A8A',
               }}
             >
               {getUserInitials()}
@@ -175,18 +170,18 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
             timeout: { enter: 200, exit: 150 },
           }}
           PaperProps={{
-            elevation: 8,
+            elevation: 4,
             sx: {
               mt: 1.5,
               minWidth: 240,
-              borderRadius: 3,
+              borderRadius: 2,
               border: '1px solid rgba(0, 0, 0, 0.08)',
-              boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.12), 0px 4px 12px rgba(0, 0, 0, 0.08)',
+              boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
               overflow: 'hidden',
               '& .MuiMenuItem-root': {
-                transition: 'background-color 0.2s',
+                transition: 'background-color 0.15s ease',
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 180, 230, 0.08)',
+                  backgroundColor: '#F8FAFC',
                 },
               },
             },
@@ -196,7 +191,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
             sx={{
               px: 2.5,
               py: 2,
-              background: 'linear-gradient(135deg, rgba(0, 180, 230, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%)',
+              background: '#F8FAFC',
               borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
             }}
           >

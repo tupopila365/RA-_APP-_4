@@ -31,15 +31,53 @@ import {
   updateVacancy,
   getVacancyById,
   VacancyFormData,
+  DepartmentType,
 } from '../../services/vacancies.service';
 import PDFUploadField from '../../components/common/PDFUploadField';
+
+// Predefined departments for Roads Authority
+const DEPARTMENTS: { value: DepartmentType; label: string }[] = [
+  // Core Departments
+  { value: 'Construction & Renewal', label: 'Construction & Renewal' },
+  { value: 'Road Maintenance', label: 'Road Maintenance' },
+  { value: 'Road Traffic Planning & Advisory', label: 'Road Traffic Planning & Advisory' },
+  { value: 'Road Management (RMS)', label: 'Road Management (RMS)' },
+  { value: 'Transport Information & Regulatory Services (NaTIS)', label: 'Transport Information & Regulatory Services (NaTIS)' },
+  { value: 'Road & Transport Monitoring/Inspectorate', label: 'Road & Transport Monitoring/Inspectorate' },
+  // Support Departments
+  { value: 'Human Resources', label: 'Human Resources' },
+  { value: 'Finance / Accounting', label: 'Finance / Accounting' },
+  { value: 'Corporate Communications', label: 'Corporate Communications' },
+  { value: 'Administration / Corporate Services', label: 'Administration / Corporate Services' },
+  { value: 'Legal / Compliance', label: 'Legal / Compliance' },
+  { value: 'ICT / Business Systems', label: 'ICT / Business Systems' },
+  { value: 'Procurement', label: 'Procurement' },
+  { value: "CEO's Office", label: "CEO's Office" },
+];
 
 const vacancySchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title must be less than 200 characters'),
   type: z.enum(['full-time', 'part-time', 'bursary', 'internship'], {
     required_error: 'Type is required',
   }),
-  department: z.string().min(1, 'Department is required'),
+  department: z.enum([
+    'Construction & Renewal',
+    'Road Maintenance',
+    'Road Traffic Planning & Advisory',
+    'Road Management (RMS)',
+    'Transport Information & Regulatory Services (NaTIS)',
+    'Road & Transport Monitoring/Inspectorate',
+    'Human Resources',
+    'Finance / Accounting',
+    'Corporate Communications',
+    'Administration / Corporate Services',
+    'Legal / Compliance',
+    'ICT / Business Systems',
+    'Procurement',
+    "CEO's Office",
+  ], {
+    required_error: 'Department is required',
+  }),
   location: z.string().min(1, 'Location is required'),
   description: z.string().min(1, 'Description is required'),
   requirements: z.array(z.string()).min(1, 'At least one requirement is required'),
@@ -48,6 +86,13 @@ const vacancySchema = z.object({
   closingDate: z.string().min(1, 'Closing date is required'),
   pdfUrl: z.string().optional(),
   published: z.boolean(),
+  // Contact information
+  contactName: z.string().optional(),
+  contactEmail: z.string().email('Invalid email format').optional().or(z.literal('')),
+  contactTelephone: z.string().optional(),
+  submissionLink: z.string().url('Invalid URL format').optional().or(z.literal('')),
+  submissionEmail: z.string().email('Invalid email format').optional().or(z.literal('')),
+  submissionInstructions: z.string().max(500, 'Instructions must be less than 500 characters').optional(),
 });
 
 type VacancyFormValues = z.infer<typeof vacancySchema>;
@@ -74,7 +119,7 @@ const VacancyForm = () => {
     defaultValues: {
       title: '',
       type: 'full-time',
-      department: '',
+      department: 'Human Resources', // Default to a valid department
       location: '',
       description: '',
       requirements: [],
@@ -83,6 +128,13 @@ const VacancyForm = () => {
       closingDate: '',
       pdfUrl: '',
       published: false,
+      // Contact information
+      contactName: '',
+      contactEmail: '',
+      contactTelephone: '',
+      submissionLink: '',
+      submissionEmail: '',
+      submissionInstructions: '',
     },
   });
 
@@ -115,6 +167,13 @@ const VacancyForm = () => {
       setValue('closingDate', vacancyData.closingDate.split('T')[0]);
       setValue('pdfUrl', vacancyData.pdfUrl || '');
       setValue('published', vacancyData.published);
+      // Contact information
+      setValue('contactName', vacancyData.contactName || '');
+      setValue('contactEmail', vacancyData.contactEmail || '');
+      setValue('contactTelephone', vacancyData.contactTelephone || '');
+      setValue('submissionLink', vacancyData.submissionLink || '');
+      setValue('submissionEmail', vacancyData.submissionEmail || '');
+      setValue('submissionInstructions', vacancyData.submissionInstructions || '');
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Failed to fetch vacancy');
     } finally {
@@ -180,6 +239,13 @@ const VacancyForm = () => {
         closingDate: data.closingDate,
         pdfUrl: data.pdfUrl,
         published: data.published,
+        // Contact information
+        contactName: data.contactName,
+        contactEmail: data.contactEmail,
+        contactTelephone: data.contactTelephone,
+        submissionLink: data.submissionLink,
+        submissionEmail: data.submissionEmail,
+        submissionInstructions: data.submissionInstructions,
       };
 
       if (isEditMode && id) {
@@ -284,14 +350,21 @@ const VacancyForm = () => {
                 name="department"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Department"
-                    fullWidth
-                    error={!!errors.department}
-                    helperText={errors.department?.message}
-                    required
-                  />
+                  <FormControl fullWidth error={!!errors.department} required>
+                    <InputLabel>Department</InputLabel>
+                    <Select {...field} label="Department">
+                      {DEPARTMENTS.map((dept) => (
+                        <MenuItem key={dept.value} value={dept.value}>
+                          {dept.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {errors.department && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                        {errors.department.message}
+                      </Typography>
+                    )}
+                  </FormControl>
                 )}
               />
             </Box>
@@ -480,6 +553,124 @@ const VacancyForm = () => {
               label=""
               required={false}
               disabled={loading}
+            />
+          </CardContent>
+        </Card>
+
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Contact Information & Application Submission
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Provide contact details and application submission options for candidates
+            </Typography>
+
+            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+              <Controller
+                name="contactName"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Contact Person Name"
+                    fullWidth
+                    error={!!errors.contactName}
+                    helperText={errors.contactName?.message}
+                  />
+                )}
+              />
+
+              <Controller
+                name="contactTelephone"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Contact Telephone"
+                    fullWidth
+                    error={!!errors.contactTelephone}
+                    helperText={errors.contactTelephone?.message}
+                    placeholder="e.g., +264 61 123 4567"
+                  />
+                )}
+              />
+            </Box>
+
+            <Controller
+              name="contactEmail"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Contact Email"
+                  type="email"
+                  fullWidth
+                  margin="normal"
+                  error={!!errors.contactEmail}
+                  helperText={errors.contactEmail?.message}
+                  placeholder="e.g., hr@ra.gov.na"
+                />
+              )}
+            />
+
+            <Typography variant="subtitle2" sx={{ mt: 3, mb: 1, fontWeight: 600 }}>
+              Application Submission Options
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Provide at least one way for candidates to submit their applications
+            </Typography>
+
+            <Controller
+              name="submissionEmail"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Application Submission Email"
+                  type="email"
+                  fullWidth
+                  margin="normal"
+                  error={!!errors.submissionEmail}
+                  helperText={errors.submissionEmail?.message || 'Email address where candidates should send applications'}
+                  placeholder="e.g., applications@ra.gov.na"
+                />
+              )}
+            />
+
+            <Controller
+              name="submissionLink"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Online Application Link"
+                  type="url"
+                  fullWidth
+                  margin="normal"
+                  error={!!errors.submissionLink}
+                  helperText={errors.submissionLink?.message || 'Link to online application form or portal'}
+                  placeholder="e.g., https://careers.ra.gov.na/apply"
+                />
+              )}
+            />
+
+            <Controller
+              name="submissionInstructions"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Application Instructions"
+                  fullWidth
+                  margin="normal"
+                  multiline
+                  rows={3}
+                  error={!!errors.submissionInstructions}
+                  helperText={errors.submissionInstructions?.message || 'Additional instructions for how to apply (max 500 characters)'}
+                  placeholder="e.g., Please submit CV, cover letter, and certified copies of qualifications..."
+                />
+              )}
             />
           </CardContent>
         </Card>

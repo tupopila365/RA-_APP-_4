@@ -22,7 +22,10 @@ import {
   HelpOutline as FAQIcon,
   People as UsersIcon,
   Warning as PotholeIcon,
+  Traffic as RoadStatusIcon,
   ReportProblem as IncidentIcon,
+  Description as ProcurementIcon,
+  ListAlt as RegisterIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -110,10 +113,46 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         permission: 'pothole-reports:manage',
       },
       {
+        label: 'Road Status',
+        path: '/road-status',
+        icon: <RoadStatusIcon />,
+        permission: 'road-status:manage',
+      },
+      {
         label: 'Incidents',
         path: '/incidents',
         icon: <IncidentIcon />,
         permission: 'incidents:manage',
+      },
+      {
+        label: 'Procurement Legislation',
+        path: '/procurement-legislation',
+        icon: <ProcurementIcon />,
+        permission: 'procurement:legislation:manage',
+      },
+      {
+        label: 'Procurement Plan',
+        path: '/procurement-plan',
+        icon: <ProcurementIcon />,
+        permission: 'procurement:plan:manage',
+      },
+      {
+        label: 'Procurement Awards',
+        path: '/procurement-awards',
+        icon: <ProcurementIcon />,
+        permission: 'procurement:awards:manage',
+      },
+      {
+        label: 'Opening Register',
+        path: '/procurement-opening-register',
+        icon: <ProcurementIcon />,
+        permission: 'procurement:opening-register:manage',
+      },
+      {
+        label: 'Bids / RFQs',
+        path: '/bids-rfqs',
+        icon: <RegisterIcon />,
+        permission: 'procurement:opening-register:manage',
       },
       {
         label: 'Users',
@@ -154,7 +193,7 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
     <Box
       sx={{
         height: '100%',
-        background: 'linear-gradient(180deg, rgba(0, 180, 230, 0.95) 0%, rgba(0, 144, 192, 0.98) 100%)',
+        background: '#1E3A8A', // Navy blue
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
@@ -166,39 +205,46 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
           py: 2,
           px: 2,
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          backgroundColor: '#1E40AF', // Slightly lighter navy for header
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box
+            component="img"
+            src="/assets/ra-logo.png"
+            alt="RA Logo"
             sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 2,
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)',
-              backdropFilter: 'blur(10px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              width: 40,
+              height: 40,
+              objectFit: 'contain',
             }}
-          >
-            <Typography variant="h6" sx={{ color: 'white', fontWeight: 800, fontSize: '1.25rem' }}>
-              RA
+          />
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                fontWeight: 600,
+                color: 'white',
+                fontSize: '0.9375rem',
+                letterSpacing: '0.01em',
+                lineHeight: 1.2,
+              }}
+            >
+              Roads Authority
+            </Typography>
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontSize: '0.75rem',
+                fontWeight: 400,
+              }}
+            >
+              Admin Portal
             </Typography>
           </Box>
-          <Typography
-            variant="h6"
-            noWrap
-            sx={{
-              fontWeight: 700,
-              color: 'white',
-              fontSize: '1.25rem',
-              letterSpacing: '0.02em',
-            }}
-          >
-            Admin
-          </Typography>
         </Box>
       </Toolbar>
       <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
@@ -217,23 +263,20 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
               selected={isActive(item.path)}
               onClick={() => handleNavigation(item.path)}
               sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                mx: 0.5,
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                borderRadius: 1,
+                mb: 0.25,
+                mx: 1,
+                py: 1.25,
+                px: 2,
+                transition: 'all 0.15s ease',
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  transform: 'translateX(4px)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 },
                 '&.Mui-selected': {
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+                  backgroundColor: '#3B82F6', // Lighter blue for selected
                   color: 'white',
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                    transform: 'translateX(4px)',
+                    backgroundColor: '#2563EB',
                   },
                   '& .MuiListItemIcon-root': {
                     color: 'white',
@@ -242,21 +285,20 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
                     content: '""',
                     position: 'absolute',
                     left: 0,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: 4,
-                    height: '60%',
-                    backgroundColor: '#FFD700',
-                    borderRadius: '0 4px 4px 0',
+                    top: 0,
+                    bottom: 0,
+                    width: 3,
+                    backgroundColor: '#EFF6FF',
+                    borderRadius: '0 2px 2px 0',
                   },
                 },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: isActive(item.path) ? 'white' : 'rgba(255, 255, 255, 0.8)',
-                  minWidth: 40,
-                  transition: 'color 0.2s',
+                  color: isActive(item.path) ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                  minWidth: 36,
+                  transition: 'color 0.15s ease',
                 }}
               >
                 {item.icon}
@@ -264,9 +306,10 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
               <ListItemText
                 primary={item.label}
                 primaryTypographyProps={{
-                  fontWeight: isActive(item.path) ? 600 : 500,
-                  fontSize: '0.9375rem',
-                  color: isActive(item.path) ? 'white' : 'rgba(255, 255, 255, 0.9)',
+                  fontWeight: isActive(item.path) ? 500 : 400,
+                  fontSize: '0.875rem',
+                  color: isActive(item.path) ? 'white' : 'rgba(255, 255, 255, 0.85)',
+                  letterSpacing: '0.01em',
                 }}
               />
             </ListItemButton>
@@ -279,22 +322,22 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
           <Box
             sx={{
               px: 2,
-              py: 1.5,
+              py: 1.25,
               mx: 1,
               mb: 1,
-              borderRadius: 2,
-              background: 'rgba(255, 215, 0, 0.2)',
-              border: '1px solid rgba(255, 215, 0, 0.3)',
+              borderRadius: 1,
+              background: 'rgba(14, 165, 233, 0.15)',
+              border: '1px solid rgba(14, 165, 233, 0.25)',
             }}
           >
             <Typography
               variant="caption"
               sx={{
-                fontWeight: 700,
-                color: '#FFD700',
+                fontWeight: 600,
+                color: '#0EA5E9',
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                fontSize: '0.7rem',
+                letterSpacing: '0.08em',
+                fontSize: '0.6875rem',
               }}
             >
               SUPER ADMIN
@@ -324,8 +367,8 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
-            borderRight: 'none',
-            boxShadow: '4px 0 16px rgba(0, 0, 0, 0.15)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
@@ -343,7 +386,7 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
-            borderRight: 'none',
+            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
             boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
             display: 'flex',
             flexDirection: 'column',

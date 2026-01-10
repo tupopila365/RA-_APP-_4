@@ -4,6 +4,7 @@ exports.locationsService = void 0;
 const locations_model_1 = require("./locations.model");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
+const distance_1 = require("../../utils/distance");
 class LocationsService {
     /**
      * Create a new location
@@ -142,6 +143,62 @@ class LocationsService {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
                 message: 'Failed to delete location',
+                details: error.message,
+            };
+        }
+    }
+    /**
+     * Find nearest offices to a given location
+     *
+     * @param latitude - User's latitude
+     * @param longitude - User's longitude
+     * @param limit - Maximum number of offices to return (default: 5)
+     * @returns Array of offices with distance in kilometers, sorted by distance
+     */
+    async findNearestOffices(latitude, longitude, limit = 5) {
+        try {
+            logger_1.logger.info('Finding nearest offices', { latitude, longitude, limit });
+            // Validate coordinates
+            if (typeof latitude !== 'number' || typeof longitude !== 'number' || isNaN(latitude) || isNaN(longitude)) {
+                throw {
+                    statusCode: 400,
+                    code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                    message: 'Invalid coordinates provided',
+                };
+            }
+            if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+                throw {
+                    statusCode: 400,
+                    code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                    message: 'Coordinates out of valid range',
+                };
+            }
+            // Retrieve all offices from database
+            const offices = await locations_model_1.LocationModel.find({}).lean();
+            // Calculate distance for each office and add to result
+            const officesWithDistance = offices.map((office) => {
+                const distance = (0, distance_1.calculateDistance)(latitude, longitude, office.coordinates.latitude, office.coordinates.longitude);
+                return {
+                    ...office,
+                    distance,
+                };
+            });
+            // Sort by distance (ascending)
+            officesWithDistance.sort((a, b) => a.distance - b.distance);
+            // Return top N offices
+            const result = officesWithDistance.slice(0, limit);
+            logger_1.logger.info(`Found ${result.length} nearest offices`);
+            return result;
+        }
+        catch (error) {
+            logger_1.logger.error('Find nearest offices error:', error);
+            if (error.statusCode) {
+                throw error;
+            }
+            throw {
+                statusCode: 500,
+                code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
+                message: 'Failed to find nearest offices',
                 details: error.message,
             };
         }

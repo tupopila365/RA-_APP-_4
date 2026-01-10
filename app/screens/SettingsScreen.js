@@ -8,8 +8,12 @@ import {
   Alert,
   BackHandler,
   Platform,
+  TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { CommonActions } from '@react-navigation/native';
@@ -24,6 +28,8 @@ export default function SettingsScreen() {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { user, logout } = useAppContext();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [darkModeEnabled, setDarkModeEnabled] = useState(colorScheme === 'dark');
@@ -99,22 +105,22 @@ export default function SettingsScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      'Sign Out',
+      'Are you sure you want to sign out of your account?',
       [
         {
           text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Logout',
+          text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
             try {
               await logout();
               // Navigation will be handled by App.js based on auth state
             } catch (error) {
-              Alert.alert('Error', 'Failed to logout. Please try again.');
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
             }
           },
         },
@@ -122,117 +128,173 @@ export default function SettingsScreen() {
     );
   };
 
-  const settingsSections = [
-    ...(user ? [
-      {
-        title: 'Account',
-        items: [
-          {
-            id: 0,
-            title: user.fullName || 'User',
-            subtitle: user.email,
-            icon: 'person-circle-outline',
-            type: 'info',
-          },
-        ],
-      },
-    ] : []),
-    {
-      title: 'Appearance',
-      items: [
-        {
-          id: 1,
-          title: 'Dark Mode',
-          subtitle: 'Switch between light and dark theme',
-          icon: 'moon-outline',
-          type: 'toggle',
-          value: darkModeEnabled,
-          onToggle: handleDarkModeToggle,
-        },
-      ],
-    },
-    {
-      title: 'Notifications',
-      items: [
-        {
-          id: 2,
-          title: 'Push Notifications',
-          subtitle: 'Receive updates and announcements',
-          icon: 'notifications-outline',
-          type: 'toggle',
-          value: notificationsEnabled,
-          onToggle: handleNotificationToggle,
-        },
-      ],
-    },
-    {
-      title: 'About',
-      items: [
-        {
-          id: 3,
-          title: 'App Version',
-          subtitle: '1.0.0',
-          icon: 'information-circle-outline',
-          type: 'info',
-        },
-        {
-          id: 4,
-          title: 'Terms & Conditions',
-          subtitle: 'View terms and conditions',
-          icon: 'document-text-outline',
-          type: 'action',
-          onPress: () => Alert.alert('Terms & Conditions', 'Terms and conditions content...'),
-        },
-        {
-          id: 5,
-          title: 'Privacy Policy',
-          subtitle: 'View privacy policy',
-          icon: 'shield-checkmark-outline',
-          type: 'action',
-          onPress: () => Alert.alert('Privacy Policy', 'Privacy policy content...'),
-        },
-      ],
-    },
-  ];
-
-  const styles = getStyles(colors);
+  const styles = getStyles(colors, screenWidth);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {settingsSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
-            <SectionTitle title={section.title} />
-            <View style={styles.sectionContent}>
-              {section.items.map((item) => (
-                <ListItem
-                  key={item.id}
-                  title={item.title}
-                  subtitle={item.subtitle}
-                  iconName={item.icon}
-                  type={item.type}
-                  toggleValue={item.value}
-                  onToggle={item.onToggle}
-                  onPress={item.onPress}
-                  showChevron={item.type === 'action'}
-                />
-              ))}
-            </View>
-          </View>
-        ))}
-
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        {/* User Profile Section */}
         {user && (
-          <View style={styles.logoutSection}>
-            <Button
-              label="Logout"
-              onPress={handleLogout}
-              style={styles.logoutButton}
-              size="large"
-              fullWidth
-            />
+          <View style={styles.profileSection}>
+            <View style={styles.profileCard}>
+              <View style={styles.profileIconContainer}>
+                <Ionicons name="person" size={32} color={colors.primary} />
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{user.fullName || 'User'}</Text>
+                <Text style={styles.profileEmail}>{user.email}</Text>
+                <Text style={styles.profileStatus}>Verified Account</Text>
+              </View>
+              <TouchableOpacity style={styles.profileEditButton}>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity style={styles.quickActionItem}>
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="document-text-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.quickActionText}>My Reports</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickActionItem}>
+              <View style={[styles.quickActionIcon, { backgroundColor: '#FF6B35' + '20' }]}>
+                <Ionicons name="notifications-outline" size={24} color="#FF6B35" />
+              </View>
+              <Text style={styles.quickActionText}>Alerts</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickActionItem}>
+              <View style={[styles.quickActionIcon, { backgroundColor: '#28A745' + '20' }]}>
+                <Ionicons name="help-circle-outline" size={24} color="#28A745" />
+              </View>
+              <Text style={styles.quickActionText}>Help</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickActionItem}>
+              <View style={[styles.quickActionIcon, { backgroundColor: '#6F42C1' + '20' }]}>
+                <Ionicons name="chatbubble-outline" size={24} color="#6F42C1" />
+              </View>
+              <Text style={styles.quickActionText}>Support</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Account & Security */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account & Security</Text>
+          <View style={styles.settingsCard}>
+            <SettingsItem
+              icon="shield-checkmark-outline"
+              title="Security Settings"
+              subtitle="Manage your account security"
+              onPress={() => Alert.alert('Security', 'Security settings coming soon')}
+              colors={colors}
+            />
+            <SettingsItem
+              icon="key-outline"
+              title="Change Password"
+              subtitle="Update your account password"
+              onPress={() => Alert.alert('Password', 'Change password coming soon')}
+              colors={colors}
+              showDivider
+            />
+            <SettingsItem
+              icon="finger-print-outline"
+              title="Biometric Login"
+              subtitle="Use fingerprint or face ID"
+              onPress={() => Alert.alert('Biometric', 'Biometric login coming soon')}
+              colors={colors}
+              showDivider
+            />
+          </View>
+        </View>
+
+        {/* Preferences */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <View style={styles.settingsCard}>
+            <SettingsItem
+              icon="notifications-outline"
+              title="Push Notifications"
+              subtitle="Receive updates and alerts"
+              type="toggle"
+              value={notificationsEnabled}
+              onToggle={handleNotificationToggle}
+              colors={colors}
+            />
+            <SettingsItem
+              icon="moon-outline"
+              title="Dark Mode"
+              subtitle="Switch between light and dark theme"
+              type="toggle"
+              value={darkModeEnabled}
+              onToggle={handleDarkModeToggle}
+              colors={colors}
+              showDivider
+            />
+            <SettingsItem
+              icon="language-outline"
+              title="Language"
+              subtitle="English"
+              onPress={() => Alert.alert('Language', 'Language settings coming soon')}
+              colors={colors}
+              showDivider
+            />
+          </View>
+        </View>
+
+        {/* Support & Legal */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support & Legal</Text>
+          <View style={styles.settingsCard}>
+            <SettingsItem
+              icon="help-circle-outline"
+              title="Help Center"
+              subtitle="Get help and support"
+              onPress={() => Alert.alert('Help', 'Help center coming soon')}
+              colors={colors}
+            />
+            <SettingsItem
+              icon="document-text-outline"
+              title="Terms & Conditions"
+              subtitle="View terms and conditions"
+              onPress={() => Alert.alert('Terms & Conditions', 'Terms and conditions content...')}
+              colors={colors}
+              showDivider
+            />
+            <SettingsItem
+              icon="shield-checkmark-outline"
+              title="Privacy Policy"
+              subtitle="View privacy policy"
+              onPress={() => Alert.alert('Privacy Policy', 'Privacy policy content...')}
+              colors={colors}
+              showDivider
+            />
+            <SettingsItem
+              icon="information-circle-outline"
+              title="App Version"
+              subtitle="1.0.0"
+              colors={colors}
+              showDivider
+            />
+          </View>
+        </View>
+
+        {/* Sign Out */}
+        {user && (
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.signOutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Roads Authority Namibia</Text>
           <Text style={styles.footerSubtext}>© 2024 All rights reserved</Text>
@@ -242,60 +304,276 @@ export default function SettingsScreen() {
   );
 }
 
-function getStyles(colors) {
+// Settings Item Component
+function SettingsItem({ icon, title, subtitle, type, value, onToggle, onPress, colors, showDivider = false }) {
+  const styles = getStyles(colors, 600); // Use a default width for styles in component
+  
+  return (
+    <>
+      <TouchableOpacity 
+        style={styles.settingsItem} 
+        onPress={type === 'toggle' ? undefined : onPress}
+        disabled={type === 'toggle' || !onPress}
+      >
+        <View style={styles.settingsItemLeft}>
+          <View style={[styles.settingsItemIcon, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name={icon} size={20} color={colors.primary} />
+          </View>
+          <View style={styles.settingsItemText}>
+            <Text style={[styles.settingsItemTitle, { color: colors.text }]}>{title}</Text>
+            <Text style={[styles.settingsItemSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+          </View>
+        </View>
+        <View style={styles.settingsItemRight}>
+          {type === 'toggle' ? (
+            <TouchableOpacity
+              style={[
+                styles.toggleSwitch,
+                { backgroundColor: value ? colors.primary : colors.border }
+              ]}
+              onPress={() => onToggle(!value)}
+            >
+              <View
+                style={[
+                  styles.toggleThumb,
+                  {
+                    backgroundColor: '#FFFFFF',
+                    transform: [{ translateX: value ? 16 : 2 }]
+                  }
+                ]}
+              />
+            </TouchableOpacity>
+          ) : onPress ? (
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          ) : null}
+        </View>
+      </TouchableOpacity>
+      {showDivider && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+    </>
+  );
+}
+
+function getStyles(colors, screenWidth) {
+  const isTablet = screenWidth > 600;
+  
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
     },
+    scrollView: {
+      flex: 1,
+    },
     content: {
-      padding: spacing.xl,
-      paddingTop: spacing.xxl,
+      padding: 20,
+      paddingBottom: 100,
     },
+    
+    // Profile Section
+    profileSection: {
+      marginBottom: 24,
+      marginTop: 20, // Normal top margin instead of overlap
+    },
+    profileCard: {
+      backgroundColor: colors.card,
+      borderRadius: 20,
+      padding: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 16,
+      elevation: 8,
+      borderWidth: 1,
+      borderColor: colors.border + '20',
+    },
+    profileIconContainer: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.primary + '15',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
+    },
+    profileInfo: {
+      flex: 1,
+    },
+    profileName: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    profileEmail: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    profileStatus: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    profileEditButton: {
+      padding: 8,
+    },
+    
+    // Quick Actions
+    quickActionsGrid: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+    },
+    quickActionItem: {
+      width: (screenWidth - 60) / 4,
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    quickActionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    quickActionText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    
+    // Sections
     section: {
-      marginBottom: spacing.xxl,
+      marginBottom: 24,
     },
-    sectionContent: {
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+      letterSpacing: -0.3,
+    },
+    settingsCard: {
       backgroundColor: colors.card,
       borderRadius: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: colors.border + '20',
       overflow: 'hidden',
+    },
+    
+    // Settings Items
+    settingsItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+      minHeight: 64,
+    },
+    settingsItemLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    settingsItemIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    settingsItemText: {
+      flex: 1,
+    },
+    settingsItemTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    settingsItemSubtitle: {
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    settingsItemRight: {
+      marginLeft: 12,
+    },
+    
+    // Toggle Switch
+    toggleSwitch: {
+      width: 44,
+      height: 24,
+      borderRadius: 12,
+      justifyContent: 'center',
+      position: 'relative',
+    },
+    toggleThumb: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      position: 'absolute',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
       elevation: 3,
-      borderWidth: 1,
-      borderColor: colors.border + '40',
     },
+    
+    // Divider
+    divider: {
+      height: 1,
+      marginLeft: 68,
+      opacity: 0.3,
+    },
+    
+    // Sign Out Button
+    signOutButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: '#FF3B30' + '20',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    signOutText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#FF3B30',
+      marginLeft: 8,
+    },
+    
+    // Footer
     footer: {
       alignItems: 'center',
-      marginTop: spacing.xxl,
-      marginBottom: spacing.xxxl + spacing.md,
-      paddingTop: spacing.xl,
+      marginTop: 32,
+      paddingTop: 24,
       borderTopWidth: 1,
-      borderTopColor: colors.border + '40',
+      borderTopColor: colors.border + '30',
     },
     footerText: {
       fontSize: 16,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: spacing.xs,
+      marginBottom: 4,
     },
     footerSubtext: {
       fontSize: 12,
       color: colors.textSecondary,
-    },
-    logoutSection: {
-      marginTop: spacing.xxl,
-      marginBottom: spacing.lg,
-    },
-    logoutButton: {
-      backgroundColor: colors.error,
-      shadowColor: colors.error,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 3,
     },
   });
 }

@@ -165,8 +165,8 @@ const getStyles = (colors) => StyleSheet.create({
     marginVertical: 4,
     backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border || '#E0E0E0',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.text,
     shadowOffset: {
       width: 0,
       height: 1,
@@ -204,7 +204,7 @@ const getStyles = (colors) => StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border || '#E0E0E0',
+    borderColor: colors.border,
     position: 'relative',
   },
   mapPreview: {

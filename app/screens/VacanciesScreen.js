@@ -5,23 +5,29 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
+  Pressable,
   useColorScheme,
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Linking,
+  Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import { vacanciesService } from '../services/vacanciesService';
 import { documentDownloadService } from '../services/documentDownloadService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
-import { LoadingSpinner, ErrorState, FilterBar, EmptyState } from '../components';
+import { LoadingSpinner, ErrorState, EmptyState, SearchInput } from '../components';
 
 export default function VacanciesScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [expandedVacancy, setExpandedVacancy] = useState(null);
@@ -163,17 +169,56 @@ export default function VacanciesScreen() {
       // Show success alert with Open and Share options
       Alert.alert(
         'Download Complete',
-        'The application form has been downloaded successfully.',
+        'The application form has been downloaded successfully. Choose an option below:',
         [
           {
-            text: 'Open',
+            text: 'Open PDF',
             onPress: async () => {
-              const openResult = await documentDownloadService.openFile(result.uri);
-              if (!openResult.success) {
-                Alert.alert('Error', openResult.error || 'Failed to open file');
-              }
-              resetDownload();
-              setCurrentDownloadId(null);
+              console.log('User chose to open PDF:', result.uri);
+              
+              // Show a brief loading state
+              Alert.alert(
+                'Opening PDF...',
+                'Please wait while we open your document.',
+                [],
+                { cancelable: false }
+              );
+              
+              // Small delay to show the loading message
+              setTimeout(async () => {
+                const openResult = await documentDownloadService.openFile(result.uri);
+                
+                if (!openResult.success) {
+                  Alert.alert(
+                    'Cannot Open PDF', 
+                    `${openResult.error || 'Failed to open file'}\n\nYou can try sharing the file instead to open it with another app.`,
+                    [
+                      {
+                        text: 'Share Instead',
+                        onPress: async () => {
+                          const filename = documentDownloadService.generateSafeFilename(
+                            vacancy.title || 'vacancy',
+                            'pdf'
+                          );
+                          const shareResult = await documentDownloadService.shareFile(result.uri, filename);
+                          if (!shareResult.success) {
+                            Alert.alert('Error', shareResult.error || 'Failed to share file');
+                          }
+                        },
+                      },
+                      {
+                        text: 'OK',
+                        style: 'cancel',
+                      },
+                    ]
+                  );
+                } else {
+                  console.log('PDF opened successfully');
+                }
+                
+                resetDownload();
+                setCurrentDownloadId(null);
+              }, 500);
             },
           },
           {
@@ -275,35 +320,11 @@ export default function VacanciesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header with Search and Filters */}
-      <View style={styles.header}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search vacancies..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-
-        {/* Filters */}
-        <FilterBar
-          filters={filters}
-          selectedFilter={selectedFilter}
-          onFilterChange={setSelectedFilter}
-          testID="vacancies-filter-bar"
-          accessibilityLabel="Vacancy type filters"
-        />
-      </View>
-
-      {/* Vacancies List */}
-      <ScrollView 
-        style={styles.contentScrollView} 
-        contentContainerStyle={styles.content}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -312,24 +333,93 @@ export default function VacanciesScreen() {
             tintColor={colors.primary}
           />
         }
+        showsVerticalScrollIndicator={true}
       >
-        {filteredVacancies.length === 0 ? (
-          <EmptyState
-            icon="briefcase-outline"
-            message={vacancies.length === 0 ? 'No vacancies available' : 'No vacancies match your search'}
-            accessibilityLabel="No vacancies found"
+        {/* Search Input */}
+        <View style={styles.searchInputContainer}>
+          <SearchInput
+            placeholder="Search vacancies..."
+            onSearch={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            style={styles.searchInput}
+            accessibilityLabel="Search vacancies"
+            accessibilityHint="Search by title, department, or location"
           />
-        ) : (
-          filteredVacancies.map((vacancy) => {
-            const isExpanded = expandedVacancy === vacancy._id;
-            const isVacancyDownloading = isDownloading && currentDownloadId === vacancy._id;
-            return (
-              <TouchableOpacity 
-                key={vacancy._id} 
-                style={styles.vacancyCard} 
-                activeOpacity={0.7}
-                onPress={() => toggleExpand(vacancy._id)}
+        </View>
+
+        {/* Type Filter Chips - matching Road Status design */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContainer}
+        >
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              selectedFilter === 'All' && styles.filterChipActive,
+            ]}
+            onPress={() => setSelectedFilter('All')}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                selectedFilter === 'All' && styles.filterChipTextActive,
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+          {filters.filter(f => f !== 'All').map((filter, index) => (
+            <TouchableOpacity
+              key={filter || `filter-${index}`}
+              style={[
+                styles.filterChip,
+                selectedFilter === filter && styles.filterChipActive,
+              ]}
+              onPress={() => setSelectedFilter(selectedFilter === filter ? 'All' : filter)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selectedFilter === filter && styles.filterChipTextActive,
+                ]}
               >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Results Count */}
+        {filteredVacancies.length > 0 && (searchQuery.trim() || selectedFilter !== 'All') && (
+          <View style={styles.resultsCountContainer}>
+            <Text style={styles.resultsCount}>
+              {filteredVacancies.length} {filteredVacancies.length === 1 ? 'vacancy' : 'vacancies'} found
+            </Text>
+          </View>
+        )}
+
+        {/* Vacancies List */}
+        {filteredVacancies.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <EmptyState
+              icon="briefcase-outline"
+              message={vacancies.length === 0 ? 'No vacancies available' : 'No vacancies match your search'}
+              accessibilityLabel="No vacancies found"
+            />
+          </View>
+        ) : (
+          <View style={styles.content}>
+            {filteredVacancies.map((vacancy, index) => {
+              const isExpanded = expandedVacancy === vacancy._id;
+              const isVacancyDownloading = isDownloading && currentDownloadId === vacancy._id;
+              return (
+                <TouchableOpacity 
+                  key={vacancy._id || `vacancy-${index}`} 
+                  style={styles.vacancyCard} 
+                  activeOpacity={0.7}
+                  onPress={() => toggleExpand(vacancy._id)}
+                >
                 <View style={styles.vacancyHeader}>
                   <View style={[styles.typeBadge, { backgroundColor: colors.secondary + '20' }]}>
                     <Text style={[styles.typeText, { color: colors.secondary }]}>
@@ -384,7 +474,7 @@ export default function VacanciesScreen() {
                       <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Requirements</Text>
                         {vacancy.requirements.map((req, index) => (
-                          <View key={`req-${vacancy._id}-${index}`} style={styles.listItem}>
+                          <View key={`req-${vacancy._id || 'unknown'}-${index}`} style={styles.listItem}>
                             <Text style={styles.bullet}>•</Text>
                             <Text style={styles.listText}>{req}</Text>
                           </View>
@@ -396,11 +486,85 @@ export default function VacanciesScreen() {
                       <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Responsibilities</Text>
                         {vacancy.responsibilities.map((resp, index) => (
-                          <View key={`resp-${vacancy._id}-${index}`} style={styles.listItem}>
+                          <View key={`resp-${vacancy._id || 'unknown'}-${index}`} style={styles.listItem}>
                             <Text style={styles.bullet}>•</Text>
                             <Text style={styles.listText}>{resp}</Text>
                           </View>
                         ))}
+                      </View>
+                    )}
+
+                    {/* Contact Information & Application Submission */}
+                    {(vacancy.contactName || vacancy.contactEmail || vacancy.contactTelephone || 
+                      vacancy.submissionEmail || vacancy.submissionLink || vacancy.submissionInstructions) && (
+                      <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>How to Apply</Text>
+                        
+                        {/* Contact Information */}
+                        {(vacancy.contactName || vacancy.contactEmail || vacancy.contactTelephone) && (
+                          <View style={styles.contactInfo}>
+                            <Text style={styles.contactTitle}>Contact Information:</Text>
+                            {vacancy.contactName && (
+                              <View style={styles.contactItem}>
+                                <Ionicons name="person-outline" size={16} color={colors.primary} />
+                                <Text style={styles.contactText}>{vacancy.contactName}</Text>
+                              </View>
+                            )}
+                            {vacancy.contactEmail && (
+                              <TouchableOpacity 
+                                style={styles.contactItem}
+                                onPress={() => Linking.openURL(`mailto:${vacancy.contactEmail}`)}
+                              >
+                                <Ionicons name="mail-outline" size={16} color={colors.primary} />
+                                <Text style={[styles.contactText, styles.contactLink]}>{vacancy.contactEmail}</Text>
+                              </TouchableOpacity>
+                            )}
+                            {vacancy.contactTelephone && (
+                              <TouchableOpacity 
+                                style={styles.contactItem}
+                                onPress={() => Linking.openURL(`tel:${vacancy.contactTelephone}`)}
+                              >
+                                <Ionicons name="call-outline" size={16} color={colors.primary} />
+                                <Text style={[styles.contactText, styles.contactLink]}>{vacancy.contactTelephone}</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Application Submission Options */}
+                        {(vacancy.submissionEmail || vacancy.submissionLink) && (
+                          <View style={styles.submissionOptions}>
+                            <Text style={styles.contactTitle}>Submit Your Application:</Text>
+                            
+                            {vacancy.submissionEmail && (
+                              <TouchableOpacity 
+                                style={styles.submissionButton}
+                                onPress={() => Linking.openURL(`mailto:${vacancy.submissionEmail}?subject=Application for ${vacancy.title}`)}
+                              >
+                                <Ionicons name="mail" size={20} color="#FFFFFF" />
+                                <Text style={styles.submissionButtonText}>Email Application</Text>
+                              </TouchableOpacity>
+                            )}
+
+                            {vacancy.submissionLink && (
+                              <TouchableOpacity 
+                                style={[styles.submissionButton, { backgroundColor: colors.secondary }]}
+                                onPress={() => Linking.openURL(vacancy.submissionLink)}
+                              >
+                                <Ionicons name="link" size={20} color="#FFFFFF" />
+                                <Text style={styles.submissionButtonText}>Apply Online</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Application Instructions */}
+                        {vacancy.submissionInstructions && (
+                          <View style={styles.instructionsContainer}>
+                            <Text style={styles.contactTitle}>Application Instructions:</Text>
+                            <Text style={styles.instructionsText}>{vacancy.submissionInstructions}</Text>
+                          </View>
+                        )}
                       </View>
                     )}
 
@@ -442,7 +606,8 @@ export default function VacanciesScreen() {
                 )}
               </TouchableOpacity>
             );
-          })
+          })}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -450,44 +615,75 @@ export default function VacanciesScreen() {
 }
 
 function getStyles(colors) {
+  const { width } = Dimensions.get('window');
+  const isSmallScreen = width < 375;
+  
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
-      backgroundColor: colors.background,
-      paddingTop: 15,
+    scrollView: {
+      flex: 1,
     },
-    searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      marginHorizontal: 15,
-      marginBottom: 10,
-      borderRadius: 25,
-      paddingHorizontal: 15,
-      height: 50,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: 20,
+      padding: 20,
     },
-    searchIcon: {
-      marginRight: 10,
+    searchInputContainer: {
+      paddingHorizontal: 0,
+      paddingTop: 16,
+      paddingBottom: 8,
     },
     searchInput: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 16,
+      margin: 0,
     },
-    contentScrollView: {
-      flex: 1,
+    filterContainer: {
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      gap: 10,
+    },
+    filterChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: 8,
+    },
+    filterChipActive: {
+      backgroundColor: colors.primary + '20',
+      borderColor: colors.primary,
+    },
+    filterChipText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    filterChipTextActive: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    resultsCountContainer: {
+      paddingHorizontal: 0,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    resultsCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    emptyStateContainer: {
+      padding: 20,
+      minHeight: 300,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     content: {
-      padding: 15,
-      paddingBottom: 25,
+      padding: 0,
     },
     vacancyCard: {
       backgroundColor: colors.card,
@@ -631,6 +827,59 @@ function getStyles(colors) {
     progressBar: {
       height: '100%',
       borderRadius: 2,
+    },
+    // Contact Information Styles
+    contactInfo: {
+      marginBottom: 16,
+    },
+    contactTitle: {
+      fontSize: isSmallScreen ? 14 : 15,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    contactItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 6,
+      gap: 8,
+    },
+    contactText: {
+      fontSize: isSmallScreen ? 13 : 14,
+      color: colors.text,
+      flex: 1,
+    },
+    contactLink: {
+      color: colors.primary,
+      textDecorationLine: 'underline',
+    },
+    submissionOptions: {
+      marginBottom: 16,
+    },
+    submissionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      marginBottom: 8,
+      gap: 8,
+    },
+    submissionButtonText: {
+      color: '#FFFFFF',
+      fontSize: isSmallScreen ? 14 : 15,
+      fontWeight: '600',
+    },
+    instructionsContainer: {
+      marginTop: 8,
+    },
+    instructionsText: {
+      fontSize: isSmallScreen ? 13 : 14,
+      color: colors.text,
+      lineHeight: 20,
+      fontStyle: 'italic',
     },
   });
 }

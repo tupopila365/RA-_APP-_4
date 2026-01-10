@@ -30,7 +30,14 @@ const ENV = {
     // API_BASE_URL: 'http://localhost:5000/api',
     
     // WiFi connection - using your current WiFi IP
+// WiFi connection - using your current WiFi IP
+//API_BASE_URL: 'http://10.97.0.63:5000/api',
     API_BASE_URL: 'http://192.168.11.52:5000/api',
+
+    //BASE_URL:'https://98192e2a367a.ngrok-fr'
+
+    // USB connection (bypasses firewall)
+//API_BASE_URL: 'http://localhost:5000/api',
     
     // Ngrok tunnel (works from any network!) - Currently offline
     // API_BASE_URL: 'https://tuskless-clinkingly-dorothy.ngrok-free.dev/api',

@@ -96,9 +96,30 @@ const PLNListPage = () => {
 
   const columns = [
     { id: 'referenceId', label: 'Reference ID', minWidth: 150 },
-    { id: 'fullName', label: 'Applicant Name', minWidth: 150 },
-    { id: 'idNumber', label: 'ID Number', minWidth: 120 },
-    { id: 'phoneNumber', label: 'Phone', minWidth: 120 },
+    { 
+      id: 'applicantName', 
+      label: 'Applicant Name', 
+      minWidth: 150,
+      format: (_: any, row: PLNApplication) => (
+        row.businessName || `${row.surname || ''} ${row.initials || ''}`.trim() || row.fullName
+      )
+    },
+    { 
+      id: 'idNumber', 
+      label: 'ID Number', 
+      minWidth: 120,
+      format: (_: any, row: PLNApplication) => (
+        row.trafficRegisterNumber || row.businessRegNumber || row.idNumber
+      )
+    },
+    { 
+      id: 'phoneNumber', 
+      label: 'Phone', 
+      minWidth: 120,
+      format: (_: any, row: PLNApplication) => (
+        row.cellNumber ? `+${row.cellNumber.code} ${row.cellNumber.number}` : row.phoneNumber
+      )
+    },
     {
       id: 'plateChoices',
       label: 'Plate Choices',
@@ -113,12 +134,44 @@ const PLNListPage = () => {
       ),
     },
     {
+      id: 'priority',
+      label: 'Priority',
+      minWidth: 100,
+      format: (_: any, row: PLNApplication) => (
+        row.priority ? (
+          <Chip 
+            label={row.priority} 
+            size="small" 
+            color={row.priority === 'URGENT' ? 'error' : row.priority === 'HIGH' ? 'warning' : 'default'}
+          />
+        ) : null
+      ),
+    },
+    {
+      id: 'assignedTo',
+      label: 'Assigned To',
+      minWidth: 120,
+      format: (_: any, row: PLNApplication) => (
+        row.assignedTo ? (
+          <Chip label={row.assignedTo} size="small" variant="outlined" />
+        ) : (
+          <Typography variant="caption" color="text.secondary">Unassigned</Typography>
+        )
+      ),
+    },
+    {
       id: 'status',
       label: 'Status',
       minWidth: 150,
       format: (value: PLNStatus) => (
         <Chip label={value.replace(/_/g, ' ')} color={getStatusColor(value)} size="small" />
       ),
+    },
+    {
+      id: 'createdAt',
+      label: 'Created',
+      minWidth: 120,
+      format: (value: string) => new Date(value).toLocaleDateString(),
     },
     {
       id: 'actions',

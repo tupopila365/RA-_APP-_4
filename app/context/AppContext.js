@@ -1,12 +1,19 @@
 import React, { createContext, useState, useCallback, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { authService } from '../services/authService';
+import { checkOnboardingCompleted, checkAllPermissions } from '../utils/onboarding';
 
 export const AppContext = createContext();
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [onboardingShownThisSession, setOnboardingShownThisSession] = useState(false);
+  const [permissions, setPermissions] = useState({
+    notifications: { granted: false, status: 'undetermined' },
+    location: { granted: false, status: 'undetermined' },
+  });
   const [appSettings, setAppSettings] = useState({
     notifications: true,
     darkMode: false,
@@ -33,14 +40,12 @@ export function AppProvider({ children }) {
           if (currentUser) {
             setUser(currentUser);
           } else {
-            // Token invalid, clear stored data
-            await authService.logout();
+            // Token invalid or expired, user will need to login again
             setUser(null);
           }
         } catch (err) {
-          console.error('Error validating token:', err);
-          // Token invalid, clear stored data
-          await authService.logout();
+          // Silent fail - tokens are already cleared by authService if needed
+          console.log('Session expired, please login again');
           setUser(null);
         }
       } else {
@@ -52,6 +57,20 @@ export function AppProvider({ children }) {
       if (storedSettings) {
         setAppSettings(JSON.parse(storedSettings));
       }
+
+      // Check onboarding status
+      const onboardingCompleted = await checkOnboardingCompleted();
+      setHasCompletedOnboarding(onboardingCompleted);
+      
+      // In development mode, mark that we've checked onboarding for this session
+      // This prevents re-showing onboarding if AppNavigator re-renders during the session
+      if (__DEV__ && !onboardingCompleted) {
+        setOnboardingShownThisSession(true);
+      }
+
+      // Check permissions
+      const permissionsStatus = await checkAllPermissions();
+      setPermissions(permissionsStatus);
     } catch (err) {
       console.error('Error initializing app:', err);
       setError(err.message);
@@ -105,15 +124,47 @@ export function AppProvider({ children }) {
     setError(null);
   }, []);
 
+  const refreshPermissions = useCallback(async () => {
+    try {
+      const permissionsStatus = await checkAllPermissions();
+      setPermissions(permissionsStatus);
+      return permissionsStatus;
+    } catch (err) {
+      console.error('Error refreshing permissions:', err);
+      throw err;
+    }
+  }, []);
+
+  const refreshOnboardingStatus = useCallback(async () => {
+    try {
+      const completed = await checkOnboardingCompleted();
+      // In dev mode, if onboarding was already shown this session, don't show it again
+      if (__DEV__ && onboardingShownThisSession && !completed) {
+        // Mark as completed for this session only
+        setHasCompletedOnboarding(true);
+        return true;
+      }
+      setHasCompletedOnboarding(completed);
+      return completed;
+    } catch (err) {
+      console.error('Error refreshing onboarding status:', err);
+      throw err;
+    }
+  }, [onboardingShownThisSession]);
+
   const value = {
     user,
     isLoading,
+    hasCompletedOnboarding,
+    permissions,
     appSettings,
     error,
     login,
     logout,
     updateSettings,
     clearError,
+    refreshPermissions,
+    refreshOnboardingStatus,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

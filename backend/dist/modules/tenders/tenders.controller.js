@@ -92,7 +92,7 @@ class TendersController {
             // Send push notification if published
             if (published === true) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender._id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString());
+                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender._id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString(), { useQueue: false });
                     if (notifResult.sentCount > 0) {
                         logger_1.logger.info(`Push notification sent for tender: ${tender._id} (${notifResult.sentCount} devices notified)`);
                     }
@@ -314,7 +314,7 @@ class TendersController {
             // Send push notification if being published for the first time
             if (published === true && !wasPublishedBefore) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender._id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString());
+                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender._id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString(), { useQueue: false });
                     if (notifResult.sentCount > 0) {
                         logger_1.logger.info(`Push notification sent for tender: ${tender._id} (${notifResult.sentCount} devices notified)`);
                     }

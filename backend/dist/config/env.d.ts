@@ -5,6 +5,11 @@ interface EnvConfig {
     REDIS_HOST: string;
     REDIS_PORT: number;
     REDIS_PASSWORD?: string;
+    PUSH_EXPO_ACCESS_TOKEN?: string;
+    PUSH_QUEUE_PREFIX: string;
+    PUSH_JOB_ATTEMPTS: number;
+    PUSH_JOB_BACKOFF_MS: number;
+    PUSH_RECEIPT_DELAY_MS: number;
     JWT_SECRET: string;
     JWT_ACCESS_EXPIRY: string;
     JWT_REFRESH_EXPIRY: string;
@@ -18,10 +23,20 @@ interface EnvConfig {
     GOOGLE_DRIVE_REDIRECT_URI?: string;
     GOOGLE_DRIVE_REFRESH_TOKEN?: string;
     GOOGLE_DRIVE_FOLDER_ID?: string;
+    GOOGLE_MAPS_API_KEY?: string;
     RAG_SERVICE_URL: string;
     CORS_ORIGIN: string;
     GEOCODING_API_KEY?: string;
     GEOCODING_SERVICE?: 'nominatim' | 'google';
+    TRAFFIC_CACHE_TTL_SECONDS?: number;
+    TRAFFIC_DIRECTIONS_TIMEOUT_MS?: number;
+    SMTP_HOST?: string;
+    SMTP_PORT?: number;
+    SMTP_USER?: string;
+    SMTP_PASSWORD?: string;
+    SMTP_FROM_EMAIL?: string;
+    SMTP_FROM_NAME?: string;
+    EMAIL_VERIFICATION_BASE_URL?: string;
 }
 export declare const env: EnvConfig;
 export {};

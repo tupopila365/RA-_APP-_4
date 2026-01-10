@@ -6,6 +6,7 @@ export { locationsService } from './locationsService';
 export { bannersService } from './bannersService';
 export { chatbotService } from './chatbotService';
 export { faqsService } from './faqsService';
+export { roadStatusService } from './roadStatusService';
 // Legacy export for backward compatibility
 export { officesService } from './officesService';
 export { errorLogger, ErrorCategory, ErrorSeverity } from './errorLogger';

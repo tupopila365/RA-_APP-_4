@@ -17,127 +17,142 @@ import PLNDashboardPage from './pages/PLN/PLNDashboardPage';
 import PLNListPage from './pages/PLN/PLNListPage';
 import PLNDetailPage from './pages/PLN/PLNDetailPage';
 import { IncidentsList, IncidentForm } from './pages/Incidents';
+import { ProcurementLegislationPage } from './pages/ProcurementLegislation';
+import { ProcurementPlanPage } from './pages/ProcurementPlan';
+import { ProcurementAwardsPage } from './pages/ProcurementAwards';
+import { ProcurementOpeningRegisterPage } from './pages/ProcurementOpeningRegister';
+import { BidsRFQsPage } from './pages/BidsRFQs';
+import { RoadStatusList, RoadStatusForm } from './pages/RoadStatus';
 import Layout from './components/Layout/Layout';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#00B4E6',
-      light: '#33C3EB',
-      dark: '#0090C0',
+      main: '#1E3A8A', // Professional navy blue
+      light: '#3B82F6',
+      dark: '#1E40AF',
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#FFD700',
-      light: '#FFE033',
-      dark: '#CCAC00',
-      contrastText: '#1A202C',
+      main: '#0EA5E9', // Professional sky blue
+      light: '#38BDF8',
+      dark: '#0284C7',
+      contrastText: '#FFFFFF',
     },
     background: {
-      default: '#F5F7FA',
+      default: '#F8FAFC', // Clean light gray
       paper: '#FFFFFF',
     },
     text: {
-      primary: '#1A202C',
-      secondary: '#4A5568',
-      disabled: '#A0AEC0',
+      primary: '#1E293B', // Dark slate
+      secondary: '#64748B', // Medium gray
+      disabled: '#94A3B8',
     },
     success: {
-      main: '#10B981',
-      light: '#34D399',
-      dark: '#059669',
+      main: '#059669',
+      light: '#10B981',
+      dark: '#047857',
     },
     error: {
-      main: '#EF4444',
-      light: '#F87171',
-      dark: '#DC2626',
+      main: '#DC2626',
+      light: '#EF4444',
+      dark: '#B91C1C',
     },
     warning: {
-      main: '#F59E0B',
-      light: '#FBBF24',
-      dark: '#D97706',
+      main: '#D97706',
+      light: '#F59E0B',
+      dark: '#B45309',
     },
     info: {
-      main: '#00B4E6',
-      light: '#33C3EB',
-      dark: '#0090C0',
+      main: '#0284C7',
+      light: '#0EA5E9',
+      dark: '#0369A1',
     },
     grey: {
-      50: '#F7FAFC',
-      100: '#EDF2F7',
+      50: '#F8FAFC',
+      100: '#F1F5F9',
       200: '#E2E8F0',
-      300: '#CBD5E0',
-      400: '#A0AEC0',
-      500: '#718096',
-      600: '#4A5568',
-      700: '#2D3748',
-      800: '#1A202C',
-      900: '#171923',
+      300: '#CBD5E1',
+      400: '#94A3B8',
+      500: '#64748B',
+      600: '#475569',
+      700: '#334155',
+      800: '#1E293B',
+      900: '#0F172A',
     },
   },
   typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif',
     h1: {
       fontWeight: 700,
-      fontSize: '3rem',
+      fontSize: '2.5rem',
       lineHeight: 1.2,
-      letterSpacing: '-0.02em',
+      letterSpacing: '-0.015em',
+      color: '#1E293B',
     },
     h2: {
-      fontWeight: 700,
-      fontSize: '2.5rem',
-      lineHeight: 1.3,
-      letterSpacing: '-0.01em',
-    },
-    h3: {
       fontWeight: 700,
       fontSize: '2rem',
       lineHeight: 1.3,
       letterSpacing: '-0.01em',
+      color: '#1E293B',
+    },
+    h3: {
+      fontWeight: 600,
+      fontSize: '1.75rem',
+      lineHeight: 1.3,
+      letterSpacing: '-0.01em',
+      color: '#1E293B',
     },
     h4: {
       fontWeight: 600,
-      fontSize: '1.75rem',
+      fontSize: '1.5rem',
       lineHeight: 1.4,
-      letterSpacing: '-0.01em',
+      letterSpacing: '-0.005em',
+      color: '#1E293B',
     },
     h5: {
       fontWeight: 600,
-      fontSize: '1.5rem',
+      fontSize: '1.25rem',
       lineHeight: 1.4,
+      color: '#1E293B',
     },
     h6: {
       fontWeight: 600,
-      fontSize: '1.25rem',
+      fontSize: '1.125rem',
       lineHeight: 1.5,
+      color: '#1E293B',
     },
     body1: {
-      fontSize: '1rem',
+      fontSize: '0.9375rem',
       lineHeight: 1.6,
       fontWeight: 400,
+      color: '#334155',
     },
     body2: {
       fontSize: '0.875rem',
-      lineHeight: 1.6,
+      lineHeight: 1.5,
       fontWeight: 400,
+      color: '#64748B',
     },
     button: {
-      fontWeight: 600,
+      fontWeight: 500,
       textTransform: 'none',
-      letterSpacing: '0.02em',
+      letterSpacing: '0.01em',
+      fontSize: '0.875rem',
     },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 6, // Smaller, sharper corners for professional look
   },
   shadows: [
     'none',
-    '0px 1px 3px rgba(0, 0, 0, 0.08), 0px 1px 2px rgba(0, 0, 0, 0.06)',
-    '0px 2px 4px rgba(0, 0, 0, 0.08), 0px 2px 3px rgba(0, 0, 0, 0.06)',
-    '0px 4px 6px rgba(0, 0, 0, 0.08), 0px 2px 4px rgba(0, 0, 0, 0.06)',
-    '0px 6px 8px rgba(0, 0, 0, 0.08), 0px 3px 6px rgba(0, 0, 0, 0.06)',
-    '0px 8px 12px rgba(0, 0, 0, 0.1), 0px 4px 8px rgba(0, 0, 0, 0.08)',
+    '0px 1px 2px rgba(0, 0, 0, 0.05)',
+    '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
+    '0px 2px 4px rgba(0, 0, 0, 0.1), 0px 1px 3px rgba(0, 0, 0, 0.08)',
+    '0px 3px 6px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
+    '0px 4px 8px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
     '0px 12px 16px rgba(0, 0, 0, 0.1), 0px 6px 12px rgba(0, 0, 0, 0.08)',
     '0px 16px 24px rgba(0, 0, 0, 0.12), 0px 8px 16px rgba(0, 0, 0, 0.1)',
     '0px 20px 32px rgba(0, 0, 0, 0.12), 0px 10px 20px rgba(0, 0, 0, 0.1)',
@@ -178,21 +193,20 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          padding: '10px 24px',
-          fontSize: '0.9375rem',
-          fontWeight: 600,
+          borderRadius: 6,
+          padding: '8px 20px',
+          fontSize: '0.875rem',
+          fontWeight: 500,
           textTransform: 'none',
           boxShadow: 'none',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'all 0.2s ease',
           '&:hover': {
-            boxShadow: '0px 4px 12px rgba(0, 180, 230, 0.3)',
-            transform: 'translateY(-2px)',
+            boxShadow: '0px 2px 4px rgba(30, 58, 138, 0.2)',
           },
         },
         contained: {
           '&:hover': {
-            boxShadow: '0px 6px 16px rgba(0, 180, 230, 0.4)',
+            boxShadow: '0px 3px 6px rgba(30, 58, 138, 0.25)',
           },
         },
         outlined: {
@@ -206,12 +220,12 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
-          boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08), 0px 1px 4px rgba(0, 0, 0, 0.06)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          border: '1px solid rgba(0, 0, 0, 0.05)',
+          borderRadius: 6,
+          boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
+          transition: 'all 0.2s ease',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
           '&:hover': {
-            boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.12), 0px 4px 12px rgba(0, 0, 0, 0.08)',
+            boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
           },
         },
       },
@@ -219,11 +233,12 @@ const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
+          borderRadius: 6,
           backgroundImage: 'none',
+          border: '1px solid rgba(0, 0, 0, 0.06)',
         },
         elevation1: {
-          boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08), 0px 1px 4px rgba(0, 0, 0, 0.06)',
+          boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
         },
       },
     },
@@ -231,13 +246,14 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 12,
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            borderRadius: 6,
+            transition: 'all 0.2s ease',
             '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#00B4E6',
+              borderColor: '#1E3A8A',
             },
             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
               borderWidth: 2,
+              borderColor: '#1E3A8A',
             },
           },
         },
@@ -246,7 +262,7 @@ const theme = createTheme({
     MuiInputBase: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
+          borderRadius: 6,
         },
       },
     },
@@ -257,22 +273,25 @@ const theme = createTheme({
         },
         head: {
           fontWeight: 600,
-          backgroundColor: '#F7FAFC',
-          color: '#1A202C',
+          backgroundColor: '#F8FAFC',
+          color: '#1E293B',
+          fontSize: '0.875rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
         },
       },
     },
     MuiTableRow: {
       styleOverrides: {
         root: {
-          transition: 'background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'background-color 0.15s ease',
           '&:hover': {
-            backgroundColor: 'rgba(0, 180, 230, 0.04)',
+            backgroundColor: '#F8FAFC',
           },
           '&.Mui-selected': {
-            backgroundColor: 'rgba(0, 180, 230, 0.08)',
+            backgroundColor: '#EFF6FF',
             '&:hover': {
-              backgroundColor: 'rgba(0, 180, 230, 0.12)',
+              backgroundColor: '#DBEAFE',
             },
           },
         },
@@ -281,26 +300,140 @@ const theme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 4,
           fontWeight: 500,
-          height: 32,
+          height: 28,
+          fontSize: '0.75rem',
         },
       },
     },
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: 20,
-          boxShadow: '0px 24px 48px rgba(0, 0, 0, 0.2), 0px 12px 24px rgba(0, 0, 0, 0.16)',
+          borderRadius: 8,
+          boxShadow: '0px 12px 24px rgba(0, 0, 0, 0.15), 0px 6px 12px rgba(0, 0, 0, 0.1)',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+        },
+        paperFullWidth: {
+          maxWidth: '90vw',
+        },
+      },
+    },
+    MuiDialogTitle: {
+      styleOverrides: {
+        root: {
+          padding: '20px 24px 16px',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          fontWeight: 600,
+          fontSize: '1.25rem',
+          color: '#1E293B',
+        },
+      },
+    },
+    MuiDialogContent: {
+      styleOverrides: {
+        root: {
+          padding: '24px',
+        },
+      },
+    },
+    MuiDialogActions: {
+      styleOverrides: {
+        root: {
+          padding: '16px 24px',
+          borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+          gap: 1,
+        },
+      },
+    },
+    MuiTabs: {
+      styleOverrides: {
+        root: {
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          minHeight: 48,
+        },
+        indicator: {
+          backgroundColor: '#1E3A8A',
+          height: 3,
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+          fontSize: '0.875rem',
+          minHeight: 48,
+          color: '#64748B',
+          '&.Mui-selected': {
+            color: '#1E3A8A',
+            fontWeight: 600,
+          },
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        root: {
+          borderRadius: 6,
+        },
+      },
+    },
+    MuiFormLabel: {
+      styleOverrides: {
+        root: {
+          fontWeight: 500,
+          fontSize: '0.875rem',
+          color: '#334155',
+          '&.Mui-focused': {
+            color: '#1E3A8A',
+          },
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: 6,
+          border: '1px solid',
+        },
+        standardSuccess: {
+          backgroundColor: '#F0FDF4',
+          borderColor: '#10B981',
+          color: '#059669',
+        },
+        standardError: {
+          backgroundColor: '#FEF2F2',
+          borderColor: '#EF4444',
+          color: '#DC2626',
+        },
+        standardWarning: {
+          backgroundColor: '#FFFBEB',
+          borderColor: '#F59E0B',
+          color: '#D97706',
+        },
+        standardInfo: {
+          backgroundColor: '#EFF6FF',
+          borderColor: '#0284C7',
+          color: '#0369A1',
+        },
+      },
+    },
+    MuiDivider: {
+      styleOverrides: {
+        root: {
+          borderColor: 'rgba(0, 0, 0, 0.08)',
         },
       },
     },
     MuiAppBar: {
       styleOverrides: {
         root: {
-          boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1), 0px 1px 4px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
           backdropFilter: 'blur(10px)',
-          backgroundColor: 'rgba(0, 180, 230, 0.95)',
+          backgroundColor: '#1E3A8A',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         },
       },
     },
@@ -314,16 +447,17 @@ const theme = createTheme({
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          margin: '4px 8px',
-          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          borderRadius: 6,
+          margin: '2px 8px',
+          transition: 'all 0.15s ease',
           '&:hover': {
-            backgroundColor: 'rgba(0, 180, 230, 0.08)',
+            backgroundColor: '#F8FAFC',
           },
           '&.Mui-selected': {
-            backgroundColor: 'rgba(0, 180, 230, 0.12)',
+            backgroundColor: '#EFF6FF',
+            borderLeft: '3px solid #1E3A8A',
             '&:hover': {
-              backgroundColor: 'rgba(0, 180, 230, 0.16)',
+              backgroundColor: '#DBEAFE',
             },
           },
         },
@@ -608,6 +742,36 @@ function App() {
               }
             />
             <Route
+              path="/road-status"
+              element={
+                <ProtectedRoute requiredPermission="road-status:manage">
+                  <Layout>
+                    <RoadStatusList />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/road-status/new"
+              element={
+                <ProtectedRoute requiredPermission="road-status:manage">
+                  <Layout>
+                    <RoadStatusForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/road-status/edit/:id"
+              element={
+                <ProtectedRoute requiredPermission="road-status:manage">
+                  <Layout>
+                    <RoadStatusForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/incidents"
               element={
                 <ProtectedRoute requiredPermission="incidents:manage">
@@ -667,6 +831,56 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/procurement-legislation"
+              element={
+                <ProtectedRoute requiredPermission="procurement:legislation:manage">
+                  <Layout>
+                    <ProcurementLegislationPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/procurement-plan"
+              element={
+                <ProtectedRoute requiredPermission="procurement:plan:manage">
+                  <Layout>
+                    <ProcurementPlanPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/procurement-awards"
+              element={
+                <ProtectedRoute requiredPermission="procurement:awards:manage">
+                  <Layout>
+                    <ProcurementAwardsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+                <Route
+                  path="/procurement-opening-register"
+                  element={
+                    <ProtectedRoute requiredPermission="procurement:opening-register:manage">
+                      <Layout>
+                        <ProcurementOpeningRegisterPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/bids-rfqs"
+                  element={
+                    <ProtectedRoute requiredPermission="procurement:opening-register:manage">
+                      <Layout>
+                        <BidsRFQsPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </AuthProvider>

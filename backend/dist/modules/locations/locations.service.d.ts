@@ -45,6 +45,17 @@ declare class LocationsService {
      * Delete a location
      */
     deleteLocation(locationId: string): Promise<void>;
+    /**
+     * Find nearest offices to a given location
+     *
+     * @param latitude - User's latitude
+     * @param longitude - User's longitude
+     * @param limit - Maximum number of offices to return (default: 5)
+     * @returns Array of offices with distance in kilometers, sorted by distance
+     */
+    findNearestOffices(latitude: number, longitude: number, limit?: number): Promise<Array<ILocation & {
+        distance: number;
+    }>>;
 }
 export declare const locationsService: LocationsService;
 export {};

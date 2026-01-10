@@ -20,7 +20,10 @@
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to your camera to take photos of potholes.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select photos of potholes.",
-        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to report pothole locations."
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to report pothole locations and verify damage locations on the map."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyCuzul7JRWGUN2mbGSY-FqYgioUUf1RbnQ"
       }
     },
     "android": {
@@ -36,8 +39,14 @@
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_MEDIA_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCuzul7JRWGUN2mbGSY-FqYgioUUf1RbnQ"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,14 +59,22 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Roads Authority to use your location to report pothole locations."
+          "locationAlwaysAndWhenInUsePermission": "Allow Roads Authority to use your location to report pothole locations and verify damage locations on the map."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photos to let you select pothole images.",
+          "photosPermission": "The app accesses your photos to let you select pothole images and read location data from photos.",
           "cameraPermission": "The app accesses your camera to let you take photos of potholes."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Roads Authority to access photo location data to help determine damage locations.",
+          "savePhotosPermission": "Allow Roads Authority to save photos of road damage.",
+          "isAccessMediaLocationEnabled": true
         }
       ]
     ]

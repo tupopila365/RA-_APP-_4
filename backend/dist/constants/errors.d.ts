@@ -17,6 +17,9 @@ export declare const ERROR_CODES: {
     readonly RAG_SERVICE_UNAVAILABLE: "RAG_001";
     readonly RAG_INDEXING_FAILED: "RAG_002";
     readonly RAG_QUERY_FAILED: "RAG_003";
+    readonly TRAFFIC_CONFIG_MISSING: "TRAFFIC_001";
+    readonly TRAFFIC_DATA_UNAVAILABLE: "TRAFFIC_002";
+    readonly TRAFFIC_UPSTREAM_ERROR: "TRAFFIC_003";
     readonly NOT_FOUND: "NOT_FOUND";
     readonly SERVER_ERROR: "SERVER_ERROR";
     readonly BAD_REQUEST: "BAD_REQUEST";

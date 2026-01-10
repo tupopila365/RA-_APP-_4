@@ -81,3 +81,8 @@ export const deleteIncident = async (id: string): Promise<void> => {
   await apiClient.delete(`/incidents/${id}`);
 };
 
+
+
+
+
+

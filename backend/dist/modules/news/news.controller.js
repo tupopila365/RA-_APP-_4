@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.newsController = exports.NewsController = void 0;
 const news_service_1 = require("./news.service");
+const notifications_service_1 = require("../notifications/notifications.service");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 class NewsController {
@@ -35,6 +36,16 @@ class NewsController {
                 published: published === true,
             });
             logger_1.logger.info(`News article created successfully: ${news._id}`);
+            // Send push notification if published
+            if (news.published === true) {
+                try {
+                    const notifResult = await notifications_service_1.notificationsService.sendNewsNotification(news._id.toString(), news.title, news.excerpt, { useQueue: false });
+                    logger_1.logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+                }
+                catch (notifError) {
+                    logger_1.logger.error('Failed to send notification for news:', notifError);
+                }
+            }
             res.status(201).json({
                 success: true,
                 data: {
@@ -151,6 +162,12 @@ class NewsController {
         try {
             const { id } = req.params;
             const { title, content, excerpt, category, author, imageUrl, published } = req.body;
+            // Check if publish toggle from false -> true
+            let wasPublishedBefore = false;
+            if (published === true) {
+                const existing = await news_service_1.newsService.getNewsById(id);
+                wasPublishedBefore = existing.published === true;
+            }
             // Build update object with only provided fields
             const updateData = {};
             if (title !== undefined)
@@ -169,6 +186,16 @@ class NewsController {
                 updateData.published = published;
             const news = await news_service_1.newsService.updateNews(id, updateData);
             logger_1.logger.info(`News article updated successfully: ${id}`);
+            // Send push notification only on first publish
+            if (published === true && !wasPublishedBefore) {
+                try {
+                    const notifResult = await notifications_service_1.notificationsService.sendNewsNotification(news._id.toString(), news.title, news.excerpt, { useQueue: false });
+                    logger_1.logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+                }
+                catch (notifError) {
+                    logger_1.logger.error('Failed to send notification for news:', notifError);
+                }
+            }
             res.status(200).json({
                 success: true,
                 data: {

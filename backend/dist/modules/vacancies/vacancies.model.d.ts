@@ -14,6 +14,9 @@ export interface IVacancy extends MongooseDocument {
     contactName?: string;
     contactEmail?: string;
     contactTelephone?: string;
+    submissionLink?: string;
+    submissionEmail?: string;
+    submissionInstructions?: string;
     createdAt: Date;
     updatedAt: Date;
 }

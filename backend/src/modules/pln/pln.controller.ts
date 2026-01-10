@@ -6,6 +6,7 @@ import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 import { PLNStatus } from './pln.model';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 
 export class PLNController {
   /**
@@ -350,7 +351,7 @@ export class PLNController {
         return;
       }
 
-      const adminId = req.user?.email || req.user?.id || 'Unknown';
+      const adminId = req.user?.email || req.user?.userId || 'Unknown';
       const application = await plnService.updateStatus(id, status as PLNStatus, adminId, comment);
 
       logger.info(`Application ${id} status updated to ${status}`);
@@ -382,7 +383,7 @@ export class PLNController {
   async markPaymentReceived(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const adminId = req.user?.email || req.user?.id || 'Unknown';
+      const adminId = req.user?.email || req.user?.userId || 'Unknown';
 
       const application = await plnService.markPaymentReceived(id, adminId);
 
@@ -415,7 +416,7 @@ export class PLNController {
   async orderPlates(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const adminId = req.user?.email || req.user?.id || 'Unknown';
+      const adminId = req.user?.email || req.user?.userId || 'Unknown';
 
       const application = await plnService.orderPlates(id, adminId);
 
@@ -447,7 +448,7 @@ export class PLNController {
   async markReadyForCollection(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const adminId = req.user?.email || req.user?.id || 'Unknown';
+      const adminId = req.user?.email || req.user?.userId || 'Unknown';
 
       const application = await plnService.markReadyForCollection(id, adminId);
 
@@ -496,6 +497,7 @@ export class PLNController {
   /**
    * Download application form as PDF (admin)
    * GET /api/pln/applications/:id/download-pdf
+   * This fills the actual PLN-FORM.pdf template with the user's application data
    */
   async downloadPDF(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -503,15 +505,31 @@ export class PLNController {
 
       // Get application data
       const application = await plnService.getApplicationById(id);
+      
+      // Log application data for debugging
+      logger.info('Downloading PDF for application', {
+        applicationId: id,
+        referenceId: application.referenceId,
+        hasSurname: !!application.surname,
+        hasIdType: !!application.idType,
+        hasPlateChoices: !!application.plateChoices?.length,
+        surname: application.surname,
+        idType: application.idType,
+        plateChoicesCount: application.plateChoices?.length || 0,
+      });
 
       // Resolve path to static PDF template file
-      // __dirname in dev: backend/src/modules/pln
-      // __dirname in prod: backend/dist/modules/pln
-      // Need to go up 3 levels to reach backend root, then into data/forms
       const templatePath = path.join(__dirname, '../../../data/forms/PLN-FORM.pdf');
+      logger.info('Template PDF path:', templatePath);
 
-      // Fill the PDF template with application data
+      // Try to fill the PDF template with application data
+      // If the template doesn't have fillable fields, it will overlay text on the PDF
       const pdfBuffer = await pdfService.fillPLNFormPDF(application, templatePath);
+      
+      logger.info('PDF filled successfully', {
+        bufferSize: pdfBuffer.length,
+        applicationId: id,
+      });
 
       // Set response headers
       res.setHeader('Content-Type', 'application/pdf');
@@ -525,6 +543,182 @@ export class PLNController {
       res.send(pdfBuffer);
     } catch (error: any) {
       logger.error('Download PDF error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Update admin comments (admin)
+   * PUT /api/pln/applications/:id/comments
+   */
+  async updateAdminComments(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { comments } = req.body;
+
+      if (!comments || typeof comments !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Comments are required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const adminId = req.user?.email || req.user?.userId || 'Unknown';
+      const application = await plnService.updateAdminComments(id, comments, adminId);
+
+      logger.info(`Admin comments updated for application ${id}`);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          application: {
+            id: application._id,
+            adminComments: application.adminComments,
+            statusHistory: application.statusHistory,
+            updatedAt: application.updatedAt,
+          },
+          message: 'Admin comments updated successfully',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Update admin comments error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Assign application to admin (admin)
+   * PUT /api/pln/applications/:id/assign
+   */
+  async assignToAdmin(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { assignedTo } = req.body;
+
+      if (!assignedTo || typeof assignedTo !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Assigned to field is required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const adminId = req.user?.email || req.user?.userId || 'Unknown';
+      const application = await plnService.assignToAdmin(id, assignedTo, adminId);
+
+      logger.info(`Application ${id} assigned to ${assignedTo}`);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          application: {
+            id: application._id,
+            assignedTo: application.assignedTo,
+            statusHistory: application.statusHistory,
+            updatedAt: application.updatedAt,
+          },
+          message: 'Application assigned successfully',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Assign to admin error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Set application priority (admin)
+   * PUT /api/pln/applications/:id/priority
+   */
+  async setPriority(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { priority } = req.body;
+
+      if (!priority || !['LOW', 'NORMAL', 'HIGH', 'URGENT'].includes(priority)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Valid priority is required (LOW, NORMAL, HIGH, URGENT)',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const adminId = req.user?.email || req.user?.userId || 'Unknown';
+      const application = await plnService.setPriority(id, priority, adminId);
+
+      logger.info(`Application ${id} priority set to ${priority}`);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          application: {
+            id: application._id,
+            priority: application.priority,
+            statusHistory: application.statusHistory,
+            updatedAt: application.updatedAt,
+          },
+          message: 'Priority updated successfully',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Set priority error:', error);
+      next(error);
+    }
+  }
+  async downloadForm(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // Resolve path to static PDF template file
+      // __dirname in dev: backend/src/modules/pln
+      // __dirname in prod: backend/dist/modules/pln
+      // Need to go up 3 levels to reach backend root, then into data/forms
+      const templatePath = path.join(__dirname, '../../../data/forms/PLN-FORM.pdf');
+
+      // Check if file exists
+      try {
+        await fs.access(templatePath);
+      } catch (error) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.NOT_FOUND,
+            message: 'PLN form PDF not found',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Read the PDF file
+      const pdfBuffer = await fs.readFile(templatePath);
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="PLN-FORM.pdf"'
+      );
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
+
+      // Send PDF
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      logger.error('Download form error:', error);
       next(error);
     }
   }

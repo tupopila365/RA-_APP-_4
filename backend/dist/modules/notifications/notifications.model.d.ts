@@ -29,6 +29,10 @@ export interface INotificationLog extends Document {
     type: 'news' | 'tender' | 'vacancy' | 'general';
     relatedId?: string;
     sentBy?: mongoose.Types.ObjectId;
+    jobId?: string;
+    status?: 'queued' | 'sent' | 'failed' | 'partial';
+    platforms?: ('ios' | 'android')[];
+    scheduledAt?: Date;
     sentAt: Date;
     createdAt: Date;
 }

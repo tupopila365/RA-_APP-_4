@@ -35,7 +35,7 @@ export function IconContainer({
       {iconName && (
         <Ionicons name={iconName} size={iconSize} color={iconColor} />
       )}
-      {icon && icon}
+      {icon && (typeof icon === 'string' ? <Ionicons name={icon} size={iconSize} color={iconColor} /> : icon)}
     </View>
   );
 }
@@ -47,6 +47,11 @@ const getStyles = (colors) =>
       alignItems: 'center',
     },
   });
+
+
+
+
+
 
 
 

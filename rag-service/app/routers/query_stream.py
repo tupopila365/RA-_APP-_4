@@ -114,6 +114,32 @@ def get_greeting_response(question: str) -> str:
     return f"{greeting} How can I help you today?"
 
 
+def enhance_query(question: str) -> str:
+    """
+    Enhance user query for better retrieval.
+    
+    Args:
+        question: Original user question
+        
+    Returns:
+        Enhanced query string
+    """
+    # Common abbreviations and their expansions
+    expansions = {
+        'pln': 'personalized license number plates',
+        'nta': 'namibian transport authority',
+        'mvf': 'motor vehicle fund',
+        'ra': 'roads authority',
+    }
+    
+    enhanced = question.lower()
+    for abbr, expansion in expansions.items():
+        if abbr in enhanced:
+            enhanced = enhanced.replace(abbr, f"{abbr} {expansion}")
+    
+    return enhanced
+
+
 @router.post(
     "/stream",
     status_code=status.HTTP_200_OK,
@@ -186,8 +212,12 @@ async def query_documents_stream(request: QueryRequest):
             logger.info("Step 1: Generating embedding for question")
             embedding_service = EmbeddingService()
             
+            # Enhance query for better retrieval
+            enhanced_question = enhance_query(request.question)
+            logger.debug(f"Enhanced question: {enhanced_question}")
+            
             try:
-                question_embedding = embedding_service.generate_embedding(request.question)
+                question_embedding = embedding_service.generate_embedding(enhanced_question)
             except EmbeddingError as e:
                 error_data = {
                     "type": "error",

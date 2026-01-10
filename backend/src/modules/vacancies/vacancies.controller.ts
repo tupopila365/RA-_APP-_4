@@ -25,6 +25,13 @@ export class VacanciesController {
         closingDate,
         pdfUrl,
         published,
+        // Contact information
+        contactName,
+        contactEmail,
+        contactTelephone,
+        submissionLink,
+        submissionEmail,
+        submissionInstructions,
       } = req.body;
 
       if (!title || !type || !department || !location || !description || !requirements || !responsibilities || !closingDate) {
@@ -91,6 +98,13 @@ export class VacanciesController {
         closingDate: new Date(closingDate),
         pdfUrl,
         published: published === true,
+        // Contact information
+        contactName,
+        contactEmail,
+        contactTelephone,
+        submissionLink,
+        submissionEmail,
+        submissionInstructions,
       });
 
       logger.info(`Vacancy created successfully: ${vacancy._id}`);
@@ -126,6 +140,13 @@ export class VacanciesController {
             closingDate: vacancy.closingDate,
             pdfUrl: vacancy.pdfUrl,
             published: vacancy.published,
+            // Contact information
+            contactName: vacancy.contactName,
+            contactEmail: vacancy.contactEmail,
+            contactTelephone: vacancy.contactTelephone,
+            submissionLink: vacancy.submissionLink,
+            submissionEmail: vacancy.submissionEmail,
+            submissionInstructions: vacancy.submissionInstructions,
             createdAt: vacancy.createdAt,
             updatedAt: vacancy.updatedAt,
           },
@@ -179,6 +200,13 @@ export class VacanciesController {
             closingDate: vacancy.closingDate,
             pdfUrl: vacancy.pdfUrl,
             published: vacancy.published,
+            // Contact information
+            contactName: vacancy.contactName,
+            contactEmail: vacancy.contactEmail,
+            contactTelephone: vacancy.contactTelephone,
+            submissionLink: vacancy.submissionLink,
+            submissionEmail: vacancy.submissionEmail,
+            submissionInstructions: vacancy.submissionInstructions,
             createdAt: vacancy.createdAt,
             updatedAt: vacancy.updatedAt,
           })),
@@ -223,6 +251,13 @@ export class VacanciesController {
             closingDate: vacancy.closingDate,
             pdfUrl: vacancy.pdfUrl,
             published: vacancy.published,
+            // Contact information
+            contactName: vacancy.contactName,
+            contactEmail: vacancy.contactEmail,
+            contactTelephone: vacancy.contactTelephone,
+            submissionLink: vacancy.submissionLink,
+            submissionEmail: vacancy.submissionEmail,
+            submissionInstructions: vacancy.submissionInstructions,
             createdAt: vacancy.createdAt,
             updatedAt: vacancy.updatedAt,
           },
@@ -254,6 +289,13 @@ export class VacanciesController {
         closingDate,
         pdfUrl,
         published,
+        // Contact information
+        contactName,
+        contactEmail,
+        contactTelephone,
+        submissionLink,
+        submissionEmail,
+        submissionInstructions,
       } = req.body;
 
       // Check if publishing newly
@@ -313,9 +355,51 @@ export class VacanciesController {
         updateData.responsibilities = responsibilities;
       }
       if (salary !== undefined) updateData.salary = salary;
-      if (closingDate !== undefined) updateData.closingDate = new Date(closingDate);
+      if (closingDate !== undefined) {
+        // Parse the date and ensure it's valid
+        const parsedDate = new Date(closingDate);
+        if (isNaN(parsedDate.getTime())) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'Invalid closing date format',
+            },
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+        
+        // Validate that closing date is today or in the future (only for new dates)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Set to start of today
+        const closingDateOnly = new Date(parsedDate);
+        closingDateOnly.setHours(0, 0, 0, 0); // Set to start of closing date
+        
+        if (closingDateOnly < today) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'Closing date must be today or in the future',
+            },
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+        
+        updateData.closingDate = parsedDate;
+      }
       if (pdfUrl !== undefined) updateData.pdfUrl = pdfUrl;
       if (published !== undefined) updateData.published = published;
+      
+      // Contact information
+      if (contactName !== undefined) updateData.contactName = contactName;
+      if (contactEmail !== undefined) updateData.contactEmail = contactEmail;
+      if (contactTelephone !== undefined) updateData.contactTelephone = contactTelephone;
+      if (submissionLink !== undefined) updateData.submissionLink = submissionLink;
+      if (submissionEmail !== undefined) updateData.submissionEmail = submissionEmail;
+      if (submissionInstructions !== undefined) updateData.submissionInstructions = submissionInstructions;
 
       const vacancy = await vacanciesService.updateVacancy(id, updateData);
 
@@ -352,6 +436,13 @@ export class VacanciesController {
             closingDate: vacancy.closingDate,
             pdfUrl: vacancy.pdfUrl,
             published: vacancy.published,
+            // Contact information
+            contactName: vacancy.contactName,
+            contactEmail: vacancy.contactEmail,
+            contactTelephone: vacancy.contactTelephone,
+            submissionLink: vacancy.submissionLink,
+            submissionEmail: vacancy.submissionEmail,
+            submissionInstructions: vacancy.submissionInstructions,
             createdAt: vacancy.createdAt,
             updatedAt: vacancy.updatedAt,
           },

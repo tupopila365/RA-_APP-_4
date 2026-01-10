@@ -54,6 +54,27 @@ const vacancySchema = new mongoose_1.Schema({
         type: String,
         required: [true, 'Department is required'],
         trim: true,
+        enum: {
+            values: [
+                // Core Departments
+                'Construction & Renewal',
+                'Road Maintenance',
+                'Road Traffic Planning & Advisory',
+                'Road Management (RMS)',
+                'Transport Information & Regulatory Services (NaTIS)',
+                'Road & Transport Monitoring/Inspectorate',
+                // Support Departments
+                'Human Resources',
+                'Finance / Accounting',
+                'Corporate Communications',
+                'Administration / Corporate Services',
+                'Legal / Compliance',
+                'ICT / Business Systems',
+                'Procurement',
+                "CEO's Office",
+            ],
+            message: 'Invalid department selected',
+        },
     },
     location: {
         type: String,
@@ -92,12 +113,6 @@ const vacancySchema = new mongoose_1.Schema({
     closingDate: {
         type: Date,
         required: [true, 'Closing date is required'],
-        validate: {
-            validator: function (v) {
-                return v > new Date();
-            },
-            message: 'Closing date must be in the future',
-        },
     },
     pdfUrl: {
         type: String,
@@ -111,6 +126,7 @@ const vacancySchema = new mongoose_1.Schema({
     contactName: {
         type: String,
         trim: true,
+        maxlength: [100, 'Contact name cannot exceed 100 characters'],
     },
     contactEmail: {
         type: String,
@@ -129,6 +145,39 @@ const vacancySchema = new mongoose_1.Schema({
     contactTelephone: {
         type: String,
         trim: true,
+        maxlength: [20, 'Contact telephone cannot exceed 20 characters'],
+    },
+    submissionLink: {
+        type: String,
+        trim: true,
+        validate: {
+            validator: function (v) {
+                // Only validate if value is provided
+                if (!v)
+                    return true;
+                return /^https?:\/\/.+/.test(v);
+            },
+            message: 'Submission link must be a valid URL',
+        },
+    },
+    submissionEmail: {
+        type: String,
+        trim: true,
+        lowercase: true,
+        validate: {
+            validator: function (v) {
+                // Only validate if value is provided
+                if (!v)
+                    return true;
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+            },
+            message: 'Invalid submission email format',
+        },
+    },
+    submissionInstructions: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Submission instructions cannot exceed 500 characters'],
     },
 }, {
     timestamps: true,
@@ -141,5 +190,20 @@ vacancySchema.index({ location: 1 });
 vacancySchema.index({ published: 1 });
 vacancySchema.index({ closingDate: 1 });
 vacancySchema.index({ createdAt: -1 });
+// Pre-save hook for advanced closing date validation
+vacancySchema.pre('save', function (next) {
+    // Only validate closing date for new documents or when closing date is modified
+    if (this.isNew || this.isModified('closingDate')) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Set to start of today
+        const closingDate = new Date(this.closingDate);
+        closingDate.setHours(0, 0, 0, 0); // Set to start of closing date
+        if (closingDate < today) {
+            const error = new Error('Closing date must be today or in the future');
+            return next(error);
+        }
+    }
+    next();
+});
 exports.VacancyModel = mongoose_1.default.model('Vacancy', vacancySchema);
 //# sourceMappingURL=vacancies.model.js.map

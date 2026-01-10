@@ -21,6 +21,15 @@ const upload_routes_1 = __importDefault(require("./modules/upload/upload.routes"
 const faqs_routes_1 = __importDefault(require("./modules/faqs/faqs.routes"));
 const pothole_reports_routes_1 = __importDefault(require("./modules/pothole-reports/pothole-reports.routes"));
 const notifications_routes_1 = __importDefault(require("./modules/notifications/notifications.routes"));
+const pln_routes_1 = __importDefault(require("./modules/pln/pln.routes"));
+const app_users_routes_1 = __importDefault(require("./modules/app-users/app-users.routes"));
+const traffic_routes_1 = __importDefault(require("./modules/traffic/traffic.routes"));
+const incidents_routes_1 = __importDefault(require("./modules/incidents/incidents.routes"));
+const roadworks_routes_1 = __importDefault(require("./modules/roadworks/roadworks.routes"));
+const procurement_legislation_routes_1 = __importDefault(require("./modules/procurement-legislation/procurement-legislation.routes"));
+const procurement_plan_routes_1 = __importDefault(require("./modules/procurement-plan/procurement-plan.routes"));
+const procurement_awards_routes_1 = __importDefault(require("./modules/procurement-awards/procurement-awards.routes"));
+const procurement_opening_register_routes_1 = __importDefault(require("./modules/procurement-opening-register/procurement-opening-register.routes"));
 const createApp = () => {
     const app = (0, express_1.default)();
     // Middleware
@@ -52,6 +61,15 @@ const createApp = () => {
     app.use('/api/faqs', faqs_routes_1.default);
     app.use('/api/pothole-reports', pothole_reports_routes_1.default);
     app.use('/api/notifications', notifications_routes_1.default);
+    app.use('/api/pln', pln_routes_1.default);
+    app.use('/api/app-users', app_users_routes_1.default);
+    app.use('/api/traffic', traffic_routes_1.default);
+    app.use('/api/incidents', incidents_routes_1.default);
+    app.use('/api/roadworks', roadworks_routes_1.default);
+    app.use('/api/procurement-legislation', procurement_legislation_routes_1.default);
+    app.use('/api/procurement-plan', procurement_plan_routes_1.default);
+    app.use('/api/procurement-awards', procurement_awards_routes_1.default);
+    app.use('/api/procurement-opening-register', procurement_opening_register_routes_1.default);
     // Error handling middleware (must be last)
     app.use(errorHandler_1.errorHandler);
     return app;

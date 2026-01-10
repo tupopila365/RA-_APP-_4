@@ -37,34 +37,17 @@ export class AppUsersService {
         };
       }
 
-      // Generate email verification token
-      const verificationToken = this.generateEmailVerificationToken();
-      const tokenExpiry = new Date();
-      tokenExpiry.setHours(tokenExpiry.getHours() + 24); // 24 hours expiry
-
-      // Create user
+      // Create user with email automatically verified (email verification disabled)
       const user = await AppUser.create({
         email: email.toLowerCase().trim(),
         password,
         fullName: fullName?.trim(),
         phoneNumber: phoneNumber?.trim(),
-        isEmailVerified: false,
-        emailVerificationToken: verificationToken,
-        emailVerificationTokenExpiry: tokenExpiry,
+        isEmailVerified: true, // Email verification disabled
+        emailVerifiedAt: new Date(),
       });
 
-      // Send verification email
-      try {
-        await emailService.sendVerificationEmail(
-          user.email,
-          user.fullName,
-          verificationToken
-        );
-        logger.info(`Verification email sent to: ${user.email}`);
-      } catch (emailError: any) {
-        logger.error('Failed to send verification email:', emailError);
-        // Don't fail registration if email fails, but log it
-      }
+      // Email verification disabled - skipping verification email
 
       // Generate tokens (user can still login, but email verification is required)
       const tokens = await this.generateTokens(user);

@@ -123,6 +123,52 @@ router.get(
   plnController.downloadPDF.bind(plnController)
 );
 
+/**
+ * @route   PUT /api/pln/applications/:id/comments
+ * @desc    Update admin comments (admin)
+ * @access  Private (requires pln:manage permission)
+ */
+router.put(
+  '/applications/:id/comments',
+  authenticate,
+  requirePermission('pln:manage'),
+  plnController.updateAdminComments.bind(plnController)
+);
+
+/**
+ * @route   PUT /api/pln/applications/:id/assign
+ * @desc    Assign application to admin (admin)
+ * @access  Private (requires pln:manage permission)
+ */
+router.put(
+  '/applications/:id/assign',
+  authenticate,
+  requirePermission('pln:manage'),
+  plnController.assignToAdmin.bind(plnController)
+);
+
+/**
+ * @route   PUT /api/pln/applications/:id/priority
+ * @desc    Set application priority (admin)
+ * @access  Private (requires pln:manage permission)
+ */
+router.put(
+  '/applications/:id/priority',
+  authenticate,
+  requirePermission('pln:manage'),
+  plnController.setPriority.bind(plnController)
+);
+
+/**
+ * @route   GET /api/pln/form
+ * @desc    Download blank PLN form PDF (public)
+ * @access  Public
+ */
+router.get(
+  '/form',
+  plnController.downloadForm.bind(plnController)
+);
+
 export default router;
 
 

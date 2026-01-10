@@ -10,6 +10,7 @@ const redis_1 = require("../../config/redis");
 const env_1 = require("../../config/env");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
+const redis_2 = require("../../utils/redis");
 class AuthService {
     /**
      * Authenticate user with email and password
@@ -216,17 +217,24 @@ class AuthService {
             const redisClient = (0, redis_1.getRedisClient)();
             const key = `token:refresh:${userId}`;
             if (redisClient) {
-                await redisClient.del(key);
+                // Use timeout-protected Redis delete (2 second timeout)
+                const deleted = await (0, redis_2.safeRedisDel)(redisClient, key, 2000);
+                if (deleted) {
+                    logger_1.logger.info(`User logged out: ${userId}`);
+                }
+                else {
+                    logger_1.logger.warn(`User logout: Redis operation timed out or failed for user ${userId}, but logout continues`);
+                }
             }
-            logger_1.logger.info(`User logged out: ${userId}`);
+            else {
+                logger_1.logger.warn('Redis not configured - cannot invalidate refresh token');
+            }
+            // Logout succeeds regardless of Redis status - don't throw errors
         }
         catch (error) {
-            logger_1.logger.error('Error removing refresh token from Redis:', error);
-            throw {
-                code: errors_1.ERROR_CODES.SERVER_ERROR,
-                message: 'Failed to logout',
-                statusCode: 500,
-            };
+            logger_1.logger.error('Error during logout (non-fatal):', error);
+            // Don't throw error - logout should succeed even if Redis fails
+            // This ensures logout completes quickly even on slow networks
         }
     }
     /**

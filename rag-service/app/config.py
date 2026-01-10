@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     chunk_overlap: int = 50
     top_k_results: int = 5
     
+    # RAG Retrieval Settings (NEW)
+    min_similarity_threshold: float = 0.4  # Filter out low-quality matches
+    max_context_length: int = 3000  # Prevent overwhelming the LLM
+    
+    # LLM Generation Settings (NEW)
+    temperature: float = 0.3  # Lower for more consistent, factual answers
+    max_tokens: int = 800  # Allow for more detailed answers
+    
+
     # Logging
     log_level: str = "INFO"
     
