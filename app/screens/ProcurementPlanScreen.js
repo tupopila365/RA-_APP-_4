@@ -9,12 +9,13 @@ import {
   Image,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import RAIcon from '../assets/icon.png';
-import { DetailCard, LoadingSpinner, ErrorState, EmptyState } from '../components';
+import { DetailCard, ListScreenSkeleton, ErrorState, EmptyState } from '../components';
 import { procurementPlanService } from '../services/procurementService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
 
@@ -90,7 +91,7 @@ export default function ProcurementPlanScreen() {
   if (loading && !refreshing) {
     return (
       <View style={styles.container}>
-        <LoadingSpinner message="Loading procurement plans..." />
+        <ListScreenSkeleton count={3} />
       </View>
     );
   }
@@ -191,11 +192,13 @@ function getStyles(colors) {
       color: colors.text,
       marginBottom: 8,
       textAlign: 'center',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     headerSubtitle: {
       fontSize: 16,
       color: colors.textSecondary,
       textAlign: 'center',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     section: {
       backgroundColor: colors.card,
@@ -203,6 +206,11 @@ function getStyles(colors) {
       padding: 16,
       borderWidth: 1,
       borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
     sectionHeader: {
       flexDirection: 'row',
@@ -219,6 +227,7 @@ function getStyles(colors) {
       fontSize: 20,
       fontWeight: '700',
       color: colors.text,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
   });
 }

@@ -20,15 +20,15 @@ export function Badge({
   // Variant-based styling
   const variantStyles = {
     default: {
-      backgroundColor: backgroundColor || colors.primary + '20',
+      backgroundColor: backgroundColor || colors.primary,
       textColor: textColor || colors.primary,
     },
     success: {
-      backgroundColor: colors.success + '20',
+      backgroundColor: colors.success,
       textColor: colors.success,
     },
     error: {
-      backgroundColor: colors.error + '20',
+      backgroundColor: colors.error,
       textColor: colors.error,
     },
     warning: {
@@ -36,7 +36,7 @@ export function Badge({
       textColor: '#FFA500',
     },
     info: {
-      backgroundColor: colors.primary + '20',
+      backgroundColor: colors.primary,
       textColor: colors.primary,
     },
   };
@@ -104,6 +104,8 @@ const getStyles = (colors) =>
       textAlign: 'center',
     },
   });
+
+
 
 
 

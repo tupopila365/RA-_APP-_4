@@ -106,7 +106,7 @@ export default function ProcurementScreen({ navigation }) {
     },
   ];
 
-  // All procurement services in a single grid
+  // All procurement services using secondary style
   const menuItems = [
     {
       id: 1,
@@ -118,6 +118,14 @@ export default function ProcurementScreen({ navigation }) {
     },
     {
       id: 2,
+      title: 'Bids & RFQs',
+      icon: 'document-text-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      onPress: () => navigation?.navigate('OpeningRegister'),
+    },
+    {
+      id: 3,
       title: 'Awards',
       icon: 'trophy-outline',
       color: '#5856D6',
@@ -125,7 +133,7 @@ export default function ProcurementScreen({ navigation }) {
       onPress: () => navigation?.navigate('ProcurementAwards'),
     },
     {
-      id: 3,
+      id: 4,
       title: 'Opening Register',
       icon: 'list-outline',
       color: '#5856D6',
@@ -133,7 +141,7 @@ export default function ProcurementScreen({ navigation }) {
       onPress: () => navigation?.navigate('OpeningRegister'),
     },
     {
-      id: 4,
+      id: 5,
       title: 'Legislation',
       icon: 'library-outline',
       color: '#5856D6',
@@ -151,7 +159,7 @@ export default function ProcurementScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
+        colors={[colors.primary, colors.primary]}
         style={styles.header}
       >
         <SafeAreaView edges={['top']}>
@@ -457,7 +465,7 @@ function getStyles(colors, config) {
       flexWrap: 'wrap',
       gap: gridGap,
     },
-    // Menu items - standard size, responsive width
+    // Menu items - standard size, responsive width (matching HomeScreen secondary style)
     menuItem: {
       width: itemWidth,
       minWidth: MIN_TOUCH_TARGET * 1.8,
@@ -468,7 +476,7 @@ function getStyles(colors, config) {
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: colors.border + '20',
+      borderColor: colors.border,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,

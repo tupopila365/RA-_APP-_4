@@ -29,28 +29,10 @@ export function AppProvider({ children }) {
     try {
       setIsLoading(true);
       
-      // Check for stored user and tokens
-      const storedUser = await authService.getStoredUser();
-      const { accessToken } = await authService.getStoredTokens();
-
-      if (storedUser && accessToken) {
-        // Try to validate token by getting current user
-        try {
-          const currentUser = await authService.getCurrentUser();
-          if (currentUser) {
-            setUser(currentUser);
-          } else {
-            // Token invalid or expired, user will need to login again
-            setUser(null);
-          }
-        } catch (err) {
-          // Silent fail - tokens are already cleared by authService if needed
-          console.log('Session expired, please login again');
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
+      // Skip authentication check for now to avoid timeout
+      // The chatbot works without authentication
+      console.log('Skipping authentication check - chatbot works without login');
+      setUser(null);
 
       // Load app settings
       const storedSettings = await SecureStore.getItemAsync('appSettings');

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Image, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import RAIcon from '../assets/icon.png';
+import { SkeletonLoader } from '../components';
 
 const { width, height } = Dimensions.get('window');
 
@@ -101,9 +102,11 @@ export default function SplashScreen() {
             },
           ]}
         >
-          <ActivityIndicator 
-            size="small" 
-            color="#FFFFFF" 
+          <SkeletonLoader 
+            type="circle" 
+            width={24} 
+            height={24} 
+            animated={true}
           />
         </Animated.View>
       </Animated.View>

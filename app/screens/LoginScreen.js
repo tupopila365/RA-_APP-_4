@@ -10,22 +10,27 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { FormInput, Button, Card } from '../components';
-import { spacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
 import { validate, getErrorMessage, validators } from '../utils/validation';
 import { authService } from '../services/authService';
 import { useAppContext } from '../context/AppContext';
-import RAIcon from '../assets/icon.png';
+
+// Import Unified Design System Components
+import {
+  GlobalHeader,
+  UnifiedFormInput,
+  UnifiedCard,
+  UnifiedButton,
+  UnifiedSkeletonLoader,
+  RATheme,
+  typography,
+  spacing,
+} from '../components/UnifiedDesignSystem';
 
 export default function LoginScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { login } = useAppContext();
-  const styles = getStyles(colors);
 
   // Get return screen from route params (for protected features)
   const returnScreen = route?.params?.returnScreen;
@@ -35,6 +40,9 @@ export default function LoginScreen({ navigation, route }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
+
+  // Dynamic styles based on theme
+  const styles = createStyles(colors);
 
   const validateField = (fieldName, value, rules) => {
     // Clear error immediately if validation passes
@@ -121,87 +129,108 @@ export default function LoginScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#00B4E6', '#0090C0', '#0078A3']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.overlay} />
-        <SafeAreaView edges={['top']}>
-          <View style={styles.headerContent}>
-            {navigation.canGoBack() && (
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={styles.backButton}
-              >
-                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            )}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoWrapper}>
-                <Image source={RAIcon} style={styles.logo} />
-              </View>
-              <Text style={styles.headerTitle}>Welcome Back</Text>
-              <Text style={styles.headerSubtitle}>Sign in to continue</Text>
-            </View>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-
+      <GlobalHeader
+        title="Sign In"
+        subtitle="Roads Authority Digital Services"
+        showBackButton={true}
+        onBackPress={() => navigation.goBack()}
+      />
+      
       <KeyboardAvoidingView
-        style={styles.keyboardAvoidingView}
+        style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Card style={styles.formCard} variant="elevated">
-            <View style={styles.formSection}>
-              <FormInput
-                label="Email"
-                placeholder="Enter your email"
+          <View style={styles.formContainer}>
+            {/* RA Logo */}
+            <View style={styles.logoContainer}>
+              <Image 
+                source={require('../assets/icon.png')} 
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+
+            {/* Main Form Card */}
+            <UnifiedCard variant="elevated" padding="large">
+              <Text style={[typography.h3, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
+                Welcome Back
+              </Text>
+              <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 }]}>
+                Sign in to your Roads Authority account
+              </Text>
+              
+              <UnifiedFormInput
+                label="Email Address"
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
                   validateField('Email', text, { required: true, email: true });
                 }}
+                placeholder="Enter your email"
                 error={errors.Email}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                leftIcon="mail-outline"
+                required
               />
-              <FormInput
+
+              <UnifiedFormInput
                 label="Password"
-                placeholder="Enter your password"
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
                   validateField('Password', text, { required: true });
                 }}
+                placeholder="Enter your password"
                 error={errors.Password}
                 secureTextEntry
+                leftIcon="lock-closed-outline"
+                required
               />
+
+              <UnifiedButton
+                label="Sign In"
+                onPress={handleLogin}
+                variant="primary"
+                size="large"
+                iconName="log-in-outline"
+                iconPosition="right"
+                loading={loading}
+                disabled={loading}
+                fullWidth
+                style={{ marginTop: spacing.lg }}
+              />
+            </UnifiedCard>
+
+            {/* Footer Links */}
+            <View style={styles.footerLinks}>
+              <TouchableOpacity onPress={() => Alert.alert('Help', 'Contact support for password reset')}>
+                <Text style={[typography.body, { color: colors.primary, textDecorationLine: 'underline' }]}>
+                  Forgot your password?
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                <Text style={[typography.body, { color: colors.primary, textDecorationLine: 'underline' }]}>
+                  Create New Account
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            <Button
-              label="Sign In"
-              onPress={handleLogin}
-              loading={loading}
-              disabled={loading}
-              style={styles.submitButton}
-              size="large"
-              fullWidth
-              iconName="log-in-outline"
-            />
-          </Card>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.footerLink}>Create Account</Text>
-            </TouchableOpacity>
+            {/* Government Portal Branding */}
+            <View style={styles.brandingContainer}>
+              <Text style={[typography.h2, { color: colors.primary, textAlign: 'center', marginBottom: spacing.xs }]}>
+                Roads Authority
+              </Text>
+              <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', fontStyle: 'italic' }]}>
+                Digital Services Portal
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -209,135 +238,62 @@ export default function LoginScreen({ navigation, route }) {
   );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+// Professional government-standard styling using design system
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    paddingTop: spacing.xl + 10,
-    paddingBottom: spacing.xxl + 20,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
-  },
-  headerContent: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    position: 'relative',
-    zIndex: 1,
-  },
-  backButton: {
-    position: 'absolute',
-    left: spacing.md,
-    top: 0,
-    padding: spacing.sm,
-    zIndex: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  logoWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 60,
-    padding: 12,
-    marginBottom: spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    resizeMode: 'contain',
-  },
-  headerTitle: {
-    ...typography.h3,
-    fontSize: 28,
-    color: '#FFFFFF',
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-    ...Platform.select({
-      ios: { fontFamily: 'System' },
-      android: { fontFamily: 'Roboto' },
-    }),
-  },
-  headerSubtitle: {
-    ...typography.bodyLarge,
-    fontSize: 16,
-    color: '#E0E0E0',
-    opacity: 0.95,
-    letterSpacing: 0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  keyboardAvoidingView: {
+  keyboardView: {
     flex: 1,
   },
   scrollView: {
     flex: 1,
   },
-  contentContainer: {
-    padding: spacing.lg,
-    paddingTop: spacing.xl + 10,
-    paddingBottom: spacing.xxxl,
+  scrollContent: {
+    padding: spacing.xl,
+    paddingBottom: spacing.xxxl + spacing.lg,
   },
-  formCard: {
-    marginBottom: spacing.lg,
-    borderRadius: 16,
-    borderWidth: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    backgroundColor: colors.card,
+  
+  // Logo Section
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xxxl,
+    marginTop: spacing.xl,
   },
-  formSection: {
-    marginBottom: spacing.xl,
-    gap: spacing.lg,
+  logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: colors.primary,
   },
-  submitButton: {
-    marginTop: spacing.md,
-    shadowColor: '#00B4E6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-    borderRadius: 12,
+  
+  // Form Container
+  formContainer: {
+    flex: 1,
+    alignItems: 'center',
+    maxWidth: 500,
+    alignSelf: 'center',
+    width: '100%',
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  
+  // Footer Links
+  footerLinks: {
     alignItems: 'center',
     marginTop: spacing.xl,
-    paddingVertical: spacing.lg,
+    marginBottom: spacing.xxxl,
+    gap: spacing.md,
   },
-  footerText: {
-    ...typography.bodyMedium,
-    fontSize: 15,
-    color: colors.textSecondary,
-  },
-  footerLink: {
-    ...typography.bodyMedium,
-    fontSize: 15,
-    color: '#00B4E6',
-    fontWeight: '600',
-    marginLeft: spacing.xs,
+  
+  // Government Branding
+  brandingContainer: {
+    alignItems: 'center',
+    marginTop: 'auto',
   },
 });
+
+// Screen options to hide the default header since we use GlobalHeader
+LoginScreen.options = {
+  headerShown: false,
+};

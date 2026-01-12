@@ -58,8 +58,8 @@ const BidsRFQsPage = () => {
     try {
       setLoading(true);
       const response = await procurementOpeningRegisterService.list({
-        page: page + 1,
-        limit: rowsPerPage,
+        page: 1,
+        limit: 1000, // Load all items for scrollable view
         type: 'rfq', // Always filter for RFQ type
         category: categoryFilter !== 'all' ? categoryFilter as any : undefined,
       });
@@ -74,7 +74,7 @@ const BidsRFQsPage = () => {
 
   useEffect(() => {
     fetchItems();
-  }, [page, rowsPerPage, categoryFilter]);
+  }, [categoryFilter]);
 
   const handleCreateOrUpdate = async () => {
     try {
@@ -162,7 +162,7 @@ const BidsRFQsPage = () => {
       <Box sx={{ mb: 2 }}>
         <FormControl size="small" sx={{ minWidth: 200 }}>
           <InputLabel>Category</InputLabel>
-          <Select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}>
+          <Select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); }}>
             <MenuItem value="all">All Categories</MenuItem>
             <MenuItem value="Consultancy">Consultancy</MenuItem>
             <MenuItem value="Non-Consultancy">Non-Consultancy</MenuItem>
@@ -172,8 +172,8 @@ const BidsRFQsPage = () => {
         </FormControl>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer component={Paper} sx={{ maxHeight: 600, overflow: 'auto' }}>
+        <Table stickyHeader>
           <TableHead>
             <TableRow>
               <TableCell>Reference</TableCell>
@@ -220,14 +220,6 @@ const BidsRFQsPage = () => {
             )}
           </TableBody>
         </Table>
-        <TablePagination
-          component="div"
-          count={total}
-          page={page}
-          onPageChange={(_, p) => setPage(p)}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setPage(0); }}
-        />
       </TableContainer>
 
       <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); resetForm(); }} maxWidth="md" fullWidth>
@@ -292,6 +284,8 @@ const BidsRFQsPage = () => {
 };
 
 export default BidsRFQsPage;
+
+
 
 
 

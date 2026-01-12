@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Coordinate Geocoding Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; width: 120px; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .coordinate-input { margin: 10px 0; }
+        .test-results { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Coordinate Geocoding Diagnostic</h1>
+    
+    <div class="test-section info">
+        <h3>Test Your Coordinates</h3>
+        <div class="coordinate-input">
+            <label>Latitude: </label>
+            <input type="number" id="test-lat" step="any" placeholder="e.g., -22.5609">
+            
+            <label>Longitude: </label>
+            <input type="number" id="test-lon" step="any" placeholder="e.g., 17.0658">
+            
+            <button onclick="testCoordinates()">Test These Coordinates</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>Quick Tests</h3>
+        <button onclick="testWindhoek()">Test Windhoek Center</button>
+        <button onclick="testSwakopmund()">Test Swakopmund</button>
+        <button onclick="testWalvisBay()">Test Walvis Bay</button>
+        <button onclick="testRemoteLocation()">Test Remote Location</button>
+        <button onclick="testMultipleServices()">Test Multiple Services</button>
+    </div>
+
+    <div class="test-section">
+        <h3>API Service Tests</h3>
+        <button onclick="testNominatim()">Test OpenStreetMap</button>
+        <button onclick="testGoogleMaps()">Test Google Maps (Info Only)</button>
+        <button onclick="testAlternativeServices()">Test Alternative Services</button>
+    </div>
+
+    <div class="test-results">
+        <h3>Test Results</h3>
+        <div id="results" class="log">Ready to test coordinates...\n</div>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            results.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function clearResults() {
+            results.textContent = 'Results cleared...\n';
+        }
+
+        // Test the exact same function used in the admin
+        async function reverseGeocode(latitude, longitude) {
+            try {
+                log(`Testing reverse geocoding for: ${latitude}, ${longitude}`);
+                
+                const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`;
+                log(`Request URL: ${url}`);
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'RoadsAuthority-Admin/1.0',
+                    },
+                    signal: controller.signal,
+                });
+
+                clearTimeout(timeoutId);
+                
+                log(`Response status: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                    log(errorMsg, 'error');
+                    return { success: false, error: errorMsg };
+                }
+
+                const data = await response.json();
+                log(`Response data: ${JSON.stringify(data, null, 2)}`);
+
+                if (data && data.display_name) {
+                    log(`SUCCESS: Location found - ${data.display_name}`, 'success');
+                    return {
+                        success: true,
+                        latitude,
+                        longitude,
+                        displayName: data.display_name,
+                    };
+                }
+
+                log('No location data in response', 'warning');
+                return { success: false, error: 'Location not found in response' };
+                
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+                
+                if (error.name === 'AbortError') {
+                    return { success: false, error: 'Request timed out - please try again' };
+                } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    return { success: false, error: 'Network error - check your internet connection' };
+                }
+                
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testCoordinates() {
+            const lat = parseFloat(document.getElementById('test-lat').value);
+            const lon = parseFloat(document.getElementById('test-lon').value);
+            
+            if (isNaN(lat) || isNaN(lon)) {
+                log('Please enter valid latitude and longitude numbers', 'error');
+                return;
+            }
+            
+            log(`\n=== Testing Custom Coordinates ===`);
+            await reverseGeocode(lat, lon);
+        }
+
+        async function testWindhoek() {
+            log(`\n=== Testing Windhoek Center ===`);
+            await reverseGeocode(-22.5609, 17.0658);
+        }
+
+        async function testSwakopmund() {
+            log(`\n=== Testing Swakopmund ===`);
+            await reverseGeocode(-22.6792, 14.5272);
+        }
+
+        async function testWalvisBay() {
+            log(`\n=== Testing Walvis Bay ===`);
+            await reverseGeocode(-22.9576, 14.5053);
+        }
+
+        async function testRemoteLocation() {
+            log(`\n=== Testing Remote Location (Kalahari) ===`);
+            await reverseGeocode(-24.5, 20.5);
+        }
+
+        async function testNominatim() {
+            log(`\n=== Testing OpenStreetMap Nominatim Service ===`);
+            
+            try {
+                // Test service availability
+                const response = await fetch('https://nominatim.openstreetmap.org/status', {
+                    headers: { 'User-Agent': 'RoadsAuthority-Admin/1.0' }
+                });
+                
+                if (response.ok) {
+                    log('OpenStreetMap Nominatim service is available', 'success');
+                } else {
+                    log(`Nominatim service issue: ${response.status}`, 'warning');
+                }
+            } catch (error) {
+                log(`Cannot reach Nominatim service: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGoogleMaps() {
+            log(`\n=== Google Maps Information ===`);
+            log('Google Maps Geocoding API requires an API key and billing setup');
+            log('For testing, you can manually check coordinates at:');
+            log('https://www.google.com/maps/@-22.5609,17.0658,15z');
+            log('This will show if the coordinates point to a valid location');
+        }
+
+        async function testAlternativeServices() {
+            log(`\n=== Testing Alternative Geocoding Services ===`);
+            
+            // Test with different services
+            const testLat = -22.5609;
+            const testLon = 17.0658;
+            
+            // Test Nominatim with different parameters
+            try {
+                log('Testing Nominatim with zoom parameter...');
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${testLat}&lon=${testLon}&format=json&zoom=18&addressdetails=1`,
+                    { headers: { 'User-Agent': 'RoadsAuthority-Admin/1.0' } }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.display_name) {
+                        log(`Nominatim with zoom: ${data.display_name}`, 'success');
+                    } else {
+                        log('Nominatim with zoom: No result', 'warning');
+                    }
+                }
+            } catch (error) {
+                log(`Nominatim zoom test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMultipleServices() {
+            log(`\n=== Testing Multiple Coordinates ===`);
+            
+            const testCases = [
+                { name: 'Windhoek CBD', lat: -22.5609, lon: 17.0658 },
+                { name: 'Windhoek Airport', lat: -22.4799, lon: 17.4677 },
+                { name: 'Swakopmund Town', lat: -22.6792, lon: 14.5272 },
+                { name: 'Walvis Bay Port', lat: -22.9576, lon: 14.5053 },
+                { name: 'Oshakati', lat: -17.7889, lon: 15.6964 },
+            ];
+            
+            for (const testCase of testCases) {
+                log(`\nTesting ${testCase.name}...`);
+                await reverseGeocode(testCase.lat, testCase.lon);
+                
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        // Auto-run basic connectivity test
+        window.addEventListener('load', () => {
+            log('Coordinate Geocoding Diagnostic Tool Loaded');
+            log('Click buttons above to test different scenarios');
+            testNominatim();
+        });
+    </script>
+</body>
+</html>

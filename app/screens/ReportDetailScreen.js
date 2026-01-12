@@ -6,13 +6,14 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  ActivityIndicator,
   Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
+import { SkeletonLoader } from '../components';
 
 const STATUS_LABELS = {
   pending: 'Pending',
@@ -96,7 +97,7 @@ export default function ReportDetailScreen({ navigation, route }) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <SkeletonLoader type="profile" />
         </View>
       </SafeAreaView>
     );
@@ -312,11 +313,17 @@ function getStyles(colors) {
       borderRadius: 8,
       marginBottom: 20,
       alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
     referenceLabel: {
       fontSize: 12,
       color: colors.textSecondary,
       marginBottom: 4,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     referenceCode: {
       fontSize: 18,
@@ -368,6 +375,7 @@ function getStyles(colors) {
     statusText: {
       fontSize: 14,
       fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     severityBadge: {
       flexDirection: 'row',
@@ -386,11 +394,13 @@ function getStyles(colors) {
     severityText: {
       fontSize: 14,
       fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     value: {
       fontSize: 16,
       color: colors.text,
       lineHeight: 24,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     locationInfo: {
       flexDirection: 'row',
@@ -416,21 +426,33 @@ function getStyles(colors) {
       borderRadius: 8,
       gap: 8,
       alignSelf: 'flex-start',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
     mapButtonText: {
       color: colors.primary,
       fontSize: 14,
       fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     adminNotesContainer: {
       backgroundColor: colors.card,
       padding: 16,
       borderRadius: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
     adminNotesText: {
       fontSize: 14,
       color: colors.text,
       lineHeight: 20,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     timeline: {
       gap: 12,

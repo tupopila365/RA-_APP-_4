@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -27,7 +26,7 @@ try {
 }
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
-import { FormInput, Button, SectionTitle } from '../components';
+import { SkeletonLoader, FormInput, Button, SectionTitle } from '../components';
 import { spacing } from '../theme/spacing';
 
 const SEVERITY_OPTIONS = [
@@ -391,7 +390,7 @@ export default function ReportPotholeScreen({ navigation }) {
               </View>
             ) : locationLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
+                <SkeletonLoader type="circle" width={16} height={16} />
                 <Text style={styles.loadingText}>Getting your location...</Text>
               </View>
             ) : location ? (
@@ -449,7 +448,7 @@ export default function ReportPotholeScreen({ navigation }) {
                   disabled={photoLoading}
                 >
                   {photoLoading ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
+                    <SkeletonLoader type="circle" width={16} height={16} />
                   ) : (
                     <>
                       <Ionicons name="camera-outline" size={48} color={colors.textSecondary} />
@@ -701,7 +700,7 @@ function getStyles(colors, insets) {
       backgroundColor: colors.card,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: colors.primary + '30',
+      borderColor: colors.primary,
     },
     myReportsLinkText: {
       color: colors.primary,

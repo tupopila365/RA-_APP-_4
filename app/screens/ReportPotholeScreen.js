@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Modal,
@@ -45,41 +44,45 @@ try {
   console.warn('Native modules not available:', error.message);
 }
 
+// Import unified design system components
+import {
+  GlobalHeader,
+  UnifiedFormInput,
+  UnifiedCard,
+  UnifiedButton,
+  UnifiedSkeletonLoader,
+  RATheme,
+  typography,
+  spacing,
+} from '../components/UnifiedDesignSystem';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
-import { FormInput, Button } from '../components';
-import { spacing } from '../theme/spacing';
+import { roadStatusService } from '../services/roadStatusService';
+import RoadworkMap from '../components/RoadworkMap';
 
 const SEVERITY_OPTIONS = [
-  { value: 'small', label: 'Small', color: '#4ECDC4' },
-  { value: 'medium', label: 'Medium', color: '#FFA500' },
-  { value: 'dangerous', label: 'Dangerous', color: '#FF6B6B' },
+  { value: 'small', label: 'Minor Damage', color: '#6B7280', icon: 'ellipse' },
+  { value: 'medium', label: 'Moderate Damage', color: '#D97706', icon: 'warning' },
+  { value: 'dangerous', label: 'Severe Damage', color: '#DC2626', icon: 'alert-circle' },
 ];
 
-// ========== CONFIGURATION ==========
+// Configuration
 const CONFIG = {
-  MAX_DISTANCE_KM: 100, // Maximum distance user can report from current location (prevents spam)
-  EXIF_PHOTO_DISTANCE_THRESHOLD_KM: 5, // If photo location differs by more than this, require manual confirmation
-  DEFAULT_MAP_ZOOM: 0.01, // Initial map zoom level (latitude/longitude delta)
+  MAX_DISTANCE_KM: 100,
+  EXIF_PHOTO_DISTANCE_THRESHOLD_KM: 5,
+  DEFAULT_MAP_ZOOM: 0.01,
   NAMIBIA_BOUNDS: {
-    // Namibia approximate bounds for validation
     minLat: -28.97,
     maxLat: -16.96,
     minLng: 11.73,
     maxLng: 25.27,
   },
-  GOOGLE_PLACES_API_KEY: 'AIzaSyCuzul7JRWGUN2mbGSY-FqYgioUUf1RbnQ', // Google Maps API Key
+  GOOGLE_PLACES_API_KEY: 'AIzaSyCuzul7JRWGUN2mbGSY-FqYgioUUf1RbnQ',
 };
 
-
-// ========== UTILITY FUNCTIONS ==========
-
-/**
- * Calculate distance between two coordinates using Haversine formula
- * @returns distance in kilometers
- */
+// Utility functions (same as original)
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -92,9 +95,6 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-/**
- * Check if coordinates are within Namibia bounds
- */
 const isWithinNamibia = (latitude, longitude) => {
   return (
     latitude >= CONFIG.NAMIBIA_BOUNDS.minLat &&
@@ -104,10 +104,6 @@ const isWithinNamibia = (latitude, longitude) => {
   );
 };
 
-/**
- * Extract GPS coordinates from photo EXIF data
- * @returns {latitude, longitude} or null if not available
- */
 const extractPhotoLocation = async (photoUri) => {
   if (!ImageManipulator || !MediaLibrary) {
     console.log('EXIF reading not available');
@@ -115,17 +111,15 @@ const extractPhotoLocation = async (photoUri) => {
   }
 
   try {
-    // Request permission to read media library
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== 'granted') {
       return null;
     }
 
-    // Get asset info including EXIF data
     const asset = await MediaLibrary.getAssetInfoAsync(photoUri);
     
     if (asset.location && asset.location.latitude && asset.location.longitude) {
-      console.log('✅ EXIF GPS found:', asset.location);
+      console.log('EXIF GPS found:', asset.location);
       return {
         latitude: asset.location.latitude,
         longitude: asset.location.longitude,
@@ -208,6 +202,7 @@ export default function ReportPotholeScreen({ navigation }) {
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [mapRegion, setMapRegion] = useState(null);
   const [locationSource, setLocationSource] = useState(null); // Track how location was determined
+  const [roadworks, setRoadworks] = useState([]); // Roadwork data for map overlay
   const googlePlacesRef = useRef(null);
   const [showMoreDetails, setShowMoreDetails] = useState(false); // For expandable section
 
@@ -215,9 +210,20 @@ export default function ReportPotholeScreen({ navigation }) {
 
   useEffect(() => {
     requestLocationPermission();
+    fetchRoadworks(); // Fetch roadworks for map overlay
   }, []);
 
   // ========== LOCATION FUNCTIONS ==========
+
+  const fetchRoadworks = async () => {
+    try {
+      const data = await roadStatusService.getRoadStatus();
+      setRoadworks(data || []);
+    } catch (error) {
+      console.warn('Failed to fetch roadworks for map overlay:', error);
+      // Don't show error to user, just continue without roadwork overlay
+    }
+  };
 
   const requestLocationPermission = async () => {
     try {
@@ -390,7 +396,7 @@ export default function ReportPotholeScreen({ navigation }) {
       // Validate the photo location
       if (!isWithinNamibia(exifLocation.latitude, exifLocation.longitude)) {
         Alert.alert(
-          '⚠️ Location Outside Namibia',
+          'Location Outside Namibia',
           'The photo appears to be taken outside Namibia. Please confirm the actual damage location on the map.',
           [{ text: 'OK', onPress: () => setShowMapPicker(true) }]
         );
@@ -409,7 +415,7 @@ export default function ReportPotholeScreen({ navigation }) {
         if (distance > CONFIG.EXIF_PHOTO_DISTANCE_THRESHOLD_KM) {
           // Photo taken far from current location - require confirmation
           Alert.alert(
-            '📍 Photo Taken Elsewhere',
+            'Photo Taken Elsewhere',
             `This photo was taken ${distance.toFixed(1)} km from your current location. Is the road damage at the photo location or your current location?`,
             [
               {
@@ -441,7 +447,7 @@ export default function ReportPotholeScreen({ navigation }) {
           setSelectedLocation(exifLocation);
           setLocationSource('photo_exif');
           Alert.alert(
-            '✅ Location Detected',
+            'Location Detected',
             `Using location from photo (${distance.toFixed(1)} km away). You can adjust the exact location on the map.`,
             [
               { text: 'Adjust on Map', onPress: () => setShowMapPicker(true) },
@@ -457,7 +463,7 @@ export default function ReportPotholeScreen({ navigation }) {
     } else {
       // No GPS in photo - require manual selection
       Alert.alert(
-        '📍 Location Required',
+        'Location Required',
         'This photo does not contain location data. Please select the damage location on the map.',
         [{ text: 'Pick on Map', onPress: () => setShowMapPicker(true) }]
       );
@@ -735,7 +741,7 @@ export default function ReportPotholeScreen({ navigation }) {
 
           {/* Photo Section - FIRST AND PROMINENT */}
           <View style={styles.mainPhotoSection}>
-            <Text style={styles.mainSectionTitle}>📸 Step 1: Take a Photo</Text>
+            <Text style={styles.mainSectionTitle}>Step 1 — Capture Photo</Text>
             <Text style={styles.mainSectionSubtitle}>
               Capture the road damage clearly
             </Text>
@@ -767,11 +773,11 @@ export default function ReportPotholeScreen({ navigation }) {
                 activeOpacity={0.7}
               >
                 {photoLoading ? (
-                  <ActivityIndicator size="large" color={colors.primary} />
+                  <UnifiedSkeletonLoader type="circle" width={40} height={40} />
                 ) : (
                   <>
                     <View style={styles.cameraIconCircle}>
-                      <Ionicons name="camera" size={40} color={colors.primary} />
+                      <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
                     </View>
                     <Text style={styles.photoPlaceholderTextLarge}>Tap to Capture Photo</Text>
                     <Text style={styles.photoPlaceholderHint}>or select from gallery</Text>
@@ -817,14 +823,14 @@ export default function ReportPotholeScreen({ navigation }) {
 
           {locationLoading && (
             <View style={styles.locationLoadingInline}>
-              <ActivityIndicator size="small" color={colors.primary} />
+              <UnifiedSkeletonLoader type="circle" width={16} height={16} />
               <Text style={styles.locationLoadingText}>Getting location...</Text>
             </View>
           )}
 
           {/* Severity Section - BIG BUTTONS */}
           <View style={styles.severitySectionLarge}>
-            <Text style={styles.mainSectionTitle}>🚨 Step 2: How Bad Is It?</Text>
+            <Text style={styles.mainSectionTitle}>Step 2 — Damage Severity</Text>
             <Text style={styles.mainSectionSubtitle}>
               Select the severity level
             </Text>
@@ -884,7 +890,7 @@ export default function ReportPotholeScreen({ navigation }) {
 
             {showMoreDetails && (
               <View style={styles.expandableContent}>
-                <FormInput
+                <UnifiedFormInput
                   value={roadName}
                   onChangeText={setRoadName}
                   placeholder="e.g., B1 Highway, Independence Avenue"
@@ -894,7 +900,7 @@ export default function ReportPotholeScreen({ navigation }) {
                 
                 <View style={styles.formSpacing} />
                 
-                <FormInput
+                <UnifiedFormInput
                   value={description}
                   onChangeText={setDescription}
                   placeholder="Any additional details..."
@@ -912,13 +918,15 @@ export default function ReportPotholeScreen({ navigation }) {
 
         {/* Floating Submit Button */}
         <View style={styles.floatingButtonContainer}>
-          <Button
-            label={loading ? "Submitting..." : "Submit Report ✓"}
+          <UnifiedButton
+            variant="primary"
+            label={loading ? "Submitting..." : "Submit Report"}
             onPress={handleSubmit}
             loading={loading}
             disabled={loading || !selectedLocation || !photo}
             size="large"
             fullWidth
+            iconName="checkmark-circle"
             style={styles.submitButtonFloating}
           />
         </View>
@@ -1023,7 +1031,7 @@ export default function ReportPotholeScreen({ navigation }) {
                   paddingVertical: 14,
                   paddingHorizontal: 16,
                   borderBottomWidth: 1,
-                  borderBottomColor: colors.border + '40',
+                  borderBottomColor: colors.border,
                   zIndex: 2003,
                 },
                 separator: {
@@ -1076,32 +1084,18 @@ export default function ReportPotholeScreen({ navigation }) {
           </View>
 
           <View style={styles.mapContainer}>
-            {mapRegion && MapView ? (
-              <MapView
-                ref={mapRef}
-                style={styles.map}
-                initialRegion={mapRegion}
-                onPress={handleMapPress}
-                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-              >
-                {selectedLocation && Marker && (
-                  <Marker
-                    coordinate={selectedLocation}
-                    title="Damage Location"
-                    description="Drag to adjust"
-                    draggable
-                    onDragEnd={handleMarkerDragEnd}
-                  />
-                )}
-              </MapView>
-            ) : (
-              <View style={[styles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.card }]}>
-                <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
-                <Text style={{ color: colors.textSecondary, marginTop: 16, textAlign: 'center', paddingHorizontal: 32 }}>
-                  Map view requires a development build
-                </Text>
-              </View>
-            )}
+            <RoadworkMap
+              region={mapRegion}
+              onPress={handleMapPress}
+              roadworks={roadworks}
+              selectedLocation={selectedLocation}
+              onMarkerDragEnd={handleMarkerDragEnd}
+              showRoadworks={true}
+              showSelectedMarker={true}
+              markerTitle="Damage Location"
+              markerDescription="Drag to adjust"
+              style={styles.map}
+            />
           </View>
 
           <View style={styles.mapInstructions}>
@@ -1114,7 +1108,7 @@ export default function ReportPotholeScreen({ navigation }) {
           {selectedLocation && (
             <View style={styles.mapCoordinates}>
               <Text style={styles.mapCoordinatesText}>
-                📍 {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
+                {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
               </Text>
               {locationAddress && (
                 <Text style={styles.mapAddressText}>{locationAddress}</Text>
@@ -1122,12 +1116,14 @@ export default function ReportPotholeScreen({ navigation }) {
             </View>
           )}
 
-          <Button
+          <UnifiedButton
+            variant="primary"
             label="Confirm Location"
             onPress={confirmMapLocation}
             disabled={!selectedLocation}
             fullWidth
             size="large"
+            iconName="checkmark"
             style={styles.confirmButton}
           />
         </SafeAreaView>
@@ -1186,7 +1182,7 @@ function getStyles(colors, insets) {
       backgroundColor: colors.card,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.success + '40',
+      borderColor: colors.success,
       marginBottom: 12,
     },
     locationHeader: {
@@ -1217,7 +1213,7 @@ function getStyles(colors, insets) {
       justifyContent: 'center',
       gap: 8,
       padding: 14,
-      backgroundColor: colors.primary + '15',
+      backgroundColor: colors.primary,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.primary,
@@ -1242,7 +1238,7 @@ function getStyles(colors, insets) {
       gap: 4,
       paddingHorizontal: 10,
       paddingVertical: 6,
-      backgroundColor: colors.success + '20',
+      backgroundColor: colors.success,
       borderRadius: 6,
       marginBottom: 8,
     },
@@ -1313,16 +1309,16 @@ function getStyles(colors, insets) {
     },
     progressBar: {
       width: '100%',
-      height: 6,
-      backgroundColor: colors.border + '40',
-      borderRadius: 3,
+      height: 4,
+      backgroundColor: colors.border,
+      borderRadius: 2,
       overflow: 'hidden',
       marginBottom: 8,
     },
     progressFill: {
       height: '100%',
       backgroundColor: colors.primary,
-      borderRadius: 3,
+      borderRadius: 2,
     },
     progressText: {
       fontSize: 13,
@@ -1335,20 +1331,22 @@ function getStyles(colors, insets) {
       marginBottom: 24,
     },
     mainSectionTitle: {
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: 18,
+      fontWeight: '600',
       color: colors.text,
       marginBottom: 6,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     mainSectionSubtitle: {
       fontSize: 14,
       color: colors.textSecondary,
       marginBottom: 16,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     photoLarge: {
       width: '100%',
       height: 280,
-      borderRadius: 16,
+      borderRadius: 12,
     },
     photoOverlay: {
       position: 'absolute',
@@ -1359,9 +1357,9 @@ function getStyles(colors, insets) {
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: 12,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      borderBottomLeftRadius: 16,
-      borderBottomRightRadius: 16,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      borderBottomLeftRadius: 12,
+      borderBottomRightRadius: 12,
     },
     photoInfoBadgeInline: {
       flexDirection: 'row',
@@ -1395,18 +1393,17 @@ function getStyles(colors, insets) {
       width: '100%',
       height: 280,
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 3,
-      borderColor: colors.primary + '30',
-      borderStyle: 'dashed',
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     cameraIconCircle: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: colors.primary + '15',
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.background,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 16,
@@ -1425,12 +1422,12 @@ function getStyles(colors, insets) {
 
     // Location Inline
     locationInline: {
-      backgroundColor: colors.success + '10',
-      borderRadius: 12,
+      backgroundColor: colors.card,
+      borderRadius: 8,
       padding: 16,
       marginBottom: 24,
       borderWidth: 1,
-      borderColor: colors.success + '30',
+      borderColor: colors.success,
     },
     locationInlineHeader: {
       flexDirection: 'row',
@@ -1466,9 +1463,9 @@ function getStyles(colors, insets) {
       justifyContent: 'center',
       gap: 8,
       padding: 16,
-      backgroundColor: colors.primary + '15',
-      borderRadius: 12,
-      borderWidth: 2,
+      backgroundColor: colors.card,
+      borderRadius: 8,
+      borderWidth: 1,
       borderColor: colors.primary,
       marginBottom: 24,
     },
@@ -1484,7 +1481,7 @@ function getStyles(colors, insets) {
       gap: 10,
       padding: 16,
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: 8,
       marginBottom: 24,
     },
     locationLoadingText: {
@@ -1505,19 +1502,19 @@ function getStyles(colors, insets) {
       justifyContent: 'space-between',
       padding: 20,
       backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 2,
-      borderColor: colors.border + '60',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
+      shadowRadius: 2,
+      elevation: 1,
     },
     severityButtonLargeActive: {
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 4,
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
     },
     severityDotLarge: {
       width: 20,
@@ -1527,16 +1524,17 @@ function getStyles(colors, insets) {
     },
     severityTextLarge: {
       flex: 1,
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '600',
       color: colors.text,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
 
     // Expandable Section
     expandableSection: {
       marginBottom: 24,
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
       overflow: 'hidden',
@@ -1556,6 +1554,7 @@ function getStyles(colors, insets) {
       fontSize: 16,
       fontWeight: '600',
       color: colors.text,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     expandableContent: {
       paddingHorizontal: 16,
@@ -1577,19 +1576,19 @@ function getStyles(colors, insets) {
       paddingBottom: (insets?.bottom || 0) + 16,
       backgroundColor: colors.background,
       borderTopWidth: 1,
-      borderTopColor: colors.border + '40',
+      borderTopColor: colors.border,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 10,
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 5,
     },
     submitButtonFloating: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 8,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
     },
 
     // Modal styles
@@ -1643,7 +1642,7 @@ function getStyles(colors, insets) {
       alignItems: 'center',
       gap: 10,
       padding: 16,
-      backgroundColor: colors.primary + '15',
+      backgroundColor: colors.card,
     },
     mapInstructionsText: {
       flex: 1,

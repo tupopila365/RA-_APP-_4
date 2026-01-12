@@ -10,7 +10,7 @@ jest.mock('../../hooks/useDebounce', () => ({
   useDebounce: (value) => value,
 }));
 jest.mock('../../components', () => ({
-  LoadingSpinner: () => 'LoadingSpinner',
+  ListScreenSkeleton: () => 'ListScreenSkeleton',
   ErrorState: () => 'ErrorState',
   EmptyState: () => 'EmptyState',
 }));

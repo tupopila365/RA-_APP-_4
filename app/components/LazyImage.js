@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Image, View, ActivityIndicator, StyleSheet, useColorScheme } from 'react-native';
+import { Image, View, StyleSheet, useColorScheme } from 'react-native';
 import { RATheme } from '../theme/colors';
+import SkeletonLoader from './SkeletonLoader';
 
 export function LazyImage({
   source,
@@ -26,7 +27,7 @@ export function LazyImage({
   if (error) {
     return (
       <View style={[style, styles.errorContainer]}>
-        <ActivityIndicator size="small" color={colors.textSecondary} />
+        <SkeletonLoader type="circle" width={20} height={20} />
       </View>
     );
   }
@@ -46,7 +47,7 @@ export function LazyImage({
       />
       {loading && (
         <View style={[style, styles.loadingOverlay]}>
-          <ActivityIndicator size="small" color={colors.primary} />
+          <SkeletonLoader type="circle" width={20} height={20} />
         </View>
       )}
     </View>

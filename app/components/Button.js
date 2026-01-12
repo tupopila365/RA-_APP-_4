@@ -1,7 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, useColorScheme, View, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, useColorScheme, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
+import SkeletonLoader from './SkeletonLoader';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
 
@@ -58,10 +59,10 @@ export function Button({
   const renderIcon = () => {
     if (loading) {
       return (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : colors.primary}
-          style={styles.loadingIndicator}
+        <SkeletonLoader
+          type="circle"
+          width={20}
+          height={20}
         />
       );
     }

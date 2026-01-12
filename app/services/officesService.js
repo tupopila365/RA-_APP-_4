@@ -5,8 +5,8 @@ export const officesService = {
     try {
       const queryString = new URLSearchParams(params).toString();
       const endpoint = queryString
-        ? `${API_ENDPOINTS.OFFICES}?${queryString}`
-        : API_ENDPOINTS.OFFICES;
+        ? `${API_ENDPOINTS.LOCATIONS}?${queryString}`
+        : API_ENDPOINTS.LOCATIONS;
 
       return await ApiClient.get(endpoint);
     } catch (error) {

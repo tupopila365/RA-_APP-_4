@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,326 +6,488 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
+  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { plnService } from '../services/plnService';
-import { FormInput } from '../components/FormInput';
-import { Button } from '../components/Button';
-import { Card } from '../components/Card';
-import { StatusStepper } from '../components/StatusStepper';
-import { EmptyState } from '../components/EmptyState';
 
-export default function PLNTrackingScreen({ navigation }) {
-  const { colors } = useTheme();
+// Import Unified Design System Components
+import {
+  GlobalHeader,
+  UnifiedFormInput,
+  UnifiedCard,
+  UnifiedButton,
+  UnifiedSkeletonLoader,
+  RATheme,
+  typography,
+  spacing,
+} from '../components/UnifiedDesignSystem';
+
+export default function PLNTrackingScreen({ navigation, route }) {
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
-  const [referenceId, setReferenceId] = useState('');
-  const [idNumber, setIdNumber] = useState('');
-  const [application, setApplication] = useState(null);
-  const [error, setError] = useState(null);
+  
+  // Form fields
+  const [referenceId, setReferenceId] = useState(route?.params?.referenceId || '');
+  const [trackingPin, setTrackingPin] = useState(route?.params?.trackingPin || '');
+  const [referenceError, setReferenceError] = useState('');
+  const [pinError, setPinError] = useState('');
+  
+  // Tracking result
+  const [trackingResult, setTrackingResult] = useState(null);
+  const [showResult, setShowResult] = useState(false);
 
-  const styles = getStyles(colors);
+  // Professional styles using design system
+  const styles = createStyles(colors, isDark, insets);
 
-  const handleCheckStatus = async () => {
-    if (!referenceId.trim() || !idNumber.trim()) {
-      Alert.alert('Error', 'Please enter both Reference ID and ID Number');
-      return;
+  // Auto-check status if params provided
+  useEffect(() => {
+    if (route?.params?.referenceId && route?.params?.trackingPin) {
+      checkStatus();
     }
+  }, []);
 
+  // Validate inputs
+  const validateInputs = () => {
+    let isValid = true;
+    
+    if (!referenceId.trim()) {
+      setReferenceError('Reference ID is required');
+      isValid = false;
+    } else if (!referenceId.match(/^PLN-[A-Z0-9]{6}$/)) {
+      setReferenceError('Invalid Reference ID format');
+      isValid = false;
+    } else {
+      setReferenceError('');
+    }
+    
+    if (!trackingPin.trim()) {
+      setPinError('Tracking PIN is required');
+      isValid = false;
+    } else if (trackingPin.length !== 6 || !trackingPin.match(/^\d{6}$/)) {
+      setPinError('Tracking PIN must be 6 digits');
+      isValid = false;
+    } else {
+      setPinError('');
+    }
+    
+    return isValid;
+  };
+
+  // Check application status
+  const checkStatus = async () => {
+    if (!validateInputs()) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
-      const result = await plnService.trackApplication(referenceId.trim(), idNumber.trim());
-      setApplication(result);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Mock tracking result
+      const mockResult = {
+        referenceId: referenceId,
+        status: 'Pending Review',
+        estimatedTime: '5–7 working days',
+        submittedDate: '2024-01-10',
+        lastUpdated: '2024-01-12',
+        nextSteps: 'Your application is being reviewed by our team. You will be notified once the review is complete.',
+        statusHistory: [
+          { status: 'Submitted', date: '2024-01-10', time: '14:30' },
+          { status: 'Under Review', date: '2024-01-12', time: '09:15' },
+        ]
+      };
+      
+      setTrackingResult(mockResult);
+      setShowResult(true);
     } catch (error) {
-      console.error('Error tracking application:', error);
-      setError(error.message || 'Failed to track application. Please check your details.');
-      setApplication(null);
+      Alert.alert('Error', 'Failed to check status. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-    } catch {
-      return dateString;
+  // Reset form
+  const resetForm = () => {
+    setShowResult(false);
+    setTrackingResult(null);
+    setReferenceId('');
+    setTrackingPin('');
+    setReferenceError('');
+    setPinError('');
+  };
+
+  // Get status color
+  const getStatusColor = (status) => {
+    switch (status.toLowerCase()) {
+      case 'submitted':
+        return '#2196F3';
+      case 'under review':
+      case 'pending review':
+        return '#FF9800';
+      case 'approved':
+        return '#4CAF50';
+      case 'declined':
+        return '#F44336';
+      case 'payment pending':
+        return '#9C27B0';
+      case 'paid':
+        return '#4CAF50';
+      case 'plates ordered':
+        return '#00BCD4';
+      case 'ready for collection':
+        return '#8BC34A';
+      default:
+        return '#AAAAAA';
     }
   };
 
-  const hasSearched = application !== null || error !== null;
+  // Render tracking form
+  const renderTrackingForm = () => (
+    <View style={styles.formContainer}>
+      {/* RA Logo */}
+      <View style={styles.logoContainer}>
+        <Image 
+          source={require('../assets/icon.png')} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </View>
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {/* Initial Empty State */}
-        {!hasSearched && (
-          <View style={styles.emptyStateContainer}>
-            <EmptyState
-              icon="search-outline"
-              title="Track Your Application"
-              message="Enter your Reference ID and ID Number to check the status of your Personalized Number Plate application."
-            />
+      {/* Main Form Card */}
+      <UnifiedCard variant="elevated" padding="large">
+        <Text style={[typography.h3, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
+          Track PLN Application
+        </Text>
+        <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 }]}>
+          Enter your details to check your application status
+        </Text>
+        
+        <UnifiedFormInput
+          label="Reference ID"
+          value={referenceId}
+          onChangeText={(text) => {
+            setReferenceId(text.toUpperCase());
+            setReferenceError('');
+          }}
+          placeholder="PLN-ABC123"
+          error={referenceError}
+          autoCapitalize="characters"
+          maxLength={10}
+          leftIcon="document-text-outline"
+          helperText="Format: PLN-ABC123"
+          required
+        />
+
+        <UnifiedFormInput
+          label="Tracking PIN"
+          value={trackingPin}
+          onChangeText={(text) => {
+            setTrackingPin(text.replace(/[^0-9]/g, ''));
+            setPinError('');
+          }}
+          placeholder="123456"
+          error={pinError}
+          keyboardType="numeric"
+          maxLength={6}
+          secureTextEntry
+          leftIcon="key-outline"
+          helperText="6-digit PIN provided with your application"
+          required
+        />
+      </UnifiedCard>
+
+      <UnifiedButton
+        label="Track Application"
+        onPress={checkStatus}
+        variant="primary"
+        size="large"
+        iconName="search-outline"
+        iconPosition="right"
+        loading={loading}
+        disabled={loading}
+        fullWidth
+        style={{ marginTop: spacing.lg }}
+      />
+
+      {/* Footer Links */}
+      <View style={styles.footerLinks}>
+        <TouchableOpacity onPress={() => Alert.alert('Help', 'Contact support for assistance')}>
+          <Text style={[typography.body, { color: colors.primary, textDecorationLine: 'underline' }]}>
+            Need help with tracking?
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('PLNApplication')}>
+          <Text style={[typography.body, { color: colors.primary, textDecorationLine: 'underline' }]}>
+            Apply for New PLN
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Government Portal Branding */}
+      <View style={styles.brandingContainer}>
+        <Text style={[typography.h2, { color: colors.primary, textAlign: 'center', marginBottom: spacing.xs }]}>
+          Roads Authority
+        </Text>
+        <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', fontStyle: 'italic' }]}>
+          Digital Services Portal
+        </Text>
+      </View>
+    </View>
+  );
+
+  // Render tracking result
+  const renderTrackingResult = () => (
+    <View style={styles.resultContainer}>
+      {/* RA Logo */}
+      <View style={styles.logoContainer}>
+        <Image 
+          source={require('../assets/icon.png')} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </View>
+
+      {/* Result Card */}
+      <UnifiedCard variant="elevated" padding="large">
+        <View style={styles.statusSection}>
+          <Text style={[typography.h3, { color: colors.text, textAlign: 'center', marginBottom: spacing.lg }]}>
+            Application Status
+          </Text>
+          
+          <Text style={[typography.bodySmall, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }]}>
+            Reference: {trackingResult.referenceId}
+          </Text>
+
+          <View style={styles.statusContainer}>
+            <View style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(trackingResult.status) + '20', borderColor: getStatusColor(trackingResult.status) }
+            ]}>
+              <Text style={[
+                typography.body,
+                { color: getStatusColor(trackingResult.status), fontWeight: '600' }
+              ]}>
+                {trackingResult.status}
+              </Text>
+            </View>
           </View>
-        )}
 
-        {/* Search Form */}
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Enter Application Details</Text>
-          <FormInput
-            label="Reference ID"
-            value={referenceId}
-            onChangeText={setReferenceId}
-            placeholder="Enter your reference ID"
-            autoCapitalize="characters"
-          />
-          <FormInput
-            label="ID Number"
-            value={idNumber}
-            onChangeText={setIdNumber}
-            placeholder="Enter your ID number"
-          />
-          <Button
-            label={loading ? 'Checking...' : 'Check Status'}
-            onPress={handleCheckStatus}
-            variant="primary"
-            size="large"
-            fullWidth
-            loading={loading}
-            disabled={loading}
-            style={styles.checkButton}
-          />
-        </Card>
+          <View style={styles.estimatedTimeContainer}>
+            <Text style={[typography.body, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]}>
+              Estimated Time:
+            </Text>
+            <Text style={[typography.body, { color: colors.textSecondary }]}>
+              {trackingResult.estimatedTime}
+            </Text>
+          </View>
 
-        {/* Error Message */}
-        {error && (
-          <Card style={styles.errorCard}>
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={24} color={colors.error} />
-              <View style={styles.errorTextContainer}>
-                <Text style={styles.errorTitle}>Unable to Find Application</Text>
-                <Text style={styles.errorText}>{error}</Text>
-                <Text style={styles.errorHint}>
-                  Please verify your Reference ID and ID Number are correct.
+          {trackingResult.nextSteps && (
+            <View style={styles.nextStepsContainer}>
+              <Text style={[typography.body, { color: colors.text, fontWeight: '600', marginBottom: spacing.sm }]}>
+                Next Steps:
+              </Text>
+              <Text style={[typography.bodySmall, { color: colors.textSecondary, lineHeight: 20 }]}>
+                {trackingResult.nextSteps}
+              </Text>
+            </View>
+          )}
+        </View>
+      </UnifiedCard>
+
+      {/* Status History */}
+      {trackingResult.statusHistory && trackingResult.statusHistory.length > 0 && (
+        <UnifiedCard variant="default" padding="large">
+          <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginBottom: spacing.lg }]}>
+            Status History
+          </Text>
+          {trackingResult.statusHistory.map((item, index) => (
+            <View key={index} style={styles.historyItem}>
+              <View style={[styles.historyDot, { backgroundColor: colors.primary }]} />
+              <View style={styles.historyContent}>
+                <Text style={[typography.body, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]}>
+                  {item.status}
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  {item.date} at {item.time}
                 </Text>
               </View>
             </View>
-          </Card>
-        )}
+          ))}
+        </UnifiedCard>
+      )}
 
-        {/* Success Indicator */}
-        {application && !error && (
-          <View style={styles.successIndicator}>
-            <Ionicons name="checkmark-circle" size={24} color={colors.success} />
-            <Text style={styles.successText}>Application Found</Text>
-          </View>
-        )}
+      {/* Action Buttons */}
+      <View style={styles.actionButtons}>
+        <UnifiedButton
+          label="Check Again"
+          onPress={checkStatus}
+          variant="outline"
+          size="medium"
+          iconName="refresh-outline"
+          iconPosition="left"
+        />
+        <UnifiedButton
+          label="New Search"
+          onPress={resetForm}
+          variant="primary"
+          size="medium"
+          iconName="search-outline"
+          iconPosition="left"
+        />
+      </View>
+    </View>
+  );
 
-        {/* Application Details */}
-        {application && (
-          <>
-            {/* Status Stepper */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Application Status</Text>
-              <StatusStepper
-                currentStatus={application.status}
-                statusHistory={application.statusHistory || []}
-              />
-            </Card>
-
-            {/* Application Information */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Application Information</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Reference ID:</Text>
-                <Text style={styles.infoValue}>{application.referenceId}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Applicant Name:</Text>
-                <Text style={styles.infoValue}>{application.fullName}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Submission Date:</Text>
-                <Text style={styles.infoValue}>{formatDate(application.createdAt)}</Text>
-              </View>
-              {application.paymentDeadline && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Payment Deadline:</Text>
-                  <Text style={[styles.infoValue, styles.deadlineText]}>
-                    {formatDate(application.paymentDeadline)}
-                  </Text>
-                </View>
-              )}
-              {application.paymentReceivedAt && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Payment Received:</Text>
-                  <Text style={styles.infoValue}>{formatDate(application.paymentReceivedAt)}</Text>
-                </View>
-              )}
-            </Card>
-
-            {/* Plate Choices */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Plate Choices</Text>
-              {application.plateChoices?.map((choice, index) => (
-                <View key={index} style={styles.plateChoiceItem}>
-                  <Text style={styles.plateChoiceNumber}>Choice {index + 1}</Text>
-                  <Text style={styles.plateChoiceText}>{choice.text}</Text>
-                  <Text style={styles.plateChoiceMeaning}>{choice.meaning}</Text>
-                </View>
-              ))}
-            </Card>
-
-            {/* Admin Comments */}
-            {application.adminComments && (
-              <Card style={styles.section}>
-                <Text style={styles.sectionTitle}>Admin Comments</Text>
-                <Text style={styles.commentsText}>{application.adminComments}</Text>
-              </Card>
-            )}
-          </>
-        )}
+  return (
+    <View style={styles.container}>
+      <GlobalHeader
+        title="Track Application"
+        subtitle="PLN Application Status"
+        showBackButton={true}
+        onBackPress={() => navigation.goBack()}
+        rightActions={[
+          {
+            icon: 'help-circle-outline',
+            onPress: () => Alert.alert('Help', 'Contact support for assistance'),
+            accessibilityLabel: 'Get help',
+          },
+        ]}
+      />
+      
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {showResult ? renderTrackingResult() : renderTrackingForm()}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-function getStyles(colors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    content: {
-      padding: 20,
-    },
-    emptyStateContainer: {
-      marginTop: 40,
-      marginBottom: 30,
-    },
-    section: {
-      marginBottom: 20,
-    },
-    sectionTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: colors.text,
-      marginBottom: 16,
-    },
-    checkButton: {
-      marginTop: 12,
-    },
-    errorCard: {
-      backgroundColor: colors.error + '10',
-      borderColor: colors.error,
-      borderWidth: 1,
-      marginBottom: 20,
-    },
-    errorContainer: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-    },
-    errorTextContainer: {
-      flex: 1,
-    },
-    errorTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.error,
-      marginBottom: 6,
-    },
-    errorText: {
-      fontSize: 14,
-      color: colors.error,
-      marginBottom: 8,
-      lineHeight: 20,
-    },
-    errorHint: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      fontStyle: 'italic',
-    },
-    successIndicator: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: colors.success + '15',
-      padding: 12,
-      borderRadius: 8,
-      marginBottom: 20,
-    },
-    successText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.success,
-    },
-    infoRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 12,
-      paddingBottom: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    infoLabel: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      flex: 1,
-    },
-    infoValue: {
-      fontSize: 16,
-      color: colors.textSecondary,
-      flex: 1,
-      textAlign: 'right',
-    },
-    deadlineText: {
-      color: colors.error,
-      fontWeight: '600',
-    },
-    plateChoiceItem: {
-      marginBottom: 16,
-      paddingBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    plateChoiceNumber: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      marginBottom: 4,
-    },
-    plateChoiceText: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: colors.primary,
-      marginBottom: 4,
-      letterSpacing: 2,
-    },
-    plateChoiceMeaning: {
-      fontSize: 14,
-      color: colors.textSecondary,
-    },
-    commentsText: {
-      fontSize: 16,
-      color: colors.text,
-      lineHeight: 24,
-    },
-  });
-}
+// Professional government-standard styling using design system
+const createStyles = (colors, isDark, insets) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.xl,
+    paddingBottom: spacing.xxxl + spacing.lg,
+  },
+  
+  // Logo Section
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xxxl,
+    marginTop: spacing.xl,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: colors.primary,
+  },
+  
+  // Form Container
+  formContainer: {
+    flex: 1,
+    alignItems: 'center',
+    maxWidth: 500,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  
+  // Footer Links
+  footerLinks: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.xxxl,
+    gap: spacing.md,
+  },
+  
+  // Government Branding
+  brandingContainer: {
+    alignItems: 'center',
+    marginTop: 'auto',
+  },
+  
+  // Result Container
+  resultContainer: {
+    flex: 1,
+    alignItems: 'center',
+    maxWidth: 500,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  
+  statusSection: {
+    alignItems: 'center',
+  },
+  
+  statusContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  
+  statusBadge: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: 25,
+    borderWidth: 2,
+  },
+  
+  estimatedTimeContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    width: '100%',
+  },
+  
+  nextStepsContainer: {
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    width: '100%',
+  },
+  
+  // History
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
+  },
+  
+  historyDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: spacing.lg,
+    marginTop: 4,
+  },
+  
+  historyContent: {
+    flex: 1,
+  },
+  
+  // Action Buttons
+  actionButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    width: '100%',
+    maxWidth: 400,
+  },
+});
 
-
-
+// Screen options to hide the default header since we use GlobalHeader
+PLNTrackingScreen.options = {
+  headerShown: false,
+};

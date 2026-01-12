@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Modal,
@@ -46,7 +45,7 @@ try {
 
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
-import { FormInput, Button } from '../components';
+import { SkeletonLoader, FormInput, Button } from '../components';
 import { spacing } from '../theme/spacing';
 
 const SEVERITY_OPTIONS = [
@@ -625,7 +624,7 @@ Submit this report?
 
             {locationLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
+                <SkeletonLoader type="circle" width={16} height={16} />
                 <Text style={styles.loadingText}>Getting location...</Text>
               </View>
             ) : selectedLocation ? (
@@ -686,7 +685,7 @@ Submit this report?
                 disabled={photoLoading}
               >
                 {photoLoading ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <SkeletonLoader type="circle" width={16} height={16} />
                 ) : (
                   <>
                     <Ionicons name="camera-outline" size={48} color={colors.textSecondary} />
@@ -889,7 +888,7 @@ function getStyles(colors, insets) {
       backgroundColor: colors.card,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.success + '40',
+      borderColor: colors.success,
       marginBottom: 12,
     },
     locationHeader: {
@@ -920,7 +919,7 @@ function getStyles(colors, insets) {
       justifyContent: 'center',
       gap: 8,
       padding: 14,
-      backgroundColor: colors.primary + '15',
+      backgroundColor: colors.primary,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.primary,
@@ -945,7 +944,7 @@ function getStyles(colors, insets) {
       gap: 4,
       paddingHorizontal: 10,
       paddingVertical: 6,
-      backgroundColor: colors.success + '20',
+      backgroundColor: colors.success,
       borderRadius: 6,
       marginBottom: 8,
     },
@@ -1037,7 +1036,7 @@ function getStyles(colors, insets) {
       alignItems: 'center',
       gap: 10,
       padding: 16,
-      backgroundColor: colors.primary + '15',
+      backgroundColor: colors.primary,
     },
     mapInstructionsText: {
       flex: 1,

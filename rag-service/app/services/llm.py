@@ -359,6 +359,81 @@ HELPFUL ANSWER (Remember to be direct, clear, and structured):"""
             logger.error(f"Failed to generate streaming answer: {str(e)}")
             raise LLMError(f"Streaming answer generation failed: {str(e)}")
     
+    async def generate_answer_streaming_async(
+        self,
+        question: str,
+        context_chunks: List[Dict[str, Any]],
+        temperature: float = 0.7
+    ):
+        """
+        Generate an answer with async streaming response for character-level streaming.
+        
+        Args:
+            question: User's question
+            context_chunks: List of relevant document chunks
+            temperature: Sampling temperature (0.0 to 1.0)
+            
+        Yields:
+            Individual characters or small chunks of generated text
+            
+        Raises:
+            LLMError: If answer generation fails
+        """
+        if not question or not question.strip():
+            raise LLMError("Question cannot be empty")
+        
+        try:
+            logger.info(f"Generating async streaming answer for question: {question[:100]}...")
+            
+            # Build the prompt
+            prompt = self._build_prompt(question, context_chunks)
+            
+            # Generate streaming response in a thread to avoid blocking
+            import asyncio
+            
+            def generate_sync():
+                return self.client.generate(
+                    model=self.model,
+                    prompt=prompt,
+                    stream=True,
+                    options={
+                        'temperature': temperature
+                    }
+                )
+            
+            # Run the synchronous generator in a thread
+            stream = await asyncio.to_thread(generate_sync)
+            
+            # Buffer for character-level streaming
+            buffer = ""
+            
+            for chunk in stream:
+                response_text = chunk.get('response', '')
+                if response_text:
+                    buffer += response_text
+                    
+                    # Stream character by character for smoother UX
+                    while buffer:
+                        # Send 1-3 characters at a time for natural typing effect
+                        chunk_size = min(3, len(buffer))
+                        char_chunk = buffer[:chunk_size]
+                        buffer = buffer[chunk_size:]
+                        
+                        yield char_chunk
+                        
+                        # Small delay for natural typing effect
+                        await asyncio.sleep(0.02)
+            
+            # Send any remaining buffer
+            if buffer:
+                yield buffer
+            
+            logger.info("Completed async streaming answer generation")
+            
+        except Exception as e:
+            logger.error(f"Failed to generate async streaming answer: {str(e)}")
+            raise LLMError(f"Async streaming answer generation failed: {str(e)}")
+    
     def check_connection(self) -> bool:
         """
         Check if Ollama service is accessible.

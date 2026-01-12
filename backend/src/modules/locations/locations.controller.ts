@@ -12,7 +12,18 @@ export class LocationsController {
   async createLocation(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       // Validate required fields
-      const { name, address, region, coordinates, contactNumber, email } = req.body;
+      const { 
+        name, 
+        address, 
+        region, 
+        coordinates, 
+        contactNumber, 
+        email, 
+        services, 
+        operatingHours, 
+        closedDays, 
+        specialHours 
+      } = req.body;
 
       if (!name || !address || !region || !coordinates) {
         res.status(400).json({
@@ -47,6 +58,10 @@ export class LocationsController {
         coordinates,
         contactNumber,
         email,
+        services,
+        operatingHours,
+        closedDays,
+        specialHours,
       });
 
       logger.info(`Location created successfully: ${location._id}`);
@@ -62,6 +77,10 @@ export class LocationsController {
             coordinates: location.coordinates,
             contactNumber: location.contactNumber,
             email: location.email,
+            services: location.services,
+            operatingHours: location.operatingHours,
+            closedDays: location.closedDays,
+            specialHours: location.specialHours,
             createdAt: location.createdAt,
             updatedAt: location.updatedAt,
           },
@@ -99,6 +118,10 @@ export class LocationsController {
             coordinates: location.coordinates,
             contactNumber: location.contactNumber,
             email: location.email,
+            services: location.services,
+            operatingHours: location.operatingHours,
+            closedDays: location.closedDays,
+            specialHours: location.specialHours,
             createdAt: location.createdAt,
             updatedAt: location.updatedAt,
           })),
@@ -132,6 +155,10 @@ export class LocationsController {
             coordinates: location.coordinates,
             contactNumber: location.contactNumber,
             email: location.email,
+            services: location.services,
+            operatingHours: location.operatingHours,
+            closedDays: location.closedDays,
+            specialHours: location.specialHours,
             createdAt: location.createdAt,
             updatedAt: location.updatedAt,
           },
@@ -151,7 +178,18 @@ export class LocationsController {
   async updateLocation(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const { name, address, region, coordinates, contactNumber, email } = req.body;
+      const { 
+        name, 
+        address, 
+        region, 
+        coordinates, 
+        contactNumber, 
+        email, 
+        services, 
+        operatingHours, 
+        closedDays, 
+        specialHours 
+      } = req.body;
 
       // Build update object with only provided fields
       const updateData: any = {};
@@ -161,6 +199,10 @@ export class LocationsController {
       if (coordinates !== undefined) updateData.coordinates = coordinates;
       if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
       if (email !== undefined) updateData.email = email;
+      if (services !== undefined) updateData.services = services;
+      if (operatingHours !== undefined) updateData.operatingHours = operatingHours;
+      if (closedDays !== undefined) updateData.closedDays = closedDays;
+      if (specialHours !== undefined) updateData.specialHours = specialHours;
 
       const location = await locationsService.updateLocation(id, updateData);
 
@@ -177,6 +219,10 @@ export class LocationsController {
             coordinates: location.coordinates,
             contactNumber: location.contactNumber,
             email: location.email,
+            services: location.services,
+            operatingHours: location.operatingHours,
+            closedDays: location.closedDays,
+            specialHours: location.specialHours,
             createdAt: location.createdAt,
             updatedAt: location.updatedAt,
           },

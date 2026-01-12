@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Image as RNImage } from 'react-native';
+import { View, StyleSheet, Image as RNImage } from 'react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '../hooks/useTheme';
+import SkeletonLoader from './SkeletonLoader';
 import { Ionicons } from '@expo/vector-icons';
 import { errorLogger } from '../services/errorLogger';
 
@@ -105,7 +106,7 @@ export function CachedImage({
       />
       {loading && (
         <View style={[style, styles.loadingOverlay]}>
-          <ActivityIndicator size="small" color={colors.primary} testID={`${testID}-loading`} />
+          <SkeletonLoader type="circle" width={24} height={24} testID={`${testID}-loading`} />
         </View>
       )}
     </View>

@@ -13,6 +13,32 @@ export interface CreateLocationDTO {
   };
   contactNumber?: string;
   email?: string;
+  // NATIS-specific fields
+  services?: string[];
+  operatingHours?: {
+    weekdays?: {
+      open: string;
+      close: string;
+    };
+    weekends?: {
+      open: string;
+      close: string;
+    };
+    publicHolidays?: {
+      open: string;
+      close: string;
+    };
+  };
+  closedDays?: string[];
+  specialHours?: Array<{
+    date: string;
+    reason: string;
+    closed: boolean;
+    hours?: {
+      open: string;
+      close: string;
+    };
+  }>;
 }
 
 export interface UpdateLocationDTO {
@@ -25,6 +51,32 @@ export interface UpdateLocationDTO {
   };
   contactNumber?: string;
   email?: string;
+  // NATIS-specific fields
+  services?: string[];
+  operatingHours?: {
+    weekdays?: {
+      open: string;
+      close: string;
+    };
+    weekends?: {
+      open: string;
+      close: string;
+    };
+    publicHolidays?: {
+      open: string;
+      close: string;
+    };
+  };
+  closedDays?: string[];
+  specialHours?: Array<{
+    date: string;
+    reason: string;
+    closed: boolean;
+    hours?: {
+      open: string;
+      close: string;
+    };
+  }>;
 }
 
 export interface ListLocationsQuery {
@@ -46,6 +98,10 @@ class LocationsService {
         coordinates: dto.coordinates,
         contactNumber: dto.contactNumber,
         email: dto.email,
+        services: dto.services,
+        operatingHours: dto.operatingHours,
+        closedDays: dto.closedDays,
+        specialHours: dto.specialHours,
       });
 
       logger.info(`Location created with ID: ${location._id}`);

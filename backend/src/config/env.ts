@@ -41,6 +41,19 @@ interface EnvConfig {
   SMTP_FROM_EMAIL?: string;
   SMTP_FROM_NAME?: string;
   EMAIL_VERIFICATION_BASE_URL?: string;
+  
+  // Security Configuration
+  FIELD_ENCRYPTION_KEY: string;
+  RECAPTCHA_SECRET_KEY?: string;
+  RECAPTCHA_SITE_KEY?: string;
+  SECURITY_AUDIT_LOG_LEVEL?: string;
+  MAX_LOGIN_ATTEMPTS?: number;
+  ACCOUNT_LOCKOUT_DURATION?: number;
+  
+  // File Security
+  ANTIVIRUS_API_KEY?: string;
+  ANTIVIRUS_API_URL?: string;
+  FILE_QUARANTINE_ENABLED?: boolean;
 }
 
 const getEnvVar = (key: string, defaultValue?: string): string => {
@@ -98,4 +111,17 @@ export const env: EnvConfig = {
   SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL || 'noreply@roadsauthority.na',
   SMTP_FROM_NAME: process.env.SMTP_FROM_NAME || 'Roads Authority Namibia',
   EMAIL_VERIFICATION_BASE_URL: process.env.EMAIL_VERIFICATION_BASE_URL || 'roadsauthority://verify-email',
+  
+  // Security Configuration
+  FIELD_ENCRYPTION_KEY: getEnvVar('FIELD_ENCRYPTION_KEY'),
+  RECAPTCHA_SECRET_KEY: process.env.RECAPTCHA_SECRET_KEY,
+  RECAPTCHA_SITE_KEY: process.env.RECAPTCHA_SITE_KEY,
+  SECURITY_AUDIT_LOG_LEVEL: process.env.SECURITY_AUDIT_LOG_LEVEL,
+  MAX_LOGIN_ATTEMPTS: process.env.MAX_LOGIN_ATTEMPTS ? parseInt(process.env.MAX_LOGIN_ATTEMPTS, 10) : undefined,
+  ACCOUNT_LOCKOUT_DURATION: process.env.ACCOUNT_LOCKOUT_DURATION ? parseInt(process.env.ACCOUNT_LOCKOUT_DURATION, 10) : undefined,
+  
+  // File Security
+  ANTIVIRUS_API_KEY: process.env.ANTIVIRUS_API_KEY,
+  ANTIVIRUS_API_URL: process.env.ANTIVIRUS_API_URL,
+  FILE_QUARANTINE_ENABLED: process.env.FILE_QUARANTINE_ENABLED === 'true',
 };

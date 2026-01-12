@@ -9,9 +9,9 @@ import {
   useColorScheme,
   RefreshControl,
   Alert,
-  ActivityIndicator,
   Linking,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,7 +21,7 @@ import { RATheme } from '../theme/colors';
 import { vacanciesService } from '../services/vacanciesService';
 import { documentDownloadService } from '../services/documentDownloadService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
-import { LoadingSpinner, ErrorState, EmptyState, SearchInput } from '../components';
+import { SkeletonLoader, ListScreenSkeleton, ErrorState, EmptyState, SearchInput } from '../components';
 
 export default function VacanciesScreen() {
   const colorScheme = useColorScheme();
@@ -306,7 +306,7 @@ export default function VacanciesScreen() {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <LoadingSpinner />
+        <ListScreenSkeleton count={4} />
       </SafeAreaView>
     );
   }
@@ -360,12 +360,12 @@ export default function VacanciesScreen() {
             ]}
             onPress={() => setSelectedFilter('All')}
           >
-            <Text
-              style={[
+            <Text style={[
                 styles.filterChipText,
                 selectedFilter === 'All' && styles.filterChipTextActive,
               ]}
-            >
+             numberOfLines={1}
+             maxFontSizeMultiplier={1.3}>
               All
             </Text>
           </TouchableOpacity>
@@ -376,14 +376,14 @@ export default function VacanciesScreen() {
                 styles.filterChip,
                 selectedFilter === filter && styles.filterChipActive,
               ]}
-              onPress={() => setSelectedFilter(selectedFilter === filter ? 'All' : filter)}
+              onPress={() => setSelectedFilter(filter)}
             >
-              <Text
-                style={[
+              <Text style={[
                   styles.filterChipText,
                   selectedFilter === filter && styles.filterChipTextActive,
                 ]}
-              >
+               numberOfLines={1}
+               maxFontSizeMultiplier={1.3}>
                 {filter}
               </Text>
             </TouchableOpacity>
@@ -393,7 +393,7 @@ export default function VacanciesScreen() {
         {/* Results Count */}
         {filteredVacancies.length > 0 && (searchQuery.trim() || selectedFilter !== 'All') && (
           <View style={styles.resultsCountContainer}>
-            <Text style={styles.resultsCount}>
+            <Text style={styles.resultsCount} maxFontSizeMultiplier={1.3}>
               {filteredVacancies.length} {filteredVacancies.length === 1 ? 'vacancy' : 'vacancies'} found
             </Text>
           </View>
@@ -421,8 +421,8 @@ export default function VacanciesScreen() {
                   onPress={() => toggleExpand(vacancy._id)}
                 >
                 <View style={styles.vacancyHeader}>
-                  <View style={[styles.typeBadge, { backgroundColor: colors.secondary + '20' }]}>
-                    <Text style={[styles.typeText, { color: colors.secondary }]}>
+                  <View style={[styles.typeBadge, { backgroundColor: colors.secondary }]}>
+                    <Text style={[styles.typeText, { color: colors.secondary }]} maxFontSizeMultiplier={1.3}>
                       {formatType(vacancy.type)}
                     </Text>
                   </View>
@@ -432,24 +432,24 @@ export default function VacanciesScreen() {
                     color={colors.primary} 
                   />
                 </View>
-                <Text style={styles.vacancyTitle} numberOfLines={2} ellipsizeMode="tail">{vacancy.title}</Text>
+                <Text style={styles.vacancyTitle} numberOfLines={2} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{vacancy.title}</Text>
                 <View style={styles.vacancyDetails}>
                   {vacancy.department && (
                     <View style={styles.detailItem}>
                       <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
-                      <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">{vacancy.department}</Text>
+                      <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{vacancy.department}</Text>
                     </View>
                   )}
                   {vacancy.location && (
                     <View style={styles.detailItem}>
                       <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
-                      <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">{vacancy.location}</Text>
+                      <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{vacancy.location}</Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.closingDate}>
                   <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                  <Text style={[styles.closingDateText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={[styles.closingDateText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
                     Closes: {formatDate(vacancy.closingDate)}
                   </Text>
                 </View>
@@ -460,23 +460,23 @@ export default function VacanciesScreen() {
                     
                     {vacancy.salary && (
                       <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Salary</Text>
-                        <Text style={styles.sectionText}>{vacancy.salary}</Text>
+                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Salary</Text>
+                        <Text style={styles.sectionText} maxFontSizeMultiplier={1.3}>{vacancy.salary}</Text>
                       </View>
                     )}
 
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>Description</Text>
-                      <Text style={styles.sectionText}>{vacancy.description}</Text>
+                      <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Description</Text>
+                      <Text style={styles.sectionText} maxFontSizeMultiplier={1.3}>{vacancy.description}</Text>
                     </View>
 
                     {vacancy.requirements && vacancy.requirements.length > 0 && (
                       <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Requirements</Text>
+                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Requirements</Text>
                         {vacancy.requirements.map((req, index) => (
                           <View key={`req-${vacancy._id || 'unknown'}-${index}`} style={styles.listItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.listText}>{req}</Text>
+                            <Text style={styles.bullet} maxFontSizeMultiplier={1.3}>•</Text>
+                            <Text style={styles.listText} maxFontSizeMultiplier={1.3}>{req}</Text>
                           </View>
                         ))}
                       </View>
@@ -484,11 +484,11 @@ export default function VacanciesScreen() {
 
                     {vacancy.responsibilities && vacancy.responsibilities.length > 0 && (
                       <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Responsibilities</Text>
+                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Responsibilities</Text>
                         {vacancy.responsibilities.map((resp, index) => (
                           <View key={`resp-${vacancy._id || 'unknown'}-${index}`} style={styles.listItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.listText}>{resp}</Text>
+                            <Text style={styles.bullet} maxFontSizeMultiplier={1.3}>•</Text>
+                            <Text style={styles.listText} maxFontSizeMultiplier={1.3}>{resp}</Text>
                           </View>
                         ))}
                       </View>
@@ -498,16 +498,16 @@ export default function VacanciesScreen() {
                     {(vacancy.contactName || vacancy.contactEmail || vacancy.contactTelephone || 
                       vacancy.submissionEmail || vacancy.submissionLink || vacancy.submissionInstructions) && (
                       <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>How to Apply</Text>
+                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>How to Apply</Text>
                         
                         {/* Contact Information */}
                         {(vacancy.contactName || vacancy.contactEmail || vacancy.contactTelephone) && (
                           <View style={styles.contactInfo}>
-                            <Text style={styles.contactTitle}>Contact Information:</Text>
+                            <Text style={styles.contactTitle} maxFontSizeMultiplier={1.3}>Contact Information:</Text>
                             {vacancy.contactName && (
                               <View style={styles.contactItem}>
                                 <Ionicons name="person-outline" size={16} color={colors.primary} />
-                                <Text style={styles.contactText}>{vacancy.contactName}</Text>
+                                <Text style={styles.contactText} maxFontSizeMultiplier={1.3}>{vacancy.contactName}</Text>
                               </View>
                             )}
                             {vacancy.contactEmail && (
@@ -516,7 +516,7 @@ export default function VacanciesScreen() {
                                 onPress={() => Linking.openURL(`mailto:${vacancy.contactEmail}`)}
                               >
                                 <Ionicons name="mail-outline" size={16} color={colors.primary} />
-                                <Text style={[styles.contactText, styles.contactLink]}>{vacancy.contactEmail}</Text>
+                                <Text style={[styles.contactText, styles.contactLink]} maxFontSizeMultiplier={1.3}>{vacancy.contactEmail}</Text>
                               </TouchableOpacity>
                             )}
                             {vacancy.contactTelephone && (
@@ -525,7 +525,7 @@ export default function VacanciesScreen() {
                                 onPress={() => Linking.openURL(`tel:${vacancy.contactTelephone}`)}
                               >
                                 <Ionicons name="call-outline" size={16} color={colors.primary} />
-                                <Text style={[styles.contactText, styles.contactLink]}>{vacancy.contactTelephone}</Text>
+                                <Text style={[styles.contactText, styles.contactLink]} maxFontSizeMultiplier={1.3}>{vacancy.contactTelephone}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -534,7 +534,7 @@ export default function VacanciesScreen() {
                         {/* Application Submission Options */}
                         {(vacancy.submissionEmail || vacancy.submissionLink) && (
                           <View style={styles.submissionOptions}>
-                            <Text style={styles.contactTitle}>Submit Your Application:</Text>
+                            <Text style={styles.contactTitle} maxFontSizeMultiplier={1.3}>Submit Your Application:</Text>
                             
                             {vacancy.submissionEmail && (
                               <TouchableOpacity 
@@ -542,7 +542,7 @@ export default function VacanciesScreen() {
                                 onPress={() => Linking.openURL(`mailto:${vacancy.submissionEmail}?subject=Application for ${vacancy.title}`)}
                               >
                                 <Ionicons name="mail" size={20} color="#FFFFFF" />
-                                <Text style={styles.submissionButtonText}>Email Application</Text>
+                                <Text style={styles.submissionButtonText} maxFontSizeMultiplier={1.3}>Email Application</Text>
                               </TouchableOpacity>
                             )}
 
@@ -552,7 +552,7 @@ export default function VacanciesScreen() {
                                 onPress={() => Linking.openURL(vacancy.submissionLink)}
                               >
                                 <Ionicons name="link" size={20} color="#FFFFFF" />
-                                <Text style={styles.submissionButtonText}>Apply Online</Text>
+                                <Text style={styles.submissionButtonText} maxFontSizeMultiplier={1.3}>Apply Online</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -561,8 +561,8 @@ export default function VacanciesScreen() {
                         {/* Application Instructions */}
                         {vacancy.submissionInstructions && (
                           <View style={styles.instructionsContainer}>
-                            <Text style={styles.contactTitle}>Application Instructions:</Text>
-                            <Text style={styles.instructionsText}>{vacancy.submissionInstructions}</Text>
+                            <Text style={styles.contactTitle} maxFontSizeMultiplier={1.3}>Application Instructions:</Text>
+                            <Text style={styles.instructionsText} maxFontSizeMultiplier={1.3}>{vacancy.submissionInstructions}</Text>
                           </View>
                         )}
                       </View>
@@ -581,15 +581,15 @@ export default function VacanciesScreen() {
                         >
                           {isVacancyDownloading ? (
                             <>
-                              <ActivityIndicator size="small" color="#FFFFFF" />
-                              <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail">
+                              <SkeletonLoader type="circle" width={16} height={16} />
+                              <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
                                 Downloading {progress}%
                               </Text>
                             </>
                           ) : (
                             <>
                               <Ionicons name="download-outline" size={20} color="#FFFFFF" />
-                              <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail">
+                              <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
                                 Download Application Form
                               </Text>
                             </>
@@ -643,27 +643,38 @@ function getStyles(colors) {
       paddingHorizontal: 15,
       paddingVertical: 10,
       gap: 10,
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
     },
     filterChip: {
       paddingHorizontal: 16,
       paddingVertical: 8,
-      borderRadius: 20,
+      borderRadius: 8,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
       marginRight: 8,
+      minWidth: 60,
+      maxWidth: 120,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     filterChipActive: {
-      backgroundColor: colors.primary + '20',
+      backgroundColor: colors.primary,
       borderColor: colors.primary,
     },
     filterChipText: {
       fontSize: 14,
       fontWeight: '500',
       color: colors.textSecondary,
+      textAlign: 'center',
+      numberOfLines: 1,
+      flexShrink: 1,
     },
     filterChipTextActive: {
-      color: colors.primary,
+      color: '#FFFFFF',
       fontWeight: '600',
     },
     resultsCountContainer: {
@@ -687,16 +698,16 @@ function getStyles(colors) {
     },
     vacancyCard: {
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 8,
       padding: 20,
       marginBottom: 16,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
       borderWidth: 1,
-      borderColor: colors.border + '40',
+      borderColor: colors.border,
     },
     vacancyHeader: {
       flexDirection: 'row',
@@ -707,9 +718,9 @@ function getStyles(colors) {
     typeBadge: {
       paddingHorizontal: 12,
       paddingVertical: 7,
-      borderRadius: 16,
+      borderRadius: 8,
       borderWidth: 1,
-      borderColor: colors.secondary + '40',
+      borderColor: colors.secondary,
     },
     typeText: {
       fontSize: 12,
@@ -718,11 +729,12 @@ function getStyles(colors) {
       letterSpacing: 0.5,
     },
     vacancyTitle: {
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: 16,
+      fontWeight: '600',
       color: colors.text,
       marginBottom: 14,
       lineHeight: 24,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     vacancyDetails: {
       flexDirection: 'row',
@@ -748,7 +760,7 @@ function getStyles(colors) {
       marginTop: 10,
       paddingTop: 12,
       borderTopWidth: 1,
-      borderTopColor: colors.border + '40',
+      borderTopColor: colors.border,
       gap: 6,
     },
     closingDateText: {
@@ -760,7 +772,7 @@ function getStyles(colors) {
     },
     divider: {
       height: 1,
-      backgroundColor: colors.border + '60',
+      backgroundColor: colors.border,
       marginBottom: 16,
     },
     section: {
@@ -768,9 +780,10 @@ function getStyles(colors) {
     },
     sectionTitle: {
       fontSize: 16,
-      fontWeight: '700',
+      fontWeight: '600',
       color: colors.text,
       marginBottom: 10,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     sectionText: {
       fontSize: 14,
@@ -800,14 +813,14 @@ function getStyles(colors) {
       justifyContent: 'center',
       paddingVertical: 14,
       paddingHorizontal: 20,
-      borderRadius: 12,
+      borderRadius: 8,
       marginTop: 12,
       gap: 8,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
     },
     downloadButtonDisabled: {
       opacity: 0.7,
@@ -837,6 +850,7 @@ function getStyles(colors) {
       fontWeight: '600',
       color: colors.text,
       marginBottom: 8,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     contactItem: {
       flexDirection: 'row',
@@ -863,7 +877,7 @@ function getStyles(colors) {
       backgroundColor: colors.primary,
       paddingVertical: 12,
       paddingHorizontal: 16,
-      borderRadius: 8,
+      borderRadius: 6,
       marginBottom: 8,
       gap: 8,
     },

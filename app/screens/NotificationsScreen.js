@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   Modal,
   Alert,
   StatusBar as RNStatusBar,
@@ -18,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useColorScheme } from 'react-native';
 import { notificationsService } from '../services/notificationsService';
-import { LoadingIndicator, ErrorState, EmptyState } from '../components';
+import { SkeletonLoader, ListScreenSkeleton, ErrorState, EmptyState } from '../components';
 
 /**
  * Format timestamp to relative time (e.g., "2 hours ago", "Yesterday", "Dec 15, 2024")
@@ -232,7 +231,7 @@ export default function NotificationsScreen({ navigation }) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <LoadingIndicator message="Loading alerts..." />
+        <ListScreenSkeleton count={5} />
       </SafeAreaView>
     );
   }
@@ -322,7 +321,7 @@ export default function NotificationsScreen({ navigation }) {
 
             {loadingMore && (
               <View style={styles.loadingMore}>
-                <ActivityIndicator size="small" color="#00B4E6" />
+                <SkeletonLoader type="circle" width={20} height={20} />
               </View>
             )}
 

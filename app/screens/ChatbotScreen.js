@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   useColorScheme,
-  ActivityIndicator,
   Alert,
   Pressable,
   Keyboard,
@@ -17,13 +16,13 @@ import {
   Animated,
   Linking,
   useWindowDimensions,
-  LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 // Conditionally import Clipboard - fallback if not available
 let Clipboard = null;
 try {
@@ -31,8 +30,10 @@ try {
 } catch (error) {
   console.warn('Clipboard module not available:', error.message);
 }
+
 import { RATheme } from '../theme/colors';
 import { chatbotService } from '../services/chatbotService';
+
 // Conditionally import Location - fallback if not available
 let Location = null;
 try {
@@ -40,6 +41,8 @@ try {
 } catch (error) {
   console.warn('Location module not available:', error.message);
 }
+
+import { SkeletonLoader } from '../components/SkeletonLoader';
 import { OfficeMessage } from '../components';
 
 const CHAT_HISTORY_KEY = 'chatbot_history';
@@ -56,7 +59,7 @@ const formatBotAnswer = (text, styles, colors) => {
     // Check if it's a list item (bullet point)
     if (trimmedParagraph.startsWith('•') || trimmedParagraph.startsWith('-')) {
       return (
-        <Text key={index} style={[styles.messageText, styles.listItem, { marginVertical: 4, color: colors.text }]}>
+        <Text key={index} style={[styles.messageText, styles.listItem, { marginVertical: 4, color: colors.text }]} maxFontSizeMultiplier={1.3}>
           {trimmedParagraph}
         </Text>
       );
@@ -65,7 +68,7 @@ const formatBotAnswer = (text, styles, colors) => {
     // Check if it's a numbered item
     if (/^\d+\./.test(trimmedParagraph)) {
       return (
-        <Text key={index} style={[styles.messageText, styles.numberedItem, { marginVertical: 4, color: colors.text }]}>
+        <Text key={index} style={[styles.messageText, styles.numberedItem, { marginVertical: 4, color: colors.text }]} maxFontSizeMultiplier={1.3}>
           {trimmedParagraph}
         </Text>
       );
@@ -73,19 +76,101 @@ const formatBotAnswer = (text, styles, colors) => {
     
     // Regular paragraph
     return (
-      <Text key={index} style={[styles.messageText, { marginVertical: 4, color: colors.text }]}>
+      <Text key={index} style={[styles.messageText, { marginVertical: 4, color: colors.text }]} maxFontSizeMultiplier={1.3}>
         {trimmedParagraph}
       </Text>
     );
   });
 };
 
+// Generate quick reply suggestions based on bot response
+const generateQuickReplies = (botMessage) => {
+  const text = botMessage.toLowerCase();
+  
+  // Define suggestion patterns
+  const suggestions = [];
+  
+  if (text.includes('vehicle registration') || text.includes('register')) {
+    suggestions.push(
+      'What documents do I need?',
+      'How much does it cost?',
+      'How long does it take?'
+    );
+  } else if (text.includes('license') || text.includes('driving')) {
+    suggestions.push(
+      'How do I renew my license?',
+      'What are the requirements?',
+      'Where can I apply?'
+    );
+  } else if (text.includes('plates') || text.includes('pln')) {
+    suggestions.push(
+      'How much do custom plates cost?',
+      'Can I choose any combination?',
+      'How long for delivery?'
+    );
+  } else if (text.includes('office') || text.includes('location')) {
+    suggestions.push(
+      'What are the office hours?',
+      'Do I need an appointment?',
+      'What services are available?'
+    );
+  } else if (text.includes('fee') || text.includes('cost') || text.includes('nad')) {
+    suggestions.push(
+      'Are there any discounts?',
+      'Can I pay online?',
+      'What payment methods accepted?'
+    );
+  } else if (text.includes('road') || text.includes('traffic')) {
+    suggestions.push(
+      'Current road conditions?',
+      'Any road closures?',
+      'Traffic updates?'
+    );
+  } else {
+    // Default suggestions for general responses
+    suggestions.push(
+      'Tell me more',
+      'What else should I know?',
+      'Any other requirements?'
+    );
+  }
+  
+  // Return up to 3 suggestions
+  return suggestions.slice(0, 3);
+};
+
+// Quick Reply Component
+const QuickReplies = ({ suggestions, onSelect, colors, styles }) => {
+  if (!suggestions || suggestions.length === 0) return null;
+  
+  return (
+    <View style={styles.quickRepliesContainer}>
+      <Text style={[styles.quickRepliesTitle, { color: colors.textSecondary }]} maxFontSizeMultiplier={1.3}>
+        Quick replies:
+      </Text>
+      <View style={styles.quickRepliesGrid}>
+        {suggestions.map((suggestion, index) => (
+          <TouchableOpacity
+            key={index}
+            style={[styles.quickReplyButton, { borderColor: colors.border }]}
+            onPress={() => onSelect(suggestion)}
+          >
+            <Text style={[styles.quickReplyText, { color: colors.primary }]} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+              {suggestion}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
+
 // Message Item Component with animations
-function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, formatMessageTime, getTypingAnimation, handleStop }) {
+function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, formatMessageTime, getTypingAnimation, handleStop, setInputText, inputRef }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const typingAnimRef = useRef(null);
-  
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -101,7 +186,7 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
       }),
     ]).start();
   }, []);
-  
+
   // Start typing animation if streaming
   useEffect(() => {
     if (message.isStreaming && message.text === '') {
@@ -120,7 +205,7 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
       style={[
         styles.messageContainer,
         message.sender === 'user' ? styles.userMessage : styles.botMessage,
-        { 
+        {
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         },
@@ -148,48 +233,69 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
           ]}
         >
           {message.isStreaming && message.text === '' ? (
-            <View style={styles.loadingContainer}>
-              <View style={styles.typingIndicator}>
-                {typingAnimRef.current ? (
-                  <>
-                    <Animated.View
-                      style={[
-                        styles.typingDot,
-                        { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot1 },
-                      ]}
-                    />
-                    <Animated.View
-                      style={[
-                        styles.typingDot,
-                        { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot2 },
-                      ]}
-                    />
-                    <Animated.View
-                      style={[
-                        styles.typingDot,
-                        { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot3 },
-                      ]}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
-                    <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
-                    <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
-                  </>
+            <View style={styles.typingContainer}>
+              <Text style={[styles.messageText, { color: colors.text }]} maxFontSizeMultiplier={1.3}>
+                🤖 Thinking...
+              </Text>
+              <View style={styles.typingDots}>
+                <Animated.View style={[styles.typingDot, { opacity: fadeAnim }]} />
+                <Animated.View style={[styles.typingDot, { opacity: fadeAnim }]} />
+                <Animated.View style={[styles.typingDot, { opacity: fadeAnim }]} />
+              </View>
+            </View>
+          ) : message.isStreaming && message.text ? (
+            <>
+              <View>
+                {formatBotAnswer(message.text, styles, colors)}
+                <View style={styles.streamingIndicator}>
+                  <Text style={[styles.streamingText, { color: colors.textSecondary }]} maxFontSizeMultiplier={1.3}>
+                    ✨ Generating...
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.loadingContainer}>
+                <View style={styles.typingIndicator}>
+                  {typingAnimRef.current ? (
+                    <>
+                      <Animated.View
+                        style={[
+                          styles.typingDot,
+                          { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot1 },
+                        ]}
+                      />
+                      <Animated.View
+                        style={[
+                          styles.typingDot,
+                          { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot2 },
+                        ]}
+                      />
+                      <Animated.View
+                        style={[
+                          styles.typingDot,
+                          { backgroundColor: colors.primary, opacity: typingAnimRef.current.dot3 },
+                        ]}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
+                      <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
+                      <View style={[styles.typingDot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
+                    </>
+                  )}
+                </View>
+                {handleStop && (
+                  <TouchableOpacity
+                    style={[styles.stopButton, { borderColor: colors.error }]}
+                    onPress={handleStop}
+                    accessibilityLabel="Stop loading"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="close-circle" size={18} color={colors.error} />
+                  </TouchableOpacity>
                 )}
               </View>
-              {handleStop && (
-                <TouchableOpacity
-                  style={[styles.stopButton, { borderColor: colors.error }]}
-                  onPress={handleStop}
-                  accessibilityLabel="Stop loading"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="close-circle" size={18} color={colors.error} />
-                </TouchableOpacity>
-              )}
-            </View>
+            </>
           ) : (
             <>
               {/* Check if this is a location query response with office data */}
@@ -208,16 +314,28 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
                   {message.sender === 'bot' && !message.isError ? (
                     <View>
                       {formatBotAnswer(message.text, styles, colors)}
+                      
+                      {/* Quick Replies for completed bot messages */}
+                      {!message.isStreaming && message.text && (
+                        <QuickReplies
+                          suggestions={generateQuickReplies(message.text)}
+                          onSelect={(suggestion) => {
+                            setInputText(suggestion);
+                            inputRef.current?.focus();
+                          }}
+                          colors={colors}
+                          styles={styles}
+                        />
+                      )}
                     </View>
                   ) : (
-                    <Text
-                      style={[
+                    <Text style={[
                         styles.messageText,
                         message.sender === 'user' || message.isError
                           ? { color: '#FFFFFF' }
                           : { color: colors.text },
                       ]}
-                    >
+                     maxFontSizeMultiplier={1.3}>
                       {message.text}
                     </Text>
                   )}
@@ -227,9 +345,7 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
                     <View style={styles.sourcesContainer}>
                       <View style={styles.sourcesHeader}>
                         <Ionicons name="document-text" size={16} color={colors.primary} />
-                        <Text style={styles.sourcesTitle}>
-                          Sources ({message.sources.length})
-                        </Text>
+                        <Text style={styles.sourcesTitle} maxFontSizeMultiplier={1.3}>Sources ({message.sources.length})</Text>
                       </View>
                       {message.sources.map((source, index) => (
                         <TouchableOpacity
@@ -243,21 +359,65 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
                           accessibilityRole="button"
                         >
                           <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
-                          <Text style={styles.sourceText} numberOfLines={2}>
+                          <Text style={styles.sourceText} numberOfLines={2} maxFontSizeMultiplier={1.3}>
                             {source.title || 'Unknown Document'}
                           </Text>
                         </TouchableOpacity>
                       ))}
-                      <Text style={styles.trustSourceText}>
+                      <Text style={styles.trustSourceText} maxFontSizeMultiplier={1.3}>
                         Based on official Roads Authority documents
                       </Text>
                     </View>
                   )}
                 </>
               )}
+
+              {/* Feedback Buttons for Bot Messages */}
+              {message.sender === 'bot' && !message.isError && !message.isStreaming && message.interactionId && (
+                <View style={styles.feedbackContainerOutside}>
+                  <View style={styles.feedbackButtons}>
+                    <TouchableOpacity
+                      style={[
+                        styles.feedbackButton,
+                        { borderColor: colors.success },
+                        feedbackStates[message.id]?.feedback === 'like' && { backgroundColor: colors.success },
+                        feedbackStates[message.id]?.submitting && styles.feedbackButtonDisabled,
+                      ]}
+                      onPress={() => handleFeedback(message.id, 'like')}
+                      disabled={feedbackStates[message.id]?.submitting || feedbackStates[message.id]?.submitted}
+                      accessibilityLabel="Like this response"
+                      accessibilityRole="button"
+                    >
+                      <Ionicons 
+                        name="thumbs-up" 
+                        size={16} 
+                        color={feedbackStates[message.id]?.feedback === 'like' ? '#FFFFFF' : colors.success} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.feedbackButton,
+                        { borderColor: colors.error },
+                        feedbackStates[message.id]?.feedback === 'dislike' && { backgroundColor: colors.error },
+                        feedbackStates[message.id]?.submitting && styles.feedbackButtonDisabled,
+                      ]}
+                      onPress={() => handleFeedback(message.id, 'dislike')}
+                      disabled={feedbackStates[message.id]?.submitting || feedbackStates[message.id]?.submitted}
+                      accessibilityLabel="Dislike this response"
+                      accessibilityRole="button"
+                    >
+                      <Ionicons 
+                        name="thumbs-down" 
+                        size={16} 
+                        color={feedbackStates[message.id]?.feedback === 'dislike' ? '#FFFFFF' : colors.error} 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               {message.timestamp && (
-                <Text
-                  style={[
+                <Text style={[
                     styles.messageTimestamp,
                     {
                       color:
@@ -266,13 +426,13 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
                           : colors.textSecondary,
                     },
                   ]}
-                >
+                 maxFontSizeMultiplier={1.3}>
                   {formatMessageTime(message.timestamp)}
                 </Text>
               )}
             </>
           )}
-          
+
           {message.isError && (
             <TouchableOpacity
               style={[styles.retryButton, { borderColor: colors.error }]}
@@ -284,10 +444,9 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
               }}
             >
               <Ionicons name="refresh" size={16} color={colors.error} />
-              <Text style={[styles.retryButtonText, { color: colors.error }]}>Retry</Text>
+              <Text style={[styles.retryButtonText, { color: colors.error }]} maxFontSizeMultiplier={1.3}>Retry</Text>
             </TouchableOpacity>
           )}
-
         </View>
       </Pressable>
     </Animated.View>
@@ -300,6 +459,7 @@ export default function ChatbotScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
@@ -308,6 +468,7 @@ export default function ChatbotScreen() {
       timestamp: new Date().toISOString(),
     },
   ]);
+
   const [feedbackStates, setFeedbackStates] = useState({});
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -316,12 +477,12 @@ export default function ChatbotScreen() {
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+
   const scrollViewRef = useRef();
   const inputRef = useRef();
   const typingAnimations = useRef({});
   const abortControllerRef = useRef(null);
   const keyboardTimeoutRef = useRef(null);
-  const isKeyboardStableRef = useRef(false);
 
   // Load chat history on mount
   useEffect(() => {
@@ -346,6 +507,7 @@ export default function ChatbotScreen() {
             accuracy: Location.Accuracy.Balanced,
             timeout: 10000,
           });
+          
           setUserLocation({
             latitude: currentLocation.coords.latitude,
             longitude: currentLocation.coords.longitude,
@@ -372,12 +534,11 @@ export default function ChatbotScreen() {
           accuracy: Location.Accuracy.Balanced,
           timeout: 10000,
         });
-
+        
         setUserLocation({
           latitude: currentLocation.coords.latitude,
           longitude: currentLocation.coords.longitude,
         });
-        
         return true;
       } catch (locationError) {
         console.error('Error getting location:', locationError);
@@ -401,83 +562,34 @@ export default function ChatbotScreen() {
     }, 100);
   }, [messages]);
 
-  // Handle keyboard show/hide events with debouncing
+  // Handle keyboard show/hide events - simplified and more reliable
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    
-    const keyboardWillShowListener = Keyboard.addListener(
-      showEvent,
-      (e) => {
-        // Clear any existing timeout
-        if (keyboardTimeoutRef.current) {
-          clearTimeout(keyboardTimeoutRef.current);
-        }
-        
-        const height = e.endCoordinates.height;
-        console.log('Keyboard showing, height:', height);
-        
-        // Debounce keyboard height changes to prevent flickering
-        keyboardTimeoutRef.current = setTimeout(() => {
-          // Use LayoutAnimation for smooth transitions on Android
-          if (Platform.OS === 'android') {
-            LayoutAnimation.configureNext({
-              duration: 200,
-              create: { type: 'easeInEaseOut', property: 'opacity' },
-              update: { type: 'easeInEaseOut' },
-            });
-          }
-          
-          setKeyboardHeight(height);
-          isKeyboardStableRef.current = true;
-          
-          // Auto-scroll to bottom when keyboard appears (with delay for stability)
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }, Platform.OS === 'ios' ? 50 : 300);
-        }, 50); // Small delay to debounce rapid events
-      }
-    );
-    
-    const keyboardWillHideListener = Keyboard.addListener(
-      hideEvent,
-      () => {
-        // Clear any existing timeout
-        if (keyboardTimeoutRef.current) {
-          clearTimeout(keyboardTimeoutRef.current);
-        }
-        
-        console.log('Keyboard hiding');
-        
-        // Debounce keyboard hide to prevent flickering
-        keyboardTimeoutRef.current = setTimeout(() => {
-          // Use LayoutAnimation for smooth transitions on Android
-          if (Platform.OS === 'android') {
-            LayoutAnimation.configureNext({
-              duration: 200,
-              create: { type: 'easeInEaseOut', property: 'opacity' },
-              update: { type: 'easeInEaseOut' },
-            });
-          }
-          
-          setKeyboardHeight(0);
-          isKeyboardStableRef.current = false;
-        }, 50);
-      }
-    );
+
+    const keyboardShowListener = Keyboard.addListener(showEvent, (e) => {
+      const height = e.endCoordinates.height;
+      setKeyboardHeight(height);
+      
+      // Auto-scroll to bottom when keyboard appears
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, Platform.OS === 'ios' ? 100 : 200);
+    });
+
+    const keyboardHideListener = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
 
     return () => {
-      keyboardWillShowListener.remove();
-      keyboardWillHideListener.remove();
-      if (keyboardTimeoutRef.current) {
-        clearTimeout(keyboardTimeoutRef.current);
-      }
+      keyboardShowListener.remove();
+      keyboardHideListener.remove();
     };
   }, []);
 
   const loadChatHistory = async () => {
     try {
-      const history = await SecureStore.getItemAsync(CHAT_HISTORY_KEY);
+      const history = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
       if (history) {
         const parsedHistory = JSON.parse(history);
         if (parsedHistory.length > 0) {
@@ -491,7 +603,7 @@ export default function ChatbotScreen() {
 
   const saveChatHistory = useCallback(async () => {
     try {
-      await SecureStore.setItemAsync(CHAT_HISTORY_KEY, JSON.stringify(messages));
+      await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
     } catch (error) {
       console.error('Error saving chat history:', error);
     }
@@ -499,45 +611,16 @@ export default function ChatbotScreen() {
 
   const loadSessionId = async () => {
     try {
-      let id = await SecureStore.getItemAsync(SESSION_ID_KEY);
+      let id = await AsyncStorage.getItem(SESSION_ID_KEY);
       if (!id) {
         id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-        await SecureStore.setItemAsync(SESSION_ID_KEY, id);
+        await AsyncStorage.setItem(SESSION_ID_KEY, id);
       }
       setSessionId(id);
     } catch (error) {
       console.error('Error loading session ID:', error);
       setSessionId(`session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`);
     }
-  };
-
-  const clearChatHistory = async () => {
-    Alert.alert(
-      'Clear Chat History',
-      'Are you sure you want to clear all chat messages?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await SecureStore.deleteItemAsync(CHAT_HISTORY_KEY);
-              setMessages([
-                {
-                  id: 'welcome',
-                  text: 'Welcome to RA Assistant\n\nI\'m your official Roads Authority helper. I can answer questions about:\n\n✓ Vehicle Registration & Licensing\n✓ Personalized Number Plates\n✓ Road Conditions & Safety\n✓ Procurement & Tenders\n✓ Office Locations & Services\n\nI answer based only on official Roads Authority documents. If information isn\'t available in our documents, I\'ll let you know.\n\nHow can I help you today?',
-                  sender: 'bot',
-                  timestamp: new Date().toISOString(),
-                },
-              ]);
-            } catch (error) {
-              console.error('Error clearing chat history:', error);
-            }
-          },
-        },
-      ]
-    );
   };
 
   const handleSend = async () => {
@@ -589,11 +672,11 @@ export default function ChatbotScreen() {
               relevance: source.relevance || source.score || 0,
             }));
           }
-          
+
           if (metadataObj.metadata) {
             receivedMetadata = metadataObj.metadata;
           }
-          
+
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === botMessageId
@@ -645,7 +728,7 @@ export default function ChatbotScreen() {
                 : msg
             )
           );
-          
+
           setIsLoading(false);
           abortControllerRef.current = null;
         },
@@ -658,9 +741,9 @@ export default function ChatbotScreen() {
           }
 
           console.error('Chatbot streaming error:', error);
-          
+
           let errorMessage = 'I apologize, but I\'m having trouble connecting to the server. Please check your internet connection and try again.';
-          
+
           if (error.message?.includes('503') || error.status === 503) {
             errorMessage = 'The chatbot service is temporarily unavailable. Please try again in a few moments.';
           } else if (error.message?.includes('408') || error.status === 408) {
@@ -683,7 +766,7 @@ export default function ChatbotScreen() {
                 : msg
             )
           );
-          
+
           setIsLoading(false);
           abortControllerRef.current = null;
         },
@@ -697,9 +780,9 @@ export default function ChatbotScreen() {
       }
 
       console.error('Chatbot error:', error);
-      
+
       let errorMessage = 'I apologize, but I\'m having trouble connecting to the server. Please check your internet connection and try again.';
-      
+
       if (error.status === 503) {
         errorMessage = 'The chatbot service is temporarily unavailable. Please try again in a few moments.';
       } else if (error.status === 408) {
@@ -722,7 +805,7 @@ export default function ChatbotScreen() {
             : msg
         )
       );
-      
+
       setIsLoading(false);
     } finally {
       abortControllerRef.current = null;
@@ -734,12 +817,13 @@ export default function ChatbotScreen() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
-      
+
       setMessages((prev) => {
         const lastMessage = prev[prev.length - 1];
         if (lastMessage && lastMessage.isStreaming && lastMessage.text === '') {
           return prev.slice(0, -1);
         }
+
         return prev.map((msg) =>
           msg.isStreaming
             ? { ...msg, isStreaming: false, text: msg.text || 'Request cancelled by user.' }
@@ -755,7 +839,7 @@ export default function ChatbotScreen() {
     const now = new Date();
     const diff = now - date;
     const minutes = Math.floor(diff / 60000);
-    
+
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m ago`;
     if (date.toDateString() === now.toDateString()) {
@@ -769,7 +853,7 @@ export default function ChatbotScreen() {
       const anim1 = new Animated.Value(0.4);
       const anim2 = new Animated.Value(0.4);
       const anim3 = new Animated.Value(0.4);
-      
+
       const createAnimation = (anim, delay) => {
         return Animated.loop(
           Animated.sequence([
@@ -787,7 +871,7 @@ export default function ChatbotScreen() {
           ])
         );
       };
-      
+
       typingAnimations.current[messageId] = {
         dot1: anim1,
         dot2: anim2,
@@ -804,6 +888,7 @@ export default function ChatbotScreen() {
         },
       };
     }
+
     return typingAnimations.current[messageId];
   }, []);
 
@@ -833,7 +918,7 @@ export default function ChatbotScreen() {
         ...prev,
         [messageId]: { feedback, submitted: true },
       }));
-      
+
       Alert.alert(
         'Thank you!',
         'Your feedback has been sent successfully.',
@@ -850,7 +935,7 @@ export default function ChatbotScreen() {
     }
   }, [messages]);
 
-  const styles = getStyles(colors, screenWidth, colorScheme);
+  const styles = getStyles(colors, screenWidth, colorScheme, insets);
 
   // Set status bar style when component mounts and when screen is focused
   useEffect(() => {
@@ -878,10 +963,9 @@ export default function ChatbotScreen() {
       <StatusBar style="light" backgroundColor={colors.primary} />
       
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         style={{ flex: 1 }}
-        enabled={Platform.OS === 'ios'}
       >
         {/* Messages Area */}
         <View style={styles.messagesArea}>
@@ -889,10 +973,8 @@ export default function ChatbotScreen() {
             ref={scrollViewRef}
             contentContainerStyle={[
               styles.messagesContainer,
-              { 
-                paddingBottom: Platform.OS === 'android' && keyboardHeight > 0 
-                  ? keyboardHeight + 80 // Keyboard height + input area height
-                  : 80 // Just input area height when no keyboard
+              {
+                paddingBottom: keyboardHeight > 0 ? 20 : 80
               }
             ]}
             style={{ flex: 1 }}
@@ -925,7 +1007,7 @@ export default function ChatbotScreen() {
                     },
                   }
                 : message;
-              
+
               return (
                 <MessageItem
                   key={message.id}
@@ -937,14 +1019,16 @@ export default function ChatbotScreen() {
                   formatMessageTime={formatMessageTime}
                   getTypingAnimation={getTypingAnimation}
                   handleStop={message.isStreaming && message.text === '' ? handleStop : null}
+                  setInputText={setInputText}
+                  inputRef={inputRef}
                 />
               );
             })}
-            
+
             {/* Quick Actions for first time users */}
             {messages.length === 1 && messages[0].id === 'welcome' && (
               <View style={styles.quickActionsContainer}>
-                <Text style={styles.quickActionsTitle}>Quick Actions</Text>
+                <Text style={styles.quickActionsTitle} maxFontSizeMultiplier={1.3}>Quick Actions</Text>
                 <View style={styles.quickActionsGrid}>
                   {[
                     { icon: 'car-outline', title: 'Vehicle Registration', query: 'How do I register my vehicle?' },
@@ -963,18 +1047,20 @@ export default function ChatbotScreen() {
                       <View style={styles.quickActionIcon}>
                         <Ionicons name={action.icon} size={20} color="#FFFFFF" />
                       </View>
-                      <Text style={styles.quickActionTitle} numberOfLines={2}>{action.title}</Text>
+                      <Text style={styles.quickActionTitle} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+                        {action.title}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
             )}
           </ScrollView>
-          
+
           {/* Scroll to Bottom Button */}
           {showScrollToBottom && (
             <TouchableOpacity
-              style={[styles.scrollToBottomButton, { bottom: 80 }]} // Adjusted position
+              style={[styles.scrollToBottomButton, { bottom: keyboardHeight > 0 ? keyboardHeight + 80 : 80 }]}
               onPress={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
               accessibilityLabel="Scroll to bottom"
               accessibilityRole="button"
@@ -985,113 +1071,57 @@ export default function ChatbotScreen() {
         </View>
 
         {/* Input Area */}
-        {Platform.OS === 'android' && keyboardHeight > 0 && isKeyboardStableRef.current ? (
-          // Android: Absolute positioning when keyboard is visible
-          <View style={[
-            styles.inputArea,
-            {
-              position: 'absolute',
-              bottom: keyboardHeight + 10,
-              left: 0,
-              right: 0,
-              zIndex: 1000,
-            }
-          ]}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                ref={inputRef}
-                style={styles.textInput}
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Type your message..."
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                maxLength={500}
-                onFocus={() => {
-                  setInputFocused(true);
-                  setTimeout(() => {
-                    scrollViewRef.current?.scrollToEnd({ animated: true });
-                  }, 200);
-                }}
-                onBlur={() => setInputFocused(false)}
-                onSubmitEditing={handleSend}
-                blurOnSubmit={false}
-                returnKeyType="send"
-                accessibilityLabel="Message input"
-                accessibilityHint="Type your question here"
-              />
-              <TouchableOpacity
-                style={styles.sendButton}
-                onPress={handleSend}
-                disabled={isLoading || !inputText.trim()}
-                accessibilityLabel="Send message"
-                accessibilityRole="button"
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Ionicons 
-                    name="send" 
-                    size={20} 
-                    color="#FFFFFF"
-                  />
-                )}
-              </TouchableOpacity>
-            </View>
+        <View style={styles.inputArea}>
+          <View style={styles.inputContainer}>
+            <TextInput
+              ref={inputRef}
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Type your message..."
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              maxLength={500}
+              onFocus={() => {
+                setInputFocused(true);
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 100);
+              }}
+              onBlur={() => setInputFocused(false)}
+              onSubmitEditing={handleSend}
+              blurOnSubmit={false}
+              returnKeyType="send"
+              accessibilityLabel="Message input"
+              accessibilityHint="Type your question here"
+            />
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={handleSend}
+              disabled={isLoading || !inputText.trim()}
+              accessibilityLabel="Send message"
+              accessibilityRole="button"
+            >
+              {isLoading ? (
+                <SkeletonLoader type="circle" width={16} height={16} />
+              ) : (
+                <Ionicons 
+                  name="send" 
+                  size={20} 
+                  color="#FFFFFF"
+                />
+              )}
+            </TouchableOpacity>
           </View>
-        ) : (
-          // Default positioning (iOS or Android without keyboard)
-          <View style={styles.inputArea}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                ref={inputRef}
-                style={styles.textInput}
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Type your message..."
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                maxLength={500}
-                onFocus={() => {
-                  setInputFocused(true);
-                  setTimeout(() => {
-                    scrollViewRef.current?.scrollToEnd({ animated: true });
-                  }, 200);
-                }}
-                onBlur={() => setInputFocused(false)}
-                onSubmitEditing={handleSend}
-                blurOnSubmit={false}
-                returnKeyType="send"
-                accessibilityLabel="Message input"
-                accessibilityHint="Type your question here"
-              />
-              <TouchableOpacity
-                style={styles.sendButton}
-                onPress={handleSend}
-                disabled={isLoading || !inputText.trim()}
-                accessibilityLabel="Send message"
-                accessibilityRole="button"
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Ionicons 
-                    name="send" 
-                    size={20} 
-                    color="#FFFFFF"
-                  />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function getStyles(colors, screenWidth, colorScheme) {
+function getStyles(colors, screenWidth, colorScheme, insets) {
   const isTablet = screenWidth > 600;
+  const safeBottomPadding = Math.max((insets && insets.bottom) || 0, 8);
   
   return StyleSheet.create({
     container: {
@@ -1108,7 +1138,7 @@ function getStyles(colors, screenWidth, colorScheme) {
       padding: 16,
       paddingTop: 8,
     },
-    
+
     // Message Items
     messageContainer: {
       flexDirection: 'row',
@@ -1146,7 +1176,7 @@ function getStyles(colors, screenWidth, colorScheme) {
       minHeight: 36,
       justifyContent: 'center',
     },
-    
+
     // User Message Bubble - WhatsApp style with RA colors
     userMessageBubble: {
       backgroundColor: colors.primary, // RA sky blue
@@ -1163,7 +1193,7 @@ function getStyles(colors, screenWidth, colorScheme) {
       marginLeft: 50,
       position: 'relative',
     },
-    
+
     // Bot Message Bubble - WhatsApp style with RA colors
     botMessageBubble: {
       backgroundColor: colors.card,
@@ -1183,10 +1213,10 @@ function getStyles(colors, screenWidth, colorScheme) {
       borderLeftWidth: 3,
       borderLeftColor: colors.secondary, // RA yellow accent
     },
-    
+
     // Error Message Bubble - WhatsApp style with RA error colors
     errorMessageBubble: {
-      backgroundColor: colors.error + '20', // RA error color with transparency
+      backgroundColor: colors.error, // RA error color
       borderTopLeftRadius: 2,
       borderTopRightRadius: 8,
       borderBottomLeftRadius: 8,
@@ -1201,6 +1231,7 @@ function getStyles(colors, screenWidth, colorScheme) {
       borderLeftWidth: 3,
       borderLeftColor: colors.error, // RA error color
     },
+
     messageText: {
       fontSize: 16,
       lineHeight: 20,
@@ -1225,7 +1256,7 @@ function getStyles(colors, screenWidth, colorScheme) {
       marginLeft: 'auto',
       color: colors.textSecondary,
     },
-    
+
     // Typing Indicator
     loadingContainer: {
       flexDirection: 'row',
@@ -1237,11 +1268,33 @@ function getStyles(colors, screenWidth, colorScheme) {
       alignItems: 'center',
       paddingVertical: 4,
     },
+    typingContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    typingDots: {
+      flexDirection: 'row',
+      marginLeft: 8,
+    },
     typingDot: {
       width: 8,
       height: 8,
       borderRadius: 4,
       marginHorizontal: 2,
+      backgroundColor: colors.primary,
+    },
+    streamingIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    streamingText: {
+      fontSize: 12,
+      fontStyle: 'italic',
     },
     stopButton: {
       marginLeft: 12,
@@ -1249,13 +1302,13 @@ function getStyles(colors, screenWidth, colorScheme) {
       borderRadius: 12,
       borderWidth: 1,
     },
-    
+
     // Sources
     sourcesContainer: {
       marginTop: 12,
       paddingTop: 12,
       borderTopWidth: 1,
-      borderTopColor: colors.border + '30',
+      borderTopColor: colors.border,
     },
     sourcesHeader: {
       flexDirection: 'row',
@@ -1285,7 +1338,7 @@ function getStyles(colors, screenWidth, colorScheme) {
       fontStyle: 'italic',
       marginTop: 6,
     },
-    
+
     // Feedback
     feedbackContainerOutside: {
       marginTop: 8,
@@ -1305,7 +1358,7 @@ function getStyles(colors, screenWidth, colorScheme) {
     feedbackButtonDisabled: {
       opacity: 0.6,
     },
-    
+
     // Retry Button
     retryButton: {
       flexDirection: 'row',
@@ -1321,12 +1374,12 @@ function getStyles(colors, screenWidth, colorScheme) {
       fontWeight: '600',
       marginLeft: 4,
     },
-    
+
     // Office Messages
     officesContainer: {
       gap: 8,
     },
-    
+
     // Quick Actions
     quickActionsContainer: {
       marginTop: 16,
@@ -1380,7 +1433,36 @@ function getStyles(colors, screenWidth, colorScheme) {
       lineHeight: 14,
       numberOfLines: 2, // Allow text wrapping
     },
-    
+
+    // Quick Replies
+    quickRepliesContainer: {
+      marginTop: 12,
+      paddingTop: 8,
+    },
+    quickRepliesTitle: {
+      fontSize: 12,
+      fontWeight: '500',
+      marginBottom: 8,
+    },
+    quickRepliesGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    quickReplyButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      borderWidth: 1,
+      backgroundColor: colors.surface,
+      marginRight: 6,
+      marginBottom: 6,
+    },
+    quickReplyText: {
+      fontSize: 12,
+      fontWeight: '500',
+    },
+
     // Scroll to Bottom
     scrollToBottomButton: {
       position: 'absolute',
@@ -1397,7 +1479,7 @@ function getStyles(colors, screenWidth, colorScheme) {
       shadowRadius: 8,
       elevation: 6,
       borderWidth: 1,
-      borderColor: colors.border + '20',
+      borderColor: colors.border,
     },
     
     // Input Area - RA style
@@ -1405,9 +1487,9 @@ function getStyles(colors, screenWidth, colorScheme) {
       backgroundColor: colors.card,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      paddingBottom: 4, // Minimal bottom padding
+      paddingBottom: safeBottomPadding, // Safe area bottom padding
       borderTopWidth: 1,
-      borderTopColor: colors.border + '30',
+      borderTopColor: colors.border,
       minHeight: 60, // Ensure minimum height
     },
     inputContainer: {

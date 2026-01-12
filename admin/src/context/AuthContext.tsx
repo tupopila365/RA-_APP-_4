@@ -28,6 +28,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuthStatus = () => {
       try {
+        // Temporarily skip authentication check to debug blank page
+        console.log('Skipping auth check for debugging');
+        setUser(null);
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
+        
         const authenticated = authService.isAuthenticated();
         
         if (authenticated) {

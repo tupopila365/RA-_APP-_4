@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 import ollama
 import requests
 from app.config import settings
+from app.services.cache import cache_service
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,12 @@ class EmbeddingService:
         if not text or not text.strip():
             raise EmbeddingError("Cannot generate embedding for empty text")
         
+        # Check cache first
+        cached_embedding = cache_service.get_embedding(text)
+        if cached_embedding:
+            logger.debug(f"Using cached embedding for text of length {len(text)}")
+            return cached_embedding
+        
         try:
             logger.debug(f"Generating embedding for text of length {len(text)}")
             
@@ -61,6 +68,9 @@ class EmbeddingService:
                 raise EmbeddingError("No embedding returned from Ollama")
             
             logger.debug(f"Generated embedding of dimension {len(embedding)}")
+            
+            # Cache the embedding
+            cache_service.cache_embedding(text, embedding)
             
             return embedding
             

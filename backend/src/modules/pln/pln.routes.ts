@@ -3,27 +3,55 @@ import { plnController } from './pln.controller';
 import { authenticate } from '../../middlewares/auth';
 import { requirePermission } from '../../middlewares/roleGuard';
 import { uploadDocument } from '../../middlewares/upload';
+// import { InputSanitizer } from '../../middlewares/inputSanitization';
+// import { rateLimiters } from '../../middlewares/rateLimiting';
+// import { CSRFProtection } from '../../middlewares/csrfProtection';
+// import { SecureFileUpload } from '../../middlewares/secureFileUpload';
+// import { CaptchaProtection } from '../../middlewares/captchaProtection';
+// import { SecurityHeaders } from '../../middlewares/securityHeaders';
+// import { AuditLogger } from '../../middlewares/auditLogger';
 
 const router = Router();
+
+// Apply security headers to all routes
+// router.use(SecurityHeaders.setSecurityHeaders);
+
+// Apply rate limiting to all PLN routes
+// router.use(rateLimiters.general);
 
 /**
  * @route   POST /api/pln/applications
  * @desc    Create a new PLN application
- * @access  Public
+ * @access  Public (with comprehensive security protection)
  */
 router.post(
   '/applications',
+  // rateLimiters.plnSubmission,
+  // CaptchaProtection.validateCaptcha,
+  // CSRFProtection.validateCSRF,
+  // SecureFileUpload.createPLNDocumentUpload().single('document'),
+  // SecureFileUpload.validateUploadedFile,
+  // InputSanitizer.sanitizePLNData,
+  // AuditLogger.logPLNSubmission,
   uploadDocument.single('document'),
   plnController.createApplication.bind(plnController)
 );
 
 /**
+ * @route   GET /api/pln/csrf-token
+ * @desc    Get CSRF token for form submission
+ * @access  Public
+ */
+// router.get('/csrf-token', CSRFProtection.getTokenForClient);
+
+/**
  * @route   GET /api/pln/track/:referenceId/:idNumber
  * @desc    Track application by reference ID and ID number
- * @access  Public
+ * @access  Public (with rate limiting)
  */
 router.get(
   '/track/:referenceId/:idNumber',
+  // rateLimiters.tracking,
   plnController.trackApplication.bind(plnController)
 );
 

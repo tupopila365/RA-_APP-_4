@@ -6,13 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   useColorScheme,
-  ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { ErrorState, EmptyState, SearchInput } from '../components';
+import { SkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
 import { useFAQUseCases } from '../src/presentation/di/DependencyContext';
 import { useFAQsViewModel } from '../src/presentation/viewModels/useFAQsViewModel';
 
@@ -92,14 +92,14 @@ export default function FAQsScreen() {
         }
       >
         <View style={styles.header}>
-          <Ionicons name="help-circle" size={48} color={colors.primary} />
+          <Ionicons name="help-circle-outline" size={32} color={colors.textSecondary} />
           <Text style={styles.headerTitle}>Frequently Asked Questions</Text>
           <Text style={styles.headerSubtitle}>Find answers to common questions</Text>
         </View>
 
         {isInitialLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <SkeletonLoader type="list-item" count={5} />
             <Text style={styles.loadingText}>Loading FAQs...</Text>
           </View>
         ) : showEmptyState ? (
@@ -178,16 +178,18 @@ function getStyles(colors) {
       marginBottom: 30,
     },
     headerTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
+      fontSize: 18,
+      fontWeight: '600',
       color: colors.text,
-      marginTop: 20,
+      marginTop: 16,
       textAlign: 'center',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     headerSubtitle: {
       fontSize: 14,
       color: colors.textSecondary,
       marginTop: 5,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     loadingContainer: {
       flex: 1,
@@ -202,16 +204,16 @@ function getStyles(colors) {
     },
     faqCard: {
       backgroundColor: colors.card,
-      borderRadius: 15,
+      borderRadius: 8,
       padding: 20,
       marginBottom: 15,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-      borderWidth: 2,
-      borderColor: 'transparent',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     faqCardExpanded: {
       borderColor: colors.primary,
@@ -227,6 +229,7 @@ function getStyles(colors) {
       fontWeight: '600',
       color: colors.text,
       marginRight: 10,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     faqAnswerContainer: {
       marginTop: 15,

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Coordinate Verification Diagnostic</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .info { background: #d1ecf1; }
+        button { padding: 10px 20px; margin: 5px; }
+        pre { background: #f8f9fa; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Coordinate Verification Diagnostic</h1>
+    
+    <div class="test info">
+        <h3>Step 1: Test Basic Network Connectivity</h3>
+        <button onclick="testConnectivity()">Test Network</button>
+        <div id="connectivity-result"></div>
+    </div>
+
+    <div class="test info">
+        <h3>Step 2: Test Nominatim API Direct</h3>
+        <button onclick="testNominatimDirect()">Test Nominatim</button>
+        <div id="nominatim-result"></div>
+    </div>
+
+    <div class="test info">
+        <h3>Step 3: Test with Different Coordinates</h3>
+        <input type="number" id="test-lat" value="-22.5609" step="any" placeholder="Latitude">
+        <input type="number" id="test-lon" value="17.0658" step="any" placeholder="Longitude">
+        <button onclick="testCustomCoordinates()">Test Custom</button>
+        <div id="custom-result"></div>
+    </div>
+
+    <div class="test info">
+        <h3>Step 4: Environment Information</h3>
+        <button onclick="showEnvironmentInfo()">Show Environment</button>
+        <div id="env-result"></div>
+    </div>
+
+    <div class="test info">
+        <h3>Console Log</h3>
+        <pre id="log"></pre>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            log.textContent += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLog() {
+            log.textContent = '';
+        }
+
+        async function testConnectivity() {
+            const result = document.getElementById('connectivity-result');
+            result.innerHTML = 'Testing...';
+            
+            try {
+                addLog('Testing basic connectivity...');
+                const response = await fetch('https://httpbin.org/get', { 
+                    method: 'HEAD',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    result.innerHTML = '<span class="success">✅ Network connectivity OK</span>';
+                    addLog('✅ Network connectivity successful');
+                } else {
+                    result.innerHTML = '<span class="error">❌ Network issues detected</span>';
+                    addLog(`❌ Network test failed: ${response.status}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Network error: ${error.message}</span>`;
+                addLog(`❌ Network error: ${error.message}`);
+            }
+        }
+
+        async function testNominatimDirect() {
+            const result = document.getElementById('nominatim-result');
+            result.innerHTML = 'Testing Nominatim API...';
+            
+            try {
+                addLog('Testing Nominatim API...');
+                const url = 'https://nominatim.openstreetmap.org/reverse?lat=-22.5609&lon=17.0658&format=json&addressdetails=1';
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'RoadsAuthority-Admin/1.0'
+                    }
+                });
+                
+                addLog(`Nominatim response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addLog(`Nominatim response: ${JSON.stringify(data, null, 2)}`);
+                    
+                    if (data && data.display_name) {
+                        result.innerHTML = `<span class="success">✅ Nominatim working: ${data.display_name}</span>`;
+                        addLog(`✅ Nominatim success: ${data.display_name}`);
+                    } else {
+                        result.innerHTML = '<span class="error">❌ Nominatim returned no location data</span>';
+                        addLog('❌ Nominatim returned no location data');
+                    }
+                } else {
+                    result.innerHTML = `<span class="error">❌ Nominatim HTTP error: ${response.status}</span>`;
+                    addLog(`❌ Nominatim HTTP error: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Nominatim error: ${error.message}</span>`;
+                addLog(`❌ Nominatim error: ${error.message}`);
+                
+                if (error.message.includes('Failed to fetch')) {
+                    addLog('🔧 This suggests a CORS or network blocking issue');
+                }
+            }
+        }
+
+        async function testCustomCoordinates() {
+            const lat = parseFloat(document.getElementById('test-lat').value);
+            const lon = parseFloat(document.getElementById('test-lon').value);
+            const result = document.getElementById('custom-result');
+            
+            result.innerHTML = `Testing coordinates: ${lat}, ${lon}...`;
+            
+            try {
+                addLog(`Testing custom coordinates: ${lat}, ${lon}`);
+                
+                // Validate coordinates first
+                if (isNaN(lat) || isNaN(lon)) {
+                    result.innerHTML = '<span class="error">❌ Invalid coordinates</span>';
+                    addLog('❌ Invalid coordinates provided');
+                    return;
+                }
+                
+                if (lat < -30 || lat > -16 || lon < 10 || lon > 27) {
+                    result.innerHTML = '<span class="error">❌ Coordinates outside Namibia bounds</span>';
+                    addLog('❌ Coordinates outside Namibia bounds');
+                    return;
+                }
+                
+                const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'RoadsAuthority-Admin/1.0'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data && data.display_name) {
+                        result.innerHTML = `<span class="success">✅ Found: ${data.display_name}</span>`;
+                        addLog(`✅ Custom coordinates success: ${data.display_name}`);
+                    } else {
+                        result.innerHTML = '<span class="error">❌ No location found for these coordinates</span>';
+                        addLog('❌ No location found for custom coordinates');
+                    }
+                } else {
+                    result.innerHTML = `<span class="error">❌ HTTP error: ${response.status}</span>`;
+                    addLog(`❌ Custom coordinates HTTP error: ${response.status}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                addLog(`❌ Custom coordinates error: ${error.message}`);
+            }
+        }
+
+        function showEnvironmentInfo() {
+            const result = document.getElementById('env-result');
+            
+            const info = {
+                userAgent: navigator.userAgent,
+                protocol: window.location.protocol,
+                host: window.location.host,
+                cookiesEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                language: navigator.language,
+                platform: navigator.platform
+            };
+            
+            result.innerHTML = `<pre>${JSON.stringify(info, null, 2)}</pre>`;
+            addLog(`Environment info: ${JSON.stringify(info, null, 2)}`);
+        }
+
+        // Auto-run basic tests
+        addLog('🚀 Coordinate Verification Diagnostic Tool Loaded');
+        addLog('Click the buttons above to run tests');
+        
+        // Show environment info automatically
+        showEnvironmentInfo();
+    </script>
+</body>
+</html>

@@ -3,12 +3,15 @@
 import logging
 import json
 import re
-from fastapi import APIRouter, status
+import asyncio
+from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import StreamingResponse
 from app.models.schemas import QueryRequest, ErrorResponse
 from app.services.embeddings import EmbeddingService, EmbeddingError
 from app.services.vector_store import VectorStore, VectorStoreError
 from app.services.llm import LLMService, LLMError
+from app.services.cache import cache_service
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -83,13 +86,13 @@ def is_greeting(question: str) -> bool:
 
 def get_greeting_response(question: str) -> str:
     """
-    Generate an appropriate greeting response.
+    Generate an appropriate greeting response with personality.
     
     Args:
         question: The user's greeting input
         
     Returns:
-        A short greeting response followed by "How can I help you today?"
+        A friendly greeting response followed by "How can I help you today?"
     """
     normalized = question.lower().strip()
     normalized_no_punct = re.sub(r'[^\w\s]', '', normalized)
@@ -97,21 +100,45 @@ def get_greeting_response(question: str) -> str:
     # Detect greeting type to provide appropriate response
     if re.search(r'good\s+(morning|afternoon|evening)', normalized_no_punct):
         if 'morning' in normalized_no_punct:
-            greeting = "Good morning!"
+            greeting = "Good morning! ☀️"
         elif 'afternoon' in normalized_no_punct:
-            greeting = "Good afternoon!"
-        elif 'evening' in normalized_no_punct:
-            greeting = "Good evening!"
+            greeting = "Good afternoon! 🌤️"
         else:
-            greeting = "Hello!"
-    elif re.search(r'how\s+are\s+you|how\'?s\s+it\s+going|how\s+are\s+things', normalized_no_punct):
-        greeting = "Hello! I'm doing well, thank you for asking."
-    elif re.search(r'hi|hello|hey', normalized_no_punct):
-        greeting = "Hello!"
+            greeting = "Good evening! 🌙"
+    elif re.search(r'(hi|hello|hey)', normalized_no_punct):
+        greetings = [
+            "Hello there! 👋",
+            "Hi! Great to see you! 😊", 
+            "Hey! Welcome to Roads Authority support! 🚗",
+            "Hello! I'm here to help! ✨"
+        ]
+        import random
+        greeting = random.choice(greetings)
+    elif re.search(r'(howdy|sup|yo)', normalized_no_punct):
+        greeting = "Hey there! 🤠"
+    elif re.search(r'how\s+are\s+you', normalized_no_punct):
+        responses = [
+            "I'm doing great, thank you for asking! 😊",
+            "I'm here and ready to help! 💪",
+            "Fantastic! Thanks for asking! 🌟"
+        ]
+        import random
+        greeting = random.choice(responses)
     else:
-        greeting = "Hi there!"
+        greeting = "Hello! Welcome to Roads Authority Namibia! 🇳🇦"
     
-    return f"{greeting} How can I help you today?"
+    # Add helpful context and personality
+    helpful_messages = [
+        "I'm your AI assistant for all Roads Authority services and information.",
+        "I'm here to help with vehicle registration, licenses, permits, and more!",
+        "I can assist you with Roads Authority services, office locations, and procedures.",
+        "I'm ready to help with your Roads Authority questions and services!"
+    ]
+    
+    import random
+    helpful_msg = random.choice(helpful_messages)
+    
+    return f"{greeting}\n\n{helpful_msg}\n\nHow can I help you today? 🤔"
 
 
 def enhance_query(question: str) -> str:
@@ -208,6 +235,41 @@ async def query_documents_stream(request: QueryRequest):
     
     async def generate_stream():
         try:
+            # Check cache first for non-greeting queries
+            cache_key_data = {
+                'question': request.question.lower().strip(),
+                'top_k': request.top_k
+            }
+            
+            cached_result = cache_service.get_query_result(request.question)
+            if cached_result:
+                logger.info("Using cached result for query")
+                
+                # Send cached metadata
+                metadata_data = {
+                    "type": "metadata",
+                    "sources": cached_result.get('sources', []),
+                    "confidence": cached_result.get('confidence', 0.0),
+                    "cached": True
+                }
+                yield f"data: {json.dumps(metadata_data)}\n\n"
+                
+                # Stream cached answer word by word for consistency
+                words = cached_result['answer'].split()
+                for i, word in enumerate(words):
+                    chunk_data = {
+                        "type": "chunk",
+                        "content": word + (" " if i < len(words) - 1 else "")
+                    }
+                    yield f"data: {json.dumps(chunk_data)}\n\n"
+                    # Small delay to simulate natural typing
+                    await asyncio.sleep(0.05)
+                
+                # Send completion signal
+                complete_data = {"type": "done"}
+                yield f"data: {json.dumps(complete_data)}\n\n"
+                return
+            
             # Step 1: Generate embedding for the question
             logger.info("Step 1: Generating embedding for question")
             embedding_service = EmbeddingService()
@@ -217,7 +279,19 @@ async def query_documents_stream(request: QueryRequest):
             logger.debug(f"Enhanced question: {enhanced_question}")
             
             try:
-                question_embedding = embedding_service.generate_embedding(enhanced_question)
+                # Add timeout for embedding generation
+                question_embedding = await asyncio.wait_for(
+                    asyncio.to_thread(embedding_service.generate_embedding, enhanced_question),
+                    timeout=settings.request_timeout
+                )
+            except asyncio.TimeoutError:
+                error_data = {
+                    "type": "error",
+                    "error": "TIMEOUT_ERROR",
+                    "message": "Request timed out while generating embedding. Please try again."
+                }
+                yield f"data: {json.dumps(error_data)}\n\n"
+                return
             except EmbeddingError as e:
                 error_data = {
                     "type": "error",
@@ -229,15 +303,40 @@ async def query_documents_stream(request: QueryRequest):
             
             logger.info(f"Successfully generated question embedding")
             
-            # Step 2: Perform similarity search
+            # Step 2: Perform similarity search with relevance filtering
             logger.info(f"Step 2: Searching for top {request.top_k} relevant chunks")
             vector_store = VectorStore()
             
             try:
-                search_results = vector_store.search(
-                    query_embedding=question_embedding,
-                    top_k=request.top_k
+                search_results = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        vector_store.search,
+                        query_embedding=question_embedding,
+                        top_k=request.top_k
+                    ),
+                    timeout=settings.request_timeout
                 )
+                
+                # Filter results by relevance threshold
+                filtered_results = [
+                    result for result in search_results 
+                    if result.get('relevance', 0.0) >= settings.min_similarity_threshold
+                ]
+                
+                if filtered_results:
+                    search_results = filtered_results
+                    logger.info(f"Filtered to {len(search_results)} high-relevance chunks")
+                else:
+                    logger.warning(f"No chunks above relevance threshold {settings.min_similarity_threshold}")
+                
+            except asyncio.TimeoutError:
+                error_data = {
+                    "type": "error",
+                    "error": "TIMEOUT_ERROR",
+                    "message": "Request timed out while searching documents. Please try again."
+                }
+                yield f"data: {json.dumps(error_data)}\n\n"
+                return
             except VectorStoreError as e:
                 error_data = {
                     "type": "error",
@@ -249,13 +348,34 @@ async def query_documents_stream(request: QueryRequest):
             
             if not search_results:
                 logger.warning("No relevant documents found for query")
-                no_results_data = {
-                    "type": "complete",
-                    "answer": "I couldn't find any relevant information in the available documents to answer your question.",
+                no_results_answer = (
+                    "I couldn't find any relevant information in our official documents to answer your question. 🤔\n\n"
+                    "For assistance, please contact us:\n"
+                    "📞 Phone: 061-284-7000\n"
+                    "✉️ Email: info@ra.org.na\n"
+                    "🏢 Visit your nearest Roads Authority office"
+                )
+                
+                # Send metadata for no results
+                metadata_data = {
+                    "type": "metadata",
                     "sources": [],
                     "confidence": 0.0
                 }
-                yield f"data: {json.dumps(no_results_data)}\n\n"
+                yield f"data: {json.dumps(metadata_data)}\n\n"
+                
+                # Stream no results answer
+                words = no_results_answer.split()
+                for i, word in enumerate(words):
+                    chunk_data = {
+                        "type": "chunk",
+                        "content": word + (" " if i < len(words) - 1 else "")
+                    }
+                    yield f"data: {json.dumps(chunk_data)}\n\n"
+                    await asyncio.sleep(0.05)
+                
+                complete_data = {"type": "done"}
+                yield f"data: {json.dumps(complete_data)}\n\n"
                 return
             
             logger.info(f"Found {len(search_results)} relevant chunks")
@@ -278,10 +398,11 @@ async def query_documents_stream(request: QueryRequest):
                     sources.append(source)
                     seen_documents.add(document_id)
             
-            # Calculate confidence
+            # Calculate confidence based on top results
             if search_results:
-                avg_relevance = sum(r.get('relevance', 0.0) for r in search_results[:3]) / min(3, len(search_results))
-                confidence = round(avg_relevance, 2)
+                top_relevances = [r.get('relevance', 0.0) for r in search_results[:3]]
+                avg_relevance = sum(top_relevances) / len(top_relevances)
+                confidence = round(min(avg_relevance * 1.2, 1.0), 2)  # Boost confidence slightly
             else:
                 confidence = 0.0
             
@@ -293,31 +414,59 @@ async def query_documents_stream(request: QueryRequest):
             }
             yield f"data: {json.dumps(metadata_data)}\n\n"
             
-            # Step 3: Stream answer generation
+            # Step 3: Stream answer generation with timeout
             logger.info("Step 3: Streaming answer generation")
             llm_service = LLMService()
             
+            full_answer = ""
+            
             try:
-                for chunk in llm_service.generate_answer_streaming(
-                    question=request.question,
-                    context_chunks=search_results,
-                    temperature=0.7
+                async def stream_with_timeout():
+                    nonlocal full_answer
+                    async for chunk in llm_service.generate_answer_streaming_async(
+                        question=request.question,
+                        context_chunks=search_results,
+                        temperature=settings.temperature
+                    ):
+                        full_answer += chunk
+                        chunk_data = {
+                            "type": "chunk",
+                            "content": chunk
+                        }
+                        yield f"data: {json.dumps(chunk_data)}\n\n"
+                
+                async for chunk_response in asyncio.wait_for(
+                    stream_with_timeout(),
+                    timeout=settings.streaming_timeout
                 ):
-                    chunk_data = {
-                        "type": "chunk",
-                        "content": chunk
-                    }
-                    yield f"data: {json.dumps(chunk_data)}\n\n"
+                    yield chunk_response
+                
+                # Cache the complete result
+                if full_answer and sources:
+                    cache_service.cache_query_result(
+                        question=request.question,
+                        answer=full_answer,
+                        sources=sources,
+                        confidence=confidence
+                    )
                 
                 # Send completion signal
                 complete_data = {"type": "done"}
                 yield f"data: {json.dumps(complete_data)}\n\n"
                 
+            except asyncio.TimeoutError:
+                error_data = {
+                    "type": "error",
+                    "error": "TIMEOUT_ERROR",
+                    "message": "Response generation timed out. Please try asking a more specific question."
+                }
+                yield f"data: {json.dumps(error_data)}\n\n"
+                return
             except LLMError as e:
                 error_data = {
                     "type": "error",
                     "error": "LLM_ERROR",
-                    "message": f"Failed to generate answer: {str(e)}"
+                    "message": f"I'm having trouble generating an answer right now. Please try again in a moment. 🤖"
                 }
                 yield f"data: {json.dumps(error_data)}\n\n"
                 return
@@ -327,7 +476,7 @@ async def query_documents_stream(request: QueryRequest):
             error_data = {
                 "type": "error",
                 "error": "INTERNAL_ERROR",
-                "message": f"An unexpected error occurred: {str(e)}"
+                "message": "I encountered an unexpected issue. Please try again or contact support if the problem persists. 🛠️"
             }
             yield f"data: {json.dumps(error_data)}\n\n"
     

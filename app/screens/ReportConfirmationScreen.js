@@ -33,7 +33,7 @@ export default function ReportConfirmationScreen({ route }) {
       <View style={styles.content}>
         {/* Success Icon */}
         <View style={styles.iconContainer}>
-          <View style={[styles.iconCircle, { backgroundColor: colors.success + '15' }]}>
+          <View style={[styles.iconCircle, { backgroundColor: colors.card, borderWidth: 2, borderColor: colors.success }]}>
             <Ionicons name="checkmark-circle" size={80} color={colors.success} />
           </View>
         </View>
@@ -126,7 +126,7 @@ function getStyles(colors) {
       marginBottom: 8,
     },
     referenceCodeBox: {
-      backgroundColor: colors.primary + '10',
+      backgroundColor: colors.primary,
       paddingVertical: 18,
       paddingHorizontal: 24,
       borderRadius: 12,

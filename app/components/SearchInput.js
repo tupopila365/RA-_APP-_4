@@ -207,13 +207,13 @@ const getStyles = (colors) =>
       paddingVertical: 12,
       paddingHorizontal: 15,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border + '40',
+      borderBottomColor: colors.border,
     },
     lastSuggestionItem: {
       borderBottomWidth: 0,
     },
     suggestionItemPressed: {
-      backgroundColor: colors.primary + '10',
+      backgroundColor: colors.primary,
     },
     suggestionIcon: {
       marginRight: 10,

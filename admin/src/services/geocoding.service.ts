@@ -115,7 +115,7 @@ export function validateCoordinates(
   if (lat < -30 || lat > -16 || lon < 10 || lon > 27) {
     return {
       valid: false,
-      error: 'Coordinates are outside Namibia. Please verify the location.',
+      error: `Coordinates (${lat}, ${lon}) are outside Namibia. Namibian coordinates should be: Latitude: -17 to -29, Longitude: 11 to 26. Example: Windhoek (-22.5609, 17.0658)`,
     };
   }
 
@@ -130,26 +130,58 @@ export async function reverseGeocode(
   latitude: number,
   longitude: number
 ): Promise<GeocodingResult> {
+  console.log(`🌐 Reverse geocoding: ${latitude}, ${longitude}`);
+  
   try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
-      {
-        headers: {
-          'User-Agent': 'RoadsAuthority-Admin/1.0',
-        },
-      }
-    );
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1&zoom=18`;
+    console.log('📡 Request URL:', url);
+    
+    // Create AbortController for timeout (more compatible than AbortSignal.timeout)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased to 15 seconds
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'RoadsAuthority-Admin/1.0',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId); // Clear timeout if request completes
+    
+    console.log('📡 Response status:', response.status, response.statusText);
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
+      const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+      console.error('❌ HTTP error:', errorMsg);
+      
+      // Handle specific HTTP errors
+      if (response.status === 429) {
+        return {
+          success: false,
+          error: 'Rate limit exceeded. Please wait a moment and try again.',
+        };
+      } else if (response.status >= 500) {
+        return {
+          success: false,
+          error: 'Geocoding service temporarily unavailable. Please try again later.',
+        };
+      }
+      
       return {
         success: false,
-        error: `HTTP ${response.status}: ${response.statusText}`,
+        error: errorMsg,
       };
     }
 
     const data = await response.json();
+    console.log('📍 Response data:', data);
 
     if (data && data.display_name) {
+      console.log('✅ Location found:', data.display_name);
       return {
         success: true,
         latitude,
@@ -158,15 +190,58 @@ export async function reverseGeocode(
       };
     }
 
+    // If no result, try with lower zoom level for broader area
+    console.log('⚠️ No result with high zoom, trying broader search...');
+    
+    try {
+      const broadUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1&zoom=10`;
+      const broadResponse = await fetch(broadUrl, {
+        headers: {
+          'User-Agent': 'RoadsAuthority-Admin/1.0',
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (broadResponse.ok) {
+        const broadData = await broadResponse.json();
+        if (broadData && broadData.display_name) {
+          console.log('✅ Location found with broader search:', broadData.display_name);
+          return {
+            success: true,
+            latitude,
+            longitude,
+            displayName: `${broadData.display_name} (approximate area)`,
+          };
+        }
+      }
+    } catch (broadError) {
+      console.warn('Broader search also failed:', broadError);
+    }
+
+    console.warn('⚠️ No location data found for these coordinates');
     return {
       success: false,
-      error: 'Location not found',
+      error: 'No location found for these coordinates. The area might be remote or not well-mapped in OpenStreetMap.',
     };
   } catch (error: any) {
-    console.error('Reverse geocoding error:', error);
+    console.error('❌ Reverse geocoding error:', error);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Reverse geocoding failed';
+    
+    if (error.name === 'AbortError') {
+      errorMessage = 'Request timed out. The geocoding service may be slow or unavailable.';
+    } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      errorMessage = 'Network error. Please check your internet connection and try again.';
+    } else if (error.message.includes('CORS')) {
+      errorMessage = 'Browser security policy blocked the request. This may happen in some development environments.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return {
       success: false,
-      error: error.message || 'Reverse geocoding failed',
+      error: errorMessage,
     };
   }
 }
@@ -189,4 +264,6 @@ export function createDebouncedGeocoder(delayMs: number = 1000) {
     };
   };
 }
+
+
 

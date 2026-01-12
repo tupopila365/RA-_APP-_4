@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Pressable,
   useColorScheme,
-  ActivityIndicator,
   RefreshControl,
   Alert,
   Linking,
@@ -21,7 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { ErrorState, EmptyState, SearchInput } from '../components';
+import { SkeletonLoader, ErrorState, EmptyState, SearchInput, RoadStatusSkeleton } from '../components';
 import { roadStatusService } from '../services/roadStatusService';
 
 // Conditionally import MapView
@@ -51,14 +50,14 @@ try {
 
 const getStatusColor = (status, colors) => {
   const statusColors = {
-    'Open': '#34C759', // Green
-    'Ongoing': '#FF9500', // Orange
-    'Ongoing Maintenance': '#FF9500', // Orange
-    'Planned': '#007AFF', // Blue
-    'Planned Works': '#007AFF', // Blue
-    'Closed': '#FF3B30', // Red
-    'Restricted': '#FF3B30', // Red
-    'Completed': '#34C759', // Green
+    'Open': '#059669', // Professional green
+    'Ongoing': '#D97706', // Professional amber
+    'Ongoing Maintenance': '#D97706', // Professional amber
+    'Planned': '#2563EB', // Professional blue
+    'Planned Works': '#2563EB', // Professional blue
+    'Closed': '#DC2626', // Professional red
+    'Restricted': '#DC2626', // Professional red
+    'Completed': '#059669', // Professional green
   };
   return statusColors[status] || statusColors[status?.replace(/\s+/g, ' ')] || colors.textSecondary;
 };
@@ -376,7 +375,7 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
   return (
     <Marker
       coordinate={coordinate}
-      pinColor={isCritical ? '#FF3B30' : '#FF9500'}
+      pinColor={isCritical ? '#DC2626' : '#D97706'}
       onPress={onPress}
     >
       <Animated.View
@@ -386,7 +385,7 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
       >
         <View
           style={{
-            backgroundColor: isCritical ? '#FF3B30' : '#FF9500',
+            backgroundColor: isCritical ? '#DC2626' : '#D97706',
             padding: 8,
             borderRadius: 20,
             borderWidth: 2,
@@ -400,18 +399,19 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
           />
         </View>
       </Animated.View>
-      <Callout tooltip onPress={onPress}>
+      <Callout onPress={onPress}>
         <View
           style={{
             backgroundColor: colors.card,
-            borderRadius: 12,
+            borderRadius: 8,
             padding: 12,
             minWidth: 200,
+            maxWidth: 250,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
+            shadowOpacity: 0.15,
             shadowRadius: 4,
-            elevation: 5,
+            elevation: 3,
             borderWidth: 1,
             borderColor: colors.border,
           }}
@@ -426,9 +426,9 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
             <Ionicons 
               name={isCritical ? 'close-circle' : 'information-circle'} 
               size={14} 
-              color={isCritical ? '#FF3B30' : '#FF9500'} 
+              color={isCritical ? '#DC2626' : '#D97706'} 
             />
-            <Text style={{ fontSize: 12, color: isCritical ? '#FF3B30' : '#FF9500', fontWeight: '600' }}>
+            <Text style={{ fontSize: 12, color: isCritical ? '#DC2626' : '#D97706', fontWeight: '600' }}>
               {roadwork.status}
             </Text>
           </View>
@@ -985,12 +985,12 @@ export default function RoadStatusScreen() {
               <Ionicons 
                 name="list" 
                 size={20} 
-                color={viewMode === 'list' ? colors.primary : colors.textSecondary} 
+                color={viewMode === 'list' ? '#FFFFFF' : colors.textSecondary} 
               />
               <Text 
                 style={[
                   styles.viewToggleText,
-                  viewMode === 'list' && { color: colors.primary, fontWeight: '600' }
+                  viewMode === 'list' && { color: '#FFFFFF', fontWeight: '600' }
                 ]}
               >
                 List View
@@ -1008,12 +1008,12 @@ export default function RoadStatusScreen() {
               <Ionicons 
                 name="map" 
                 size={20} 
-                color={viewMode === 'map' ? colors.primary : colors.textSecondary} 
+                color={viewMode === 'map' ? '#FFFFFF' : colors.textSecondary} 
               />
               <Text 
                 style={[
                   styles.viewToggleText,
-                  viewMode === 'map' && { color: colors.primary, fontWeight: '600' }
+                  viewMode === 'map' && { color: '#FFFFFF', fontWeight: '600' }
                 ]}
               >
                 Map View
@@ -1028,19 +1028,19 @@ export default function RoadStatusScreen() {
             <Text style={styles.legendTitle}>Status Legend</Text>
             <View style={styles.legendItems}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#34C759' }]} />
+                <View style={[styles.legendDot, { backgroundColor: '#059669' }]} />
                 <Text style={styles.legendText}>Open - Normal traffic flow</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#FF9500' }]} />
+                <View style={[styles.legendDot, { backgroundColor: '#D97706' }]} />
                 <Text style={styles.legendText}>Ongoing - Expect delays</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#007AFF' }]} />
+                <View style={[styles.legendDot, { backgroundColor: '#2563EB' }]} />
                 <Text style={styles.legendText}>Planned - Scheduled</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#FF3B30' }]} />
+                <View style={[styles.legendDot, { backgroundColor: '#DC2626' }]} />
                 <Text style={styles.legendText}>Closed - Use alternative</Text>
               </View>
             </View>
@@ -1090,10 +1090,6 @@ export default function RoadStatusScreen() {
                 style={[
                   styles.filterChip,
                   selectedStatus === status && styles.filterChipActive,
-                  selectedStatus === status && {
-                    backgroundColor: getStatusColor(status, colors) + '20',
-                    borderColor: getStatusColor(status, colors),
-                  },
                 ]}
                 onPress={() =>
                   setSelectedStatus(selectedStatus === status ? null : status)
@@ -1103,9 +1099,6 @@ export default function RoadStatusScreen() {
                   style={[
                     styles.filterChipText,
                     selectedStatus === status && styles.filterChipTextActive,
-                    selectedStatus === status && {
-                      color: getStatusColor(status, colors),
-                    },
                   ]}
                 >
                   {status}
@@ -1122,7 +1115,7 @@ export default function RoadStatusScreen() {
               <Text style={styles.regionFilterTitle}>Filter by Region</Text>
               {isDetectingLocation && (
                 <View style={styles.locationDetectingContainer}>
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <SkeletonLoader type="circle" width={16} height={16} />
                   <Text style={styles.locationDetectingText}>Detecting your location...</Text>
                 </View>
               )}
@@ -1173,10 +1166,6 @@ export default function RoadStatusScreen() {
                   style={[
                     styles.filterChip,
                     selectedRegion === region && styles.filterChipActive,
-                    selectedRegion === region && {
-                      backgroundColor: colors.primary + '20',
-                      borderColor: colors.primary,
-                    },
                   ]}
                   onPress={() =>
                     setSelectedRegion(selectedRegion === region ? null : region)
@@ -1186,9 +1175,6 @@ export default function RoadStatusScreen() {
                     style={[
                       styles.filterChipText,
                       selectedRegion === region && styles.filterChipTextActive,
-                      selectedRegion === region && {
-                        color: colors.primary,
-                      },
                     ]}
                   >
                     {region}
@@ -1263,13 +1249,13 @@ export default function RoadStatusScreen() {
             {/* Map Legend Overlay */}
             {MapView && <View style={styles.mapLegendOverlay}>
               <View style={styles.mapLegendItem}>
-                <View style={[styles.mapLegendMarker, { backgroundColor: '#FF3B30' }]}>
+                <View style={[styles.mapLegendMarker, { backgroundColor: '#DC2626' }]}>
                   <Ionicons name="close-circle" size={12} color="#FFFFFF" />
                 </View>
                 <Text style={styles.mapLegendText}>Critical Alert</Text>
               </View>
               <View style={styles.mapLegendItem}>
-                <View style={[styles.mapLegendMarker, { backgroundColor: '#FF9500' }]}>
+                <View style={[styles.mapLegendMarker, { backgroundColor: '#D97706' }]}>
                   <Ionicons name="warning" size={12} color="#FFFFFF" />
                 </View>
                 <Text style={styles.mapLegendText}>Ongoing Work</Text>
@@ -1287,10 +1273,12 @@ export default function RoadStatusScreen() {
 
         {/* List View */}
         {viewMode === 'list' && isInitialLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading road status...</Text>
-          </View>
+          <RoadStatusSkeleton 
+            animated={true}
+            showFilters={true}
+            showViewToggle={true}
+            cardCount={5}
+          />
         ) : viewMode === 'list' && showEmptyState ? (
           <View style={styles.emptyStateContainer}>
             <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
@@ -1332,14 +1320,14 @@ export default function RoadStatusScreen() {
             {criticalRoadworks.length > 0 && (
               <View style={styles.criticalSection}>
                 <View style={styles.criticalHeader}>
-                  <Ionicons name="warning" size={24} color="#FF3B30" />
+                  <Ionicons name="warning" size={24} color="#DC2626" />
                   <Text style={styles.criticalTitle}>Critical Road Alerts</Text>
                 </View>
                 {criticalRoadworks.map((roadwork) => (
                   <View key={roadwork._id || roadwork.id} style={styles.criticalCard}>
                     <View style={styles.criticalBadge}>
                       <Text style={styles.criticalBadgeText}>
-                        ⚠️ {roadwork.status?.toUpperCase() || 'ALERT'}
+                        {roadwork.status?.toUpperCase() || 'ALERT'}
                       </Text>
                     </View>
                     <Text style={styles.criticalRoadName}>
@@ -1348,7 +1336,7 @@ export default function RoadStatusScreen() {
                     <Text style={styles.criticalTitle}>{roadwork.title}</Text>
                     {roadwork.reason && (
                       <View style={styles.criticalRow}>
-                        <Ionicons name="construct" size={16} color="#FF3B30" />
+                        <Ionicons name="construct" size={16} color="#DC2626" />
                         <Text style={styles.criticalText}>
                           Reason: {roadwork.reason}
                         </Text>
@@ -1356,7 +1344,7 @@ export default function RoadStatusScreen() {
                     )}
                     {roadwork.expectedCompletion && (
                       <View style={styles.criticalRow}>
-                        <Ionicons name="time" size={16} color="#FF3B30" />
+                        <Ionicons name="time" size={16} color="#DC2626" />
                         <Text style={styles.criticalText}>
                           Expected: {formatDate(roadwork.expectedCompletion)}
                         </Text>
@@ -1364,7 +1352,7 @@ export default function RoadStatusScreen() {
                     )}
                     {/* Warning Banner for Closed Roads */}
                     <View style={styles.criticalWarningBanner}>
-                      <Ionicons name="alert-circle" size={20} color="#FF3B30" />
+                      <Ionicons name="alert-circle" size={20} color="#DC2626" />
                       <Text style={styles.criticalWarningText}>
                         {roadwork.status === 'Closed' ? 'This road is completely blocked' : 'Significant delays expected'}
                       </Text>
@@ -1373,24 +1361,24 @@ export default function RoadStatusScreen() {
                     {/* Primary Action Buttons - Same as Normal Cards */}
                     <View style={styles.criticalActionButtons}>
                       <TouchableOpacity
-                        style={[styles.criticalActionButton, { borderColor: '#FF3B30' }]}
+                        style={[styles.criticalActionButton, { borderColor: '#DC2626' }]}
                         onPress={() => handleViewOnMap(roadwork)}
                         accessibilityLabel="View location on map"
                         accessibilityRole="button"
                       >
-                        <Ionicons name="map-outline" size={16} color="#FF3B30" />
-                        <Text style={[styles.criticalActionButtonText, { color: '#FF3B30' }]}>
+                        <Ionicons name="map-outline" size={16} color="#DC2626" />
+                        <Text style={[styles.criticalActionButtonText, { color: '#DC2626' }]}>
                           View Location
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.criticalActionButton, { borderColor: '#FF3B30' }]}
+                        style={[styles.criticalActionButton, { borderColor: '#DC2626' }]}
                         onPress={() => handleDirections(roadwork)}
                         accessibilityLabel="Get directions to this location"
                         accessibilityRole="button"
                       >
-                        <Ionicons name="navigate-outline" size={16} color="#FF3B30" />
-                        <Text style={[styles.criticalActionButtonText, { color: '#FF3B30' }]}>
+                        <Ionicons name="navigate-outline" size={16} color="#DC2626" />
+                        <Text style={[styles.criticalActionButtonText, { color: '#DC2626' }]}>
                           Get Directions
                         </Text>
                       </TouchableOpacity>
@@ -1400,9 +1388,9 @@ export default function RoadStatusScreen() {
                     {roadwork.alternativeRoute && (
                       <View style={styles.criticalAlternativeRoute}>
                         <View style={styles.alternativeRouteHeader}>
-                          <Ionicons name="swap-horizontal" size={18} color="#FF3B30" />
-                          <Text style={[styles.alternativeRouteTitle, { color: '#FF3B30', fontWeight: '700' }]}>
-                            💡 Recommended Alternative
+                          <Ionicons name="swap-horizontal" size={18} color="#DC2626" />
+                          <Text style={[styles.alternativeRouteTitle, { color: '#DC2626', fontWeight: '700' }]}>
+                            Recommended Alternative
                           </Text>
                         </View>
                         <Text style={[styles.alternativeRouteDescription, { color: colors.text }]}>
@@ -1784,7 +1772,7 @@ export default function RoadStatusScreen() {
             </MapView>
 
             {/* Zoom Controls */}
-            <View style={[styles.zoomControls, { backgroundColor: colors.card + 'F2', borderColor: colors.border }]}>
+            <View style={[styles.zoomControls, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <TouchableOpacity
                 style={styles.zoomButton}
                 onPress={handleZoomIn}
@@ -1805,7 +1793,7 @@ export default function RoadStatusScreen() {
             </View>
 
             {/* Legend */}
-            <View style={[styles.mapModalLegend, { backgroundColor: colors.card + 'E6', borderColor: colors.border }]}>
+            <View style={[styles.mapModalLegend, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.mapModalLegendItem}>
                 <View style={[styles.mapModalLegendDot, { backgroundColor: getStatusColor(selectedRoadworkForMap.status, colors) }]} />
                 <Text style={[styles.mapModalLegendText, { color: colors.text }]}>
@@ -1934,13 +1922,13 @@ function getStyles(colors) {
       marginBottom: 12,
       padding: 18,
       backgroundColor: colors.surface || colors.card,
-      borderRadius: 14,
+      borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 3,
+      shadowOpacity: 0.03,
+      shadowRadius: 2,
       elevation: 1,
     },
     legendTitle: {
@@ -1948,6 +1936,7 @@ function getStyles(colors) {
       fontWeight: '600',
       color: colors.text,
       marginBottom: 12,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     legendItems: {
       gap: 10,
@@ -1981,24 +1970,26 @@ function getStyles(colors) {
     filterChip: {
       paddingHorizontal: 16,
       paddingVertical: 8,
-      borderRadius: 20,
+      borderRadius: 8,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
       marginRight: 8,
     },
     filterChipActive: {
-      backgroundColor: colors.primary + '20',
+      backgroundColor: colors.primary,
       borderColor: colors.primary,
     },
     filterChipText: {
       fontSize: 14,
       fontWeight: '500',
       color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     filterChipTextActive: {
-      color: colors.primary,
+      color: '#FFFFFF',
       fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     resultsCount: {
       fontSize: 14,
@@ -2045,8 +2036,10 @@ function getStyles(colors) {
       gap: 4,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      backgroundColor: colors.primary + '15',
-      borderRadius: 8,
+      backgroundColor: colors.card,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.primary,
     },
     locationBasedFilterText: {
       fontSize: 12,
@@ -2059,10 +2052,10 @@ function getStyles(colors) {
       gap: 4,
       paddingHorizontal: 10,
       paddingVertical: 6,
-      borderRadius: 8,
+      borderRadius: 6,
       borderWidth: 1,
       borderColor: colors.primary,
-      backgroundColor: colors.primary + '10',
+      backgroundColor: colors.card,
     },
     useLocationButtonText: {
       fontSize: 12,
@@ -2075,6 +2068,7 @@ function getStyles(colors) {
       color: colors.text,
       marginTop: 24,
       marginBottom: 16,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalSection: {
       marginBottom: 24,
@@ -2086,18 +2080,20 @@ function getStyles(colors) {
       gap: 8,
     },
     criticalTitle: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: '#FF3B30',
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#DC2626',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalCard: {
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 8,
       padding: 20,
       marginBottom: 16,
-      borderWidth: 2,
-      borderColor: '#FF3B30',
+      borderWidth: 1,
+      borderColor: '#DC2626',
       borderLeftWidth: 4,
+      borderLeftColor: '#DC2626',
     },
     criticalBadge: {
       alignSelf: 'flex-start',
@@ -2105,14 +2101,16 @@ function getStyles(colors) {
     },
     criticalBadgeText: {
       fontSize: 14,
-      fontWeight: '700',
-      color: '#FF3B30',
+      fontWeight: '600',
+      color: '#DC2626',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalRoadName: {
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '600',
       color: colors.text,
       marginBottom: 8,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalRow: {
       flexDirection: 'row',
@@ -2131,11 +2129,11 @@ function getStyles(colors) {
       alignItems: 'center',
       marginTop: 12,
       padding: 12,
-      backgroundColor: colors.primary + '15',
+      backgroundColor: colors.primary,
       borderRadius: 8,
       gap: 8,
       borderWidth: 1,
-      borderColor: colors.primary + '30',
+      borderColor: colors.primary,
     },
     alternativeRouteText: {
       fontSize: 14,
@@ -2147,26 +2145,26 @@ function getStyles(colors) {
       marginTop: 12,
       padding: 14,
       backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 2,
-      borderColor: '#FF3B30',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#DC2626',
     },
     criticalWarningBanner: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
       padding: 12,
-      backgroundColor: '#FF3B30' + '10',
-      borderRadius: 8,
+      backgroundColor: '#DC2626' + '10',
+      borderRadius: 6,
       borderWidth: 1,
-      borderColor: '#FF3B30' + '30',
+      borderColor: '#DC2626' + '30',
       marginTop: 12,
     },
     criticalWarningText: {
       flex: 1,
       fontSize: 14,
       fontWeight: '600',
-      color: '#FF3B30',
+      color: '#DC2626',
       lineHeight: 20,
     },
     criticalActionButtons: {
@@ -2181,8 +2179,8 @@ function getStyles(colors) {
       justifyContent: 'center',
       paddingVertical: 12,
       paddingHorizontal: 16,
-      borderRadius: 10,
-      borderWidth: 1.5,
+      borderRadius: 8,
+      borderWidth: 1,
       gap: 6,
       minHeight: 44,
       backgroundColor: colors.card,
@@ -2197,15 +2195,15 @@ function getStyles(colors) {
       justifyContent: 'center',
       paddingVertical: 14,
       paddingHorizontal: 16,
-      backgroundColor: '#FF3B30',
-      borderRadius: 10,
+      backgroundColor: '#DC2626',
+      borderRadius: 8,
       gap: 8,
       marginTop: 8,
-      shadowColor: '#FF3B30',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      elevation: 4,
+      shadowColor: '#DC2626',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 2,
     },
     criticalAlternativeButtonText: {
       flex: 1,
@@ -2238,13 +2236,13 @@ function getStyles(colors) {
     },
     card: {
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 8,
       marginBottom: 16,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: colors.border,
@@ -2279,10 +2277,12 @@ function getStyles(colors) {
       fontWeight: '600',
       color: colors.text,
       marginBottom: 4,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     cardRoad: {
       fontSize: 14,
       color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     statusBadge: {
       paddingHorizontal: 12,
@@ -2307,11 +2307,11 @@ function getStyles(colors) {
     },
     warningRow: {
       padding: 10,
-      backgroundColor: '#FF9500' + '15',
-      borderRadius: 8,
+      backgroundColor: '#D97706' + '15',
+      borderRadius: 6,
       marginTop: 4,
       borderWidth: 1,
-      borderColor: '#FF9500' + '30',
+      borderColor: '#D97706' + '30',
     },
     cardText: {
       fontSize: 14,
@@ -2320,7 +2320,7 @@ function getStyles(colors) {
       lineHeight: 20,
     },
     warningText: {
-      color: '#FF9500',
+      color: '#D97706',
       fontWeight: '500',
     },
     cardActions: {
@@ -2338,8 +2338,8 @@ function getStyles(colors) {
       justifyContent: 'center',
       paddingVertical: 12,
       paddingHorizontal: 16,
-      borderRadius: 10,
-      borderWidth: 1.5,
+      borderRadius: 8,
+      borderWidth: 1,
       gap: 6,
       minHeight: 44,
     },
@@ -2353,7 +2353,7 @@ function getStyles(colors) {
       marginTop: 12,
       paddingTop: 12,
       borderTopWidth: 1,
-      borderTopColor: colors.border + '40',
+      borderTopColor: colors.border,
       gap: 6,
     },
     cardFooterText: {
@@ -2368,12 +2368,13 @@ function getStyles(colors) {
       paddingHorizontal: 40,
     },
     emptyStateTitle: {
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: 18,
+      fontWeight: '600',
       color: colors.text,
       marginTop: 20,
       marginBottom: 12,
       textAlign: 'center',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     emptyStateMessage: {
       fontSize: 15,
@@ -2385,7 +2386,7 @@ function getStyles(colors) {
     emptyStateButton: {
       paddingVertical: 14,
       paddingHorizontal: 24,
-      borderRadius: 12,
+      borderRadius: 8,
       minHeight: 44,
       minWidth: 150,
     },
@@ -2410,7 +2411,7 @@ function getStyles(colors) {
       marginTop: 16,
       marginBottom: 12,
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: 8,
       padding: 4,
       gap: 4,
     },
@@ -2421,21 +2422,22 @@ function getStyles(colors) {
       justifyContent: 'center',
       paddingVertical: 12,
       paddingHorizontal: 16,
-      borderRadius: 10,
+      borderRadius: 6,
       gap: 8,
     },
     viewToggleButtonActive: {
-      backgroundColor: colors.primary + '15',
+      backgroundColor: colors.primary,
     },
     viewToggleText: {
       fontSize: 14,
       fontWeight: '500',
       color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     // Map View Styles
     mapViewContainer: {
       height: Dimensions.get('window').height - 300,
-      borderRadius: 16,
+      borderRadius: 8,
       overflow: 'hidden',
       marginTop: 16,
       borderWidth: 1,
@@ -2449,13 +2451,13 @@ function getStyles(colors) {
       top: 16,
       right: 16,
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: 8,
       padding: 12,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
       gap: 8,
       borderWidth: 1,
       borderColor: colors.border,
@@ -2483,14 +2485,14 @@ function getStyles(colors) {
       left: 16,
       right: 16,
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: 8,
       padding: 12,
       alignItems: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -2503,10 +2505,10 @@ function getStyles(colors) {
     alternativeRouteInline: {
       marginTop: 12,
       padding: 14,
-      backgroundColor: colors.primary + '08',
-      borderRadius: 12,
+      backgroundColor: colors.card,
+      borderRadius: 8,
       borderWidth: 1,
-      borderColor: colors.primary + '30',
+      borderColor: colors.primary,
     },
     alternativeRouteHeader: {
       flexDirection: 'row',
@@ -2545,8 +2547,8 @@ function getStyles(colors) {
       justifyContent: 'center',
       paddingVertical: 10,
       paddingHorizontal: 14,
-      backgroundColor: colors.primary + '15',
-      borderRadius: 8,
+      backgroundColor: colors.primary,
+      borderRadius: 6,
       gap: 6,
       marginTop: 4,
     },

@@ -7,7 +7,7 @@ import { vacanciesService } from '../../services/vacanciesService';
 // Mock dependencies
 jest.mock('../../services/vacanciesService');
 jest.mock('../../components', () => ({
-  LoadingSpinner: () => 'LoadingSpinner',
+  ListScreenSkeleton: () => 'ListScreenSkeleton',
   ErrorState: () => 'ErrorState',
 }));
 jest.mock('react-native/Libraries/Alert/Alert', () => ({

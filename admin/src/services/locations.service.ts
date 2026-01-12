@@ -11,6 +11,32 @@ export interface Location {
   };
   contactNumber?: string;
   email?: string;
+  // NATIS-specific fields
+  services?: string[];
+  operatingHours?: {
+    weekdays?: {
+      open: string;
+      close: string;
+    };
+    weekends?: {
+      open: string;
+      close: string;
+    };
+    publicHolidays?: {
+      open: string;
+      close: string;
+    };
+  };
+  closedDays?: string[];
+  specialHours?: Array<{
+    date: string;
+    reason: string;
+    closed: boolean;
+    hours?: {
+      open: string;
+      close: string;
+    };
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,6 +51,32 @@ export interface LocationFormData {
   };
   contactNumber?: string | undefined;
   email?: string | undefined;
+  // NATIS-specific fields
+  services?: string[];
+  operatingHours?: {
+    weekdays?: {
+      open: string;
+      close: string;
+    };
+    weekends?: {
+      open: string;
+      close: string;
+    };
+    publicHolidays?: {
+      open: string;
+      close: string;
+    };
+  };
+  closedDays?: string[];
+  specialHours?: Array<{
+    date: string;
+    reason: string;
+    closed: boolean;
+    hours?: {
+      open: string;
+      close: string;
+    };
+  }>;
 }
 
 export interface LocationListResponse {

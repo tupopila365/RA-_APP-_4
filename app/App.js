@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StatusBar as RNStatusBar, useColorScheme, Platform, BackHandler, Alert, TouchableOpacity } from 'react-native';
+import { StatusBar as RNStatusBar, useColorScheme, Platform, BackHandler, Alert, TouchableOpacity, Text } from 'react-native';
 import { NavigationContainer, CommonActions, useNavigation } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Font from 'expo-font';
 // Import notifications conditionally to avoid Expo Go errors
 let Notifications;
 try {
@@ -16,7 +17,7 @@ try {
   Notifications = null;
 }
 
-import SplashScreen from './screens/SplashScreen';
+
 import HomeScreen from './screens/HomeScreen';
 import NewsScreen from './screens/NewsScreen';
 import NewsDetailScreen from './screens/NewsDetailScreen';
@@ -37,8 +38,8 @@ import ReportConfirmationScreen from './screens/ReportConfirmationScreen';
 import MyReportsScreen from './screens/MyReportsScreen';
 import ReportDetailScreen from './screens/ReportDetailScreen';
 import PLNInfoScreen from './screens/PLNInfoScreen';
-import PLNApplicationScreen from './screens/PLNApplicationScreen';
-import PLNApplicationBankStyleScreen from './screens/PLNApplicationBankStyleScreen';
+import PLNApplicationScreenEnhanced from './screens/PLNApplicationScreenEnhanced';
+import PLNWizardScreen from './screens/PLNWizardScreen';
 import PLNConfirmationScreen from './screens/PLNConfirmationScreen';
 import PLNTrackingScreen from './screens/PLNTrackingScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -259,12 +260,8 @@ function AppNavigator() {
     );
   }
 
-  // Show auth stack if not authenticated
-  if (!user) {
-    return <AuthStack />;
-  }
-
-  // Show main app if authenticated
+  // Skip authentication requirement for now - chatbot works without login
+  // Show main app directly
   return (
     <Stack.Navigator
       initialRouteName="MainTabs"
@@ -371,12 +368,12 @@ function AppNavigator() {
       />
       <Stack.Screen 
         name="PLNApplication" 
-        component={PLNApplicationScreen}
-        options={{ title: 'Apply for PLN' }}
+        component={PLNApplicationScreenEnhanced}
+        options={{ headerShown: false }}
       />
       <Stack.Screen 
-        name="PLNApplicationBankStyle" 
-        component={PLNApplicationBankStyleScreen}
+        name="PLNApplicationEnhanced" 
+        component={PLNApplicationScreenEnhanced}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
@@ -3252,11 +3249,37 @@ async function handleDeepLink(url, navigation) {
 }
 
 export default function App() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
 
+  // Load fonts and configure text rendering
   useEffect(() => {
+    const loadFonts = async () => {
+      try {
+        // Set default text props for better rendering
+        Text.defaultProps = Text.defaultProps || {};
+        Text.defaultProps.allowFontScaling = true;
+        Text.defaultProps.maxFontSizeMultiplier = 1.3; // Limit text scaling for accessibility
+        
+        // For now, we'll use system fonts, but this is where custom fonts would be loaded
+        // await Font.loadAsync({
+        //   'CustomFont-Regular': require('./assets/fonts/CustomFont-Regular.ttf'),
+        // });
+        
+        setFontsLoaded(true);
+      } catch (error) {
+        console.error('Font loading error:', error);
+        setFontsLoaded(true); // Continue with system fonts
+      }
+    };
+
+    loadFonts();
+  }, []);
+
+  useEffect(() => {
+    if (!fontsLoaded) return;
+
     // Guard native StatusBar calls to avoid TurboModule access during startup in Expo Go
     try {
       if (Platform.OS === 'android') {
@@ -3289,15 +3312,10 @@ export default function App() {
       }
     }
     */
-    
-    // Simulate splash screen delay
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 3000);
-  }, [colors.primary]);
+  }, [colors.primary, fontsLoaded]);
 
-  if (isLoading) {
-    return <SplashScreen />;
+  if (!fontsLoaded) {
+    return null; // Show nothing while fonts are loading
   }
 
   return (

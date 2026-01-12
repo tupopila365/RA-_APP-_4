@@ -1,5 +1,6 @@
 import { ApiClient } from './api';
 import ENV from '../config/env';
+import { SecurityUtils } from '../utils/securityUtils';
 
 const API_BASE_URL = ENV.API_BASE_URL;
 

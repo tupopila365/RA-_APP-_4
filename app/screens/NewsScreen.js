@@ -8,20 +8,24 @@ import {
   Pressable,
   Dimensions,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import PropTypes from 'prop-types';
 import { useTheme } from '../hooks/useTheme';
+import { UnifiedCard } from '../components/UnifiedCard';
+import { UnifiedSkeletonLoader, NewsScreenSkeleton } from '../components';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
 import { SearchInput } from '../components/SearchInput';
-import { LoadingIndicator } from '../components/LoadingIndicator';
 import { CachedImage } from '../components/CachedImage';
-import { Badge, Card, NewsCardSkeletonList } from '../components';
+import { Badge, Card, NewsListSkeleton } from '../components';
 import { useNewsViewModel } from '../src/presentation/viewModels/useNewsViewModel';
 import { useNewsUseCases } from '../src/presentation/di/DependencyContext';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 
 const { width } = Dimensions.get('window');
 
@@ -55,11 +59,13 @@ export default function NewsScreen({ navigation }) {
   // Show error state if initial load fails
   if (hasError && isEmpty && !loading) {
     return (
-      <ErrorState
-        message={error?.message || 'Failed to load news'}
-        onRetry={retry}
-        fullScreen
-      />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <ErrorState
+          message={error?.message || 'Failed to load news'}
+          onRetry={retry}
+          fullScreen
+        />
+      </SafeAreaView>
     );
   }
 
@@ -72,7 +78,6 @@ export default function NewsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -98,7 +103,7 @@ export default function NewsScreen({ navigation }) {
           />
         </View>
 
-        {/* Category Filter Chips - matching Road Status design */}
+        {/* Category Filter Chips */}
         {categories.length > 0 && (
           <ScrollView
             horizontal
@@ -112,12 +117,12 @@ export default function NewsScreen({ navigation }) {
               ]}
               onPress={() => setSelectedCategory('All')}
             >
-              <Text
-                style={[
+              <Text style={[
                   styles.filterChipText,
                   selectedCategory === 'All' && styles.filterChipTextActive,
                 ]}
-              >
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.3}>
                 All
               </Text>
             </TouchableOpacity>
@@ -128,14 +133,14 @@ export default function NewsScreen({ navigation }) {
                   styles.filterChip,
                   selectedCategory === category && styles.filterChipActive,
                 ]}
-                onPress={() => setSelectedCategory(selectedCategory === category ? 'All' : category)}
+                onPress={() => setSelectedCategory(category)}
               >
-                <Text
-                  style={[
+                <Text style={[
                     styles.filterChipText,
                     selectedCategory === category && styles.filterChipTextActive,
                   ]}
-                >
+                  numberOfLines={1}
+                 maxFontSizeMultiplier={1.3}>
                   {category}
                 </Text>
               </TouchableOpacity>
@@ -146,7 +151,7 @@ export default function NewsScreen({ navigation }) {
         {/* Results Count */}
         {news.length > 0 && (searchQuery.trim() || selectedCategory !== 'All') && (
           <View style={styles.resultsCountContainer}>
-            <Text style={styles.resultsCount}>
+            <Text style={styles.resultsCount} maxFontSizeMultiplier={1.3}>
               {news.length} {news.length === 1 ? 'article' : 'articles'} found
             </Text>
           </View>
@@ -154,16 +159,21 @@ export default function NewsScreen({ navigation }) {
 
         {/* News List */}
         {isInitialLoading ? (
-          <View style={styles.content}>
-            <NewsCardSkeletonList count={5} showImage={true} />
-          </View>
+          <NewsScreenSkeleton 
+            animated={true}
+            showSearch={true}
+            showFilters={true}
+            cardCount={5}
+          />
         ) : news.length > 0 ? (
           <View style={styles.content}>
             {news.map((item) => (
-              <Card
+              <UnifiedCard
                 key={item.id}
                 onPress={() => navigation.navigate('NewsDetail', { article: item })}
                 style={styles.newsCard}
+                variant="elevated"
+                padding="none"
                 accessible={true}
                 accessibilityLabel={`${item.title}, ${item.category}, ${item.getFormattedDate()}`}
                 accessibilityHint="Double tap to read full article"
@@ -180,16 +190,16 @@ export default function NewsScreen({ navigation }) {
                 <View style={styles.newsContent}>
                   <View style={styles.newsHeader}>
                     <Badge label={item.category} variant="info" />
-                    <Text style={styles.dateText}>{item.getTimeAgo()}</Text>
+                    <Text style={styles.dateText} maxFontSizeMultiplier={1.3}>{item.getTimeAgo()}</Text>
                   </View>
-                  <Text style={styles.newsTitle}>{item.title}</Text>
-                  <Text style={styles.newsExcerpt} numberOfLines={2}>{item.getShortExcerpt()}</Text>
+                  <Text style={styles.newsTitle} maxFontSizeMultiplier={1.3}>{item.title}</Text>
+                  <Text style={styles.newsExcerpt} numberOfLines={2} maxFontSizeMultiplier={1.3}>{item.getShortExcerpt()}</Text>
                   <View style={styles.readMore}>
-                    <Text style={[styles.readMoreText, { color: colors.primary }]}>Read More</Text>
+                    <Text style={[styles.readMoreText, { color: colors.primary }]} maxFontSizeMultiplier={1.3}>Read More</Text>
                     <Ionicons name="arrow-forward" size={16} color={colors.primary} />
                   </View>
                 </View>
-              </Card>
+              </UnifiedCard>
             ))}
           </View>
         ) : (
@@ -223,59 +233,69 @@ function getStyles(colors) {
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: 20,
-      padding: 20,
+      paddingBottom: spacing.xl,
+      padding: spacing.lg,
     },
     searchInputContainer: {
       paddingHorizontal: 0,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
     },
     searchInput: {
       margin: 0,
     },
     filterContainer: {
-      paddingHorizontal: 15,
-      paddingVertical: 10,
-      gap: 10,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      gap: spacing.sm,
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
     },
     filterChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      marginRight: 8,
+      marginRight: spacing.sm,
+      minWidth: 60,
+      maxWidth: 120,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     filterChipActive: {
-      backgroundColor: colors.primary + '20',
+      backgroundColor: colors.primary,
       borderColor: colors.primary,
     },
     filterChipText: {
-      fontSize: 14,
+      ...typography.bodySmall,
       fontWeight: '500',
       color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      textAlign: 'center',
+      numberOfLines: 1,
+      flexShrink: 1,
     },
     filterChipTextActive: {
-      color: colors.primary,
+      color: '#FFFFFF',
       fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     resultsCountContainer: {
       paddingHorizontal: 0,
-      paddingTop: 8,
-      paddingBottom: 8,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
     },
     resultsCount: {
-      fontSize: 14,
+      ...typography.bodySmall,
       color: colors.textSecondary,
-      marginBottom: 8,
-    },
-    loadingContainer: {
-      padding: 20,
+      marginBottom: spacing.sm,
     },
     emptyStateContainer: {
-      padding: 20,
+      padding: spacing.xl,
       minHeight: 300,
       justifyContent: 'center',
       alignItems: 'center',
@@ -285,8 +305,13 @@ function getStyles(colors) {
     },
     newsCard: {
       overflow: 'hidden',
-      padding: 0,
-      marginBottom: 15,
+      marginBottom: spacing.md,
+      borderRadius: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
     newsImage: {
       width: '100%',
@@ -294,40 +319,44 @@ function getStyles(colors) {
       backgroundColor: colors.surface,
     },
     newsContent: {
-      padding: 20,
+      padding: spacing.xl,
     },
     newsHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: spacing.sm,
     },
     dateText: {
-      fontSize: 12,
+      ...typography.caption,
       color: colors.textSecondary,
     },
     newsTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
+      ...typography.h4,
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: spacing.sm,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      fontSize: 18,
+      fontWeight: '600',
     },
     newsExcerpt: {
-      fontSize: 14,
+      ...typography.body,
       color: colors.textSecondary,
       lineHeight: 20,
-      marginBottom: 12,
+      marginBottom: spacing.md,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      fontSize: 14,
     },
     readMore: {
       flexDirection: 'row',
       alignItems: 'center',
     },
     readMoreText: {
-      fontSize: 14,
+      ...typography.bodySmall,
       fontWeight: '600',
-      marginRight: 5,
+      marginRight: spacing.xs,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-
   });
 }
 

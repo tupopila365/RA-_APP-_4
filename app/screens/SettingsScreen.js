@@ -157,7 +157,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity style={styles.quickActionItem}>
-              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
                 <Ionicons name="document-text-outline" size={24} color={colors.primary} />
               </View>
               <Text style={styles.quickActionText}>My Reports</Text>
@@ -316,7 +316,7 @@ function SettingsItem({ icon, title, subtitle, type, value, onToggle, onPress, c
         disabled={type === 'toggle' || !onPress}
       >
         <View style={styles.settingsItemLeft}>
-          <View style={[styles.settingsItemIcon, { backgroundColor: colors.primary + '15' }]}>
+          <View style={[styles.settingsItemIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
             <Ionicons name={icon} size={20} color={colors.primary} />
           </View>
           <View style={styles.settingsItemText}>
@@ -386,13 +386,13 @@ function getStyles(colors, screenWidth) {
       shadowRadius: 16,
       elevation: 8,
       borderWidth: 1,
-      borderColor: colors.border + '20',
+      borderColor: colors.border,
     },
     profileIconContainer: {
       width: 60,
       height: 60,
       borderRadius: 30,
-      backgroundColor: colors.primary + '15',
+      backgroundColor: colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 16,
@@ -466,7 +466,7 @@ function getStyles(colors, screenWidth) {
       shadowRadius: 12,
       elevation: 4,
       borderWidth: 1,
-      borderColor: colors.border + '20',
+      borderColor: colors.border,
       overflow: 'hidden',
     },
     
@@ -563,7 +563,7 @@ function getStyles(colors, screenWidth) {
       marginTop: 32,
       paddingTop: 24,
       borderTopWidth: 1,
-      borderTopColor: colors.border + '30',
+      borderTopColor: colors.border,
     },
     footerText: {
       fontSize: 16,

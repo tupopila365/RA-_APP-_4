@@ -30,9 +30,12 @@ const ENV = {
     // API_BASE_URL: 'http://localhost:5000/api',
     
     // WiFi connection - using your current WiFi IP
-// WiFi connection - using your current WiFi IP
-//API_BASE_URL: 'http://10.97.0.63:5000/api',
+    // VMware Network: API_BASE_URL: 'http://192.168.108.1:5000/api',
+    // WiFi Network (CURRENT):
     API_BASE_URL: 'http://192.168.11.52:5000/api',
+    
+    // USB Connection (if using adb reverse):
+    // API_BASE_URL: 'http://localhost:5000/api',
 
     //BASE_URL:'https://98192e2a367a.ngrok-fr'
 
@@ -45,7 +48,7 @@ const ENV = {
     // Different timeouts for different types of requests
     API_TIMEOUT: 15000, // 15 seconds for regular API calls (news, banners, etc.)
     API_TIMEOUT_LONG: 60000, // 60 seconds for chatbot queries
-    API_TIMEOUT_STREAM: 120000, // 2 minutes for streaming responses
+    API_TIMEOUT_STREAM: 60000, // 60 seconds for streaming responses
     DEBUG_MODE: true,
   },
   production: {
@@ -53,7 +56,7 @@ const ENV = {
     // Different timeouts for different types of requests
     API_TIMEOUT: 15000, // 15 seconds for regular API calls
     API_TIMEOUT_LONG: 60000, // 60 seconds for chatbot queries
-    API_TIMEOUT_STREAM: 120000, // 2 minutes for streaming responses
+    API_TIMEOUT_STREAM: 60000, // 60 seconds for streaming responses
     DEBUG_MODE: false,
   },
 };

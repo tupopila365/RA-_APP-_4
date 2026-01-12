@@ -8,13 +8,14 @@ import {
   Pressable,
   RefreshControl,
   Image,
-  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
+import { SkeletonLoader } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { SearchInput } from '../components/SearchInput';
 
@@ -147,7 +148,7 @@ export default function MyReportsScreen({ navigation }) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <SkeletonLoader type="list-item" count={5} />
         </View>
       </SafeAreaView>
     );
@@ -401,24 +402,26 @@ function getStyles(colors) {
     filterChip: {
       paddingHorizontal: 16,
       paddingVertical: 8,
-      borderRadius: 20,
+      borderRadius: 8,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
       marginRight: 8,
     },
     filterChipActive: {
-      backgroundColor: colors.primary + '20',
+      backgroundColor: colors.primary,
       borderColor: colors.primary,
     },
     filterChipText: {
       fontSize: 14,
       fontWeight: '500',
       color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     filterChipTextActive: {
       color: colors.primary,
       fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     resultsCountContainer: {
       paddingHorizontal: 0,
@@ -458,6 +461,7 @@ function getStyles(colors) {
       color: '#FFFFFF',
       fontSize: 16,
       fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     emptyStateContainer: {
       flex: 1,
@@ -471,14 +475,14 @@ function getStyles(colors) {
     reportCard: {
       flexDirection: 'row',
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: 8,
       marginBottom: 16,
       overflow: 'hidden',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
     photo: {
       width: 100,
@@ -501,13 +505,14 @@ function getStyles(colors) {
       fontWeight: '600',
       color: colors.text,
       marginRight: 8,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     severityBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 12,
+      borderRadius: 8,
       gap: 4,
     },
     severityDot: {
@@ -519,6 +524,7 @@ function getStyles(colors) {
       fontSize: 11,
       fontWeight: '600',
       textTransform: 'uppercase',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     locationRow: {
       flexDirection: 'row',
@@ -530,6 +536,7 @@ function getStyles(colors) {
       fontSize: 13,
       color: colors.textSecondary,
       flex: 1,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     statusRow: {
       flexDirection: 'row',
@@ -542,7 +549,7 @@ function getStyles(colors) {
       alignItems: 'center',
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 12,
+      borderRadius: 8,
       gap: 4,
     },
     statusDot: {
@@ -553,10 +560,12 @@ function getStyles(colors) {
     statusText: {
       fontSize: 11,
       fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     dateText: {
       fontSize: 12,
       color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     referenceCode: {
       fontSize: 11,

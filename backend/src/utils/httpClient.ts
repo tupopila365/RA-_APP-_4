@@ -92,7 +92,7 @@ class HttpClient {
 
 // RAG Service HTTP Client with extended timeout for document processing
 // Document indexing with embeddings can take 2-5 minutes for large PDFs
-export const ragServiceClient = new HttpClient(env.RAG_SERVICE_URL, 300000); // 5 minutes
+export const ragServiceClient = new HttpClient(env.RAG_SERVICE_URL, 60000); // 60 seconds
 
 // RAG Service API methods
 export const ragService = {

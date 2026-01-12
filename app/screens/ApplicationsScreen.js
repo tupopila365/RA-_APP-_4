@@ -159,7 +159,7 @@ export default function ApplicationsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
+        colors={[colors.primary, colors.primary]}
         style={styles.header}
       >
         <SafeAreaView edges={['top']}>
@@ -476,7 +476,7 @@ function getStyles(colors, config) {
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: colors.border + '20',
+      borderColor: colors.border,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,

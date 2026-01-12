@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
 import InteractionsList from './InteractionsList';
 import MetricsDashboard from './MetricsDashboard';
+import EnhancedMetricsDashboard from './EnhancedMetricsDashboard';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -37,7 +38,8 @@ const ChatbotInteractions = () => {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tabValue} onChange={handleTabChange} aria-label="interactions tabs">
           <Tab label="Interactions" id="interactions-tab-0" aria-controls="interactions-tabpanel-0" />
-          <Tab label="Metrics" id="interactions-tab-1" aria-controls="interactions-tabpanel-1" />
+          <Tab label="Basic Metrics" id="interactions-tab-1" aria-controls="interactions-tabpanel-1" />
+          <Tab label="🚀 Enhanced Analytics" id="interactions-tab-2" aria-controls="interactions-tabpanel-2" />
         </Tabs>
       </Box>
 
@@ -48,11 +50,17 @@ const ChatbotInteractions = () => {
       <TabPanel value={tabValue} index={1}>
         <MetricsDashboard />
       </TabPanel>
+
+      <TabPanel value={tabValue} index={2}>
+        <EnhancedMetricsDashboard />
+      </TabPanel>
     </Box>
   );
 };
 
 export default ChatbotInteractions;
+
+
 
 
 

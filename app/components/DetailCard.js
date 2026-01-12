@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   useColorScheme,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
+import SkeletonLoader from './SkeletonLoader';
 import { Badge } from './Badge';
 
 /**
@@ -71,7 +71,7 @@ export function DetailCard({
           {badgeLabel && (
             <Badge
               label={badgeLabel}
-              backgroundColor={badgeBackgroundColor || badgeColor + '20' || colors.secondary + '20'}
+              backgroundColor={badgeBackgroundColor || badgeColor + '20' || colors.secondary}
               textColor={badgeColor || colors.secondary}
               size="small"
             />
@@ -145,7 +145,7 @@ export function DetailCard({
         >
           {isDownloading ? (
             <>
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <SkeletonLoader type="circle" width={16} height={16} />
               <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail">
                 {downloadProgress > 0 ? `Downloading ${Math.round(downloadProgress)}%` : 'Preparing...'}
               </Text>
@@ -184,7 +184,7 @@ function getStyles(colors) {
       shadowRadius: 6,
       elevation: 3,
       borderWidth: 1,
-      borderColor: colors.border + '40',
+      borderColor: colors.border,
     },
     cardHeader: {
       flexDirection: 'row',
@@ -223,7 +223,7 @@ function getStyles(colors) {
       marginTop: 10,
       paddingTop: 12,
       borderTopWidth: 1,
-      borderTopColor: colors.border + '40',
+      borderTopColor: colors.border,
       gap: 6,
     },
     expandedContent: {
@@ -231,7 +231,7 @@ function getStyles(colors) {
     },
     divider: {
       height: 1,
-      backgroundColor: colors.border + '60',
+      backgroundColor: colors.border,
       marginBottom: 16,
     },
     downloadButton: {

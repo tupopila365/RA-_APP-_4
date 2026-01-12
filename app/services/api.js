@@ -160,6 +160,7 @@ export const API_ENDPOINTS = {
   FAQS_DETAIL: (id) => `/faqs/${id}`,
   CHATBOT_QUERY: '/chatbot/query',
   CHATBOT_HEALTH: '/chatbot/health',
+  CHATBOT_FEEDBACK: (id) => `/chatbot/interactions/${id}/feedback`,
   PROCUREMENT_LEGISLATION: '/procurement-legislation',
   PROCUREMENT_LEGISLATION_DETAIL: (id) => `/procurement-legislation/${id}`,
   PROCUREMENT_PLAN: '/procurement-plan',

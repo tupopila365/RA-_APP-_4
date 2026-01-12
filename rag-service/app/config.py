@@ -36,6 +36,18 @@ class Settings(BaseSettings):
     temperature: float = 0.3  # Lower for more consistent, factual answers
     max_tokens: int = 800  # Allow for more detailed answers
     
+    # Redis Caching Configuration (NEW)
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: Optional[str] = None
+    cache_ttl: int = 3600  # 1 hour cache TTL
+    enable_caching: bool = True
+    
+    # Request Timeout Settings (NEW)
+    request_timeout: int = 30  # 30 seconds timeout
+    streaming_timeout: int = 60  # 60 seconds for streaming responses
+    
 
     # Logging
     log_level: str = "INFO"

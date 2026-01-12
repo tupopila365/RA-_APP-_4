@@ -3,11 +3,11 @@ import {
   TouchableOpacity,
   Text,
   StyleSheet,
-  ActivityIndicator,
   View,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import SkeletonLoader from './SkeletonLoader';
 
 export const BankStyleButton = ({
   title,
@@ -89,9 +89,10 @@ export const BankStyleButton = ({
   const renderContent = () => {
     if (loading) {
       return (
-        <ActivityIndicator
-          size={size === 'small' ? 'small' : 'small'}
-          color={variant === 'primary' ? '#fff' : colors.primary}
+        <SkeletonLoader
+          type="circle"
+          width={size === 'small' ? 16 : 20}
+          height={size === 'small' ? 16 : 20}
         />
       );
     }

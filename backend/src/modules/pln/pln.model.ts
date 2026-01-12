@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document as MongooseDocument } from 'mongoose';
+import { FieldEncryption } from '../../utils/encryption';
 
 export type PLNStatus =
   | 'SUBMITTED'
@@ -57,10 +58,28 @@ export interface IPLN extends MongooseDocument {
   cellNumber?: IPhoneNumber;
   email?: string;
   
-  // Legacy fields (for backward compatibility)
-  fullName?: string; // Computed from surname + initials
-  idNumber?: string; // Computed from idType + corresponding number
-  phoneNumber?: string; // Computed from cellNumber or telephoneDay
+  // Encrypted sensitive fields
+  trafficRegisterNumber_encrypted?: string;
+  businessRegNumber_encrypted?: string;
+  surname_encrypted: string;
+  initials_encrypted: string;
+  businessName_encrypted?: string;
+  email_encrypted?: string;
+  
+  // Hashed fields for searching
+  trafficRegisterNumber_hash?: string;
+  businessRegNumber_hash?: string;
+  surname_hash: string;
+  email_hash?: string;
+  
+  // Legacy fields (for backward compatibility) - also encrypted
+  fullName_encrypted?: string;
+  idNumber_encrypted?: string;
+  phoneNumber_encrypted?: string;
+  
+  // Legacy hashed fields
+  fullName_hash?: string;
+  idNumber_hash?: string;
   
   // Section B - Personalised Number Plate
   plateFormat: PlateFormat;

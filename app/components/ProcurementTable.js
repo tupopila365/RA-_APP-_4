@@ -64,7 +64,7 @@ const getStyles = (colors) =>
     },
     tableHeader: {
       flexDirection: 'row',
-      backgroundColor: colors.border + '40',
+      backgroundColor: colors.border,
       paddingVertical: 12,
       paddingHorizontal: 16,
       borderBottomWidth: 2,

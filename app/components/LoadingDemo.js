@@ -87,7 +87,7 @@ const getStyles = (colors) =>
       marginRight: 10,
     },
     selectorButtonActive: {
-      backgroundColor: colors.primary + '20',
+      backgroundColor: colors.primary,
       borderColor: colors.primary,
     },
     selectorButtonText: {

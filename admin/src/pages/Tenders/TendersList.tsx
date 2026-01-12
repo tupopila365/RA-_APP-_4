@@ -48,6 +48,7 @@ const TendersList = () => {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [publishedFilter, setPublishedFilter] = useState<string>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tenderToDelete, setTenderToDelete] = useState<Tender | null>(null);
@@ -61,6 +62,7 @@ const TendersList = () => {
         limit: rowsPerPage,
         search: search || undefined,
         status: statusFilter || undefined,
+        category: categoryFilter || undefined,
         published: publishedFilter === 'all' ? undefined : publishedFilter === 'published',
       });
       setTenders(response.data.tenders);
@@ -74,7 +76,7 @@ const TendersList = () => {
 
   useEffect(() => {
     fetchTenders();
-  }, [page, rowsPerPage, search, statusFilter, publishedFilter]);
+  }, [page, rowsPerPage, search, statusFilter, categoryFilter, publishedFilter]);
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -92,6 +94,11 @@ const TendersList = () => {
 
   const handleStatusFilterChange = (event: any) => {
     setStatusFilter(event.target.value);
+    setPage(0);
+  };
+
+  const handleCategoryFilterChange = (event: any) => {
+    setCategoryFilter(event.target.value);
     setPage(0);
   };
 
@@ -206,6 +213,16 @@ const TendersList = () => {
                 <MenuItem value="open">Open</MenuItem>
                 <MenuItem value="closed">Closed</MenuItem>
                 <MenuItem value="upcoming">Upcoming</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Category</InputLabel>
+              <Select value={categoryFilter} onChange={handleCategoryFilterChange} label="Category">
+                <MenuItem value="">All Categories</MenuItem>
+                <MenuItem value="Consultancy">Consultancy</MenuItem>
+                <MenuItem value="Non-Consultancy">Non-Consultancy</MenuItem>
+                <MenuItem value="Goods">Goods</MenuItem>
+                <MenuItem value="Works">Works</MenuItem>
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ minWidth: 150 }}>

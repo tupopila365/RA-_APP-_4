@@ -69,7 +69,7 @@ async function testPDFGenerationOffline() {
   
   // Check mobile app structure
   const appPaths = [
-    'app/screens/PLNApplicationScreen.js',
+    'app/screens/PLNApplicationScreenEnhanced.js',
     'app/services/plnService.js'
   ];
   

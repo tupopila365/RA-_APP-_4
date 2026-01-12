@@ -71,16 +71,21 @@ const startServer = async () => {
           try {
             // Close database connections
             const mongoose = await import('mongoose');
-            if (mongoose.connection.readyState !== 0) {
+            if (mongoose.connection && mongoose.connection.readyState !== 0) {
               await mongoose.connection.close();
               logger.info('MongoDB connection closed');
             }
             
-            const { getRedisClient } = await import('./config/redis');
-            const redisClient = getRedisClient();
-            if (redisClient && redisClient.isOpen) {
-              await redisClient.quit();
-              logger.info('Redis connection closed');
+            // Close Redis connection safely
+            try {
+              const { getRedisClient } = await import('./config/redis');
+              const redisClient = getRedisClient();
+              if (redisClient && redisClient.isOpen) {
+                await redisClient.quit();
+                logger.info('Redis connection closed');
+              }
+            } catch (redisError) {
+              logger.warn('Redis connection already closed or not available');
             }
             
             process.exit(0);
@@ -100,7 +105,7 @@ const startServer = async () => {
         logger.warn('Server not initialized, closing connections directly');
         try {
           const mongoose = await import('mongoose');
-          if (mongoose.connection.readyState !== 0) {
+          if (mongoose.connection && mongoose.connection.readyState !== 0) {
             await mongoose.connection.close();
             logger.info('MongoDB connection closed');
           }

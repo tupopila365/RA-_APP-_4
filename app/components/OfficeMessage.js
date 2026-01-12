@@ -121,7 +121,7 @@ export const OfficeMessage = ({ office, colors }) => {
       
       <View style={styles.actions}>
         <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
+          style={[styles.actionButton, { backgroundColor: colors.primary }]}
           onPress={handleDirections}
           accessibilityLabel="Get directions to this office"
           accessibilityRole="button"
@@ -132,7 +132,7 @@ export const OfficeMessage = ({ office, colors }) => {
         
         {office.contactNumber && (
           <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.success + '20' }]}
+            style={[styles.actionButton, { backgroundColor: colors.success }]}
             onPress={handleCall}
             accessibilityLabel={`Call ${office.contactNumber}`}
             accessibilityRole="button"
@@ -144,7 +144,7 @@ export const OfficeMessage = ({ office, colors }) => {
         
         {office.email && (
           <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
+            style={[styles.actionButton, { backgroundColor: colors.primary }]}
             onPress={handleEmail}
             accessibilityLabel={`Email ${office.email}`}
             accessibilityRole="button"

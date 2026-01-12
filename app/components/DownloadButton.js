@@ -1,7 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, useColorScheme, View, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, useColorScheme, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
+import SkeletonLoader from './SkeletonLoader';
 
 /**
  * DownloadButton Component
@@ -51,7 +52,7 @@ export function DownloadButton({
       >
         {isDownloading ? (
           <>
-            <ActivityIndicator size="small" color="#FFFFFF" testID={`${testID}-activity-indicator`} />
+            <SkeletonLoader type="circle" width={16} height={16} testID={`${testID}-activity-indicator`} />
             <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail">
               Downloading {progress}%
             </Text>

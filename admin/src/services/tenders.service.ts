@@ -57,6 +57,7 @@ export const getTendersList = async (params?: {
   limit?: number;
   search?: string | undefined;
   status?: string | undefined;
+  category?: string | undefined;
   published?: boolean | undefined;
 }): Promise<TenderListResponse> => {
   const response = await apiClient.get<TenderListResponse>('/tenders', { params });

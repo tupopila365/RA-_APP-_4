@@ -3,17 +3,15 @@ import { uploadService } from '../upload/upload.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 import { CreateApplicationDTO, ListApplicationsQuery, ListApplicationsResult } from './pln.dto';
+import { SecureIdGenerator } from '../../utils/secureIdGenerator';
 
 class PLNService {
   /**
-   * Generate unique reference ID
-   * Format: PLN{YYYYMMDD}{6digitRandom}
+   * Generate unique reference ID using secure random generation
+   * Format: PLN-{YYYY}-{SecureRandom12}
    */
   generateReferenceId(): string {
-    const date = new Date();
-    const dateStr = date.toISOString().split('T')[0].replace(/-/g, '');
-    const random = Math.floor(100000 + Math.random() * 900000); // 6-digit random
-    return `PLN${dateStr}${random}`;
+    return SecureIdGenerator.generatePLNReferenceId();
   }
 
   /**

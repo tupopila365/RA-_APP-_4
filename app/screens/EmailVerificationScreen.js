@@ -84,7 +84,7 @@ export default function EmailVerificationScreen({ navigation, route }) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
+        colors={[colors.primary, colors.primary]}
         style={styles.header}
       >
         <SafeAreaView edges={['top']}>
@@ -263,6 +263,8 @@ const getStyles = (colors) => StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+
 
 
 

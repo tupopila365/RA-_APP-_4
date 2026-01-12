@@ -265,7 +265,7 @@ class ChatbotController {
         { question: normalizedQuestion, top_k: 5 },
         {
           responseType: 'stream',
-          timeout: 120000, // 2 minutes
+          timeout: 60000, // 60 seconds
         }
       );
 

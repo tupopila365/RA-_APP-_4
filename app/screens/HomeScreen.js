@@ -9,7 +9,6 @@ import {
   useWindowDimensions,
   Image,
   ImageBackground,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../hooks/useTheme';
 import { SearchInput } from '../components/SearchInput';
+import { SkeletonLoader } from '../components/SkeletonLoader';
 import { Card, Badge } from '../components';
 import { bannersService } from '../services/bannersService';
 import { notificationsService } from '../services/notificationsService';
@@ -410,7 +410,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                 ]}>
                   <Ionicons name={item.icon} size={item.isPrimary ? 40 : 32} color={item.color} />
                 </View>
-                <Text style={item.isPrimary ? styles.menuItemTextPrimary : styles.menuItemText}>
+                <Text style={item.isPrimary ? styles.menuItemTextPrimary : styles.menuItemText} maxFontSizeMultiplier={1.3}>
                   {item.title}
                 </Text>
               </TouchableOpacity>
@@ -425,7 +425,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
+        colors={[colors.primary, colors.primary]}
         style={styles.header}
       >
         <SafeAreaView edges={['top']}>
@@ -433,9 +433,9 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
           <View style={styles.brandContainer}>
             <Image source={RAIcon} style={styles.brandLogo} />
             <View style={styles.brandTextContainer}>
-              <Text style={styles.welcomeText}>Welcome to</Text>
-              <Text style={styles.titleText}>Roads Authority</Text>
-              <Text style={styles.subtitleText}>Namibia</Text>
+              <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome to</Text>
+              <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority</Text>
+              <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Namibia</Text>
             </View>
           </View>
           
@@ -454,7 +454,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
             <Ionicons name="notifications" size={24} color="#FFFFFF" />
             {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
               <View style={styles.alertBadge}>
-                <Text style={styles.alertBadgeText}>
+                <Text style={styles.alertBadgeText} maxFontSizeMultiplier={1.3}>
                   {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 9 
                     ? '9+' 
                     : notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length}
@@ -483,7 +483,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
         <View style={styles.bannerContainer}>
           {loadingBanners ? (
             <View style={styles.bannerLoadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <SkeletonLoader type="card" />
             </View>
           ) : banners.length > 0 ? (
             <>
@@ -515,9 +515,9 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                       imageStyle={styles.bannerImage}
                     >
                       <View style={styles.bannerOverlay}>
-                        <Text style={styles.bannerText}>{banner.title}</Text>
+                        <Text style={styles.bannerText} maxFontSizeMultiplier={1.3}>{banner.title}</Text>
                         {banner.description && (
-                          <Text style={styles.bannerSubtext}>{banner.description}</Text>
+                          <Text style={styles.bannerSubtext} maxFontSizeMultiplier={1.3}>{banner.description}</Text>
                         )}
                       </View>
                     </ImageBackground>
@@ -549,7 +549,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
          notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
           <View style={styles.notificationsSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Alerts</Text>
+              <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Recent Alerts</Text>
               <TouchableOpacity onPress={() => {
                 // Navigate to Notifications tab in MainTabs
                 const tabNavigator = navigation?.getParent('MainTabs');
@@ -559,7 +559,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                   navigation?.navigate('MainTabs', { screen: 'Notifications' });
                 }
               }}>
-                <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
+                <Text style={[styles.viewAllText, { color: colors.primary }]} maxFontSizeMultiplier={1.3}>View All</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.notificationsList}>
@@ -576,7 +576,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                       styles.notificationCard,
                       index < array.length - 1 && { 
                         borderBottomWidth: 1, 
-                        borderBottomColor: colors.border + '30',
+                        borderBottomColor: colors.border,
                         borderRadius: 0 
                       },
                       index === array.length - 1 && { 
@@ -589,7 +589,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                       }
                     ]}>
                       <View style={styles.notificationContent}>
-                        <View style={[styles.notificationIconContainer, { backgroundColor: colors.secondary + '20' }]}>
+                        <View style={[styles.notificationIconContainer, { backgroundColor: colors.secondary }]}>
                           <Ionicons
                             name={getNotificationIcon(notification.type)}
                             size={20}
@@ -598,7 +598,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                         </View>
                         <View style={styles.notificationTextContainer}>
                           <View style={styles.notificationHeaderRow}>
-                            <Text style={styles.notificationTitle} numberOfLines={1}>
+                            <Text style={styles.notificationTitle} numberOfLines={1} maxFontSizeMultiplier={1.3}>
                               {notification.title}
                             </Text>
                             <Badge
@@ -606,10 +606,10 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                               variant={notification.type === 'news' ? 'info' : notification.type === 'vacancy' ? 'success' : 'default'}
                             />
                           </View>
-                          <Text style={styles.notificationBody} numberOfLines={2}>
+                          <Text style={styles.notificationBody} numberOfLines={2} maxFontSizeMultiplier={1.3}>
                             {notification.body}
                           </Text>
-                          <Text style={styles.notificationTime}>
+                          <Text style={styles.notificationTime} maxFontSizeMultiplier={1.3}>
                             {formatTimeAgo(notification.sentAt)}
                           </Text>
                         </View>
@@ -624,7 +624,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
         {/* Primary Actions Section */}
         {!searchQuery.trim() && (
           <View style={styles.menuSection}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Quick Actions</Text>
             <View style={styles.menuGrid}>
               {primaryMenuItems.map((item) => (
                 <TouchableOpacity
@@ -640,7 +640,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                       color={item.color} 
                     />
                   </View>
-                  <Text style={styles.menuItemTextPrimary}>{item.title}</Text>
+                  <Text style={styles.menuItemTextPrimary} maxFontSizeMultiplier={1.3}>{item.title}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -649,7 +649,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
 
         {/* All Services Section */}
         <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle}>{searchQuery.trim() ? 'Search Results' : 'All Services'}</Text>
+          <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>{searchQuery.trim() ? 'Search Results' : 'All Services'}</Text>
           <View style={styles.menuGrid}>
             {(searchQuery.trim() ? menuItems : secondaryMenuItems)
               .filter((item) => {
@@ -670,14 +670,14 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                       color={item.color} 
                     />
                   </View>
-                  <Text style={styles.menuItemText}>{item.title}</Text>
+                  <Text style={styles.menuItemText} maxFontSizeMultiplier={1.3}>{item.title}</Text>
                 </TouchableOpacity>
               ))}
           </View>
           {searchQuery.trim() && menuItems.filter((item) => 
             item.title.toLowerCase().includes(searchQuery.toLowerCase())
           ).length === 0 && (
-            <Text style={styles.noResultsText}>No results found for "{searchQuery}"</Text>
+            <Text style={styles.noResultsText} maxFontSizeMultiplier={1.3}>No results found for "{searchQuery}"</Text>
           )}
         </View>
       </ScrollView>
@@ -919,7 +919,7 @@ function getStyles(colors, config) {
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1.5,
-      borderColor: colors.border + '40',
+      borderColor: colors.border,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
@@ -960,7 +960,7 @@ function getStyles(colors, config) {
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: colors.border + '20',
+      borderColor: colors.border,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,

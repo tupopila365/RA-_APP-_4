@@ -41,6 +41,7 @@ const ProcurementAwardsPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [total, setTotal] = useState(0);
   const [typeTab, setTypeTab] = useState<'opportunities' | 'rfq'>('opportunities');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ProcurementAward | null>(null);
@@ -52,6 +53,7 @@ const ProcurementAwardsPage = () => {
     executiveSummary: { title: '', url: '', fileName: '' },
     successfulBidder: '',
     dateAwarded: '',
+    category: '' as '' | 'Consultancy' | 'Non-Consultancy' | 'Goods' | 'Works',
     published: false,
   });
 
@@ -62,6 +64,7 @@ const ProcurementAwardsPage = () => {
         page: page + 1,
         limit: rowsPerPage,
         type: typeTab,
+        category: categoryFilter !== 'all' ? categoryFilter as any : undefined,
       });
       setItems(response.data.items || []);
       setTotal(response.data.pagination?.total || 0);
@@ -74,7 +77,7 @@ const ProcurementAwardsPage = () => {
 
   useEffect(() => {
     fetchItems();
-  }, [page, rowsPerPage, typeTab]);
+  }, [page, rowsPerPage, typeTab, categoryFilter]);
 
   const handleCreateOrUpdate = async () => {
     try {
@@ -91,6 +94,7 @@ const ProcurementAwardsPage = () => {
         executiveSummary: { title: '', url: '', fileName: '' },
         successfulBidder: '',
         dateAwarded: '',
+        category: '',
         published: false,
       });
       setEditMode(false);
@@ -110,6 +114,7 @@ const ProcurementAwardsPage = () => {
       executiveSummary: item.executiveSummary || { title: '', url: '', fileName: '' },
       successfulBidder: item.successfulBidder,
       dateAwarded: item.dateAwarded ? new Date(item.dateAwarded).toISOString().split('T')[0] : '',
+      category: item.category || '',
       published: item.published,
     });
     setEditMode(true);
@@ -140,11 +145,24 @@ const ProcurementAwardsPage = () => {
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
       <Paper sx={{ mb: 2 }}>
-        <Tabs value={typeTab} onChange={(_, v) => { setTypeTab(v); setPage(0); }}>
+        <Tabs value={typeTab} onChange={(_, v) => { setTypeTab(v); }}>
           <Tab label="Open Procurement Opportunities" value="opportunities" />
           <Tab label="Request for Quotations" value="rfq" />
         </Tabs>
       </Paper>
+
+      <Box sx={{ mb: 2 }}>
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel>Category</InputLabel>
+          <Select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); }}>
+            <MenuItem value="all">All Categories</MenuItem>
+            <MenuItem value="Consultancy">Consultancy</MenuItem>
+            <MenuItem value="Non-Consultancy">Non-Consultancy</MenuItem>
+            <MenuItem value="Goods">Goods</MenuItem>
+            <MenuItem value="Works">Works</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
       <TableContainer component={Paper}>
         <Table>
@@ -152,6 +170,7 @@ const ProcurementAwardsPage = () => {
             <TableRow>
               <TableCell>Reference</TableCell>
               <TableCell>Description</TableCell>
+              <TableCell>Category</TableCell>
               <TableCell>Successful Bidder</TableCell>
               <TableCell>Date Awarded</TableCell>
               <TableCell>Published</TableCell>
@@ -163,6 +182,7 @@ const ProcurementAwardsPage = () => {
               <TableRow key={item.id}>
                 <TableCell>{item.procurementReference}</TableCell>
                 <TableCell>{item.description}</TableCell>
+                <TableCell>{item.category || 'N/A'}</TableCell>
                 <TableCell>{item.successfulBidder}</TableCell>
                 <TableCell>{new Date(item.dateAwarded).toLocaleDateString()}</TableCell>
                 <TableCell><Chip label={item.published ? 'Yes' : 'No'} color={item.published ? 'success' : 'default'} size="small" /></TableCell>
@@ -201,6 +221,16 @@ const ProcurementAwardsPage = () => {
             </FormControl>
             <TextField label="Procurement Reference" value={formData.procurementReference} onChange={(e) => setFormData({ ...formData, procurementReference: e.target.value })} fullWidth />
             <TextField label="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} fullWidth multiline rows={3} />
+            <FormControl fullWidth>
+              <InputLabel>Category</InputLabel>
+              <Select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}>
+                <MenuItem value="">None</MenuItem>
+                <MenuItem value="Consultancy">Consultancy</MenuItem>
+                <MenuItem value="Non-Consultancy">Non-Consultancy</MenuItem>
+                <MenuItem value="Goods">Goods</MenuItem>
+                <MenuItem value="Works">Works</MenuItem>
+              </Select>
+            </FormControl>
             <TextField label="Successful Bidder" value={formData.successfulBidder} onChange={(e) => setFormData({ ...formData, successfulBidder: e.target.value })} fullWidth />
             <TextField label="Date Awarded" type="date" value={formData.dateAwarded} onChange={(e) => setFormData({ ...formData, dateAwarded: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
             <TextField label="Executive Summary Title" value={formData.executiveSummary.title} onChange={(e) => setFormData({ ...formData, executiveSummary: { ...formData.executiveSummary, title: e.target.value } })} fullWidth />
@@ -222,7 +252,7 @@ const ProcurementAwardsPage = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setDialogOpen(false); setEditMode(false); setSelectedItem(null); setFormData({ type: 'opportunities', procurementReference: '', description: '', executiveSummary: { title: '', url: '', fileName: '' }, successfulBidder: '', dateAwarded: '', published: false }); }}>Cancel</Button>
+          <Button onClick={() => { setDialogOpen(false); setEditMode(false); setSelectedItem(null); setFormData({ type: 'opportunities', procurementReference: '', description: '', executiveSummary: { title: '', url: '', fileName: '' }, successfulBidder: '', dateAwarded: '', category: '', published: false }); }}>Cancel</Button>
           <Button onClick={handleCreateOrUpdate} variant="contained">{editMode ? 'Update' : 'Create'}</Button>
         </DialogActions>
       </Dialog>

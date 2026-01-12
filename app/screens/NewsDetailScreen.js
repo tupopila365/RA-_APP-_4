@@ -64,7 +64,7 @@ export default function NewsDetailScreen({ route }) {
 
         <View style={styles.content}>
           <View style={styles.header}>
-            <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '20' }]}>
+            <View style={[styles.categoryBadge, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
               <Text style={[styles.categoryText, { color: colors.primary }]}>
                 {article.category}
               </Text>

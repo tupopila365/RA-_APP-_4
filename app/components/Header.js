@@ -40,7 +40,7 @@ export function Header({
   if (gradient) {
     return (
       <LinearGradient
-        colors={[colors.primary, colors.primary + 'DD']}
+        colors={[colors.primary, colors.primary]}
         style={styles.header}
         testID={testID}
       >

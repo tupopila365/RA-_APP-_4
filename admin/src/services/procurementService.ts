@@ -36,6 +36,7 @@ export interface ProcurementAward {
   };
   successfulBidder: string;
   dateAwarded: string;
+  category?: 'Consultancy' | 'Non-Consultancy' | 'Goods' | 'Works';
   published: boolean;
   publishedAt?: string;
   createdAt: string;
@@ -161,6 +162,7 @@ export const procurementAwardsService = {
     page?: number;
     limit?: number;
     type?: 'opportunities' | 'rfq';
+    category?: 'Consultancy' | 'Non-Consultancy' | 'Goods' | 'Works';
     published?: boolean;
     search?: string;
   }) => {
@@ -184,6 +186,7 @@ export const procurementAwardsService = {
     };
     successfulBidder: string;
     dateAwarded: string;
+    category?: 'Consultancy' | 'Non-Consultancy' | 'Goods' | 'Works';
     published?: boolean;
   }) => {
     const response = await apiClient.post('/procurement-awards', data);
