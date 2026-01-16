@@ -9,12 +9,12 @@ export class NotificationsController {
    * Register push token (public endpoint - no auth required)
    * POST /api/notifications/register
    */
-  async registerToken(req: Request, res: Response, next: NextFunction) {
+  async registerToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { pushToken, platform, deviceInfo } = req.body;
       
       if (!pushToken || !platform) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
@@ -22,6 +22,7 @@ export class NotificationsController {
           },
           timestamp: new Date().toISOString(),
         });
+        return;
       }
 
       const token = await notificationsService.registerPushToken(
@@ -47,12 +48,12 @@ export class NotificationsController {
    * Send manual notification (requires auth)
    * POST /api/notifications/send
    */
-  async sendNotification(req: AuthRequest, res: Response, next: NextFunction) {
+  async sendNotification(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { title, body, data, type, relatedId } = req.body;
       
       if (!title || !body || !type) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
@@ -60,6 +61,7 @@ export class NotificationsController {
           },
           timestamp: new Date().toISOString(),
         });
+        return;
       }
 
       const result = await notificationsService.sendPushNotification({

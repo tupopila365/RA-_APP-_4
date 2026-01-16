@@ -10,9 +10,11 @@ export interface CreateReportDTO {
     latitude: number;
     longitude: number;
   };
-  roadName: string;
-  severity: Severity;
+  roadName?: string;
+  townName?: string;
+  streetName?: string;
   description?: string;
+  // Note: severity is NOT included here - it's admin-only
 }
 
 export interface ListReportsQuery {
@@ -57,11 +59,31 @@ class PotholeReportsService {
       // Upload photo to Cloudinary
       const photoUpload = await uploadService.uploadImage(photoFile);
 
-      // Reverse geocode location to get town and region
-      const geocodeResult = await reverseGeocode(
-        dto.location.latitude,
-        dto.location.longitude
-      );
+      // Use provided town/region or reverse geocode location to get them
+      let town = dto.townName || '';
+      let region = '';
+      
+      if (!town) {
+        // Reverse geocode location to get town and region
+        const geocodeResult = await reverseGeocode(
+          dto.location.latitude,
+          dto.location.longitude
+        );
+        town = geocodeResult.town;
+        region = geocodeResult.region;
+      } else {
+        // If town is provided, try to get region from reverse geocoding
+        try {
+          const geocodeResult = await reverseGeocode(
+            dto.location.latitude,
+            dto.location.longitude
+          );
+          region = geocodeResult.region;
+        } catch (error) {
+          logger.warn('Failed to get region from reverse geocoding:', error);
+          region = 'Unknown';
+        }
+      }
 
       // Generate unique reference code
       let referenceCode = this.generateReferenceCode();
@@ -74,18 +96,21 @@ class PotholeReportsService {
         attempts++;
       }
 
-      // Create report
+      // Determine road name - use streetName if provided, otherwise roadName, otherwise 'Unknown Road'
+      const finalRoadName = dto.streetName || dto.roadName || 'Unknown Road';
+
+      // Create report (severity is NOT set - admin will set it later)
       const report = await PotholeReportModel.create({
         deviceId: dto.deviceId,
         referenceCode,
         location: dto.location,
-        town: geocodeResult.town,
-        region: geocodeResult.region,
-        roadName: dto.roadName,
+        town: town || 'Unknown',
+        region: region || 'Unknown',
+        roadName: finalRoadName,
         photoUrl: photoUpload.url,
-        severity: dto.severity,
         description: dto.description,
         status: 'pending',
+        // severity is intentionally omitted - admin-only field
       });
 
       logger.info(`Pothole report created with ID: ${report._id}, Reference: ${referenceCode}`);
@@ -236,12 +261,12 @@ class PotholeReportsService {
   }
 
   /**
-   * Update report status
+   * Update report status (admin-only)
    */
   async updateReportStatus(
     reportId: string,
     status: ReportStatus,
-    updates?: { assignedTo?: string; adminNotes?: string }
+    updates?: { assignedTo?: string; adminNotes?: string; severity?: Severity }
   ): Promise<IPotholeReport> {
     try {
       logger.info(`Updating report status: ${reportId} to ${status}`);
@@ -254,6 +279,11 @@ class PotholeReportsService {
 
       if (updates?.adminNotes !== undefined) {
         updateData.adminNotes = updates.adminNotes;
+      }
+
+      // Admin can set severity when updating status
+      if (updates?.severity !== undefined) {
+        updateData.severity = updates.severity;
       }
 
       const report = await PotholeReportModel.findByIdAndUpdate(

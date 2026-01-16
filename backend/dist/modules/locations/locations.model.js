@@ -83,6 +83,75 @@ const locationSchema = new mongoose_1.Schema({
             'Please provide a valid email address',
         ],
     },
+    // NATIS-specific fields
+    services: [{
+            type: String,
+            trim: true,
+            maxlength: [100, 'Service name cannot exceed 100 characters'],
+        }],
+    operatingHours: {
+        weekdays: {
+            open: {
+                type: String,
+                match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'],
+            },
+            close: {
+                type: String,
+                match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'],
+            },
+        },
+        weekends: {
+            open: {
+                type: String,
+                match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'],
+            },
+            close: {
+                type: String,
+                match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'],
+            },
+        },
+        publicHolidays: {
+            open: {
+                type: String,
+                match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'],
+            },
+            close: {
+                type: String,
+                match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'],
+            },
+        },
+    },
+    closedDays: [{
+            type: String,
+            enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        }],
+    specialHours: [{
+            date: {
+                type: String,
+                required: true,
+                match: [/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'],
+            },
+            reason: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: [200, 'Reason cannot exceed 200 characters'],
+            },
+            closed: {
+                type: Boolean,
+                required: true,
+            },
+            hours: {
+                open: {
+                    type: String,
+                    match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'],
+                },
+                close: {
+                    type: String,
+                    match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'],
+                },
+            },
+        }],
 }, {
     timestamps: true,
 });

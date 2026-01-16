@@ -29,42 +29,59 @@ export default function PLNTrackingScreen({ navigation }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [referenceId, setReferenceId] = useState('');
-  const [idNumber, setIdNumber] = useState('');
+  const [pin, setPin] = useState('');
   const [application, setApplication] = useState(null);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const styles = getStyles(colors, insets);
 
-  const handleCheckStatus = async () => {
-    if (!referenceId.trim() || !idNumber.trim()) {
+  const handleCheckStatus = async (isRefresh = false) => {
+    if (!referenceId.trim() || !pin.trim()) {
       Alert.alert(
         'Missing Information', 
-        'Please enter both your Reference ID and ID Number to track your application.',
+        'Please enter both your Reference ID and PIN to track your application.',
         [{ text: 'Understood' }]
       );
       return;
     }
 
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
-      const result = await plnService.trackApplication(referenceId.trim(), idNumber.trim());
+      const result = await plnService.trackApplication(referenceId.trim(), pin.trim());
       setApplication(result);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error tracking application:', error);
       setError(error.message || 'Unable to locate your application. Please verify your details and try again.');
-      setApplication(null);
+      if (!isRefresh) {
+        setApplication(null);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    if (application && referenceId && pin) {
+      handleCheckStatus(true);
     }
   };
 
   const handleClearForm = () => {
     setReferenceId('');
-    setIdNumber('');
+    setPin('');
     setApplication(null);
     setError(null);
+    setLastUpdated(null);
   };
 
   const formatDate = (dateString) => {
@@ -78,6 +95,17 @@ export default function PLNTrackingScreen({ navigation }) {
     } catch {
       return dateString;
     }
+  };
+
+  const formatLastUpdated = () => {
+    if (!lastUpdated) return '';
+    const now = new Date();
+    const diff = Math.floor((now - lastUpdated) / 1000); // seconds
+    
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+    return formatDate(lastUpdated);
   };
 
   const getStatusColor = (status) => {
@@ -133,7 +161,7 @@ export default function PLNTrackingScreen({ navigation }) {
               </View>
               <Text style={styles.instructionsTitle}>Track Your Application</Text>
               <Text style={styles.instructionsMessage}>
-                Enter your Reference ID and ID Number to check the current status of your Personalized Number Plate application.
+                Enter your Reference ID and PIN to check the current status of your Personalized Number Plate application.
               </Text>
               <View style={styles.instructionsSteps}>
                 <View style={styles.instructionStep}>
@@ -146,7 +174,7 @@ export default function PLNTrackingScreen({ navigation }) {
                   <View style={styles.stepNumber}>
                     <Text style={styles.stepNumberText}>2</Text>
                   </View>
-                  <Text style={styles.stepText}>Enter your ID Number used during application</Text>
+                  <Text style={styles.stepText}>Enter the tracking PIN: 12345</Text>
                 </View>
                 <View style={styles.instructionStep}>
                   <View style={styles.stepNumber}>
@@ -169,21 +197,25 @@ export default function PLNTrackingScreen({ navigation }) {
           <UnifiedFormInput
             value={referenceId}
             onChangeText={setReferenceId}
-            placeholder="e.g., PLN-2024-001234"
+            placeholder="PLN-2024-ABC123DEF456"
             label="Reference ID"
             leftIcon="bookmark-outline"
-            autoCapitalize="characters"
+            autoCapitalize="none"
             autoCorrect={false}
+            maxLength={25}
           />
           
           <UnifiedFormInput
-            value={idNumber}
-            onChangeText={setIdNumber}
-            placeholder="Enter your ID number"
-            label="ID Number"
-            leftIcon="card-outline"
+            value={pin}
+            onChangeText={setPin}
+            placeholder="Enter PIN: 12345"
+            label="Tracking PIN"
+            leftIcon="lock-closed-outline"
+            keyboardType="numeric"
             autoCapitalize="none"
             autoCorrect={false}
+            maxLength={5}
+            secureTextEntry={true}
           />
 
           <View style={styles.searchButtons}>
@@ -193,7 +225,7 @@ export default function PLNTrackingScreen({ navigation }) {
               variant="primary"
               size="large"
               loading={loading}
-              disabled={loading || !referenceId.trim() || !idNumber.trim()}
+              disabled={loading || !referenceId.trim() || !pin.trim()}
               iconName="search"
               fullWidth
             />
@@ -236,7 +268,7 @@ export default function PLNTrackingScreen({ navigation }) {
                 <View style={styles.errorHints}>
                   <Text style={styles.errorHintTitle}>Please verify:</Text>
                   <Text style={styles.errorHint}>• Reference ID is entered correctly</Text>
-                  <Text style={styles.errorHint}>• ID Number matches your application</Text>
+                  <Text style={styles.errorHint}>• PIN is correct (12345)</Text>
                   <Text style={styles.errorHint}>• Application was submitted successfully</Text>
                 </View>
               </View>
@@ -249,7 +281,23 @@ export default function PLNTrackingScreen({ navigation }) {
           <UnifiedCard variant="outlined" padding="medium" style={styles.successCard}>
             <View style={styles.successContainer}>
               <Ionicons name="checkmark-circle" size={24} color={colors.success} />
-              <Text style={styles.successText}>Application Found Successfully</Text>
+              <View style={styles.successTextContainer}>
+                <Text style={styles.successText}>Application Found Successfully</Text>
+                {lastUpdated && (
+                  <Text style={styles.lastUpdatedText}>
+                    Last updated: {formatLastUpdated()}
+                  </Text>
+                )}
+              </View>
+              <UnifiedButton
+                label="Refresh"
+                onPress={handleRefresh}
+                variant="ghost"
+                size="small"
+                iconName="refresh"
+                loading={refreshing}
+                disabled={refreshing}
+              />
             </View>
           </UnifiedCard>
         )}
@@ -296,6 +344,7 @@ export default function PLNTrackingScreen({ navigation }) {
                 <StatusStepper
                   currentStatus={application.status}
                   statusHistory={application.statusHistory || []}
+                  paymentDeadline={application.paymentDeadline}
                 />
               </View>
             </UnifiedCard>
@@ -541,10 +590,18 @@ function getStyles(colors, insets) {
       alignItems: 'center',
       gap: spacing.sm,
     },
+    successTextContainer: {
+      flex: 1,
+    },
     successText: {
       ...typography.body,
       fontWeight: '600',
       color: colors.success,
+    },
+    lastUpdatedText: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
     },
 
     // Status Card

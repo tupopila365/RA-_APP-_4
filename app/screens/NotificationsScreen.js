@@ -17,7 +17,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useColorScheme } from 'react-native';
 import { notificationsService } from '../services/notificationsService';
-import { SkeletonLoader, ListScreenSkeleton, ErrorState, EmptyState } from '../components';
+
+// Import Unified Design System Components
+import {
+  UnifiedFormInput,
+  UnifiedCard,
+  UnifiedButton,
+  UnifiedSkeletonLoader,
+  RATheme,
+  typography,
+  spacing,
+} from '../components/UnifiedDesignSystem';
 
 /**
  * Format timestamp to relative time (e.g., "2 hours ago", "Yesterday", "Dec 15, 2024")
@@ -229,39 +239,53 @@ export default function NotificationsScreen({ navigation }) {
   // Show loading state on initial load
   if (loading && notifications.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <ListScreenSkeleton count={5} />
-      </SafeAreaView>
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <UnifiedSkeletonLoader type="list" count={5} />
+        </View>
+      </View>
     );
   }
 
   // Show error state if initial load fails
   if (error && notifications.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <ErrorState
-          message={error}
-          onRetry={() => loadNotifications(1, true)}
-          fullScreen
-        />
-      </SafeAreaView>
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <View style={styles.errorIconContainer}>
+            <Ionicons name="alert-circle-outline" size={64} color={colors.textSecondary} />
+          </View>
+          <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
+            Something went wrong
+          </Text>
+          <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl }]}>
+            {error}
+          </Text>
+          <UnifiedButton
+            label="Try Again"
+            onPress={() => loadNotifications(1, true)}
+            variant="primary"
+            size="medium"
+            iconName="refresh-outline"
+            iconPosition="left"
+          />
+        </View>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    <View style={styles.container}>
 
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#00B4E6']}
-            tintColor="#00B4E6"
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
         onScroll={({ nativeEvent }) => {
@@ -275,70 +299,77 @@ export default function NotificationsScreen({ navigation }) {
           }
         }}
         scrollEventThrottle={400}
+        showsVerticalScrollIndicator={false}
       >
         {notifications.length > 0 ? (
           <>
             <View style={styles.notificationsContainer}>
               {notifications.map((notification, index) => (
-                <TouchableOpacity
+                <UnifiedCard
                   key={notification.id}
+                  variant="default"
+                  padding="medium"
                   onPress={() => handleNotificationPress(notification)}
-                  activeOpacity={0.7}
-                  style={[
-                    styles.notificationCard,
-                    { backgroundColor: colors.card },
-                  ]}
+                  style={styles.notificationCard}
                 >
-                  <View
-                    style={[
-                      styles.notificationIconContainer,
-                      { backgroundColor: getNotificationColor(notification.type) + '15' },
-                    ]}
-                  >
-                    <Ionicons
-                      name={getNotificationIcon(notification.type)}
-                      size={22}
-                      color={getNotificationColor(notification.type)}
-                    />
-                  </View>
-                  <View style={styles.notificationContent}>
-                    <View style={styles.notificationHeader}>
-                      <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={2}>
-                        {notification.title}
-                      </Text>
-                      <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
-                        {formatTimeAgo(notification.sentAt)}
+                  <View style={styles.notificationRow}>
+                    <View
+                      style={[
+                        styles.notificationIconContainer,
+                        { backgroundColor: getNotificationColor(notification.type) + '15' },
+                      ]}
+                    >
+                      <Ionicons
+                        name={getNotificationIcon(notification.type)}
+                        size={22}
+                        color={getNotificationColor(notification.type)}
+                      />
+                    </View>
+                    <View style={styles.notificationContent}>
+                      <View style={styles.notificationHeader}>
+                        <Text style={[typography.bodyLarge, { color: colors.text, flex: 1, marginRight: spacing.sm }]} numberOfLines={2}>
+                          {notification.title}
+                        </Text>
+                        <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                          {formatTimeAgo(notification.sentAt)}
+                        </Text>
+                      </View>
+                      <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.xs }]} numberOfLines={2}>
+                        {notification.body}
                       </Text>
                     </View>
-                    <Text style={[styles.notificationBody, { color: colors.textSecondary }]} numberOfLines={2}>
-                      {notification.body}
-                    </Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </UnifiedCard>
               ))}
             </View>
 
             {loadingMore && (
               <View style={styles.loadingMore}>
-                <SkeletonLoader type="circle" width={20} height={20} />
+                <UnifiedSkeletonLoader type="circle" width={20} height={20} />
               </View>
             )}
 
             {!hasMore && notifications.length > 0 && (
               <View style={styles.endMessage}>
-                <Text style={[styles.endMessageText, { color: colors.textSecondary }]}>
+                <Text style={[typography.body, { color: colors.textSecondary }]}>
                   You're all caught up
                 </Text>
               </View>
             )}
           </>
         ) : (
-          <EmptyState
-            message="No alerts yet"
-            icon="notifications-outline"
-            accessibilityLabel="No alerts available"
-          />
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="notifications-outline" size={64} color={colors.textSecondary} />
+            </View>
+            <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
+              No alerts yet
+            </Text>
+            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+              You'll see notifications and alerts here when they arrive
+            </Text>
+          </View>
         )}
       </ScrollView>
 
@@ -351,7 +382,7 @@ export default function NotificationsScreen({ navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <UnifiedCard variant="elevated" padding="large" style={styles.modalContent}>
               {selectedNotification && (
                 <>
                   <View style={styles.modalHeader}>
@@ -380,45 +411,47 @@ export default function NotificationsScreen({ navigation }) {
                     contentContainerStyle={styles.modalScrollContent}
                     showsVerticalScrollIndicator={false}
                   >
-                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                    <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.sm }]}>
                       {selectedNotification.title}
                     </Text>
 
-                    <Text style={[styles.modalTime, { color: colors.textSecondary }]}>
+                    <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
                       {formatTimeAgo(selectedNotification.sentAt)}
                     </Text>
 
                     <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-                    <Text style={[styles.modalBodyText, { color: colors.text }]}>
+                    <Text style={[typography.body, { color: colors.text, lineHeight: 24, marginBottom: spacing.xl }]}>
                       {selectedNotification.body}
                     </Text>
 
                     {hasRelatedContent(selectedNotification) && (
-                      <TouchableOpacity
-                        style={styles.viewButton}
-                        onPress={handleViewRelatedContent}
-                      >
-                        <Text style={styles.viewButtonText}>
-                          {selectedNotification.type === 'news'
+                      <UnifiedButton
+                        label={
+                          selectedNotification.type === 'news'
                             ? 'View Article'
                             : selectedNotification.type === 'tender'
                             ? 'View Tender'
                             : selectedNotification.type === 'vacancy'
                             ? 'View Vacancy'
-                            : 'View Details'}
-                        </Text>
-                        <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                      </TouchableOpacity>
+                            : 'View Details'
+                        }
+                        onPress={handleViewRelatedContent}
+                        variant="primary"
+                        size="large"
+                        iconName="arrow-forward"
+                        iconPosition="right"
+                        fullWidth
+                      />
                     )}
                   </ScrollView>
                 </>
               )}
-            </View>
+            </UnifiedCard>
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -428,25 +461,35 @@ function getStyles(colors) {
       flex: 1,
       backgroundColor: colors.background,
     },
+    scrollView: {
+      flex: 1,
+    },
     scrollContent: {
-      paddingTop: 16,
-      paddingBottom: 32,
+      padding: spacing.xl,
+      paddingBottom: spacing.xxxl,
+    },
+    loadingContainer: {
+      flex: 1,
+      padding: spacing.xl,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing.xl,
+    },
+    errorIconContainer: {
+      marginBottom: spacing.lg,
     },
     notificationsContainer: {
-      paddingHorizontal: 16,
+      gap: spacing.md,
     },
     notificationCard: {
+      marginBottom: spacing.sm,
+    },
+    notificationRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 20,
-      borderRadius: 12,
-      marginBottom: 10,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
     },
     notificationIconContainer: {
       width: 44,
@@ -454,44 +497,33 @@ function getStyles(colors) {
       borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 14,
+      marginRight: spacing.md,
     },
     notificationContent: {
       flex: 1,
-      marginRight: 12,
+      marginRight: spacing.sm,
     },
     notificationHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 4,
-    },
-    notificationTitle: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: '600',
-      lineHeight: 20,
-      marginRight: 8,
-    },
-    notificationTime: {
-      fontSize: 12,
-      fontWeight: '500',
-    },
-    notificationBody: {
-      fontSize: 14,
-      lineHeight: 19,
     },
     loadingMore: {
-      paddingVertical: 20,
+      paddingVertical: spacing.xl,
       alignItems: 'center',
     },
     endMessage: {
       alignItems: 'center',
-      paddingVertical: 24,
+      paddingVertical: spacing.xl,
     },
-    endMessageText: {
-      fontSize: 14,
-      fontWeight: '500',
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: spacing.xxxl,
+    },
+    emptyIconContainer: {
+      marginBottom: spacing.lg,
     },
     modalOverlay: {
       flex: 1,
@@ -505,22 +537,19 @@ function getStyles(colors) {
     modalContent: {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      paddingHorizontal: 24,
-      paddingTop: 20,
-      paddingBottom: 20,
       minHeight: 400,
     },
     modalScrollView: {
       flexGrow: 0,
     },
     modalScrollContent: {
-      paddingBottom: 30,
+      paddingBottom: spacing.xl,
     },
     modalHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 20,
+      marginBottom: spacing.lg,
     },
     modalIconContainer: {
       width: 56,
@@ -530,49 +559,11 @@ function getStyles(colors) {
       alignItems: 'center',
     },
     modalCloseButton: {
-      padding: 4,
-    },
-    modalTitle: {
-      fontSize: 22,
-      fontWeight: '700',
-      lineHeight: 28,
-      marginBottom: 8,
-    },
-    modalTime: {
-      fontSize: 14,
-      fontWeight: '500',
-      marginBottom: 16,
+      padding: spacing.xs,
     },
     divider: {
       height: 1,
-      marginBottom: 20,
-    },
-    modalBodyText: {
-      fontSize: 16,
-      lineHeight: 24,
-      marginBottom: 24,
-    },
-    viewButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#00B4E6',
-      paddingVertical: 16,
-      paddingHorizontal: 24,
-      borderRadius: 14,
-      gap: 8,
-      marginTop: 8,
-      marginBottom: 10,
-      shadowColor: '#00B4E6',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    viewButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
+      marginBottom: spacing.lg,
     },
   });
 }

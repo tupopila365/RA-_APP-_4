@@ -375,18 +375,25 @@ function getStyles(colors, screenWidth) {
       marginTop: 20, // Normal top margin instead of overlap
     },
     profileCard: {
-      backgroundColor: colors.card,
-      borderRadius: 20,
+      backgroundColor: '#FFFFFF', // Solid white background
+      borderRadius: 16, // Professional radius
       padding: 20,
       flexDirection: 'row',
       alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
-      elevation: 8,
       borderWidth: 1,
       borderColor: colors.border,
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 1, // Reduced from 8 to 1 for Android safety
+        },
+      }),
     },
     profileIconContainer: {
       width: 60,
@@ -458,16 +465,23 @@ function getStyles(colors, screenWidth) {
       letterSpacing: -0.3,
     },
     settingsCard: {
-      backgroundColor: colors.card,
+      backgroundColor: '#FFFFFF', // Solid white background
       borderRadius: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      elevation: 4,
       borderWidth: 1,
       borderColor: colors.border,
-      overflow: 'hidden',
+      // Remove overflow: 'hidden' to prevent Android clipping
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 1, // Reduced from 4 to 1 for Android safety
+        },
+      }),
     },
     
     // Settings Items
@@ -520,11 +534,18 @@ function getStyles(colors, screenWidth) {
       height: 20,
       borderRadius: 10,
       position: 'absolute',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 3,
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2, // Reduced from 3 to 2
+        },
+      }),
     },
     
     // Divider

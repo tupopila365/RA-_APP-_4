@@ -44,44 +44,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
    */
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
-
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:45',message:'Login form submitted',data:{email:email.trim(),hasPassword:!!password},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
-    // Validate inputs
-    if (!validateForm()) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:52',message:'Form validation failed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      return;
+    setError('');// Validate inputs
+    if (!validateForm()) {return;
     }
 
     setIsSubmitting(true);
 
-    try {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:57',message:'Calling login service',data:{email:email.trim()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      await login(email.trim(), password);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:59',message:'Login successful, navigating',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
-      // Call success callback if provided
+    try {await login(email.trim(), password);// Call success callback if provided
       if (onSuccess) {
         onSuccess();
       } else {
         // Default: navigate to dashboard
         navigate('/dashboard');
       }
-    } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:66',message:'Login error caught',data:{errorMessage:err?.message,errorType:err?.constructor?.name,hasResponse:!!err?.response,responseStatus:err?.response?.status,responseData:err?.response?.data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      setError(err.message || 'Login failed. Please check your credentials and try again.');
+    } catch (err: any) {setError(err.message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setIsSubmitting(false);
     }

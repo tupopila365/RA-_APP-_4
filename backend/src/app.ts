@@ -20,6 +20,7 @@ import appUsersRoutes from './modules/app-users/app-users.routes';
 import trafficRoutes from './modules/traffic/traffic.routes';
 import incidentsRoutes from './modules/incidents/incidents.routes';
 import roadworksRoutes from './modules/roadworks/roadworks.routes';
+import roadStatusRoutes from './modules/roadworks/road-status.routes';
 import procurementLegislationRoutes from './modules/procurement-legislation/procurement-legislation.routes';
 import procurementPlanRoutes from './modules/procurement-plan/procurement-plan.routes';
 import procurementAwardsRoutes from './modules/procurement-awards/procurement-awards.routes';
@@ -65,6 +66,7 @@ export const createApp = (): Application => {
   app.use('/api/traffic', trafficRoutes);
   app.use('/api/incidents', incidentsRoutes);
   app.use('/api/roadworks', roadworksRoutes);
+  app.use('/api/road-status', roadStatusRoutes); // Alias for roadworks (admin panel compatibility)
   app.use('/api/procurement-legislation', procurementLegislationRoutes);
   app.use('/api/procurement-plan', procurementPlanRoutes);
   app.use('/api/procurement-awards', procurementAwardsRoutes);

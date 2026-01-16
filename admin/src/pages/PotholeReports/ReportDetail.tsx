@@ -44,9 +44,9 @@ const STATUS_OPTIONS = [
 ];
 
 const SEVERITY_COLORS = {
-  small: '#4ECDC4',
+  low: '#4ECDC4',
   medium: '#FFA500',
-  dangerous: '#FF6B6B',
+  high: '#FF6B6B',
 };
 
 const STATUS_COLORS = {
@@ -69,6 +69,7 @@ const ReportDetail = () => {
 
   // Form state
   const [status, setStatus] = useState<PotholeReport['status']>('pending');
+  const [severity, setSeverity] = useState<PotholeReport['severity']>('medium');
   const [assignedTo, setAssignedTo] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [repairPhoto, setRepairPhoto] = useState<File | null>(null);
@@ -87,6 +88,7 @@ const ReportDetail = () => {
       const reportData = response.data.report;
       setReport(reportData);
       setStatus(reportData.status);
+      setSeverity(reportData.severity);
       setAssignedTo(reportData.assignedTo || '');
       setAdminNotes(reportData.adminNotes || '');
     } catch (err: any) {
@@ -104,10 +106,11 @@ const ReportDetail = () => {
       setError(null);
       setSuccess(null);
 
-      // Update status
+      // Update status and severity
       await updateReportStatus(id, status, {
         assignedTo: assignedTo || undefined,
         adminNotes: adminNotes || undefined,
+        severity: severity, // Include severity in the update
       });
 
       // If status is being changed to fixed, mark as fixed (with optional repair photo)
@@ -231,17 +234,28 @@ const ReportDetail = () => {
 
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Severity
+                    Risk Level
                   </Typography>
-                  <Chip
-                    label={report.severity}
-                    size="small"
-                    sx={{
-                      backgroundColor: SEVERITY_COLORS[report.severity] + '20',
-                      color: SEVERITY_COLORS[report.severity],
-                      fontWeight: 'bold',
-                    }}
-                  />
+                  {report.severity ? (
+                    <Chip
+                      label={report.severity}
+                      size="small"
+                      sx={{
+                        backgroundColor: SEVERITY_COLORS[report.severity] + '20',
+                        color: SEVERITY_COLORS[report.severity],
+                        fontWeight: 'bold',
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      label="Not Set"
+                      size="small"
+                      sx={{
+                        backgroundColor: '#95A5A620',
+                        color: '#95A5A6',
+                      }}
+                    />
+                  )}
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
@@ -361,6 +375,19 @@ const ReportDetail = () => {
                   onChange={(e) => setAssignedTo(e.target.value)}
                   placeholder="Maintenance team or person"
                 />
+
+                <FormControl fullWidth>
+                  <InputLabel>Risk Level</InputLabel>
+                  <Select 
+                    value={severity || ''} 
+                    label="Risk Level" 
+                    onChange={(e) => setSeverity(e.target.value as PotholeReport['severity'])}
+                  >
+                    <MenuItem value="low">Low Risk</MenuItem>
+                    <MenuItem value="medium">Medium Risk</MenuItem>
+                    <MenuItem value="high">High Risk</MenuItem>
+                  </Select>
+                </FormControl>
 
                 <TextField
                   fullWidth

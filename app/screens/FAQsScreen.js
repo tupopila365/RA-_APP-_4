@@ -207,7 +207,7 @@ function getStyles(colors) {
       borderRadius: 8,
       padding: 20,
       marginBottom: 15,
-      shadowColor: '#000',
+      shadowColor: '#fff',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
       shadowRadius: 2,

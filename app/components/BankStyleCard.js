@@ -5,7 +5,7 @@ import { useTheme } from '../hooks/useTheme';
 export const BankStyleCard = ({ 
   children, 
   style, 
-  elevation = 3,
+  elevation = 1, // Reduced default elevation for Android safety
   borderRadius = 12,
   padding = 16,
   margin = 0,
@@ -14,23 +14,33 @@ export const BankStyleCard = ({
 }) => {
   const { colors, isDark } = useTheme();
   
-  const cardBackgroundColor = backgroundColor || colors.card;
+  // Always use solid white for bank-grade consistency
+  const cardBackgroundColor = backgroundColor || '#FFFFFF';
   
   return (
     <View
       style={[
         styles.card,
         {
-          elevation: Platform.OS === 'android' ? (isDark ? 0 : elevation) : 0,
           borderRadius,
           padding,
           margin,
           backgroundColor: cardBackgroundColor,
-          shadowOpacity: Platform.OS === 'ios' ? (isDark ? 0 : 0.25) : 0,
-          shadowRadius: Platform.OS === 'ios' ? elevation : 0,
-          shadowOffset: Platform.OS === 'ios' ? { width: 0, height: elevation } : { width: 0, height: 0 },
-          borderWidth: isDark ? 1 : 0,
-          borderColor: colors.border,
+          // Android-safe elevation (max 2)
+          ...Platform.select({
+            ios: {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: Math.min(elevation, 2) },
+              shadowOpacity: isDark ? 0 : 0.1,
+              shadowRadius: Math.min(elevation * 2, 4),
+            },
+            android: {
+              elevation: isDark ? 0 : Math.min(elevation, 2),
+            },
+          }),
+          // Always include border for consistency
+          borderWidth: 1,
+          borderColor: isDark ? colors.border : '#E6EAF0',
         },
         style,
       ]}
@@ -43,12 +53,6 @@ export const BankStyleCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    // Remove default shadow properties to avoid conflicts
   },
 });

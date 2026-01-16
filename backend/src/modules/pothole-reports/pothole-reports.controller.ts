@@ -38,7 +38,7 @@ export class PotholeReportsController {
       // Validate required fields
       // Note: FormData sends JSON strings, so we need to parse them
       let location = req.body.location;
-      const { roadName, severity, description } = req.body;
+      const { roadName, townName, streetName, description } = req.body;
 
       // Parse location if it's a string (from FormData)
       if (typeof location === 'string') {
@@ -69,24 +69,12 @@ export class PotholeReportsController {
         return;
       }
 
-      if (!roadName || !roadName.trim()) {
+      if (!roadName?.trim() && !streetName?.trim()) {
         res.status(400).json({
           success: false,
           error: {
             code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Road name is required',
-          },
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
-
-      if (!severity || !['small', 'medium', 'dangerous'].includes(severity)) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Severity must be one of: small, medium, dangerous',
+            message: 'Either road name or street name is required',
           },
           timestamp: new Date().toISOString(),
         });
@@ -107,15 +95,16 @@ export class PotholeReportsController {
         return;
       }
 
-      logger.info('All validations passed, creating report...', { deviceId, roadName, severity });
+      logger.info('All validations passed, creating report...', { deviceId, roadName });
 
       // Create report
       const report = await potholeReportsService.createReport(
         {
           deviceId,
           location,
-          roadName: roadName.trim(),
-          severity: severity as Severity,
+          roadName: roadName?.trim(),
+          townName: townName?.trim(),
+          streetName: streetName?.trim(),
           description: description?.trim(),
         },
         req.file
@@ -134,7 +123,7 @@ export class PotholeReportsController {
             region: report.region,
             roadName: report.roadName,
             photoUrl: report.photoUrl,
-            severity: report.severity,
+            severity: report.severity, // Will be null/undefined until admin sets it
             description: report.description,
             status: report.status,
             createdAt: report.createdAt,
@@ -187,7 +176,7 @@ export class PotholeReportsController {
             region: report.region,
             roadName: report.roadName,
             photoUrl: report.photoUrl,
-            severity: report.severity,
+            severity: report.severity, // Admin-set field
             description: report.description,
             status: report.status,
             assignedTo: report.assignedTo,
@@ -227,7 +216,7 @@ export class PotholeReportsController {
             region: report.region,
             roadName: report.roadName,
             photoUrl: report.photoUrl,
-            severity: report.severity,
+            severity: report.severity, // Admin-set field
             description: report.description,
             status: report.status,
             assignedTo: report.assignedTo,
@@ -255,7 +244,7 @@ export class PotholeReportsController {
       logger.info('List reports request received:', {
         query: req.query,
         user: req.user?.email,
-        userId: req.user?.id,
+        userId: req.user?.userId,
       });
 
       const page = parseInt(req.query.page as string) || 1;
@@ -314,7 +303,7 @@ export class PotholeReportsController {
             region: report.region,
             roadName: report.roadName,
             photoUrl: report.photoUrl,
-            severity: report.severity,
+            severity: report.severity, // Admin-set field
             description: report.description,
             status: report.status,
             assignedTo: report.assignedTo,
@@ -346,7 +335,7 @@ export class PotholeReportsController {
   async updateReportStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const { status, assignedTo, adminNotes } = req.body;
+      const { status, assignedTo, adminNotes, severity } = req.body;
 
       if (!status || !['pending', 'assigned', 'in-progress', 'fixed', 'duplicate', 'invalid'].includes(status)) {
         res.status(400).json({
@@ -360,9 +349,23 @@ export class PotholeReportsController {
         return;
       }
 
+      // Validate severity if provided (admin can set risk level)
+      if (severity && !['low', 'medium', 'high'].includes(severity)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Severity must be one of: low, medium, high',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
       const report = await potholeReportsService.updateReportStatus(id, status as ReportStatus, {
         assignedTo,
         adminNotes,
+        severity: severity as Severity | undefined,
       });
 
       logger.info(`Report ${id} status updated to ${status}`);
@@ -373,6 +376,7 @@ export class PotholeReportsController {
           report: {
             id: report._id,
             status: report.status,
+            severity: report.severity, // Admin-set risk level
             assignedTo: report.assignedTo,
             adminNotes: report.adminNotes,
             updatedAt: report.updatedAt,

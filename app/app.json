@@ -41,7 +41,8 @@
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO"
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.MANAGE_DOCUMENTS"
       ],
       "config": {
         "googleMaps": {
@@ -57,6 +58,7 @@
       "expo-font",
       "expo-secure-store",
       "expo-notifications",
+      "expo-document-picker",
       [
         "expo-location",
         {

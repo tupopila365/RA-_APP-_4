@@ -60,12 +60,6 @@ import { potholeReportsService } from '../services/potholeReportsService';
 import { roadStatusService } from '../services/roadStatusService';
 import RoadworkMap from '../components/RoadworkMap';
 
-const SEVERITY_OPTIONS = [
-  { value: 'small', label: 'Minor Damage', color: '#6B7280', icon: 'ellipse' },
-  { value: 'medium', label: 'Moderate Damage', color: '#D97706', icon: 'warning' },
-  { value: 'dangerous', label: 'Severe Damage', color: '#DC2626', icon: 'alert-circle' },
-];
-
 // Configuration
 const CONFIG = {
   MAX_DISTANCE_KM: 100,
@@ -135,7 +129,7 @@ const extractPhotoLocation = async (photoUri) => {
 };
 
 /**
- * Reverse geocode coordinates to get address
+ * Reverse geocode coordinates to get detailed address information
  */
 const getAddressFromCoordinates = async (latitude, longitude) => {
   if (!Location) return null;
@@ -144,7 +138,22 @@ const getAddressFromCoordinates = async (latitude, longitude) => {
     const results = await Location.reverseGeocodeAsync({ latitude, longitude });
     if (results && results.length > 0) {
       const address = results[0];
-      return `${address.street || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
+      
+      // Extract detailed address components
+      const street = address.street || address.name || '';
+      const city = address.city || address.district || address.subregion || '';
+      const region = address.region || address.country || '';
+      
+      // Format full address
+      const fullAddress = `${street}, ${city}, ${region}`.replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ',');
+      
+      return {
+        fullAddress: fullAddress || 'Address not found',
+        street: street || 'Unknown Street',
+        city: city || 'Unknown City',
+        region: region || 'Unknown Region',
+        components: address // Keep original for debugging
+      };
     }
     return null;
   } catch (error) {
@@ -195,7 +204,8 @@ export default function ReportPotholeScreen({ navigation }) {
   // Form states
   const [photo, setPhoto] = useState(null);
   const [roadName, setRoadName] = useState('');
-  const [severity, setSeverity] = useState('medium');
+  const [townName, setTownName] = useState('');
+  const [streetName, setStreetName] = useState('');
   const [description, setDescription] = useState('');
 
   // UI states
@@ -204,7 +214,6 @@ export default function ReportPotholeScreen({ navigation }) {
   const [locationSource, setLocationSource] = useState(null); // Track how location was determined
   const [roadworks, setRoadworks] = useState([]); // Roadwork data for map overlay
   const googlePlacesRef = useRef(null);
-  const [showMoreDetails, setShowMoreDetails] = useState(false); // For expandable section
 
   // ========== LIFECYCLE ==========
 
@@ -268,6 +277,22 @@ export default function ReportPotholeScreen({ navigation }) {
       if (!selectedLocation) {
         setSelectedLocation(userLocation);
         setLocationSource('current_gps');
+        
+        // Auto-populate address details for current location
+        const addressInfo = await getAddressFromCoordinates(userLocation.latitude, userLocation.longitude);
+        if (addressInfo) {
+          setLocationAddress(addressInfo.fullAddress);
+          // Auto-populate form fields if they're empty
+          if (!townName && addressInfo.city !== 'Unknown City') {
+            setTownName(addressInfo.city);
+          }
+          if (!streetName && addressInfo.street !== 'Unknown Street') {
+            setStreetName(addressInfo.street);
+          }
+          if (!roadName && addressInfo.street !== 'Unknown Street') {
+            setRoadName(addressInfo.street);
+          }
+        }
       }
     } catch (error) {
       console.error('Error getting location:', error);
@@ -420,9 +445,26 @@ export default function ReportPotholeScreen({ navigation }) {
             [
               {
                 text: 'Photo Location',
-                onPress: () => {
+                onPress: async () => {
                   setSelectedLocation(exifLocation);
                   setLocationSource('photo_exif');
+                  
+                  // Auto-populate address details for photo location
+                  const addressInfo = await getAddressFromCoordinates(exifLocation.latitude, exifLocation.longitude);
+                  if (addressInfo) {
+                    setLocationAddress(addressInfo.fullAddress);
+                    // Auto-populate form fields if they're empty
+                    if (!townName && addressInfo.city !== 'Unknown City') {
+                      setTownName(addressInfo.city);
+                    }
+                    if (!streetName && addressInfo.street !== 'Unknown Street') {
+                      setStreetName(addressInfo.street);
+                    }
+                    if (!roadName && addressInfo.street !== 'Unknown Street') {
+                      setRoadName(addressInfo.street);
+                    }
+                  }
+                  
                   setShowMapPicker(true); // Still show map for fine-tuning
                 },
               },
@@ -446,6 +488,23 @@ export default function ReportPotholeScreen({ navigation }) {
           // Photo taken nearby - suggest photo location
           setSelectedLocation(exifLocation);
           setLocationSource('photo_exif');
+          
+          // Auto-populate address details for photo location
+          const addressInfo = await getAddressFromCoordinates(exifLocation.latitude, exifLocation.longitude);
+          if (addressInfo) {
+            setLocationAddress(addressInfo.fullAddress);
+            // Auto-populate form fields if they're empty
+            if (!townName && addressInfo.city !== 'Unknown City') {
+              setTownName(addressInfo.city);
+            }
+            if (!streetName && addressInfo.street !== 'Unknown Street') {
+              setStreetName(addressInfo.street);
+            }
+            if (!roadName && addressInfo.street !== 'Unknown Street') {
+              setRoadName(addressInfo.street);
+            }
+          }
+          
           Alert.alert(
             'Location Detected',
             `Using location from photo (${distance.toFixed(1)} km away). You can adjust the exact location on the map.`,
@@ -459,6 +518,22 @@ export default function ReportPotholeScreen({ navigation }) {
         // No current location available, use photo location
         setSelectedLocation(exifLocation);
         setLocationSource('photo_exif');
+        
+        // Auto-populate address details for photo location
+        const addressInfo = await getAddressFromCoordinates(exifLocation.latitude, exifLocation.longitude);
+        if (addressInfo) {
+          setLocationAddress(addressInfo.fullAddress);
+          // Auto-populate form fields if they're empty
+          if (!townName && addressInfo.city !== 'Unknown City') {
+            setTownName(addressInfo.city);
+          }
+          if (!streetName && addressInfo.street !== 'Unknown Street') {
+            setStreetName(addressInfo.street);
+          }
+          if (!roadName && addressInfo.street !== 'Unknown Street') {
+            setRoadName(addressInfo.street);
+          }
+        }
       }
     } else {
       // No GPS in photo - require manual selection
@@ -513,10 +588,20 @@ export default function ReportPotholeScreen({ navigation }) {
     setSelectedLocation({ latitude, longitude });
     setLocationSource('map_selected');
 
-    // Get address for display
-    const address = await getAddressFromCoordinates(latitude, longitude);
-    if (address) {
-      setLocationAddress(address);
+    // Get detailed address for display and form fields
+    const addressInfo = await getAddressFromCoordinates(latitude, longitude);
+    if (addressInfo) {
+      setLocationAddress(addressInfo.fullAddress);
+      // Auto-populate form fields if they're empty
+      if (!townName && addressInfo.city !== 'Unknown City') {
+        setTownName(addressInfo.city);
+      }
+      if (!streetName && addressInfo.street !== 'Unknown Street') {
+        setStreetName(addressInfo.street);
+      }
+      if (!roadName && addressInfo.street !== 'Unknown Street') {
+        setRoadName(addressInfo.street);
+      }
     }
   };
 
@@ -527,10 +612,20 @@ export default function ReportPotholeScreen({ navigation }) {
     setSelectedLocation({ latitude, longitude });
     setLocationSource('map_selected');
 
-    // Get address for display
-    const address = await getAddressFromCoordinates(latitude, longitude);
-    if (address) {
-      setLocationAddress(address);
+    // Get detailed address for display and form fields
+    const addressInfo = await getAddressFromCoordinates(latitude, longitude);
+    if (addressInfo) {
+      setLocationAddress(addressInfo.fullAddress);
+      // Auto-populate form fields if they're empty
+      if (!townName && addressInfo.city !== 'Unknown City') {
+        setTownName(addressInfo.city);
+      }
+      if (!streetName && addressInfo.street !== 'Unknown Street') {
+        setStreetName(addressInfo.street);
+      }
+      if (!roadName && addressInfo.street !== 'Unknown Street') {
+        setRoadName(addressInfo.street);
+      }
     }
   };
 
@@ -571,10 +666,36 @@ export default function ReportPotholeScreen({ navigation }) {
     setSelectedLocation(coordinates);
     setLocationSource('map_selected');
 
-    // Get formatted address
+    // Get formatted address and populate form fields
     const address = details.formatted_address || details.name;
     if (address) {
       setLocationAddress(address);
+    }
+
+    // Extract address components from Google Places details
+    if (details.address_components) {
+      let extractedTown = '';
+      let extractedStreet = '';
+      
+      details.address_components.forEach(component => {
+        if (component.types.includes('locality') || component.types.includes('administrative_area_level_2')) {
+          extractedTown = component.long_name;
+        }
+        if (component.types.includes('route') || component.types.includes('street_address')) {
+          extractedStreet = component.long_name;
+        }
+      });
+
+      // Auto-populate form fields if they're empty
+      if (!townName && extractedTown) {
+        setTownName(extractedTown);
+      }
+      if (!streetName && extractedStreet) {
+        setStreetName(extractedStreet);
+      }
+      if (!roadName && extractedStreet) {
+        setRoadName(extractedStreet);
+      }
     }
 
     // Animate map to the new location
@@ -649,11 +770,17 @@ export default function ReportPotholeScreen({ navigation }) {
       confirmMessage += `Location: ${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}\n`;
     }
     
+    if (townName.trim()) {
+      confirmMessage += `Town: ${townName.trim()}\n`;
+    }
+    
+    if (streetName.trim()) {
+      confirmMessage += `Street: ${streetName.trim()}\n`;
+    }
+    
     if (roadName.trim()) {
       confirmMessage += `Road: ${roadName.trim()}\n`;
     }
-    
-    confirmMessage += `Severity: ${severity}\n`;
     
     if (description.trim()) {
       confirmMessage += `Notes: ${description.trim()}\n`;
@@ -675,7 +802,8 @@ export default function ReportPotholeScreen({ navigation }) {
               photoLocation, // Save original photo location for reference
               currentLocation, // Save user's current location for reference
               roadName: roadName.trim() || undefined, // Optional
-              severity,
+              townName: townName.trim() || undefined, // Optional
+              streetName: streetName.trim() || undefined, // Optional
               description: description.trim() || undefined,
               locationAddress,
             };
@@ -714,8 +842,7 @@ export default function ReportPotholeScreen({ navigation }) {
     let completed = 0;
     if (photo) completed++;
     if (selectedLocation) completed++;
-    if (severity) completed++;
-    return Math.round((completed / 3) * 100);
+    return Math.round((completed / 2) * 100);
   };
 
   return (
@@ -828,88 +955,54 @@ export default function ReportPotholeScreen({ navigation }) {
             </View>
           )}
 
-          {/* Severity Section - BIG BUTTONS */}
-          <View style={styles.severitySectionLarge}>
-            <Text style={styles.mainSectionTitle}>Step 2 — Damage Severity</Text>
+          {/* Expandable More Details Section */}
+          {/* Additional Details Section */}
+          <View style={styles.additionalDetailsSection}>
+            <Text style={styles.mainSectionTitle}>Step 2 — Additional Details (Optional)</Text>
             <Text style={styles.mainSectionSubtitle}>
-              Select the severity level
+              Help us locate the damage more precisely
             </Text>
 
-            <View style={styles.severityButtonsLarge}>
-              {SEVERITY_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.severityButtonLarge,
-                    severity === option.value && styles.severityButtonLargeActive,
-                    { borderColor: option.color }
-                  ]}
-                  onPress={() => setSeverity(option.value)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.severityDotLarge, { backgroundColor: option.color }]} />
-                  <Text
-                    style={[
-                      styles.severityTextLarge,
-                      severity === option.value && { color: option.color, fontWeight: '700' },
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                  {severity === option.value && (
-                    <Ionicons name="checkmark-circle" size={24} color={option.color} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Expandable More Details Section */}
-          <View style={styles.expandableSection}>
-            <TouchableOpacity 
-              style={styles.expandableHeader}
-              onPress={() => setShowMoreDetails(!showMoreDetails)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.expandableHeaderLeft}>
-                <Ionicons 
-                  name={showMoreDetails ? "remove-circle" : "add-circle"} 
-                  size={24} 
-                  color={colors.primary} 
-                />
-                <Text style={styles.expandableHeaderText}>
-                  Add More Details (Optional)
-                </Text>
-              </View>
-              <Ionicons 
-                name={showMoreDetails ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color={colors.textSecondary} 
+            <View style={styles.additionalDetailsContent}>
+              <UnifiedFormInput
+                value={townName}
+                onChangeText={setTownName}
+                placeholder="e.g., Windhoek, Swakopmund, Walvis Bay"
+                label="Town / City"
+                iconName="location-outline"
               />
-            </TouchableOpacity>
-
-            {showMoreDetails && (
-              <View style={styles.expandableContent}>
-                <UnifiedFormInput
-                  value={roadName}
-                  onChangeText={setRoadName}
-                  placeholder="e.g., B1 Highway, Independence Avenue"
-                  label="Road Name / Landmark"
-                  iconName="map-outline"
-                />
-                
-                <View style={styles.formSpacing} />
-                
-                <UnifiedFormInput
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Any additional details..."
-                  label="Additional Notes"
-                  textArea
-                  iconName="document-text-outline"
-                />
-              </View>
-            )}
+              
+              <View style={styles.formSpacing} />
+              
+              <UnifiedFormInput
+                value={streetName}
+                onChangeText={setStreetName}
+                placeholder="e.g., Independence Avenue, Sam Nujoma Drive"
+                label="Street Name"
+                iconName="trail-sign-outline"
+              />
+              
+              <View style={styles.formSpacing} />
+              
+              <UnifiedFormInput
+                value={roadName}
+                onChangeText={setRoadName}
+                placeholder="e.g., B1 Highway, Main Road"
+                label="Road Name / Landmark"
+                iconName="map-outline"
+              />
+              
+              <View style={styles.formSpacing} />
+              
+              <UnifiedFormInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Any additional details..."
+                label="Additional Notes"
+                textArea
+                iconName="document-text-outline"
+              />
+            </View>
           </View>
 
           {/* Bottom spacing for submit button */}
@@ -992,7 +1085,7 @@ export default function ReportPotholeScreen({ navigation }) {
                   zIndex: 2001,
                 },
                 textInput: {
-                  backgroundColor: colors.card,
+                  backgroundColor: '#FFFFFF', // Solid white background
                   borderRadius: 10,
                   borderWidth: 1,
                   borderColor: colors.border,
@@ -1000,11 +1093,18 @@ export default function ReportPotholeScreen({ navigation }) {
                   fontSize: 15,
                   paddingLeft: 40,
                   height: 44,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 3,
+                  // Android-safe elevation
+                  ...Platform.select({
+                    ios: {
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                    },
+                    android: {
+                      elevation: 1, // Reduced from 3 to 1
+                    },
+                  }),
                 },
                 predefinedPlacesDescription: {
                   color: colors.primary,
@@ -1014,17 +1114,25 @@ export default function ReportPotholeScreen({ navigation }) {
                   top: 68,
                   left: 16,
                   right: 16,
-                  backgroundColor: colors.card,
+                  backgroundColor: '#FFFFFF', // Solid white background
                   borderRadius: 10,
                   borderWidth: 1,
                   borderColor: colors.border,
                   maxHeight: 250,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 8,
-                  elevation: 10,
+                  // Android-safe elevation
+                  ...Platform.select({
+                    ios: {
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 8,
+                    },
+                    android: {
+                      elevation: 2, // Reduced from 10 to 2 for Android safety
+                    },
+                  }),
                   zIndex: 2002,
+                  // NO overflow: 'hidden' to prevent Android clipping
                 },
                 row: {
                   backgroundColor: colors.card,
@@ -1357,7 +1465,8 @@ function getStyles(colors, insets) {
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: 12,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: '#000000', // Solid black instead of rgba
+      opacity: 0.7, // Use opacity on the container instead
       borderBottomLeftRadius: 12,
       borderBottomRightRadius: 12,
     },
@@ -1367,7 +1476,8 @@ function getStyles(colors, insets) {
       gap: 6,
       paddingHorizontal: 10,
       paddingVertical: 6,
-      backgroundColor: 'rgba(255,255,255,0.2)',
+      backgroundColor: '#FFFFFF', // Solid white instead of rgba
+      opacity: 0.9, // Use opacity instead of rgba
       borderRadius: 20,
     },
     photoInfoTextInline: {
@@ -1381,7 +1491,8 @@ function getStyles(colors, insets) {
       gap: 6,
       paddingHorizontal: 12,
       paddingVertical: 6,
-      backgroundColor: 'rgba(255,255,255,0.3)',
+      backgroundColor: '#FFFFFF', // Solid white instead of rgba
+      opacity: 0.9, // Use opacity instead of rgba
       borderRadius: 20,
     },
     changePhotoTextInline: {
@@ -1489,78 +1600,16 @@ function getStyles(colors, insets) {
       color: colors.textSecondary,
     },
 
-    // Severity Section Large
-    severitySectionLarge: {
+    // Additional Details Section
+    additionalDetailsSection: {
       marginBottom: 24,
     },
-    severityButtonsLarge: {
-      gap: 12,
-    },
-    severityButtonLarge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: 20,
+    additionalDetailsContent: {
       backgroundColor: colors.card,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-    },
-    severityButtonLargeActive: {
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    severityDotLarge: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      marginRight: 12,
-    },
-    severityTextLarge: {
-      flex: 1,
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-
-    // Expandable Section
-    expandableSection: {
-      marginBottom: 24,
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: 'hidden',
-    },
-    expandableHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
       padding: 16,
-    },
-    expandableHeaderLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    expandableHeaderText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    expandableContent: {
-      paddingHorizontal: 16,
-      paddingBottom: 16,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
     },
     formSpacing: {
       height: 16,
@@ -1577,18 +1626,32 @@ function getStyles(colors, insets) {
       backgroundColor: colors.background,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 5,
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2, // Reduced from 5 to 2
+        },
+      }),
     },
     submitButtonFloating: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2, // Reduced from 3 to 2
+        },
+      }),
     },
 
     // Modal styles
@@ -1614,7 +1677,18 @@ function getStyles(colors, insets) {
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       zIndex: 2000,
-      elevation: 10,
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2, // Reduced from 10 to 2 for Android safety
+        },
+      }),
       position: 'relative',
     },
     searchIconContainer: {

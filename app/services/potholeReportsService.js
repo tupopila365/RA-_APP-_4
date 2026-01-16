@@ -34,7 +34,9 @@ class PotholeReportsService {
    * Create a new pothole report
    * @param {Object} reportData - Report data
    * @param {Object} reportData.location - Location object with latitude and longitude
-   * @param {string} reportData.roadName - Road name
+   * @param {string} reportData.roadName - Road name (optional)
+   * @param {string} reportData.townName - Town name (optional)
+   * @param {string} reportData.streetName - Street name (optional)
    * @param {string} reportData.severity - Severity: 'small', 'medium', 'dangerous'
    * @param {string} reportData.description - Optional description
    * @param {string} photoUri - Local URI of the photo
@@ -55,9 +57,6 @@ class PotholeReportsService {
       // Validate required fields
       if (!reportData.location || !reportData.location.latitude || !reportData.location.longitude) {
         throw new Error('Location is required');
-      }
-      if (!reportData.roadName || !reportData.roadName.trim()) {
-        throw new Error('Road name is required');
       }
       if (!photoUri) {
         throw new Error('Photo is required');
@@ -83,7 +82,15 @@ class PotholeReportsService {
 
       // Add report data
       formData.append('location', JSON.stringify(reportData.location));
-      formData.append('roadName', reportData.roadName);
+      if (reportData.roadName) {
+        formData.append('roadName', reportData.roadName);
+      }
+      if (reportData.townName) {
+        formData.append('townName', reportData.townName);
+      }
+      if (reportData.streetName) {
+        formData.append('streetName', reportData.streetName);
+      }
       formData.append('severity', reportData.severity);
       if (reportData.description) {
         formData.append('description', reportData.description);
@@ -95,6 +102,8 @@ class PotholeReportsService {
         photoUri: photoUri?.substring(0, 50) + '...',
         location: reportData.location,
         roadName: reportData.roadName,
+        townName: reportData.townName,
+        streetName: reportData.streetName,
         severity: reportData.severity,
       });
       

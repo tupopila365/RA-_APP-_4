@@ -28,6 +28,9 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon,
   Map as MapIcon,
+  LocationOn as LocationOnIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 import {
   getRoadStatusById,
@@ -49,6 +52,7 @@ import {
   reverseGeocode,
   GeocodingResult,
 } from '../../services/geocoding.service';
+import MapLocationSelector from '../../components/MapLocationSelector';
 
 const REGIONS = [
   'Erongo',
@@ -100,6 +104,20 @@ const RoadStatusForm = () => {
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodingResult, setGeocodingResult] = useState<GeocodingResult | null>(null);
   const [showGeocodingValidation, setShowGeocodingValidation] = useState(false);
+  
+  // Map integration state
+  const [showMapSelector, setShowMapSelector] = useState(false);
+  const [mapSelectedLocation, setMapSelectedLocation] = useState<{
+    coordinates: { latitude: number; longitude: number };
+    address?: string;
+    roadName?: string;
+    area?: string;
+    region?: string;
+  } | null>(null);
+  
+  // Location verification state
+  const [locationVerified, setLocationVerified] = useState(false);
+  const [coordinateError, setCoordinateError] = useState<string | null>(null);
 
   // Computed values
   const roadName = selectedRoad ? selectedRoad.displayName : roadCustom;
@@ -188,29 +206,155 @@ const RoadStatusForm = () => {
   }, [roadName, section, area, region]);
 
   /**
+   * Validate Namibia coordinate bounds
+   */
+  const validateNamibiaCoordinates = (lat: number, lon: number): { valid: boolean; error?: string } => {
+    const NAMIBIA_BOUNDS = {
+      minLat: -28,
+      maxLat: -16,
+      minLon: 11,
+      maxLon: 26
+    };
+
+    if (lat < NAMIBIA_BOUNDS.minLat || lat > NAMIBIA_BOUNDS.maxLat) {
+      return {
+        valid: false,
+        error: `Latitude must be between ${NAMIBIA_BOUNDS.minLat} and ${NAMIBIA_BOUNDS.maxLat} (Namibia range)`
+      };
+    }
+
+    if (lon < NAMIBIA_BOUNDS.minLon || lon > NAMIBIA_BOUNDS.maxLon) {
+      return {
+        valid: false,
+        error: `Longitude must be between ${NAMIBIA_BOUNDS.minLon} and ${NAMIBIA_BOUNDS.maxLon} (Namibia range)`
+      };
+    }
+
+    return { valid: true };
+  };
+
+  /**
+   * Handle map location selection
+   */
+  const handleMapLocationSelect = useCallback((location: {
+    coordinates: { latitude: number; longitude: number };
+    address?: string;
+    roadName?: string;
+    area?: string;
+    region?: string;
+  }) => {
+    // Validate coordinates are in Namibia
+    const validation = validateNamibiaCoordinates(
+      location.coordinates.latitude,
+      location.coordinates.longitude
+    );
+
+    if (!validation.valid) {
+      setCoordinateError(validation.error || 'Coordinates are outside Namibia');
+      return;
+    }
+
+    setMapSelectedLocation(location);
+    setCoordinateError(null);
+    
+    // Auto-fill coordinates
+    setLatitude(location.coordinates.latitude.toString());
+    setLongitude(location.coordinates.longitude.toString());
+    
+    // Mark location as verified
+    setLocationVerified(true);
+    
+    // Auto-fill form fields if detected from map
+    if (location.roadName && !roadName) {
+      // Try to match with predefined roads first
+      const matchedRoad = getRoadByCodeOrName(location.roadName);
+      if (matchedRoad) {
+        setSelectedRoad(matchedRoad);
+        setRoadCustom('');
+      } else {
+        setRoadCustom(location.roadName);
+        setSelectedRoad(null);
+      }
+    }
+    
+    if (location.area && !area) {
+      setArea(location.area);
+    }
+    
+    if (location.region && !region) {
+      // Match region with our predefined list
+      const matchedRegion = REGIONS.find(r => 
+        r.toLowerCase().includes(location.region!.toLowerCase()) ||
+        location.region!.toLowerCase().includes(r.toLowerCase())
+      );
+      if (matchedRegion) {
+        setRegion(matchedRegion);
+      }
+    }
+    
+    // Auto-generate title if not set
+    if (!title && location.roadName) {
+      const statusText = status === 'Planned' ? 'Planned roadwork' : 
+                        status === 'Ongoing' ? 'Ongoing roadwork' :
+                        status === 'Closed' ? 'Road closure' :
+                        status === 'Restricted' ? 'Road restrictions' : 'Roadwork';
+      setTitle(`${statusText} on ${location.roadName}${location.area ? ` near ${location.area}` : ''}`);
+    }
+  }, [roadName, area, region, title, status]);
+
+  /**
    * Reverse geocode when coordinates are manually entered
    */
   const handleReverseGeocode = useCallback(async () => {
     if (!latitude || !longitude) return;
 
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    // Validate Namibia bounds first
+    const namibiaValidation = validateNamibiaCoordinates(lat, lon);
+    if (!namibiaValidation.valid) {
+      setCoordinateError(namibiaValidation.error || 'Coordinates are outside Namibia');
+      setLocationVerified(false);
+      return;
+    }
+
     const validation = validateCoordinates(latitude, longitude);
     if (!validation.valid) {
-      setError(validation.error);
+      setCoordinateError(validation.error || 'Invalid coordinates');
+      setLocationVerified(false);
       return;
     }
 
     setIsGeocoding(true);
+    setCoordinateError(null);
     try {
-      const result = await reverseGeocode(parseFloat(latitude), parseFloat(longitude));
+      const result = await reverseGeocode(lat, lon);
       if (result.success) {
-        Alert.success(`Verified: ${result.displayName}`);
+        setLocationVerified(true);
+        setCoordinateError(null);
+        // Show success message
+        alert(`✓ Location Verified: ${result.displayName}`);
       } else {
-        setError('Could not verify coordinates');
+        setCoordinateError('Could not verify coordinates');
+        setLocationVerified(false);
       }
     } catch (err) {
-      setError('Coordinate verification failed');
+      setCoordinateError('Coordinate verification failed');
+      setLocationVerified(false);
     } finally {
       setIsGeocoding(false);
+    }
+  }, [latitude, longitude]);
+
+  /**
+   * Reset location verification when coordinates change manually
+   */
+  useEffect(() => {
+    // If coordinates are changed manually, reset verification
+    if (latitude || longitude) {
+      setLocationVerified(false);
+      setCoordinateError(null);
     }
   }, [latitude, longitude]);
 
@@ -241,9 +385,53 @@ const RoadStatusForm = () => {
         };
       }
 
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+
+      // Validate Namibia bounds
+      const namibiaValidation = validateNamibiaCoordinates(lat, lon);
+      if (!namibiaValidation.valid) {
+        return { valid: false, error: namibiaValidation.error };
+      }
+
       const coordValidation = validateCoordinates(latitude, longitude);
       if (!coordValidation.valid) {
         return { valid: false, error: coordValidation.error };
+      }
+
+      // Require location verification for critical statuses
+      if (!locationVerified) {
+        return {
+          valid: false,
+          error: 'Please verify the location using the map or "Verify" button before saving'
+        };
+      }
+    }
+
+    // Date validation
+    if (startDate && expectedCompletion) {
+      const start = new Date(startDate);
+      const completion = new Date(expectedCompletion);
+      if (start > completion) {
+        return {
+          valid: false,
+          error: 'Start date cannot be after expected completion date'
+        };
+      }
+    }
+
+    // Published validation for planned jobs
+    if (published && (status === 'Planned' || status === 'Planned Works')) {
+      if (startDate) {
+        const start = new Date(startDate);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        if (start < now) {
+          return {
+            valid: false,
+            error: 'Planned roadworks with a past start date cannot be published'
+          };
+        }
       }
     }
 
@@ -635,38 +823,96 @@ const RoadStatusForm = () => {
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6">Location Coordinates</Typography>
-                  {coordinatesRequired && <Chip label="REQUIRED" color="error" size="small" />}
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    {coordinatesRequired && <Chip label="REQUIRED" color="error" size="small" />}
+                    <Button
+                      variant={showMapSelector ? "contained" : "outlined"}
+                      size="small"
+                      startIcon={showMapSelector ? <VisibilityOffIcon /> : <LocationOnIcon />}
+                      onClick={() => setShowMapSelector(!showMapSelector)}
+                    >
+                      {showMapSelector ? 'Hide Map' : 'Show Map'}
+                    </Button>
+                  </Box>
                 </Box>
 
-                <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
-                  <Typography variant="body2">
-                    <strong>How to get coordinates:</strong>
-                  </Typography>
-                  <Typography variant="caption" component="div">
-                    1. Open{' '}
-                    <Link
-                      href={`https://www.google.com/maps/search/?api=1&query=${buildSearchText(
-                        roadName,
-                        section,
-                        area,
-                        region
-                      )}`}
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      Google Maps
-                    </Link>
-                  </Typography>
-                  <Typography variant="caption" component="div">
-                    2. Right-click on the exact location
-                  </Typography>
-                  <Typography variant="caption" component="div">
-                    3. Click the coordinates to copy them
-                  </Typography>
-                  <Typography variant="caption" component="div">
-                    4. Paste below (format: -22.5597, 17.0832)
-                  </Typography>
-                </Alert>
+                {/* Map Selector */}
+                {showMapSelector && (
+                  <Box sx={{ mb: 3 }}>
+                    <MapLocationSelector
+                      onLocationSelect={handleMapLocationSelect}
+                      initialCoordinates={
+                        latitude && longitude 
+                          ? { latitude: parseFloat(latitude), longitude: parseFloat(longitude) }
+                          : undefined
+                      }
+                      height="500px"
+                      showSearch={true}
+                      showRoadDetection={true}
+                    />
+                    {mapSelectedLocation && (
+                      <Alert severity="success" sx={{ mt: 2 }}>
+                        <Typography variant="body2" fontWeight="bold">
+                          ✓ Location Selected from Map
+                        </Typography>
+                        <Typography variant="caption" display="block">
+                          {mapSelectedLocation.address || `${mapSelectedLocation.coordinates.latitude.toFixed(6)}, ${mapSelectedLocation.coordinates.longitude.toFixed(6)}`}
+                        </Typography>
+                        {mapSelectedLocation.roadName && (
+                          <Typography variant="caption" display="block">
+                            Road: {mapSelectedLocation.roadName}
+                          </Typography>
+                        )}
+                      </Alert>
+                    )}
+                    {coordinateError && (
+                      <Alert severity="error" sx={{ mt: 2 }}>
+                        <Typography variant="body2" fontWeight="bold">
+                          ❌ Invalid Coordinates
+                        </Typography>
+                        <Typography variant="caption" display="block">
+                          {coordinateError}
+                        </Typography>
+                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          Please select a location within Namibia.
+                        </Typography>
+                      </Alert>
+                    )}
+                  </Box>
+                )}
+
+                {/* Manual Coordinate Entry */}
+                {!showMapSelector && (
+                  <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      <strong>How to get coordinates:</strong>
+                    </Typography>
+                    <Typography variant="caption" component="div">
+                      1. Open{' '}
+                      <Link
+                        href={`https://www.google.com/maps/search/?api=1&query=${buildSearchText(
+                          roadName,
+                          section,
+                          area,
+                          region
+                        )}`}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        Google Maps
+                      </Link>
+                    </Typography>
+                    <Typography variant="caption" component="div">
+                      2. Right-click on the exact location
+                    </Typography>
+                    <Typography variant="caption" component="div">
+                      3. Click the coordinates to copy them
+                    </Typography>
+                    <Typography variant="caption" component="div">
+                      4. Paste below (format: -22.5597, 17.0832)
+                    </Typography>
+                  </Alert>
+                )}
 
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={5}>
@@ -679,8 +925,14 @@ const RoadStatusForm = () => {
                       type="number"
                       inputProps={{ step: 'any' }}
                       required={coordinatesRequired}
-                      error={coordinatesRequired && !latitude}
-                      helperText={coordinatesRequired && !latitude ? 'Required for this status' : ''}
+                      error={coordinatesRequired && (!latitude || !!coordinateError)}
+                      helperText={
+                        coordinateError 
+                          ? coordinateError 
+                          : coordinatesRequired && !latitude 
+                            ? 'Required for this status' 
+                            : 'Must be between -28 and -16 (Namibia)'
+                      }
                     />
                   </Grid>
                   <Grid item xs={12} md={5}>
@@ -693,8 +945,14 @@ const RoadStatusForm = () => {
                       type="number"
                       inputProps={{ step: 'any' }}
                       required={coordinatesRequired}
-                      error={coordinatesRequired && !longitude}
-                      helperText={coordinatesRequired && !longitude ? 'Required for this status' : ''}
+                      error={coordinatesRequired && (!longitude || !!coordinateError)}
+                      helperText={
+                        coordinateError 
+                          ? coordinateError 
+                          : coordinatesRequired && !longitude 
+                            ? 'Required for this status' 
+                            : 'Must be between 11 and 26 (Namibia)'
+                      }
                     />
                   </Grid>
                   <Grid item xs={12} md={2}>
@@ -706,10 +964,55 @@ const RoadStatusForm = () => {
                       disabled={!latitude || !longitude || isGeocoding}
                       sx={{ height: '56px' }}
                     >
-                      Verify
+                      {isGeocoding ? <CircularProgress size={20} /> : 'Verify'}
                     </Button>
                   </Grid>
                 </Grid>
+
+                {/* Location Verification Status */}
+                {latitude && longitude && (
+                  <Box sx={{ mt: 2 }}>
+                    {locationVerified ? (
+                      <Alert severity="success" icon={<CheckCircleIcon />}>
+                        <Typography variant="body2" fontWeight="bold">
+                          ✓ Location Verified
+                        </Typography>
+                        <Typography variant="caption" display="block">
+                          Coordinates: {latitude}, {longitude}
+                        </Typography>
+                      </Alert>
+                    ) : coordinatesRequired ? (
+                      <Alert severity="warning" icon={<ErrorIcon />}>
+                        <Typography variant="body2" fontWeight="bold">
+                          ⚠️ Location Not Verified
+                        </Typography>
+                        <Typography variant="caption" display="block">
+                          Please verify the location using the map or "Verify" button before saving
+                        </Typography>
+                      </Alert>
+                    ) : null}
+                  </Box>
+                )}
+
+                {/* Current Location Display */}
+                {latitude && longitude && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="caption" color="textSecondary">
+                      Current coordinates: {latitude}, {longitude}
+                    </Typography>
+                    <Box sx={{ mt: 1 }}>
+                      <Link
+                        href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
+                        target="_blank"
+                        rel="noopener"
+                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                      >
+                        <MapIcon fontSize="small" />
+                        View on Google Maps
+                      </Link>
+                    </Box>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>

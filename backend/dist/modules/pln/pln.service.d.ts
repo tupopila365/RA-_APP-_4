@@ -2,18 +2,23 @@ import { IPLN, PLNStatus } from './pln.model';
 import { CreateApplicationDTO, ListApplicationsQuery, ListApplicationsResult } from './pln.dto';
 declare class PLNService {
     /**
-     * Generate unique reference ID
-     * Format: PLN{YYYYMMDD}{6digitRandom}
+     * Generate unique reference ID using secure random generation
+     * Format: PLN-{YYYY}-{SecureRandom12}
      */
     generateReferenceId(): string;
+    /**
+     * Generate tracking PIN (simple for now - everyone gets 12345)
+     */
+    generateTrackingPin(): string;
     /**
      * Create a new PLN application
      */
     createApplication(dto: CreateApplicationDTO, file: Express.Multer.File): Promise<IPLN>;
     /**
-     * Get application by reference ID and ID number (public tracking)
+     * Get application by reference ID and PIN (public tracking)
+     * Universal PIN: 12345 for all users
      */
-    getApplicationByReference(referenceId: string, idNumber: string): Promise<IPLN>;
+    getApplicationByReference(referenceId: string, pin: string): Promise<IPLN>;
     /**
      * Get application by ID (admin)
      */
@@ -44,7 +49,25 @@ declare class PLNService {
     getDashboardStats(): Promise<{
         total: number;
         byStatus: Record<PLNStatus, number>;
+        recentApplications: IPLN[];
+        paymentOverdue: number;
+        monthlyStats: {
+            month: string;
+            count: number;
+        }[];
     }>;
+    /**
+     * Update admin comments
+     */
+    updateAdminComments(id: string, comments: string, adminId: string): Promise<IPLN>;
+    /**
+     * Assign application to admin
+     */
+    assignToAdmin(id: string, assignedTo: string, adminId: string): Promise<IPLN>;
+    /**
+     * Set application priority
+     */
+    setPriority(id: string, priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT', adminId: string): Promise<IPLN>;
 }
 export declare const plnService: PLNService;
 export {};

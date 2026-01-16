@@ -18,6 +18,9 @@ export { UnifiedCard } from './UnifiedCard';
 export { UnifiedButton } from './UnifiedButton';
 export { UnifiedSkeletonLoader } from './UnifiedSkeletonLoader';
 
+// Android-Safe Components
+export { AndroidSafeCard } from './AndroidSafeCard';
+
 // Theme and Design Tokens
 export { useTheme } from '../hooks/useTheme';
 export { RATheme } from '../theme/colors';

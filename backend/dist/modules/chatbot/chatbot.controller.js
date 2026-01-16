@@ -235,7 +235,7 @@ class ChatbotController {
             // Forward streaming request to RAG service
             const ragResponse = await axios_1.default.post(`${env_1.env.RAG_SERVICE_URL}/api/query/stream`, { question: normalizedQuestion, top_k: 5 }, {
                 responseType: 'stream',
-                timeout: 120000, // 2 minutes
+                timeout: 60000, // 60 seconds
             });
             // Intercept the stream to collect answer and log interaction
             let buffer = '';

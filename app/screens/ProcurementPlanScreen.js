@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   useColorScheme,
   Image,
   RefreshControl,
@@ -12,10 +11,17 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+
 import { RATheme } from '../theme/colors';
 import RAIcon from '../assets/icon.png';
-import { DetailCard, ListScreenSkeleton, ErrorState, EmptyState } from '../components';
+
+import {
+  DetailCard,
+  ListScreenSkeleton,
+  ErrorState,
+  EmptyState,
+} from '../components';
+
 import { procurementPlanService } from '../services/procurementService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
 
@@ -30,30 +36,31 @@ export default function ProcurementPlanScreen() {
   const [error, setError] = useState(null);
   const [currentDownloadId, setCurrentDownloadId] = useState(null);
 
-  // Use the document download hook
   const {
     isDownloading,
     progress,
-    error: downloadError,
-    downloadedUri,
     startDownload,
     resetDownload,
   } = useDocumentDownload();
 
+  /* -------------------- DATA FETCH -------------------- */
+
   const fetchPlans = useCallback(async (isRefresh = false) => {
     try {
-      if (!isRefresh) {
-        setLoading(true);
-      }
+      if (!isRefresh) setLoading(true);
       setError(null);
 
       const plans = await procurementPlanService.getPlans();
       setAnnualPlans(plans || []);
     } catch (err) {
       console.error('Error fetching procurement plans:', err);
-      setError(err.message || 'Failed to load procurement plans');
+      setError(err?.message || 'Failed to load procurement plans');
+
       if (isRefresh) {
-        Alert.alert('Error', 'Failed to refresh plans. Please try again.');
+        Alert.alert(
+          'Refresh failed',
+          'Unable to refresh procurement plans. Please try again.'
+        );
       }
     } finally {
       setLoading(false);
@@ -70,23 +77,35 @@ export default function ProcurementPlanScreen() {
     fetchPlans(true);
   }, [fetchPlans]);
 
+  /* -------------------- DOWNLOAD -------------------- */
+
   const handleDownload = async (plan) => {
-    if (!plan.documentUrl) {
-      Alert.alert('Error', 'No document available for download');
+    if (!plan?.documentUrl) {
+      Alert.alert('Unavailable', 'No document available for download.');
       return;
     }
 
     try {
       setCurrentDownloadId(plan.id);
       resetDownload();
-      await startDownload(plan.documentUrl, plan.documentFileName || `${plan.fiscalYear} Annual Procurement Plan`);
-      setCurrentDownloadId(null);
+
+      await startDownload(
+        plan.documentUrl,
+        plan.documentFileName ||
+          `${plan.fiscalYear} Annual Procurement Plan`
+      );
     } catch (err) {
       console.error('Download error:', err);
-      Alert.alert('Error', 'Failed to download document. Please try again.');
+      Alert.alert(
+        'Download failed',
+        'Unable to download the document. Please try again.'
+      );
+    } finally {
       setCurrentDownloadId(null);
     }
   };
+
+  /* -------------------- STATES -------------------- */
 
   if (loading && !refreshing) {
     return (
@@ -99,13 +118,12 @@ export default function ProcurementPlanScreen() {
   if (error && !refreshing) {
     return (
       <View style={styles.container}>
-        <ErrorState
-          message={error}
-          onRetry={() => fetchPlans()}
-        />
+        <ErrorState message={error} onRetry={fetchPlans} />
       </View>
     );
   }
+
+  /* -------------------- UI -------------------- */
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -121,16 +139,27 @@ export default function ProcurementPlanScreen() {
           />
         }
       >
+        {/* ---------- HEADER ---------- */}
         <View style={styles.header}>
           <Image source={RAIcon} style={styles.logo} resizeMode="contain" />
           <Text style={styles.headerTitle}>Procurement Plan</Text>
-          <Text style={styles.headerSubtitle}>Roads Authority Namibia</Text>
+          <Text style={styles.headerSubtitle}>
+            Roads Authority Namibia
+          </Text>
         </View>
 
+        {/* ---------- SECTION ---------- */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-            <Text style={styles.sectionTitle}>Annual Procurement Plans</Text>
+            <View
+              style={[
+                styles.headerLine,
+                { backgroundColor: colors.primary },
+              ]}
+            />
+            <Text style={styles.sectionTitle}>
+              Annual Procurement Plans
+            </Text>
           </View>
 
           {annualPlans.length === 0 ? (
@@ -140,12 +169,18 @@ export default function ProcurementPlanScreen() {
             />
           ) : (
             annualPlans.map((plan) => {
-              const isItemDownloading = isDownloading && currentDownloadId === plan.id;
+              const isItemDownloading =
+                isDownloading && currentDownloadId === plan.id;
+
               return (
                 <DetailCard
                   key={plan.id}
                   title={`${plan.fiscalYear} Annual Procurement Plan`}
-                  titleStyle={{ color: colors.primary, fontSize: 16, fontWeight: '500' }}
+                  titleStyle={{
+                    color: colors.primary,
+                    fontSize: 16,
+                    fontWeight: '500',
+                  }}
                   downloadButton={!!plan.documentUrl}
                   downloadButtonText="Download PDF"
                   downloadButtonDisabled={isItemDownloading}
@@ -162,6 +197,8 @@ export default function ProcurementPlanScreen() {
     </SafeAreaView>
   );
 }
+
+/* -------------------- STYLES -------------------- */
 
 function getStyles(colors) {
   return StyleSheet.create({
@@ -206,10 +243,10 @@ function getStyles(colors) {
       padding: 16,
       borderWidth: 1,
       borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
+      shadowColor: '#ffff',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.0,
+      shadowRadius: 0,
       elevation: 1,
     },
     sectionHeader: {
@@ -231,3 +268,4 @@ function getStyles(colors) {
     },
   });
 }
+

@@ -3,49 +3,47 @@
  * 
  * This file manages environment-specific configuration for the mobile app.
  * 
- * For development:
- * - Update API_BASE_URL to point to your local backend
- * - Use your computer's IP address when testing on physical devices
- * - Use localhost for emulators/simulators
+ * NETWORK TROUBLESHOOTING:
+ * If you're getting "Network request failed" errors, try these solutions:
  * 
- * For production:
- * - Update API_BASE_URL to your production API endpoint
+ * 1. Make sure backend is running:
+ *    - Run: QUICK-FIX-NETWORK-ISSUE.bat
+ *    - Or manually: cd backend && npm run dev
+ * 
+ * 2. For USB connection (recommended):
+ *    - Run: adb reverse tcp:5001 tcp:5001
+ *    - Use: API_BASE_URL: 'http://localhost:5001/api'
+ * 
+ * 3. For WiFi connection:
+ *    - Find your IP: ipconfig (Windows) or ifconfig (Mac/Linux)
+ *    - Use: API_BASE_URL: 'http://YOUR_IP:5001/api'
+ * 
+ * 4. For external access (works anywhere):
+ *    - Run: start-backend-with-ngrok.bat
+ *    - Copy the ngrok HTTPS URL
+ *    - Use: API_BASE_URL: 'https://your-ngrok-url.ngrok-free.app/api'
  */
 
 // Default configuration
 const ENV = {
   development: {
-    // Connection Options:
-    // 1. USB Connection: Use localhost (requires: adb reverse tcp:5000 tcp:5000)
-    // 2. WiFi Connection: Use your computer's network IP address
-    // 3. Ngrok Tunnel: Use ngrok HTTPS URL (works from any network)
-    // 
-    // To use ngrok:
-    //   1. Run: .\start-backend-with-ngrok.bat
-    //   2. Copy the ngrok HTTPS URL (e.g., https://abc123.ngrok-free.app)
-    //   3. Update API_BASE_URL below with your ngrok URL
-    //   4. Restart Expo app
+    // CURRENT CONFIGURATION - Update based on your setup:
     
-    // USB connection (bypasses firewall)
-    // API_BASE_URL: 'http://localhost:5000/api',
+    // Option 1: USB Connection (RECOMMENDED - bypasses firewall)
+    // Requires: adb reverse tcp:5000 tcp:5000
+    //API_BASE_URL: 'http://192.168.11.52:5000/api',
+   API_BASE_URL: 'http://192.168.11.52:5000/api',
     
-    // WiFi connection - using your current WiFi IP
-    // VMware Network: API_BASE_URL: 'http://192.168.108.1:5000/api',
-    // WiFi Network (CURRENT):
-    API_BASE_URL: 'http://192.168.11.52:5000/api',
+    // Option 2: WiFi Connection (if localhost doesn't work)
+    // Your backend is running on: http://192.168.108.1:5000
+    // API_BASE_URL: 'http://192.168.108.1:5000/api',
     
-    // USB Connection (if using adb reverse):
-    // API_BASE_URL: 'http://localhost:5000/api',
-
-    //BASE_URL:'https://98192e2a367a.ngrok-fr'
-
-    // USB connection (bypasses firewall)
-//API_BASE_URL: 'http://localhost:5000/api',
+    // Option 3: Ngrok Tunnel (works from any network)
+    // Run: start-backend-with-ngrok.bat
+    // Copy the HTTPS URL and update below:
+    // API_BASE_URL: 'https://your-ngrok-url.ngrok-free.app/api',
     
-    // Ngrok tunnel (works from any network!) - Currently offline
-    // API_BASE_URL: 'https://tuskless-clinkingly-dorothy.ngrok-free.dev/api',
-    
-    // Different timeouts for different types of requests
+    // Timeout Configuration
     API_TIMEOUT: 15000, // 15 seconds for regular API calls (news, banners, etc.)
     API_TIMEOUT_LONG: 60000, // 60 seconds for chatbot queries
     API_TIMEOUT_STREAM: 60000, // 60 seconds for streaming responses
@@ -53,10 +51,9 @@ const ENV = {
   },
   production: {
     API_BASE_URL: 'https://api.roadsauthority.na/api',
-    // Different timeouts for different types of requests
-    API_TIMEOUT: 15000, // 15 seconds for regular API calls
-    API_TIMEOUT_LONG: 60000, // 60 seconds for chatbot queries
-    API_TIMEOUT_STREAM: 60000, // 60 seconds for streaming responses
+    API_TIMEOUT: 15000,
+    API_TIMEOUT_LONG: 60000,
+    API_TIMEOUT_STREAM: 60000,
     DEBUG_MODE: false,
   },
 };

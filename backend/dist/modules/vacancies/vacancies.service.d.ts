@@ -11,6 +11,12 @@ export interface CreateVacancyDTO {
     closingDate: Date;
     pdfUrl?: string;
     published?: boolean;
+    contactName?: string;
+    contactEmail?: string;
+    contactTelephone?: string;
+    submissionLink?: string;
+    submissionEmail?: string;
+    submissionInstructions?: string;
 }
 export interface UpdateVacancyDTO {
     title?: string;

@@ -294,7 +294,7 @@ class LocationsService {
         return {
           ...office,
           distance,
-        } as ILocation & { distance: number };
+        } as unknown as ILocation & { distance: number };
       });
 
       // Sort by distance (ascending)

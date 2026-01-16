@@ -115,8 +115,7 @@ export class VacanciesController {
           const notifResult = await notificationsService.sendVacancyNotification(
             vacancy._id.toString(),
             vacancy.title,
-            new Date(vacancy.closingDate).toLocaleDateString(),
-            { useQueue: false }
+            new Date(vacancy.closingDate).toLocaleDateString()
           );
           logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
         } catch (notifError: any) {
@@ -411,8 +410,7 @@ export class VacanciesController {
           const notifResult = await notificationsService.sendVacancyNotification(
             vacancy._id.toString(),
             vacancy.title,
-            new Date(vacancy.closingDate).toLocaleDateString(),
-            { useQueue: false }
+            new Date(vacancy.closingDate).toLocaleDateString()
           );
           logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
         } catch (notifError: any) {

@@ -9,6 +9,10 @@ exports.ERROR_CODES = {
     AUTH_INVALID_TOKEN: 'AUTH_004',
     AUTH_MISSING_TOKEN: 'AUTH_005',
     AUTH_UNAUTHORIZED: 'AUTH_006',
+    AUTH_REQUIRED: 'AUTH_007',
+    // Captcha errors (CAPTCHA_xxx)
+    CAPTCHA_REQUIRED: 'CAPTCHA_001',
+    CAPTCHA_INVALID: 'CAPTCHA_002',
     // Validation errors (VALIDATION_xxx)
     VALIDATION_ERROR: 'VALIDATION_001',
     VALIDATION_INVALID_INPUT: 'VALIDATION_002',
@@ -41,6 +45,9 @@ exports.ERROR_MESSAGES = {
     [exports.ERROR_CODES.AUTH_INVALID_TOKEN]: 'Invalid authentication token',
     [exports.ERROR_CODES.AUTH_MISSING_TOKEN]: 'Authentication token is required',
     [exports.ERROR_CODES.AUTH_UNAUTHORIZED]: 'Authentication is required',
+    [exports.ERROR_CODES.AUTH_REQUIRED]: 'Authentication is required',
+    [exports.ERROR_CODES.CAPTCHA_REQUIRED]: 'Captcha verification is required',
+    [exports.ERROR_CODES.CAPTCHA_INVALID]: 'Invalid captcha response',
     [exports.ERROR_CODES.VALIDATION_ERROR]: 'Validation failed',
     [exports.ERROR_CODES.VALIDATION_INVALID_INPUT]: 'Invalid input data',
     [exports.ERROR_CODES.UPLOAD_FAILED]: 'File upload failed',

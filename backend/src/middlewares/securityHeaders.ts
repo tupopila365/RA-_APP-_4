@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
+import cors from 'cors';
 
 export class SecurityHeaders {
   /**
@@ -45,6 +46,52 @@ export class SecurityHeaders {
     // Hide X-Powered-By header
     hidePoweredBy: true,
   });
+
+  /**
+   * Configure helmet with default security settings
+   */
+  static configureHelmet = () => {
+    return SecurityHeaders.setSecurityHeaders;
+  };
+
+  /**
+   * Apply security headers middleware
+   */
+  static applySecurityHeaders = SecurityHeaders.setSecurityHeaders;
+
+  /**
+   * API-specific security headers
+   */
+  static apiSecurityHeaders = helmet({
+    contentSecurityPolicy: false, // More relaxed for API endpoints
+    crossOriginEmbedderPolicy: false,
+  });
+
+  /**
+   * File upload specific headers
+   */
+  static fileUploadHeaders = helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "blob:"],
+      },
+    },
+  });
+
+  /**
+   * Configure CORS settings
+   */
+  static configureCORS = () => {
+    return {
+      origin: process.env.NODE_ENV === 'production' 
+        ? ['https://yourdomain.com'] 
+        : ['http://localhost:3000', 'http://localhost:3001'],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    };
+  };
 
   /**
    * Add custom security headers

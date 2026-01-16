@@ -5,6 +5,9 @@ export declare const ERROR_CODES: {
     readonly AUTH_INVALID_TOKEN: "AUTH_004";
     readonly AUTH_MISSING_TOKEN: "AUTH_005";
     readonly AUTH_UNAUTHORIZED: "AUTH_006";
+    readonly AUTH_REQUIRED: "AUTH_007";
+    readonly CAPTCHA_REQUIRED: "CAPTCHA_001";
+    readonly CAPTCHA_INVALID: "CAPTCHA_002";
     readonly VALIDATION_ERROR: "VALIDATION_001";
     readonly VALIDATION_INVALID_INPUT: "VALIDATION_002";
     readonly UPLOAD_FAILED: "UPLOAD_001";

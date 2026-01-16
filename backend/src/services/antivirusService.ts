@@ -74,7 +74,7 @@ export class AntivirusService {
       }
 
       return result;
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Antivirus scan failed', {
         filePath,
         error: error.message,
@@ -134,7 +134,7 @@ export class AntivirusService {
         scanId: `basic_${Date.now()}`,
         scanTime: 0,
       };
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Basic scan failed', { filePath, error: error.message });
       
       // If we can't scan, assume it's infected for safety
@@ -181,7 +181,7 @@ export class AntivirusService {
         quarantinePath,
         threats: scanResult.threats,
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Failed to quarantine file', {
         filePath,
         error: error.message,
@@ -217,7 +217,7 @@ export class AntivirusService {
           logger.info('Cleaned up old quarantine file', { file });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Quarantine cleanup failed', { error: error.message });
     }
   }

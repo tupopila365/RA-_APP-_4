@@ -12,7 +12,7 @@ export interface RoadStatus {
   startDate?: string;
   expectedCompletion?: string;
   completedAt?: string;
-  alternativeRoute?: string;
+  alternativeRoute?: string; // Legacy field
   coordinates?: {
     latitude: number;
     longitude: number;
@@ -25,6 +25,29 @@ export interface RoadStatus {
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
+  // New structured alternate routes fields
+  roadClosure?: {
+    roadCode: string;
+    startTown?: string;
+    endTown?: string;
+    startCoordinates: { latitude: number; longitude: number };
+    endCoordinates: { latitude: number; longitude: number };
+    polylineCoordinates: Array<{ latitude: number; longitude: number }>;
+  };
+  alternateRoutes?: Array<{
+    routeName: string;
+    roadsUsed: string[];
+    waypoints: Array<{
+      name: string;
+      coordinates: { latitude: number; longitude: number };
+    }>;
+    vehicleType: string[];
+    distanceKm: number;
+    estimatedTime: string;
+    polylineCoordinates: Array<{ latitude: number; longitude: number }>;
+    isRecommended: boolean;
+    approved: boolean;
+  }>;
 }
 
 export interface ListRoadStatusParams {
@@ -68,7 +91,7 @@ export interface RoadStatusCreateInput {
   description?: string;
   startDate?: string;
   expectedCompletion?: string;
-  alternativeRoute?: string;
+  alternativeRoute?: string; // Legacy field
   coordinates?: {
     latitude: number;
     longitude: number;
@@ -78,6 +101,29 @@ export interface RoadStatusCreateInput {
   estimatedDuration?: string;
   published?: boolean;
   priority?: RoadStatus['priority'];
+  // New structured alternate routes fields
+  roadClosure?: {
+    roadCode: string;
+    startTown?: string;
+    endTown?: string;
+    startCoordinates: { latitude: number; longitude: number };
+    endCoordinates: { latitude: number; longitude: number };
+    polylineCoordinates?: Array<{ latitude: number; longitude: number }>;
+  };
+  alternateRoutes?: Array<{
+    routeName: string;
+    roadsUsed: string[];
+    waypoints: Array<{
+      name: string;
+      coordinates: { latitude: number; longitude: number };
+    }>;
+    vehicleType?: string[];
+    distanceKm?: number;
+    estimatedTime?: string;
+    polylineCoordinates?: Array<{ latitude: number; longitude: number }>;
+    isRecommended?: boolean;
+    approved?: boolean;
+  }>;
 }
 
 export interface RoadStatusUpdateInput extends Partial<RoadStatusCreateInput> {
@@ -137,6 +183,56 @@ export const getRegions = async (): Promise<{ success: boolean; data: { regions:
   const response = await apiClient.get('/road-status/filters/regions');
   return response.data;
 };
+
+// New methods for road closures with alternate routes
+export const getRoadClosureWithRoutes = async (id: string): Promise<{
+  success: boolean;
+  data: {
+    roadClosure: RoadStatus['roadClosure'];
+    alternateRoutes: RoadStatus['alternateRoutes'];
+  };
+}> => {
+  const response = await apiClient.get(`/road-status/road-closures/${id}`);
+  return response.data;
+};
+
+export const createRoadClosureWithRoutes = async (data: {
+  roadClosure: RoadStatus['roadClosure'];
+  alternateRoutes: RoadStatus['alternateRoutes'];
+  title: string;
+  description?: string;
+  region: string;
+  startDate?: string;
+  expectedCompletion?: string;
+  published?: boolean;
+  priority?: RoadStatus['priority'];
+}): Promise<RoadStatusResponse> => {
+  const response = await apiClient.post('/road-status/road-closures', data);
+  return response.data;
+};
+
+export const updateRoadClosureWithRoutes = async (id: string, data: {
+  roadClosure?: RoadStatus['roadClosure'];
+  alternateRoutes?: RoadStatus['alternateRoutes'];
+  title?: string;
+  description?: string;
+  region?: string;
+  startDate?: string;
+  expectedCompletion?: string;
+  published?: boolean;
+  priority?: RoadStatus['priority'];
+}): Promise<RoadStatusResponse> => {
+  const response = await apiClient.put(`/road-status/road-closures/${id}`, data);
+  return response.data;
+};
+
+export const approveAlternateRoute = async (roadworkId: string, routeIndex: number): Promise<RoadStatusResponse> => {
+  const response = await apiClient.put(`/road-status/${roadworkId}/alternate-routes/${routeIndex}/approve`);
+  return response.data;
+};
+
+
+
 
 
 

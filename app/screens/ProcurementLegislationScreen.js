@@ -242,7 +242,7 @@ function getStyles(colors) {
       marginBottom: 16,
       borderWidth: 1,
       borderColor: colors.border,
-      shadowColor: '#000',
+      shadowColor: '#fff',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
       shadowRadius: 2,

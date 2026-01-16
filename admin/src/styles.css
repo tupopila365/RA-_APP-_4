@@ -1,3 +1,135 @@
+/* OFFICIAL NAMIBIAN GOVERNMENT COLOR SYSTEM - CSS VARIABLES */
+:root {
+  /* Brand Colors */
+  --color-primary: #00B4E6;
+  --color-primary-light: #33C4ED;
+  --color-primary-dark: #0099CC;
+  --color-secondary: #FFD700;
+  --color-secondary-light: #FFDF33;
+  --color-secondary-dark: #E6C200;
+  --color-accent: #0EA5E9;
+  
+  /* Status Colors */
+  --color-success: #059669;
+  --color-success-light: #10B981;
+  --color-success-dark: #047857;
+  --color-warning: #D97706;
+  --color-warning-light: #F59E0B;
+  --color-warning-dark: #B45309;
+  --color-error: #DC2626;
+  --color-error-light: #EF4444;
+  --color-error-dark: #B91C1C;
+  --color-info: #0284C7;
+  --color-info-light: #0EA5E9;
+  --color-info-dark: #0369A1;
+  
+  /* Neutral Colors */
+  --color-white: #FFFFFF;
+  --color-gray-50: #F8FAFC;
+  --color-gray-100: #F1F5F9;
+  --color-gray-200: #E2E8F0;
+  --color-gray-300: #CBD5E1;
+  --color-gray-400: #94A3B8;
+  --color-gray-500: #64748B;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1E293B;
+  --color-gray-900: #0F172A;
+  --color-black: #000000;
+  
+  /* Text Colors */
+  --color-text-primary: var(--color-gray-900);
+  --color-text-secondary: var(--color-gray-600);
+  --color-text-muted: var(--color-gray-500);
+  --color-text-disabled: var(--color-gray-400);
+  --color-text-inverse: var(--color-white);
+  --color-text-link: var(--color-primary);
+  --color-text-link-hover: var(--color-primary-dark);
+  
+  /* Background Colors */
+  --color-bg-primary: var(--color-white);
+  --color-bg-secondary: var(--color-gray-50);
+  --color-bg-tertiary: var(--color-gray-100);
+  --color-bg-overlay: rgba(0, 0, 0, 0.5);
+  --color-bg-overlay-light: rgba(0, 0, 0, 0.3);
+  
+  /* Border Colors */
+  --color-border-light: var(--color-gray-200);
+  --color-border-medium: var(--color-gray-300);
+  --color-border-dark: var(--color-gray-400);
+  --color-border-primary: var(--color-primary);
+  --color-border-focus: var(--color-primary-light);
+  
+  /* Shadow Colors */
+  --color-shadow-light: rgba(0, 0, 0, 0.1);
+  --color-shadow-medium: rgba(0, 0, 0, 0.15);
+  --color-shadow-dark: rgba(0, 0, 0, 0.25);
+  --color-shadow-colored: rgba(0, 180, 230, 0.15);
+  
+  /* Component Colors */
+  --color-button-primary: var(--color-primary);
+  --color-button-primary-hover: var(--color-primary-dark);
+  --color-button-primary-disabled: var(--color-gray-400);
+  --color-button-secondary: var(--color-gray-100);
+  --color-button-secondary-hover: var(--color-gray-200);
+  
+  --color-input-bg: var(--color-white);
+  --color-input-border: var(--color-gray-300);
+  --color-input-border-focus: var(--color-primary);
+  --color-input-border-error: var(--color-error);
+  --color-input-placeholder: var(--color-gray-500);
+  
+  --color-card-bg: var(--color-white);
+  --color-card-border: var(--color-gray-200);
+  --color-card-shadow: var(--color-shadow-light);
+  
+  /* Focus Ring */
+  --focus-ring: 0 0 0 2px var(--color-primary-light);
+  --focus-ring-offset: 0 0 0 4px var(--color-white);
+}
+
+/* Dark Mode Variables */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Backgrounds */
+    --color-bg-primary: var(--color-gray-900);
+    --color-bg-secondary: var(--color-gray-800);
+    --color-bg-tertiary: var(--color-gray-700);
+    --color-bg-overlay: rgba(0, 0, 0, 0.8);
+    --color-bg-overlay-light: rgba(0, 0, 0, 0.6);
+    
+    /* Dark Text */
+    --color-text-primary: var(--color-gray-100);
+    --color-text-secondary: var(--color-gray-300);
+    --color-text-muted: var(--color-gray-400);
+    --color-text-disabled: var(--color-gray-500);
+    --color-text-inverse: var(--color-gray-900);
+    --color-text-link: var(--color-primary-light);
+    --color-text-link-hover: var(--color-primary);
+    
+    /* Dark Borders */
+    --color-border-light: var(--color-gray-700);
+    --color-border-medium: var(--color-gray-600);
+    --color-border-dark: var(--color-gray-500);
+    
+    /* Dark Components */
+    --color-button-primary-disabled: var(--color-gray-600);
+    --color-button-secondary: var(--color-gray-700);
+    --color-button-secondary-hover: var(--color-gray-600);
+    
+    --color-input-bg: var(--color-gray-800);
+    --color-input-border: var(--color-gray-600);
+    --color-input-placeholder: var(--color-gray-400);
+    
+    --color-card-bg: var(--color-gray-800);
+    --color-card-border: var(--color-gray-700);
+    --color-card-shadow: rgba(0, 0, 0, 0.3);
+    
+    /* Dark Focus Ring */
+    --focus-ring-offset: 0 0 0 4px var(--color-gray-900);
+  }
+}
+
 /* Global Styles */
 * {
   box-sizing: border-box;
@@ -8,11 +140,13 @@ body {
   font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-secondary);
 }
 
 .app-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #00B4E6 0%, #FFD700 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
 }
 
 .login-container {
@@ -24,12 +158,13 @@ body {
 }
 
 .login-card {
-  background: white;
+  background: var(--color-card-bg);
   border-radius: 16px;
   padding: 40px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px var(--color-shadow-light);
   width: 100%;
   max-width: 400px;
+  border: 1px solid var(--color-card-border);
 }
 
 .logo-container {
@@ -44,30 +179,31 @@ body {
 }
 
 .app-title {
-  color: #00B4E6;
+  color: var(--color-primary);
   margin: 0;
   font-size: 2rem;
   font-weight: 700;
 }
 
 .app-subtitle {
-  color: #666;
+  color: var(--color-text-secondary);
   margin: 8px 0 0 0;
   font-size: 1.1rem;
 }
 
 .dashboard-container {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-secondary);
 }
 
 .dashboard-header {
-  background: white;
+  background: var(--color-card-bg);
   padding: 16px 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--color-shadow-light);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .dashboard-content {
@@ -84,17 +220,18 @@ body {
 }
 
 .department-card {
-  background: white;
+  background: var(--color-card-bg);
   border-radius: 12px;
   padding: 24px;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
-  border: 2px solid transparent;
+  border: 2px solid var(--color-border-light);
 }
 
 .department-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 25px var(--color-shadow-medium);
+  border-color: var(--color-border-primary);
 }
 
 .department-card.selected {

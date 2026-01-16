@@ -5,8 +5,9 @@ export interface CreateReportDTO {
         latitude: number;
         longitude: number;
     };
-    roadName: string;
-    severity: Severity;
+    roadName?: string;
+    townName?: string;
+    streetName?: string;
     description?: string;
 }
 export interface ListReportsQuery {
@@ -52,11 +53,12 @@ declare class PotholeReportsService {
      */
     listReports(query: ListReportsQuery): Promise<ListReportsResult>;
     /**
-     * Update report status
+     * Update report status (admin-only)
      */
     updateReportStatus(reportId: string, status: ReportStatus, updates?: {
         assignedTo?: string;
         adminNotes?: string;
+        severity?: Severity;
     }): Promise<IPotholeReport>;
     /**
      * Assign report to maintenance team

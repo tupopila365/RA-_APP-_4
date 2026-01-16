@@ -8,7 +8,6 @@ const hasRedisConfig = !!env_1.env.REDIS_HOST && !!env_1.env.REDIS_PORT;
 const sanitizedPrefix = (env_1.env.PUSH_QUEUE_PREFIX || 'push').replace(/:/g, '-');
 const queueName = `${sanitizedPrefix}-notifications`;
 let pushQueue = null;
-let pushScheduler = null;
 let pushWorker = null;
 let pushEvents = null;
 const buildConnection = () => ({
@@ -34,7 +33,6 @@ const getPushQueue = () => {
                 removeOnFail: 500,
             },
         });
-        pushScheduler = new bullmq_1.QueueScheduler(queueName, { connection: buildConnection() });
         pushEvents = new bullmq_1.QueueEvents(queueName, { connection: buildConnection() });
         pushEvents.on('failed', ({ jobId, failedReason }) => {
             logger_1.logger.error(`Push job ${jobId} failed: ${failedReason}`);

@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document as MongooseDocument } from 'mongoose';
 
-export type Severity = 'small' | 'medium' | 'dangerous';
+export type Severity = 'low' | 'medium' | 'high';
 export type ReportStatus = 'pending' | 'assigned' | 'in-progress' | 'fixed' | 'duplicate' | 'invalid';
 
 export interface IPotholeReport extends MongooseDocument {
@@ -14,7 +14,7 @@ export interface IPotholeReport extends MongooseDocument {
   region: string;
   roadName: string;
   photoUrl: string;
-  severity: Severity;
+  severity?: Severity; // Admin-only field
   description?: string;
   status: ReportStatus;
   assignedTo?: string;
@@ -77,9 +77,8 @@ const potholeReportSchema = new Schema<IPotholeReport>(
     },
     severity: {
       type: String,
-      required: [true, 'Severity is required'],
-      enum: ['small', 'medium', 'dangerous'],
-      default: 'medium',
+      required: false, // Admin-only field - not required on creation
+      enum: ['low', 'medium', 'high'],
     },
     description: {
       type: String,

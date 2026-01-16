@@ -46,8 +46,7 @@ export class NewsController {
           const notifResult = await notificationsService.sendNewsNotification(
             news._id.toString(),
             news.title,
-            news.excerpt,
-            { useQueue: false }
+            news.excerpt
           );
           logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
         } catch (notifError: any) {
@@ -203,8 +202,7 @@ export class NewsController {
           const notifResult = await notificationsService.sendNewsNotification(
             news._id.toString(),
             news.title,
-            news.excerpt,
-            { useQueue: false }
+            news.excerpt
           );
           logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
         } catch (notifError: any) {

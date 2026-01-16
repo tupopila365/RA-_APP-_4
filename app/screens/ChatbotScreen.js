@@ -562,28 +562,58 @@ export default function ChatbotScreen() {
     }, 100);
   }, [messages]);
 
-  // Handle keyboard show/hide events - simplified and more reliable
+  // FIX 1: Remove the problematic StatusBar settings that cause blurriness
   useEffect(() => {
+    // Remove these lines that might cause visual issues
+    // if (Platform.OS === 'android') {
+    //   RNStatusBar.setBackgroundColor(colors.primary);
+    //   RNStatusBar.setTranslucent(false);
+    // }
+    // RNStatusBar.setBarStyle('light-content');
+    // RNStatusBar.setHidden(false);
+  }, [colors.primary]);
+
+  useFocusEffect(React.useCallback(() => {
+    // Remove these lines as well
+    // if (Platform.OS === 'android') {
+    //   RNStatusBar.setBackgroundColor(colors.primary);
+    //   RNStatusBar.setTranslucent(false);
+    // }
+    // RNStatusBar.setBarStyle('light-content');
+    // RNStatusBar.setHidden(false);
+    
+    // Instead, just ensure clean status bar
+    if (Platform.OS === 'android') {
+      RNStatusBar.setBackgroundColor('transparent');
+      RNStatusBar.setTranslucent(true);
+    }
+  }, [colors.primary]));
+
+  // FIX 2: Update the keyboard handling for proper input positioning
+  const keyboardShowListener = useRef(null);
+  const keyboardHideListener = useRef(null);
+
+  useEffect(() => {
+    // Improved keyboard listeners
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const keyboardShowListener = Keyboard.addListener(showEvent, (e) => {
+    keyboardShowListener.current = Keyboard.addListener(showEvent, (e) => {
       const height = e.endCoordinates.height;
       setKeyboardHeight(height);
-      
-      // Auto-scroll to bottom when keyboard appears
+      // Scroll to bottom after a short delay
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, Platform.OS === 'ios' ? 100 : 200);
+      }, 250);
     });
 
-    const keyboardHideListener = Keyboard.addListener(hideEvent, () => {
+    keyboardHideListener.current = Keyboard.addListener(hideEvent, () => {
       setKeyboardHeight(0);
     });
 
     return () => {
-      keyboardShowListener.remove();
-      keyboardHideListener.remove();
+      keyboardShowListener.current?.remove();
+      keyboardHideListener.current?.remove();
     };
   }, []);
 
@@ -958,13 +988,15 @@ export default function ChatbotScreen() {
     }, [colors.primary])
   );
 
+  // FIX 3: Update the render method with proper KeyboardAvoidingView
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="light" backgroundColor={colors.primary} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]} edges={['top']}>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
       
+      {/* FIX: Use proper keyboardVerticalOffset for iOS */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         style={{ flex: 1 }}
       >
         {/* Messages Area */}
@@ -974,7 +1006,7 @@ export default function ChatbotScreen() {
             contentContainerStyle={[
               styles.messagesContainer,
               {
-                paddingBottom: keyboardHeight > 0 ? 20 : 80
+                paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : 80
               }
             ]}
             style={{ flex: 1 }}
@@ -990,7 +1022,6 @@ export default function ChatbotScreen() {
             }}
             scrollEventThrottle={400}
             keyboardShouldPersistTaps="handled"
-            onScrollBeginDrag={() => {}}
             showsVerticalScrollIndicator={false}
           >
             {messages.map((message) => {
@@ -1070,8 +1101,13 @@ export default function ChatbotScreen() {
           )}
         </View>
 
-        {/* Input Area */}
-        <View style={styles.inputArea}>
+        {/* FIX 4: Update Input Area to position properly */}
+        <View style={[
+          styles.inputArea,
+          Platform.OS === 'ios' && keyboardHeight > 0 && {
+            paddingBottom: 8, // Reduced padding when keyboard is visible
+          }
+        ]}>
           <View style={styles.inputContainer}>
             <TextInput
               ref={inputRef}
@@ -1129,14 +1165,16 @@ function getStyles(colors, screenWidth, colorScheme, insets) {
       backgroundColor: colors.surface, // Use RA surface color
     },
     
-    // Messages Area
+    // Messages Area - Fixed
     messagesArea: {
       flex: 1,
       position: 'relative',
+      backgroundColor: colors.surface, // Ensure consistent background
     },
     messagesContainer: {
       padding: 16,
       paddingTop: 8,
+      minHeight: '100%', // Ensure it takes full height
     },
 
     // Message Items
@@ -1482,15 +1520,27 @@ function getStyles(colors, screenWidth, colorScheme, insets) {
       borderColor: colors.border,
     },
     
-    // Input Area - RA style
+    // Input Area - FIXED for proper keyboard positioning
     inputArea: {
       backgroundColor: colors.card,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      paddingBottom: safeBottomPadding, // Safe area bottom padding
+      paddingBottom: safeBottomPadding,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-      minHeight: 60, // Ensure minimum height
+      minHeight: 60,
+      // Remove elevation/shadow when keyboard is up
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.text,
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
     },
     inputContainer: {
       flexDirection: 'row',
@@ -1498,9 +1548,9 @@ function getStyles(colors, screenWidth, colorScheme, insets) {
       backgroundColor: colors.background,
       borderRadius: 25,
       paddingHorizontal: 16,
-      paddingVertical: 6, // Reduced vertical padding
+      paddingVertical: 8,
       marginHorizontal: 8,
-      marginVertical: 2, // Reduced vertical margin
+      marginVertical: 2,
       borderWidth: 1,
       borderColor: colors.border,
       shadowColor: colors.text,
@@ -1508,18 +1558,18 @@ function getStyles(colors, screenWidth, colorScheme, insets) {
       shadowOpacity: 0.05,
       shadowRadius: 2,
       elevation: 2,
-      minHeight: 48, // Ensure minimum touch target
+      minHeight: 48,
     },
     textInput: {
       flex: 1,
       fontSize: 16,
       color: colors.text,
       maxHeight: 100,
-      minHeight: 40, // Ensure minimum height
-      paddingVertical: 6, // Reduced vertical padding
+      minHeight: 40,
+      paddingVertical: 8,
       paddingRight: 12,
       lineHeight: 20,
-      backgroundColor: 'transparent', // Ensure transparent background
+      backgroundColor: 'transparent',
     },
     sendButton: {
       width: 40,
@@ -1528,7 +1578,8 @@ function getStyles(colors, screenWidth, colorScheme, insets) {
       justifyContent: 'center',
       alignItems: 'center',
       marginLeft: 8,
-      backgroundColor: colors.primary, // RA sky blue
+      marginBottom: 4, // Align better with input
+      backgroundColor: colors.primary,
     },
   });
 }

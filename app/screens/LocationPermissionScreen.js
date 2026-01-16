@@ -12,11 +12,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useAppContext } from '../context/AppContext';
-import { Button } from '../components';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { requestLocationPermission } from '../utils/onboarding';
 import RAIcon from '../assets/icon.png';
+
+// Import Unified Design System Components
+import {
+  UnifiedButton,
+} from '../components/UnifiedDesignSystem';
 
 export default function LocationPermissionScreen({ navigation, onComplete }) {
   const { colors } = useTheme();
@@ -114,14 +118,16 @@ export default function LocationPermissionScreen({ navigation, onComplete }) {
         </View>
 
         <View style={styles.buttonContainer}>
-          <Button
+          <UnifiedButton
             label="Continue"
             onPress={handleContinue}
+            variant="primary"
+            size="large"
             loading={loading}
             disabled={loading}
-            size="large"
             fullWidth
             iconName="arrow-forward"
+            iconPosition="right"
             style={styles.continueButton}
           />
           

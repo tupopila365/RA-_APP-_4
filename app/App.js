@@ -142,19 +142,28 @@ function MainTabs() {
       detachInactiveScreens={false}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => getTabBarIcon(route, focused, color, size),
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 0,
+          elevation: 12, // Android shadow
+          shadowColor: '#000', // iOS shadow
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          height: 68 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
+          paddingTop: 6,
+        },
+        tabBarItemStyle: {
+          borderRadius: 16,
+          marginHorizontal: 6,
+        },
         tabBarActiveTintColor: colors.secondary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          height: 60 + insets.bottom,
-          paddingBottom: insets.bottom,
-          paddingTop: 8,
-        },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
+          marginTop: 2,
         },
         headerStyle: {
           backgroundColor: colors.primary,
@@ -384,7 +393,7 @@ function AppNavigator() {
       <Stack.Screen 
         name="PLNTracking" 
         component={PLNTrackingScreen}
-        options={{ title: 'Track Application' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Auth"

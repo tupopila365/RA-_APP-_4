@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import { plnService } from '../services/plnService';
 
 // Import Unified Design System Components
 import {
@@ -31,7 +32,7 @@ export default function PLNTrackingScreen({ navigation, route }) {
   
   // Form fields
   const [referenceId, setReferenceId] = useState(route?.params?.referenceId || '');
-  const [trackingPin, setTrackingPin] = useState(route?.params?.trackingPin || '');
+  const [pin, setPin] = useState(route?.params?.pin || '');
   const [referenceError, setReferenceError] = useState('');
   const [pinError, setPinError] = useState('');
   
@@ -44,7 +45,7 @@ export default function PLNTrackingScreen({ navigation, route }) {
 
   // Auto-check status if params provided
   useEffect(() => {
-    if (route?.params?.referenceId && route?.params?.trackingPin) {
+    if (route?.params?.referenceId && route?.params?.pin) {
       checkStatus();
     }
   }, []);
@@ -53,21 +54,23 @@ export default function PLNTrackingScreen({ navigation, route }) {
   const validateInputs = () => {
     let isValid = true;
     
-    if (!referenceId.trim()) {
+    const rawRef = referenceId.trim();
+
+    if (!rawRef) {
       setReferenceError('Reference ID is required');
       isValid = false;
-    } else if (!referenceId.match(/^PLN-[A-Z0-9]{6}$/)) {
-      setReferenceError('Invalid Reference ID format');
+    } else if (!rawRef.match(/^PLN-\d{4}-[A-Za-z0-9]{12,25}$/)) {
+      setReferenceError('Invalid Reference ID format (PLN-YYYY-XXXXXXXXXXXX)');
       isValid = false;
     } else {
       setReferenceError('');
     }
     
-    if (!trackingPin.trim()) {
-      setPinError('Tracking PIN is required');
+    if (!pin.trim()) {
+      setPinError('PIN is required');
       isValid = false;
-    } else if (trackingPin.length !== 6 || !trackingPin.match(/^\d{6}$/)) {
-      setPinError('Tracking PIN must be 6 digits');
+    } else if (pin.trim() !== '12345') {
+      setPinError('Invalid PIN (use 12345)');
       isValid = false;
     } else {
       setPinError('');
@@ -82,27 +85,46 @@ export default function PLNTrackingScreen({ navigation, route }) {
     
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the real PLN tracking API with uppercase reference ID
+      const submissionRef = referenceId.trim().toUpperCase();
+      const result = await plnService.trackApplication(submissionRef, pin);
       
-      // Mock tracking result
-      const mockResult = {
-        referenceId: referenceId,
-        status: 'Pending Review',
-        estimatedTime: '5–7 working days',
-        submittedDate: '2024-01-10',
-        lastUpdated: '2024-01-12',
-        nextSteps: 'Your application is being reviewed by our team. You will be notified once the review is complete.',
-        statusHistory: [
-          { status: 'Submitted', date: '2024-01-10', time: '14:30' },
-          { status: 'Under Review', date: '2024-01-12', time: '09:15' },
-        ]
+      // Helper function to get next steps message
+      const getNextStepsMessage = (status) => {
+        switch (status?.toLowerCase()) {
+          case 'pending':
+          case 'pending review':
+            return 'Your application is being reviewed by our team. You will be notified once the review is complete.';
+          case 'approved':
+            return 'Your application has been approved! You will receive your personalized number plates soon.';
+          case 'rejected':
+            return 'Your application has been rejected. Please contact our office for more information.';
+          default:
+            return 'Your application is being processed. Please check back later for updates.';
+        }
       };
       
-      setTrackingResult(mockResult);
+      // Format the result for display
+      const trackingResult = {
+        referenceId: result.referenceId,
+        status: result.status || 'Pending Review',
+        estimatedTime: '5–7 working days',
+        submittedDate: result.createdAt ? new Date(result.createdAt).toLocaleDateString() : 'Unknown',
+        lastUpdated: result.updatedAt ? new Date(result.updatedAt).toLocaleDateString() : 'Unknown',
+        nextSteps: getNextStepsMessage(result.status),
+        statusHistory: [
+          { 
+            status: 'Submitted', 
+            date: result.createdAt ? new Date(result.createdAt).toLocaleDateString() : 'Unknown',
+            time: result.createdAt ? new Date(result.createdAt).toLocaleTimeString() : 'Unknown'
+          },
+        ]
+      };
+
+      setTrackingResult(trackingResult);
       setShowResult(true);
     } catch (error) {
-      Alert.alert('Error', 'Failed to check status. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to check status. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -113,7 +135,7 @@ export default function PLNTrackingScreen({ navigation, route }) {
     setShowResult(false);
     setTrackingResult(null);
     setReferenceId('');
-    setTrackingPin('');
+    setPin('');
     setReferenceError('');
     setPinError('');
   };
@@ -168,32 +190,32 @@ export default function PLNTrackingScreen({ navigation, route }) {
           label="Reference ID"
           value={referenceId}
           onChangeText={(text) => {
-            setReferenceId(text.toUpperCase());
+            setReferenceId(text);
             setReferenceError('');
           }}
-          placeholder="PLN-ABC123"
+          placeholder="PLN-2024-ABC123DEF456"
           error={referenceError}
-          autoCapitalize="characters"
-          maxLength={10}
+          autoCapitalize="none"
+          maxLength={25}
           leftIcon="document-text-outline"
-          helperText="Format: PLN-ABC123"
+          helperText="Format: PLN-YYYY-XXXXXXXXXXXX (up to 25 characters)"
           required
         />
 
         <UnifiedFormInput
           label="Tracking PIN"
-          value={trackingPin}
+          value={pin}
           onChangeText={(text) => {
-            setTrackingPin(text.replace(/[^0-9]/g, ''));
+            setPin(text.replace(/[^0-9]/g, ''));
             setPinError('');
           }}
-          placeholder="123456"
+          placeholder="Enter PIN: 12345"
           error={pinError}
           keyboardType="numeric"
-          maxLength={6}
-          secureTextEntry
-          leftIcon="key-outline"
-          helperText="6-digit PIN provided with your application"
+          maxLength={5}
+          leftIcon="lock-closed-outline"
+          helperText="Universal tracking PIN: 12345"
+          secureTextEntry={true}
           required
         />
       </UnifiedCard>

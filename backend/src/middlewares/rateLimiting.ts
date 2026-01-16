@@ -36,7 +36,7 @@ export const plnSubmissionRateLimit = rateLimit({
   },
   keyGenerator: (req: Request) => {
     // Use IP + user agent for better tracking
-    return `${req.ip}-${req.get('User-Agent')}`;
+    return `${req.ip || 'unknown'}-${req.get('User-Agent')}`;
   },
   skip: (req: Request) => {
     // Skip rate limiting for authenticated admin users
@@ -142,14 +142,14 @@ export class AdvancedRateLimiter {
     skipIf?: (req: Request) => boolean;
   }) {
     return async (req: Request, res: Response, next: Function) => {
-      const key = options.keyGenerator ? options.keyGenerator(req) : req.ip;
+      const key = options.keyGenerator ? options.keyGenerator(req) : (req.ip || 'unknown');
       
       if (options.skipIf && options.skipIf(req)) {
         return next();
       }
 
       // Check if IP is suspicious
-      if (await this.isSuspiciousIP(req.ip)) {
+      if (await this.isSuspiciousIP(req.ip || 'unknown')) {
         return res.status(429).json({
           success: false,
           error: {

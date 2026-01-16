@@ -13,7 +13,7 @@ class NotificationsController {
         try {
             const { pushToken, platform, deviceInfo } = req.body;
             if (!pushToken || !platform) {
-                return res.status(400).json({
+                res.status(400).json({
                     success: false,
                     error: {
                         code: 'VALIDATION_ERROR',
@@ -21,6 +21,7 @@ class NotificationsController {
                     },
                     timestamp: new Date().toISOString(),
                 });
+                return;
             }
             const token = await notifications_service_1.notificationsService.registerPushToken(pushToken, platform, deviceInfo || {});
             logger_1.logger.info(`Push token registered: ${pushToken.substring(0, 20)}...`);
@@ -43,7 +44,7 @@ class NotificationsController {
         try {
             const { title, body, data, type, relatedId } = req.body;
             if (!title || !body || !type) {
-                return res.status(400).json({
+                res.status(400).json({
                     success: false,
                     error: {
                         code: 'VALIDATION_ERROR',
@@ -51,6 +52,7 @@ class NotificationsController {
                     },
                     timestamp: new Date().toISOString(),
                 });
+                return;
             }
             const result = await notifications_service_1.notificationsService.sendPushNotification({
                 title,

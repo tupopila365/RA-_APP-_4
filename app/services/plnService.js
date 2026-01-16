@@ -16,33 +16,17 @@ class PLNService {
    */
   async submitApplication(applicationData, documentUri) {
     try {
-      const url = `${API_BASE_URL}/pln/applications`;
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plnService.js:16',message:'Service received applicationData',data:{hasIdType:!!applicationData.idType,hasSurname:!!applicationData.surname,hasPostalAddress:!!applicationData.postalAddress,hasFullName:!!applicationData.fullName,hasIdNumber:!!applicationData.idNumber,hasPhoneNumber:!!applicationData.phoneNumber},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
-      console.log('Submitting PLN application:', {
+      const url = `${API_BASE_URL}/pln/applications`;console.log('Submitting PLN application:', {
         url,
         fullName: applicationData.fullName,
         hasDocument: !!documentUri,
       });
 
       // Check if new structure (has idType) or legacy structure
-      const isNewStructure = applicationData.idType && applicationData.surname && applicationData.postalAddress;
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plnService.js:25',message:'Structure check result',data:{isNewStructure,hasIdType:!!applicationData.idType,hasSurname:!!applicationData.surname,hasPostalAddress:!!applicationData.postalAddress},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
-      // Validate based on structure
+      const isNewStructure = applicationData.idType && applicationData.surname && applicationData.postalAddress;// Validate based on structure
       if (!isNewStructure) {
         // Legacy structure validation
-        if (!applicationData.fullName || !applicationData.fullName.trim()) {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plnService.js:30',message:'Legacy validation failed - fullName missing',data:{hasFullName:!!applicationData.fullName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
-          throw new Error('Full name is required');
+        if (!applicationData.fullName || !applicationData.fullName.trim()) {throw new Error('Full name is required');
         }
         if (!applicationData.idNumber || !applicationData.idNumber.trim()) {
           throw new Error('ID number is required');
@@ -85,11 +69,7 @@ class PLNService {
 
       // Add application data (new comprehensive structure)
       // Section A
-      if (applicationData.idType) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plnService.js:69',message:'Adding new structure fields to FormData',data:{idType:applicationData.idType,hasSurname:!!applicationData.surname,hasPostalAddress:!!applicationData.postalAddress,postalAddressStr:JSON.stringify(applicationData.postalAddress)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        formData.append('idType', applicationData.idType);
+      if (applicationData.idType) {formData.append('idType', applicationData.idType);
         if (applicationData.trafficRegisterNumber) {
           formData.append('trafficRegisterNumber', applicationData.trafficRegisterNumber);
         }
@@ -307,20 +287,20 @@ class PLNService {
   }
 
   /**
-   * Track application by reference ID and ID number
+   * Track application by reference ID and PIN
    * @param {string} referenceId - Application reference ID
-   * @param {string} idNumber - Applicant ID number
+   * @param {string} pin - Universal tracking PIN (12345)
    */
-  async trackApplication(referenceId, idNumber) {
+  async trackApplication(referenceId, pin) {
     try {
       if (!referenceId || !referenceId.trim()) {
         throw new Error('Reference ID is required');
       }
-      if (!idNumber || !idNumber.trim()) {
-        throw new Error('ID number is required');
+      if (!pin || !pin.trim()) {
+        throw new Error('PIN is required');
       }
 
-      const response = await ApiClient.get(`/pln/track/${referenceId.trim()}/${idNumber.trim()}`);
+      const response = await ApiClient.get(`/pln/track/${referenceId.trim()}/${pin.trim()}`);
 
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to track application');
@@ -329,6 +309,22 @@ class PLNService {
       return response.data.application;
     } catch (error) {
       console.error('Error tracking application:', error);
+      
+      // Provide more helpful error messages for common issues
+      if (error.status === 404) {
+        throw new Error('Application not found. Please verify your Reference ID is correct.');
+      }
+      
+      if (error.status === 401) {
+        throw new Error('Invalid PIN. Please check your PIN and try again.');
+      }
+      
+      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
+        throw new Error(
+          'Unable to connect to the server. Please check your internet connection and try again.'
+        );
+      }
+      
       throw error;
     }
   }

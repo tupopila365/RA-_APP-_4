@@ -9,7 +9,6 @@ import useDocumentDownload from '../hooks/useDocumentDownload';
 
 // Import Unified Design System Components
 import {
-  GlobalHeader,
   UnifiedCard,
   UnifiedButton,
   UnifiedSkeletonLoader,
@@ -103,20 +102,6 @@ export default function PLNInfoScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <GlobalHeader
-        title="PLN Information"
-        subtitle="Personalized Number Plates"
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-        rightActions={[
-          {
-            icon: 'download-outline',
-            onPress: handleDownloadForm,
-            accessibilityLabel: 'Download form',
-          },
-        ]}
-      />
-      
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {/* Header Section */}
         <View style={styles.headerSection}>

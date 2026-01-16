@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, useColorScheme, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, useColorScheme, TouchableOpacity, Platform } from 'react-native';
 import { RATheme } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 
@@ -17,7 +17,8 @@ export function Card({
 }) {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const styles = getStyles(colors);
+  const isDark = colorScheme === 'dark';
+  const styles = getStyles(colors, isDark);
 
   const paddingStyle = {
     none: styles.paddingNone,
@@ -61,26 +62,47 @@ export function Card({
   );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, isDark) => StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 15,
+    backgroundColor: '#FFFFFF', // Always solid white for consistency
+    borderRadius: 12,
     marginBottom: spacing.md,
   },
+  
+  // Android-safe default styling
   cardDefault: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: isDark ? 0 : 0.08,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: isDark ? 0 : 1,
+      },
+    }),
+    borderWidth: 1,
+    borderColor: isDark ? colors.border : '#E6EAF0',
   },
+  
+  // Android-safe elevated styling
   cardElevated: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: isDark ? 0 : 0.12,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: isDark ? 0 : 2, // Max 2 for Android safety
+      },
+    }),
+    borderWidth: 1,
+    borderColor: isDark ? colors.border : '#E6EAF0',
   },
+  
   cardOutlined: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -90,23 +112,27 @@ const getStyles = (colors) => StyleSheet.create({
     shadowRadius: 0,
     elevation: 0,
   },
+  
   cardFlat: {
+    backgroundColor: 'transparent',
     shadowColor: 'transparent',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
     shadowRadius: 0,
     elevation: 0,
+    borderWidth: 0,
   },
+  
   paddingNone: {
     padding: 0,
   },
   paddingSmall: {
-    padding: spacing.md,
+    padding: spacing.sm,
   },
   paddingMedium: {
-    padding: spacing.xl,
+    padding: spacing.md,
   },
   paddingLarge: {
-    padding: spacing.xxl,
+    padding: spacing.lg,
   },
 });

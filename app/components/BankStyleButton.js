@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonPrimary: {
-    backgroundColor: '#1976D2',
+    backgroundColor: colors.primary, // Use theme primary color instead of #1976D2
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   buttonOutline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#1976D2',
+    borderColor: colors.primary, // Use theme primary color instead of #1976D2
   },
   buttonOutlineDisabled: {
     borderColor: '#BDBDBD',
@@ -352,19 +352,19 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   buttonTextSecondary: {
-    color: '#1976D2',
+    color: colors.primary, // Use theme primary color instead of #1976D2
   },
   buttonTextSecondaryDisabled: {
     color: '#999',
   },
   buttonTextOutline: {
-    color: '#1976D2',
+    color: colors.primary, // Use theme primary color instead of #1976D2
   },
   buttonTextOutlineDisabled: {
     color: '#BDBDBD',
   },
   buttonTextText: {
-    color: '#1976D2',
+    color: colors.primary, // Use theme primary color instead of #1976D2
   },
   buttonTextTextDisabled: {
     color: '#BDBDBD',

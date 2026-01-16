@@ -1,4 +1,4 @@
-import { Queue, QueueScheduler, Worker, JobsOptions, Job, QueueEvents } from 'bullmq';
+import { Queue, Worker, JobsOptions, Job, QueueEvents } from 'bullmq';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
@@ -22,7 +22,6 @@ const sanitizedPrefix = (env.PUSH_QUEUE_PREFIX || 'push').replace(/:/g, '-');
 const queueName = `${sanitizedPrefix}-notifications`;
 
 let pushQueue: Queue<PushJobData> | null = null;
-let pushScheduler: QueueScheduler | null = null;
 let pushWorker: Worker<PushJobData> | null = null;
 let pushEvents: QueueEvents | null = null;
 
@@ -52,7 +51,6 @@ export const getPushQueue = (): Queue<PushJobData> | null => {
       },
     });
 
-    pushScheduler = new QueueScheduler(queueName, { connection: buildConnection() });
     pushEvents = new QueueEvents(queueName, { connection: buildConnection() });
 
     pushEvents.on('failed', ({ jobId, failedReason }) => {

@@ -7,6 +7,18 @@ import { SecureIdGenerator } from '../utils/secureIdGenerator';
 import { AntivirusService } from '../services/antivirusService';
 import { logger } from '../utils/logger';
 
+// Extend the Express.Multer.File interface to include security properties
+declare global {
+  namespace Express {
+    namespace Multer {
+      interface File {
+        securityValidated?: boolean;
+        validationTimestamp?: string;
+      }
+    }
+  }
+}
+
 /**
  * Secure file upload middleware with comprehensive validation
  */
@@ -46,6 +58,20 @@ export class SecureFileUpload {
       return true;
     } catch (error) {
       logger.error('Error validating file signature:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Scan file for malware using antivirus service
+   */
+  private static async scanFileForMalware(filePath: string): Promise<boolean> {
+    try {
+      const scanResult = await AntivirusService.scanFile(filePath);
+      return scanResult.isClean;
+    } catch (error) {
+      logger.error('Malware scan failed:', error);
+      // Fail safe - if scan fails, consider file unsafe
       return false;
     }
   }

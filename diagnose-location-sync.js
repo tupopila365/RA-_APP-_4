@@ -5,8 +5,8 @@
 
 // Configuration
 const ADMIN_API = 'http://localhost:3001/api'; // Admin backend (usually port 3001)
-const MOBILE_API = 'http://192.168.11.52:5000/api'; // Mobile API from env.js
-const MOBILE_API_ALT = 'http://localhost:5000/api'; // Alternative mobile API
+const MOBILE_API = 'http://192.168.1.198:5001/api'; // Mobile API from env.js
+const MOBILE_API_ALT = 'http://localhost:5001/api'; // Alternative mobile API
 
 console.log('🔍 Comprehensive Location Sync Diagnostic');
 console.log('==========================================');
@@ -70,8 +70,8 @@ async function checkNetworkConnectivity() {
   
   const endpoints = [
     { url: 'http://localhost:3001', name: 'Admin Backend (localhost:3001)' },
-    { url: 'http://localhost:5000', name: 'Mobile Backend (localhost:5000)' },
-    { url: 'http://192.168.11.52:5000', name: 'Mobile Backend (WiFi IP)' },
+    { url: 'http://localhost:5001', name: 'Mobile Backend (localhost:5001)' },
+    { url: 'http://192.168.1.198:5001', name: 'Mobile Backend (WiFi IP)' },
   ];
   
   for (const endpoint of endpoints) {
@@ -144,9 +144,9 @@ async function suggestSolutions(results) {
   if (!mobileResult.success && !mobileAltResult.success) {
     console.log('❌ Mobile API Issues:');
     console.log('   - Check if backend is running (npm run dev in backend folder)');
-    console.log('   - Verify backend port (usually 5000)');
+    console.log('   - Verify backend port (usually 5001)');
     console.log('   - Check firewall settings');
-    console.log('   - Try USB connection: adb reverse tcp:5000 tcp:5000');
+    console.log('   - Try USB connection: adb reverse tcp:5001 tcp:5001');
     console.log('   - Consider using ngrok tunnel');
   }
   
@@ -187,7 +187,7 @@ async function runDiagnostic() {
   console.log('\n💡 Quick Actions:');
   console.log('   1. Ensure backend is running: cd backend && npm run dev');
   console.log('   2. Check admin panel: http://localhost:3000/locations');
-  console.log('   3. Test mobile API: http://localhost:5000/api/locations');
+  console.log('   3. Test mobile API: http://localhost:5001/api/locations');
   console.log('   4. Refresh mobile app and check for locations');
 }
 

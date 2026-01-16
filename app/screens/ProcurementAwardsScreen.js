@@ -9,23 +9,20 @@ import {
   Alert,
   RefreshControl,
   Platform,
-  Dimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import useDocumentDownload from '../hooks/useDocumentDownload';
 import { SkeletonLoader, ListScreenSkeleton, ErrorState, EmptyState, SearchInput } from '../components';
 import { procurementAwardsService } from '../services/procurementService';
+import { spacing } from '../theme/spacing';
 
 
-export default function ProcurementAwardsScreen({ navigation: nav }) {
+export default function ProcurementAwardsScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const styles = getStyles(colors);
 
   const [activeTab, setActiveTab] = useState('opportunities');
@@ -42,8 +39,6 @@ export default function ProcurementAwardsScreen({ navigation: nav }) {
   const {
     isDownloading,
     progress,
-    error: downloadError,
-    downloadedUri,
     startDownload,
     resetDownload,
   } = useDocumentDownload();
@@ -123,20 +118,6 @@ export default function ProcurementAwardsScreen({ navigation: nav }) {
   useEffect(() => {
     fetchAwards();
   }, [fetchAwards]);
-
-  // Tabs for different award types (these act as filters)
-  const tabs = [
-    {
-      id: 'opportunities',
-      label: 'Open Procurement Opportunities',
-      count: awards.filter(item => item.type === 'opportunities' || !item.type).length,
-    },
-    {
-      id: 'rfqs',
-      label: 'Request for Quotations',
-      count: awards.filter(item => item.type === 'rfq').length,
-    },
-  ];
 
   // Filter by active tab (opportunities vs rfqs)
   const tabFilteredData = awards.filter((item) => {
@@ -253,71 +234,75 @@ export default function ProcurementAwardsScreen({ navigation: nav }) {
         </View>
 
         {/* Tab Filter Chips - First Filter System */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterContainer}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              activeTab === 'opportunities' && styles.filterChipActive,
-            ]}
-            onPress={() => setActiveTab('opportunities')}
+        <View style={styles.filterSectionContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterContainer}
           >
-            <Text style={[
-                styles.filterChipText,
-                activeTab === 'opportunities' && styles.filterChipTextActive,
-              ]}
-             numberOfLines={1}
-             maxFontSizeMultiplier={1.3}>
-              Opportunities
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              activeTab === 'rfqs' && styles.filterChipActive,
-            ]}
-            onPress={() => setActiveTab('rfqs')}
-          >
-            <Text style={[
-                styles.filterChipText,
-                activeTab === 'rfqs' && styles.filterChipTextActive,
-              ]}
-             numberOfLines={1}
-             maxFontSizeMultiplier={1.3}>
-              RFQs
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* Category Filter Chips - Second Filter System */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterContainer}
-        >
-          {filters.map((filter, index) => (
             <TouchableOpacity
-              key={filter || `filter-${index}`}
               style={[
                 styles.filterChip,
-                selectedFilter === filter && styles.filterChipActive,
+                activeTab === 'opportunities' && styles.filterChipActive,
               ]}
-              onPress={() => setSelectedFilter(filter)}
+              onPress={() => setActiveTab('opportunities')}
             >
               <Text style={[
                   styles.filterChipText,
-                  selectedFilter === filter && styles.filterChipTextActive,
+                  activeTab === 'opportunities' && styles.filterChipTextActive,
                 ]}
                numberOfLines={1}
                maxFontSizeMultiplier={1.3}>
-                {filter}
+                Opportunities
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                activeTab === 'rfqs' && styles.filterChipActive,
+              ]}
+              onPress={() => setActiveTab('rfqs')}
+            >
+              <Text style={[
+                  styles.filterChipText,
+                  activeTab === 'rfqs' && styles.filterChipTextActive,
+                ]}
+               numberOfLines={1}
+               maxFontSizeMultiplier={1.3}>
+                RFQs
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+
+        {/* Category Filter Chips - Second Filter System */}
+        <View style={styles.filterSectionContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterContainer}
+          >
+            {filters.map((filter, index) => (
+              <TouchableOpacity
+                key={filter || `filter-${index}`}
+                style={[
+                  styles.filterChip,
+                  selectedFilter === filter && styles.filterChipActive,
+                ]}
+                onPress={() => setSelectedFilter(filter)}
+              >
+                <Text style={[
+                    styles.filterChipText,
+                    selectedFilter === filter && styles.filterChipTextActive,
+                  ]}
+                 numberOfLines={1}
+                 maxFontSizeMultiplier={1.3}>
+                  {filter}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Results Count */}
         {filteredData.length > 0 && (searchQuery.trim() || selectedFilter !== 'All') && (
@@ -351,7 +336,7 @@ export default function ProcurementAwardsScreen({ navigation: nav }) {
                 >
                   <View style={styles.awardHeader}>
                     <View style={[styles.typeBadge, { backgroundColor: colors.secondary }]}>
-                      <Text style={[styles.typeText, { color: colors.secondary }]} maxFontSizeMultiplier={1.3}>
+                      <Text style={[styles.typeText, { color:'#fff'  }]} maxFontSizeMultiplier={1.3}>
                         {activeTab === 'opportunities' ? 'OPPORTUNITY' : 'RFQ'}
                       </Text>
                     </View>
@@ -376,7 +361,7 @@ export default function ProcurementAwardsScreen({ navigation: nav }) {
                   </View>
                   <View style={styles.awardDate}>
                     <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                    <Text style={[styles.awardDateText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
+                    <Text style={[styles.awardDateText, { color: '#000' }]} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
                       Awarded: {formatDate(item.dateAwarded)}
                     </Text>
                   </View>
@@ -435,9 +420,6 @@ export default function ProcurementAwardsScreen({ navigation: nav }) {
 }
 
 function getStyles(colors) {
-  const { width } = Dimensions.get('window');
-  const isSmallScreen = width < 375;
-  
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -448,32 +430,36 @@ function getStyles(colors) {
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: 20,
-      padding: 20,
+      paddingBottom: spacing.xl,
+      padding: spacing.lg,
     },
     searchInputContainer: {
       paddingHorizontal: 0,
-      paddingTop: 16,
-      paddingBottom: 4,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
     },
     searchInput: {
       margin: 0,
     },
+    filterSectionContainer: {
+      paddingHorizontal: 0,
+      paddingVertical: spacing.sm,
+    },
     filterContainer: {
-      paddingHorizontal: 15,
-      paddingVertical: 5,
-      gap: 10,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      gap: spacing.sm,
       flexDirection: 'row',
       flexWrap: 'nowrap',
     },
     filterChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
       borderRadius: 8,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      marginRight: 8,
+      marginRight: spacing.sm,
       minWidth: 60,
       maxWidth: 120,
       height: 36,
@@ -497,18 +483,19 @@ function getStyles(colors) {
       color: '#FFFFFF',
       fontWeight: '600',
     },
+
     resultsCountContainer: {
       paddingHorizontal: 0,
-      paddingTop: 8,
-      paddingBottom: 8,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
     },
     resultsCount: {
       fontSize: 14,
       color: colors.textSecondary,
-      marginBottom: 8,
+      marginBottom: spacing.sm,
     },
     emptyStateContainer: {
-      padding: 20,
+      padding: spacing.xl,
       minHeight: 300,
       justifyContent: 'center',
       alignItems: 'center',
@@ -519,9 +506,9 @@ function getStyles(colors) {
     awardCard: {
       backgroundColor: colors.card,
       borderRadius: 8,
-      padding: 20,
-      marginBottom: 16,
-      shadowColor: '#000',
+      padding: spacing.xl,
+      marginBottom: spacing.md,
+      shadowColor: '#fff',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
       shadowRadius: 2,
@@ -533,11 +520,11 @@ function getStyles(colors) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 14,
+      marginBottom: spacing.md,
     },
     typeBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 7,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.secondary,
@@ -552,22 +539,22 @@ function getStyles(colors) {
       fontSize: 16,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 14,
+      marginBottom: spacing.md,
       lineHeight: 24,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     awardDetails: {
       flexDirection: 'row',
-      marginBottom: 14,
+      marginBottom: spacing.md,
       flexWrap: 'wrap',
-      gap: 12,
+      gap: spacing.md,
     },
     detailItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginRight: 16,
-      marginBottom: 6,
-      gap: 6,
+      marginRight: spacing.lg,
+      marginBottom: spacing.xs,
+      gap: spacing.xs,
     },
     detailText: {
       fontSize: 14,
@@ -577,32 +564,32 @@ function getStyles(colors) {
     awardDate: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 10,
-      paddingTop: 12,
+      marginTop: spacing.sm,
+      paddingTop: spacing.md,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-      gap: 6,
+      gap: spacing.xs,
     },
     awardDateText: {
       fontSize: 14,
       fontWeight: '600',
     },
     expandedContent: {
-      marginTop: 16,
+      marginTop: spacing.lg,
     },
     divider: {
       height: 1,
       backgroundColor: colors.border,
-      marginBottom: 16,
+      marginBottom: spacing.lg,
     },
     section: {
-      marginBottom: 18,
+      marginBottom: spacing.lg,
     },
     sectionTitle: {
       fontSize: 16,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 10,
+      marginBottom: spacing.sm,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     sectionText: {
@@ -614,11 +601,11 @@ function getStyles(colors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 14,
-      paddingHorizontal: 20,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
       borderRadius: 8,
-      marginTop: 12,
-      gap: 8,
+      marginTop: spacing.md,
+      gap: spacing.sm,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.1,
@@ -637,7 +624,7 @@ function getStyles(colors) {
       height: 4,
       backgroundColor: colors.border,
       borderRadius: 2,
-      marginTop: 8,
+      marginTop: spacing.sm,
       overflow: 'hidden',
     },
     progressBar: {

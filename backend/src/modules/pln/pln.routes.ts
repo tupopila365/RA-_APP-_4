@@ -45,12 +45,12 @@ router.post(
 // router.get('/csrf-token', CSRFProtection.getTokenForClient);
 
 /**
- * @route   GET /api/pln/track/:referenceId/:idNumber
- * @desc    Track application by reference ID and ID number
+ * @route   GET /api/pln/track/:referenceId/:pin
+ * @desc    Track application by reference ID and PIN (Universal PIN: 12345)
  * @access  Public (with rate limiting)
  */
 router.get(
-  '/track/:referenceId/:idNumber',
+  '/track/:referenceId/:pin',
   // rateLimiters.tracking,
   plnController.trackApplication.bind(plnController)
 );

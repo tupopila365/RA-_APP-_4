@@ -37,6 +37,15 @@ interface EnvConfig {
     SMTP_FROM_EMAIL?: string;
     SMTP_FROM_NAME?: string;
     EMAIL_VERIFICATION_BASE_URL?: string;
+    FIELD_ENCRYPTION_KEY: string;
+    RECAPTCHA_SECRET_KEY?: string;
+    RECAPTCHA_SITE_KEY?: string;
+    SECURITY_AUDIT_LOG_LEVEL?: string;
+    MAX_LOGIN_ATTEMPTS?: number;
+    ACCOUNT_LOCKOUT_DURATION?: number;
+    ANTIVIRUS_API_KEY?: string;
+    ANTIVIRUS_API_URL?: string;
+    FILE_QUARANTINE_ENABLED?: boolean;
 }
 export declare const env: EnvConfig;
 export {};

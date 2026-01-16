@@ -17,6 +17,16 @@ class ChatbotService {
     async processQuery(queryRequest) {
         const { question, sessionId } = queryRequest;
         logger_1.logger.info('Processing chatbot query', { question, sessionId });
+        // Check cache first for general queries (not location/traffic specific)
+        const cacheKey = `query:${question}`;
+        const cachedResponse = await cache_1.cacheService.get('chatbot', cacheKey);
+        if (cachedResponse) {
+            logger_1.logger.info('Returning cached chatbot response', { question: question.substring(0, 50) });
+            return {
+                ...cachedResponse,
+                timestamp: new Date(), // Update timestamp but keep cached content
+            };
+        }
         try {
             // Forward query to RAG service
             const ragResponse = await httpClient_1.ragService.queryDocuments(question);
@@ -38,6 +48,8 @@ class ChatbotService {
                 sources: formattedSources,
                 timestamp: new Date(),
             };
+            // Cache the response for 1 hour (3600 seconds)
+            await cache_1.cacheService.set('chatbot', cacheKey, formattedResponse, 3600);
             logger_1.logger.info('Chatbot query processed successfully', {
                 question,
                 sourcesCount: formattedResponse.sources.length,

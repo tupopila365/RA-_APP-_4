@@ -24,15 +24,9 @@ import { Card } from '../components/Card';
 import { validators, getErrorMessage } from '../utils/validation';
 import { useAppContext } from '../context/AppContext';
 
-// Conditionally import native modules
-let ImagePicker = null;
-let DocumentPicker = null;
-try {
-  ImagePicker = require('expo-image-picker');
-  DocumentPicker = require('expo-document-picker');
-} catch (error) {
-  console.warn('Native modules not available:', error.message);
-}
+// Import native modules
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 
 const { width } = Dimensions.get('window');
 
@@ -581,6 +575,7 @@ export default function PLNApplicationWizard({ navigation }) {
             placeholder="Enter business name"
             error={validationErrors.businessName}
             maxLength={50}
+            autoCapitalize="words"
           />
         </>
       )}
@@ -633,6 +628,7 @@ export default function PLNApplicationWizard({ navigation }) {
         placeholder="P.O. Box or street address"
         error={validationErrors.postalAddressLine1}
         maxLength={40}
+        autoCapitalize="words"
       />
       <FormInput
         label="Address Line 2"
@@ -640,6 +636,7 @@ export default function PLNApplicationWizard({ navigation }) {
         onChangeText={(text) => setPostalAddress({ ...postalAddress, line2: text })}
         placeholder="City or area"
         maxLength={40}
+        autoCapitalize="words"
       />
       <FormInput
         label="Address Line 3"
@@ -647,6 +644,7 @@ export default function PLNApplicationWizard({ navigation }) {
         onChangeText={(text) => setPostalAddress({ ...postalAddress, line3: text })}
         placeholder="Region or country"
         maxLength={40}
+        autoCapitalize="words"
       />
 
       <Text style={styles.sectionSubtitle}>Street Address *</Text>
@@ -660,6 +658,7 @@ export default function PLNApplicationWizard({ navigation }) {
         placeholder="Street address"
         error={validationErrors.streetAddressLine1}
         maxLength={40}
+        autoCapitalize="words"
       />
       <FormInput
         label="Address Line 2"
@@ -667,6 +666,7 @@ export default function PLNApplicationWizard({ navigation }) {
         onChangeText={(text) => setStreetAddress({ ...streetAddress, line2: text })}
         placeholder="Area or suburb"
         maxLength={40}
+        autoCapitalize="words"
       />
       <FormInput
         label="Address Line 3"
@@ -674,6 +674,7 @@ export default function PLNApplicationWizard({ navigation }) {
         onChangeText={(text) => setStreetAddress({ ...streetAddress, line3: text })}
         placeholder="City"
         maxLength={40}
+        autoCapitalize="words"
       />
 
       <Text style={styles.sectionSubtitle}>Contact Information *</Text>

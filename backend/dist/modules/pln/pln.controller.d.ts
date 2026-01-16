@@ -7,8 +7,9 @@ export declare class PLNController {
      */
     createApplication(req: Request, res: Response, next: NextFunction): Promise<void>;
     /**
-     * Track application by reference ID and ID number (public)
-     * GET /api/pln/track/:referenceId/:idNumber
+     * Track application by reference ID and PIN (public)
+     * GET /api/pln/track/:referenceId/:pin
+     * Universal PIN: 12345 for all users
      */
     trackApplication(req: Request, res: Response, next: NextFunction): Promise<void>;
     /**
@@ -53,9 +54,20 @@ export declare class PLNController {
      */
     downloadPDF(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
     /**
-     * Download blank PLN form PDF (public)
-     * GET /api/pln/form
+     * Update admin comments (admin)
+     * PUT /api/pln/applications/:id/comments
      */
+    updateAdminComments(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    /**
+     * Assign application to admin (admin)
+     * PUT /api/pln/applications/:id/assign
+     */
+    assignToAdmin(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    /**
+     * Set application priority (admin)
+     * PUT /api/pln/applications/:id/priority
+     */
+    setPriority(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
     downloadForm(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const plnController: PLNController;

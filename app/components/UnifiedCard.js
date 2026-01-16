@@ -5,7 +5,7 @@ import { spacing } from '../theme/spacing';
 
 /**
  * Unified Card Component - Bank-grade, government-ready
- * Consistent across all screens in the app
+ * Android-safe styling to prevent foggy/layered appearance
  * Based on approved design from locked pages
  */
 export function UnifiedCard({ 
@@ -76,28 +76,57 @@ export function UnifiedCard({
 
 const getStyles = (colors, isDark) => StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 15,
+    backgroundColor: '#FFFFFF', // Always solid white for bank-grade consistency
+    borderRadius: 12, // Consistent radius for professional look
     marginBottom: spacing.md,
   },
+  
+  // Default: Clean approach for Android compatibility
   cardDefault: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0 : 0.1,
-    shadowRadius: 4,
-    elevation: Platform.OS === 'android' ? (isDark ? 0 : 3) : 0,
-    borderWidth: isDark ? 1 : 0,
-    borderColor: colors.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: isDark ? 0 : 0.08,
+        shadowRadius: 2,
+      },
+      android: {
+        // Use border-only approach for Android to prevent fogginess
+        borderWidth: 1,
+        borderColor: isDark ? colors.border : '#E6EAF0',
+        elevation: 0, // Remove elevation completely
+      },
+    }),
+    // iOS gets border too for consistency
+    ...Platform.select({
+      ios: {
+        borderWidth: 1,
+        borderColor: isDark ? colors.border : '#E6EAF0',
+      },
+    }),
   },
+  
+  // Elevated: Still avoid elevation on Android
   cardElevated: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0 : 0.15,
-    shadowRadius: 8,
-    elevation: Platform.OS === 'android' ? (isDark ? 0 : 6) : 0,
-    borderWidth: isDark ? 1 : 0,
-    borderColor: colors.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: isDark ? 0 : 0.12,
+        shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: isDark ? colors.border : '#E6EAF0',
+      },
+      android: {
+        // Android gets a slightly darker border instead of elevation
+        borderWidth: 2,
+        borderColor: isDark ? colors.border : '#D1D9E6',
+        elevation: 0,
+      },
+    }),
   },
+  
+  // Outlined: Border-only approach for maximum compatibility
   cardOutlined: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -107,7 +136,10 @@ const getStyles = (colors, isDark) => StyleSheet.create({
     shadowRadius: 0,
     elevation: 0,
   },
+  
+  // Flat: No visual separation
   cardFlat: {
+    backgroundColor: 'transparent',
     shadowColor: 'transparent',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
@@ -115,19 +147,21 @@ const getStyles = (colors, isDark) => StyleSheet.create({
     elevation: 0,
     borderWidth: 0,
   },
+  
   cardDisabled: {
     opacity: 0.6,
   },
+  
   paddingNone: {
     padding: 0,
   },
   paddingSmall: {
-    padding: spacing.md,
+    padding: spacing.sm,
   },
   paddingMedium: {
-    padding: spacing.xl,
+    padding: spacing.md,
   },
   paddingLarge: {
-    padding: spacing.xxl,
+    padding: spacing.lg,
   },
 });

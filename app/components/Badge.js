@@ -37,7 +37,7 @@ export function Badge({
     },
     info: {
       backgroundColor: colors.primary,
-      textColor: colors.primary,
+      textColor: '#FFFFFF',
     },
   };
 
@@ -104,6 +104,9 @@ const getStyles = (colors) =>
       textAlign: 'center',
     },
   });
+
+
+
 
 
 

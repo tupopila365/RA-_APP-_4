@@ -167,7 +167,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
   };
 
   const handleERecruitment = async () => {
-    await WebBrowser.openBrowserAsync('https://erec.ra.org.na/');
+    await WebBrowser.openBrowserAsync('https://erec.ra.org.na/#/');
   };
 
   // Fetch banners from API
@@ -734,11 +734,18 @@ function getStyles(colors, config) {
       paddingHorizontal: horizontalPadding,
       borderBottomLeftRadius: isPhone ? 24 : 32,
       borderBottomRightRadius: isPhone ? 24 : 32,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 8,
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.12,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: 2, // Reduced from 8 to 2
+        },
+      }),
     },
     headerContent: {
       flexDirection: 'row',
@@ -751,7 +758,8 @@ function getStyles(colors, config) {
       width: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
       height: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
       borderRadius: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor) / 2,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      backgroundColor: '#FFFFFF', // Solid white instead of rgba
+      opacity: 0.9, // Use opacity instead of rgba
       justifyContent: 'center',
       alignItems: 'center',
       position: 'relative',
@@ -787,7 +795,8 @@ function getStyles(colors, config) {
       height: isPhone ? 56 : isTablet ? 64 : 72,
       resizeMode: 'contain',
       borderRadius: isPhone ? 14 : 16,
-      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      backgroundColor: '#FFFFFF', // Solid white instead of rgba
+      opacity: 0.8, // Use opacity instead of rgba
       padding: isPhone ? 6 : 8,
     },
     welcomeText: {
@@ -842,18 +851,28 @@ function getStyles(colors, config) {
       overflow: 'hidden',
       marginRight: gridGap,
       justifyContent: 'flex-end',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 8,
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 1, // Reduced from 8 to 1
+        },
+      }),
+      borderWidth: 1,
+      borderColor: '#E6EAF0',
     },
     bannerImage: {
       borderRadius: 24,
       resizeMode: 'cover',
     },
     bannerOverlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: '#000000', // Solid black instead of rgba
+      opacity: 0.6, // Use opacity instead of rgba
       padding: 20,
       borderBottomLeftRadius: 24,
       borderBottomRightRadius: 24,
@@ -912,19 +931,26 @@ function getStyles(colors, config) {
     menuItemPrimary: {
       width: primaryItemWidth,
       minWidth: MIN_TOUCH_TARGET * 2, // Ensure minimum usable size
-      backgroundColor: colors.card,
+      backgroundColor: '#FFFFFF', // Solid white background
       borderRadius: isPhone ? 14 : 20,
       padding: isPhone ? 12 : 20, // Reduced padding on phones
       marginBottom: isPhone ? 10 : 16,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1.5,
-      borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 10,
-      elevation: 5,
+      borderWidth: 1,
+      borderColor: '#E6EAF0',
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 1, // Reduced from 5 to 1
+        },
+      }),
     },
     menuIconContainerPrimary: {
       width: iconContainerPrimary,
@@ -935,11 +961,7 @@ function getStyles(colors, config) {
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: isPhone ? 8 : 14, // Reduced margin on phones
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      elevation: 2,
+      // Remove shadow/elevation from icon containers to prevent double layering
     },
     menuItemTextPrimary: {
       fontSize: baseFontSize,
@@ -953,19 +975,26 @@ function getStyles(colors, config) {
     menuItem: {
       width: secondaryItemWidth,
       minWidth: MIN_TOUCH_TARGET * 1.8,
-      backgroundColor: colors.card,
+      backgroundColor: '#FFFFFF', // Solid white background
       borderRadius: isPhone ? 12 : 16,
       padding: isPhone ? 10 : 14, // Reduced padding on phones
       marginBottom: isPhone ? 10 : 16,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 2,
+      borderColor: '#E6EAF0',
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 1, // Reduced from 2 to 1
+        },
+      }),
     },
     menuIconContainer: {
       width: iconContainerSecondary,
@@ -976,11 +1005,7 @@ function getStyles(colors, config) {
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: isPhone ? 6 : 10, // Reduced margin on phones
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
+      // Remove shadow/elevation from icon containers to prevent double layering
     },
     menuItemText: {
       fontSize: isPhone ? 10 : 11,
@@ -1013,12 +1038,21 @@ function getStyles(colors, config) {
       marginHorizontal: -20,
       borderRadius: 20,
       overflow: 'hidden',
-      backgroundColor: colors.card,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      elevation: 4,
+      backgroundColor: '#FFFFFF', // Solid white background
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 1, // Reduced from 4 to 1
+        },
+      }),
+      borderWidth: 1,
+      borderColor: '#E6EAF0',
     },
     notificationCard: {
       padding: 16,
@@ -1038,11 +1072,7 @@ function getStyles(colors, config) {
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      // Remove shadow/elevation from icon containers to prevent double layering
     },
     notificationTextContainer: {
       flex: 1,

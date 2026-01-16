@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, StyleSheet, useColorScheme, TouchableOpacity, Text, ScrollView, Pressable } from 'react-native';
+import { View, TextInput, StyleSheet, useColorScheme, TouchableOpacity, Text, ScrollView, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import { useDebounce } from '../hooks/useDebounce';
@@ -162,15 +162,24 @@ const getStyles = (colors) =>
     container: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.card,
-      borderRadius: 25,
+      backgroundColor: '#FFFFFF', // Solid white background
+      borderRadius: 12, // Professional radius instead of 25
       paddingHorizontal: 15,
       height: 50,
-      shadowColor: colors.text,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      borderWidth: 1,
+      borderColor: colors.border,
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 1, // Reduced from 3 to 1 for Android safety
+        },
+      }),
     },
     icon: {
       marginRight: 10,
@@ -188,15 +197,25 @@ const getStyles = (colors) =>
       top: 55,
       left: 0,
       right: 0,
-      backgroundColor: colors.card,
+      backgroundColor: '#FFFFFF', // Solid white background
       borderRadius: 12,
-      shadowColor: colors.text,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      // Android-safe elevation for dropdown
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 2, // Reduced from 8 to 2 for Android safety
+        },
+      }),
       maxHeight: 200,
       zIndex: 1001,
+      // NO overflow: 'hidden' to prevent Android clipping issues
     },
     suggestionsList: {
       flex: 1,

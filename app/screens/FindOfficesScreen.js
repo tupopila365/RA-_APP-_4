@@ -597,8 +597,8 @@ export default function FindOfficesScreen() {
                         style={[styles.actionButton, { backgroundColor: colors.success, borderColor: colors.success }]}
                         onPress={() => handleCall(office)}
                       >
-                        <Ionicons name="call" size={18} color={colors.success} />
-                        <Text style={[styles.actionButtonText, { color: colors.success }]} maxFontSizeMultiplier={1.3}>
+                        <Ionicons name="call" size={18} color={ '#FFFFFF'} />
+                        <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]} maxFontSizeMultiplier={1.3}>
                           Call
                         </Text>
                       </TouchableOpacity>
@@ -609,8 +609,8 @@ export default function FindOfficesScreen() {
                         style={[styles.actionButton, { backgroundColor: colors.primary, borderColor: colors.primary }]}
                         onPress={() => handleDirections(office)}
                       >
-                        <Ionicons name="navigate" size={18} color={colors.primary} />
-                        <Text style={[styles.actionButtonText, { color: colors.primary }]} maxFontSizeMultiplier={1.3}>
+                        <Ionicons name="navigate" size={18} color={'#FFFFFF'} />
+                        <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]} maxFontSizeMultiplier={1.3}>
                           Directions
                         </Text>
                       </TouchableOpacity>

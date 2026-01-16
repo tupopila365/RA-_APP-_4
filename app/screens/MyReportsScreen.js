@@ -15,9 +15,22 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
-import { SkeletonLoader } from '../components/SkeletonLoader';
-import { EmptyState } from '../components/EmptyState';
+
+// Import Unified Design System Components
+import {
+  GlobalHeader,
+  UnifiedFormInput,
+  UnifiedCard,
+  UnifiedButton,
+  UnifiedSkeletonLoader,
+  RATheme,
+  typography,
+  spacing,
+} from '../components/UnifiedDesignSystem';
+
+// Import SearchInput and EmptyState components
 import { SearchInput } from '../components/SearchInput';
+import { EmptyState } from '../components/EmptyState';
 
 const STATUS_LABELS = {
   pending: 'Pending',
@@ -148,7 +161,7 @@ export default function MyReportsScreen({ navigation }) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <SkeletonLoader type="list-item" count={5} />
+          <UnifiedSkeletonLoader type="list-item" count={5} />
         </View>
       </SafeAreaView>
     );
@@ -267,15 +280,13 @@ export default function MyReportsScreen({ navigation }) {
           <View style={styles.emptyStateContainer}>
             <EmptyState
               icon="document-outline"
-              title="No Reports Yet"
-              message="You haven't submitted any reports. Tap 'Report Road Damage' to get started."
+              message="You haven't submitted any reports yet. Tap 'Report Road Damage' to get started."
             />
           </View>
         ) : filteredReports.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <EmptyState
               icon="search-outline"
-              title="No Reports Found"
               message={
                 searchQuery.trim() || selectedFilter !== 'All'
                   ? `No reports match your ${searchQuery.trim() ? 'search' : 'filter'} criteria.`
@@ -474,15 +485,24 @@ function getStyles(colors) {
     },
     reportCard: {
       flexDirection: 'row',
-      backgroundColor: colors.card,
-      borderRadius: 8,
+      backgroundColor: '#FFFFFF', // Solid white background
+      borderRadius: 12, // Professional radius
       marginBottom: 16,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
+      borderWidth: 1,
+      borderColor: colors.border,
+      // Remove overflow: 'hidden' to prevent Android clipping issues
+      // Android-safe elevation
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 1, // Keep at 1 for Android safety
+        },
+      }),
     },
     photo: {
       width: 100,

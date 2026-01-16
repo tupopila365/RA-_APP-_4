@@ -5,16 +5,20 @@ const pln_model_1 = require("./pln.model");
 const upload_service_1 = require("../upload/upload.service");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
+const secureIdGenerator_1 = require("../../utils/secureIdGenerator");
 class PLNService {
     /**
-     * Generate unique reference ID
-     * Format: PLN{YYYYMMDD}{6digitRandom}
+     * Generate unique reference ID using secure random generation
+     * Format: PLN-{YYYY}-{SecureRandom12}
      */
     generateReferenceId() {
-        const date = new Date();
-        const dateStr = date.toISOString().split('T')[0].replace(/-/g, '');
-        const random = Math.floor(100000 + Math.random() * 900000); // 6-digit random
-        return `PLN${dateStr}${random}`;
+        return secureIdGenerator_1.SecureIdGenerator.generatePLNReferenceId();
+    }
+    /**
+     * Generate tracking PIN (simple for now - everyone gets 12345)
+     */
+    generateTrackingPin() {
+        return '12345';
     }
     /**
      * Create a new PLN application
@@ -169,11 +173,11 @@ class PLNService {
                         message: `Plate choice ${i + 1} text is required`,
                     };
                 }
-                if (choice.text.length > 7) {
+                if (choice.text.length > 8) {
                     throw {
                         statusCode: 400,
                         code: errors_1.ERROR_CODES.VALIDATION_ERROR,
-                        message: `Plate choice ${i + 1} text cannot exceed 7 characters`,
+                        message: `Plate choice ${i + 1} text cannot exceed 8 characters`,
                     };
                 }
                 if (!/^[a-zA-Z0-9]*$/.test(choice.text)) {
@@ -239,6 +243,7 @@ class PLNService {
             // Build application data
             const applicationData = {
                 referenceId,
+                trackingPin: this.generateTrackingPin(),
                 transactionType: 'New Personalised Licence Number',
                 plateChoices: dto.plateChoices.map((choice) => ({
                     text: choice.text.trim().toUpperCase(),
@@ -317,6 +322,7 @@ class PLNService {
                     dto.chassisNumber ||
                     dto.vehicleMake ||
                     dto.seriesName) {
+                    applicationData.hasVehicle = true;
                     if (dto.currentLicenceNumber) {
                         applicationData.currentLicenceNumber = dto.currentLicenceNumber.trim();
                     }
@@ -336,14 +342,14 @@ class PLNService {
             }
             else {
                 // Legacy structure - convert to new structure
-                applicationData.fullName = dto.fullName.trim();
-                applicationData.idNumber = dto.idNumber.trim();
-                applicationData.phoneNumber = dto.phoneNumber.trim();
+                applicationData.fullName = dto.fullName?.trim() || '';
+                applicationData.idNumber = dto.idNumber?.trim() || '';
+                applicationData.phoneNumber = dto.phoneNumber?.trim() || '';
                 // Default values for new fields
                 applicationData.idType = 'Namibia ID-doc';
-                applicationData.surname = dto.fullName.split(' ')[0] || dto.fullName;
-                applicationData.initials = dto.fullName.split(' ').slice(1).join(' ').substring(0, 10) || '';
-                applicationData.trafficRegisterNumber = dto.idNumber.trim();
+                applicationData.surname = dto.fullName?.split(' ')[0] || dto.fullName || '';
+                applicationData.initials = dto.fullName?.split(' ').slice(1).join(' ').substring(0, 10) || '';
+                applicationData.trafficRegisterNumber = dto.idNumber?.trim() || '';
                 applicationData.postalAddress = { line1: 'Not provided' };
                 applicationData.streetAddress = { line1: 'Not provided' };
                 applicationData.plateFormat = 'Normal';
@@ -353,11 +359,11 @@ class PLNService {
                 applicationData.declarationPlace = 'Mobile App';
                 applicationData.declarationRole = 'applicant';
                 // Parse phone number
-                const phoneMatch = dto.phoneNumber.match(/^(\+?264|0)?(\d+)$/);
+                const phoneMatch = dto.phoneNumber?.match(/^(\+?264|0)?(\d+)$/);
                 if (phoneMatch) {
                     applicationData.cellNumber = {
                         code: phoneMatch[1] || '264',
-                        number: phoneMatch[2] || dto.phoneNumber,
+                        number: phoneMatch[2] || dto.phoneNumber || '',
                     };
                 }
             }
@@ -380,19 +386,29 @@ class PLNService {
         }
     }
     /**
-     * Get application by reference ID and ID number (public tracking)
+     * Get application by reference ID and PIN (public tracking)
+     * Universal PIN: 12345 for all users
      */
-    async getApplicationByReference(referenceId, idNumber) {
+    async getApplicationByReference(referenceId, pin) {
         try {
+            // Validate universal PIN
+            const UNIVERSAL_PIN = '12345';
+            if (pin.trim() !== UNIVERSAL_PIN) {
+                throw {
+                    statusCode: 401,
+                    code: errors_1.ERROR_CODES.AUTH_UNAUTHORIZED,
+                    message: 'Invalid PIN. Please check your PIN and try again.',
+                };
+            }
+            // Find application by reference ID only (PIN is already validated)
             const application = await pln_model_1.PLNModel.findOne({
                 referenceId: referenceId.trim(),
-                idNumber: idNumber.trim(),
             }).lean();
             if (!application) {
                 throw {
                     statusCode: 404,
                     code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Application not found. Please check your reference ID and ID number.',
+                    message: 'Application not found. Please check your reference ID.',
                 };
             }
             return application;
@@ -455,8 +471,13 @@ class PLNService {
                 filter.$or = [
                     { referenceId: { $regex: query.search, $options: 'i' } },
                     { fullName: { $regex: query.search, $options: 'i' } },
+                    { surname: { $regex: query.search, $options: 'i' } },
+                    { businessName: { $regex: query.search, $options: 'i' } },
                     { idNumber: { $regex: query.search, $options: 'i' } },
+                    { trafficRegisterNumber: { $regex: query.search, $options: 'i' } },
+                    { businessRegNumber: { $regex: query.search, $options: 'i' } },
                     { phoneNumber: { $regex: query.search, $options: 'i' } },
+                    { email: { $regex: query.search, $options: 'i' } },
                     { 'plateChoices.text': { $regex: query.search, $options: 'i' } },
                 ];
             }
@@ -672,7 +693,7 @@ class PLNService {
      */
     async getDashboardStats() {
         try {
-            const [total, statusCounts] = await Promise.all([
+            const [total, statusCounts, recentApplications, paymentOverdue, monthlyStats] = await Promise.all([
                 pln_model_1.PLNModel.countDocuments(),
                 pln_model_1.PLNModel.aggregate([
                     {
@@ -680,6 +701,35 @@ class PLNService {
                             _id: '$status',
                             count: { $sum: 1 },
                         },
+                    },
+                ]),
+                pln_model_1.PLNModel.find()
+                    .sort({ createdAt: -1 })
+                    .limit(5)
+                    .lean(),
+                pln_model_1.PLNModel.countDocuments({
+                    status: 'PAYMENT_PENDING',
+                    paymentDeadline: { $lt: new Date() },
+                }),
+                pln_model_1.PLNModel.aggregate([
+                    {
+                        $match: {
+                            createdAt: {
+                                $gte: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1),
+                            },
+                        },
+                    },
+                    {
+                        $group: {
+                            _id: {
+                                year: { $year: '$createdAt' },
+                                month: { $month: '$createdAt' },
+                            },
+                            count: { $sum: 1 },
+                        },
+                    },
+                    {
+                        $sort: { '_id.year': 1, '_id.month': 1 },
                     },
                 ]),
             ]);
@@ -697,7 +747,17 @@ class PLNService {
             statusCounts.forEach((item) => {
                 byStatus[item._id] = item.count;
             });
-            return { total, byStatus };
+            const monthlyStatsFormatted = monthlyStats.map((item) => ({
+                month: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
+                count: item.count,
+            }));
+            return {
+                total,
+                byStatus,
+                recentApplications: recentApplications,
+                paymentOverdue,
+                monthlyStats: monthlyStatsFormatted,
+            };
         }
         catch (error) {
             logger_1.logger.error('Get dashboard stats error:', error);
@@ -705,6 +765,120 @@ class PLNService {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
                 message: 'Failed to retrieve dashboard statistics',
+                details: error.message,
+            };
+        }
+    }
+    /**
+     * Update admin comments
+     */
+    async updateAdminComments(id, comments, adminId) {
+        try {
+            const updated = await pln_model_1.PLNModel.findByIdAndUpdate(id, {
+                adminComments: comments,
+                $push: {
+                    statusHistory: {
+                        status: 'UNDER_REVIEW',
+                        changedBy: adminId,
+                        timestamp: new Date(),
+                        comment: 'Admin comments updated',
+                    },
+                },
+            }, { new: true, runValidators: true }).lean();
+            if (!updated) {
+                throw {
+                    statusCode: 404,
+                    code: errors_1.ERROR_CODES.NOT_FOUND,
+                    message: 'Application not found',
+                };
+            }
+            return updated;
+        }
+        catch (error) {
+            logger_1.logger.error('Update admin comments error:', error);
+            if (error.statusCode) {
+                throw error;
+            }
+            throw {
+                statusCode: 500,
+                code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
+                message: 'Failed to update admin comments',
+                details: error.message,
+            };
+        }
+    }
+    /**
+     * Assign application to admin
+     */
+    async assignToAdmin(id, assignedTo, adminId) {
+        try {
+            const updated = await pln_model_1.PLNModel.findByIdAndUpdate(id, {
+                assignedTo,
+                $push: {
+                    statusHistory: {
+                        status: 'UNDER_REVIEW',
+                        changedBy: adminId,
+                        timestamp: new Date(),
+                        comment: `Application assigned to ${assignedTo}`,
+                    },
+                },
+            }, { new: true, runValidators: true }).lean();
+            if (!updated) {
+                throw {
+                    statusCode: 404,
+                    code: errors_1.ERROR_CODES.NOT_FOUND,
+                    message: 'Application not found',
+                };
+            }
+            return updated;
+        }
+        catch (error) {
+            logger_1.logger.error('Assign to admin error:', error);
+            if (error.statusCode) {
+                throw error;
+            }
+            throw {
+                statusCode: 500,
+                code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
+                message: 'Failed to assign application',
+                details: error.message,
+            };
+        }
+    }
+    /**
+     * Set application priority
+     */
+    async setPriority(id, priority, adminId) {
+        try {
+            const updated = await pln_model_1.PLNModel.findByIdAndUpdate(id, {
+                priority,
+                $push: {
+                    statusHistory: {
+                        status: 'UNDER_REVIEW',
+                        changedBy: adminId,
+                        timestamp: new Date(),
+                        comment: `Priority set to ${priority}`,
+                    },
+                },
+            }, { new: true, runValidators: true }).lean();
+            if (!updated) {
+                throw {
+                    statusCode: 404,
+                    code: errors_1.ERROR_CODES.NOT_FOUND,
+                    message: 'Application not found',
+                };
+            }
+            return updated;
+        }
+        catch (error) {
+            logger_1.logger.error('Set priority error:', error);
+            if (error.statusCode) {
+                throw error;
+            }
+            throw {
+                statusCode: 500,
+                code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
+                message: 'Failed to set priority',
                 details: error.message,
             };
         }

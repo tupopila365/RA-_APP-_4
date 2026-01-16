@@ -26,10 +26,12 @@ const app_users_routes_1 = __importDefault(require("./modules/app-users/app-user
 const traffic_routes_1 = __importDefault(require("./modules/traffic/traffic.routes"));
 const incidents_routes_1 = __importDefault(require("./modules/incidents/incidents.routes"));
 const roadworks_routes_1 = __importDefault(require("./modules/roadworks/roadworks.routes"));
+const road_status_routes_1 = __importDefault(require("./modules/roadworks/road-status.routes"));
 const procurement_legislation_routes_1 = __importDefault(require("./modules/procurement-legislation/procurement-legislation.routes"));
 const procurement_plan_routes_1 = __importDefault(require("./modules/procurement-plan/procurement-plan.routes"));
 const procurement_awards_routes_1 = __importDefault(require("./modules/procurement-awards/procurement-awards.routes"));
 const procurement_opening_register_routes_1 = __importDefault(require("./modules/procurement-opening-register/procurement-opening-register.routes"));
+const analytics_routes_1 = __importDefault(require("./modules/analytics/analytics.routes"));
 const createApp = () => {
     const app = (0, express_1.default)();
     // Middleware
@@ -66,10 +68,12 @@ const createApp = () => {
     app.use('/api/traffic', traffic_routes_1.default);
     app.use('/api/incidents', incidents_routes_1.default);
     app.use('/api/roadworks', roadworks_routes_1.default);
+    app.use('/api/road-status', road_status_routes_1.default); // Alias for roadworks (admin panel compatibility)
     app.use('/api/procurement-legislation', procurement_legislation_routes_1.default);
     app.use('/api/procurement-plan', procurement_plan_routes_1.default);
     app.use('/api/procurement-awards', procurement_awards_routes_1.default);
     app.use('/api/procurement-opening-register', procurement_opening_register_routes_1.default);
+    app.use('/api/analytics', analytics_routes_1.default);
     // Error handling middleware (must be last)
     app.use(errorHandler_1.errorHandler);
     return app;

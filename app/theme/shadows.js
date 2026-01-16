@@ -1,41 +1,59 @@
-import { SHADOW_COLORS } from './governmentColors';
+import { Platform } from 'react-native';
 
 /**
- * GOVERNMENT-STANDARD SHADOW SYSTEM
+ * ANDROID-SAFE SHADOW SYSTEM
  * 
- * Updated to use the official government color system
- * for consistent shadow colors across all components.
+ * Updated to prevent Android UI regression issues:
+ * - Maximum elevation of 2 for Android
+ * - Consistent shadow colors
+ * - Platform-specific optimizations
+ * - Bank-grade professional appearance
  */
 
 export const shadows = {
+  none: {
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
   sm: {
-    shadowColor: SHADOW_COLORS.default,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1, // Android-safe
+      },
+    }),
   },
   md: {
-    shadowColor: SHADOW_COLORS.default,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2, // Android-safe maximum
+      },
+    }),
   },
-  lg: {
-    shadowColor: SHADOW_COLORS.default,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  xl: {
-    shadowColor: SHADOW_COLORS.default,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
+  // Removed lg and xl variants to prevent excessive elevation
+  // Use border-based separation instead for stronger visual hierarchy
 };
 
-export const getShadow = (size = 'md') => shadows[size] || shadows.md;
+export const getShadow = (size = 'sm') => shadows[size] || shadows.sm;
+
+// Android-safe elevation helper
+export const getAndroidSafeElevation = (desiredElevation) => {
+  return Platform.select({
+    ios: desiredElevation,
+    android: Math.min(desiredElevation, 2), // Cap at 2 for Android
+  });
+};

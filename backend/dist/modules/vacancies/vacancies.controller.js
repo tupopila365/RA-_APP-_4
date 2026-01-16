@@ -88,7 +88,7 @@ class VacanciesController {
             // Send push notification if published
             if (vacancy.published === true) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy._id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString(), { useQueue: false });
+                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy._id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString());
                     logger_1.logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
                 }
                 catch (notifError) {
@@ -362,7 +362,7 @@ class VacanciesController {
             // Send push notification only on first publish
             if (published === true && !wasPublishedBefore) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy._id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString(), { useQueue: false });
+                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy._id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString());
                     logger_1.logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
                 }
                 catch (notifError) {

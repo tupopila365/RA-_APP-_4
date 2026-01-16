@@ -15,6 +15,13 @@ class PLNService {
   }
 
   /**
+   * Generate tracking PIN (simple for now - everyone gets 12345)
+   */
+  generateTrackingPin(): string {
+    return '12345';
+  }
+
+  /**
    * Create a new PLN application
    */
   async createApplication(dto: CreateApplicationDTO, file: Express.Multer.File): Promise<IPLN> {
@@ -252,6 +259,7 @@ class PLNService {
       // Build application data
       const applicationData: any = {
         referenceId,
+        trackingPin: this.generateTrackingPin(),
         transactionType: 'New Personalised Licence Number',
         plateChoices: dto.plateChoices.map((choice) => ({
           text: choice.text.trim().toUpperCase(),
@@ -404,24 +412,31 @@ class PLNService {
   }
 
   /**
-   * Get application by reference ID and ID number (public tracking)
+   * Get application by reference ID and PIN (public tracking)
+   * Universal PIN: 12345 for all users
    */
-  async getApplicationByReference(referenceId: string, idNumber: string): Promise<IPLN> {
+  async getApplicationByReference(referenceId: string, pin: string): Promise<IPLN> {
     try {
+      // Validate universal PIN
+      const UNIVERSAL_PIN = '12345';
+      if (pin.trim() !== UNIVERSAL_PIN) {
+        throw {
+          statusCode: 401,
+          code: ERROR_CODES.AUTH_UNAUTHORIZED,
+          message: 'Invalid PIN. Please check your PIN and try again.',
+        };
+      }
+
+      // Find application by reference ID (case-insensitive)
       const application = await PLNModel.findOne({
-        referenceId: referenceId.trim(),
-        $or: [
-          { idNumber: idNumber.trim() },
-          { trafficRegisterNumber: idNumber.trim() },
-          { businessRegNumber: idNumber.trim() },
-        ],
+        referenceId: { $regex: new RegExp(`^${referenceId.trim()}$`, 'i') },
       }).lean();
 
       if (!application) {
         throw {
           statusCode: 404,
           code: ERROR_CODES.NOT_FOUND,
-          message: 'Application not found. Please check your reference ID and ID number.',
+          message: 'Application not found. Please check your reference ID.',
         };
       }
 

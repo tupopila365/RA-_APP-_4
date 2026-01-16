@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as WebBrowser from 'expo-web-browser';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { Linking, Platform, Alert } from 'react-native';
 
 // Error messages for different failure scenarios
@@ -254,7 +255,9 @@ const downloadFile = async (url, filename, onProgress) => {
 
 /**
  * Open a file in the device's default viewer
- * Uses multiple approaches to ensure the file opens properly
+ * Uses platform-specific approaches to ensure the file opens properly
+ * - Android: Uses IntentLauncher to open with appropriate app
+ * - iOS: Uses Linking or WebBrowser
  * 
  * @param {string} fileUri - The URI of the file to open
  * @returns {Promise<{success: boolean, error?: string}>}
@@ -281,66 +284,123 @@ const openFile = async (fileUri) => {
 
     console.log('File exists, size:', fileInfo.size);
 
-    // Method 1: Try using Linking.openURL (works well on iOS and some Android versions)
-    try {
-      console.log('Trying Linking.openURL...');
-      const canOpen = await Linking.canOpenURL(fileUri);
-      console.log('Can open with Linking:', canOpen);
-      
-      if (canOpen) {
-        await Linking.openURL(fileUri);
-        console.log('File opened successfully with Linking.openURL');
+    // Platform-specific handling
+    if (Platform.OS === 'android') {
+      // Android: Use IntentLauncher to open PDF with appropriate app
+      try {
+        console.log('Opening PDF with IntentLauncher on Android...');
+        
+        // Get the content URI for the file
+        const contentUri = await FileSystem.getContentUriAsync(fileUri);
+        console.log('Content URI:', contentUri);
+        
+        // Launch intent to open PDF
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: contentUri,
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+          type: 'application/pdf',
+        });
+        
+        console.log('PDF opened successfully with IntentLauncher');
         return {
           success: true,
         };
+      } catch (intentError) {
+        console.error('IntentLauncher failed:', intentError.message);
+        
+        // If no PDF viewer is installed, provide helpful error
+        if (intentError.message.includes('No Activity found') || 
+            intentError.message.includes('ActivityNotFoundException')) {
+          return {
+            success: false,
+            error: 'No PDF viewer app found. Please install a PDF reader app from the Play Store.',
+          };
+        }
+        
+        // Fallback to sharing on Android if intent fails
+        console.log('Falling back to Sharing on Android...');
+        const isAvailable = await Sharing.isAvailableAsync();
+        
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Open PDF with...',
+          });
+          
+          return {
+            success: true,
+          };
+        }
+        
+        return {
+          success: false,
+          error: intentError.message || 'Failed to open PDF',
+        };
       }
-    } catch (linkingError) {
-      console.log('Linking.openURL failed:', linkingError.message);
-    }
+    } else {
+      // iOS: Try multiple methods
+      
+      // Method 1: Try using Linking.openURL (works well on iOS)
+      try {
+        console.log('Trying Linking.openURL on iOS...');
+        const canOpen = await Linking.canOpenURL(fileUri);
+        console.log('Can open with Linking:', canOpen);
+        
+        if (canOpen) {
+          await Linking.openURL(fileUri);
+          console.log('File opened successfully with Linking.openURL');
+          return {
+            success: true,
+          };
+        }
+      } catch (linkingError) {
+        console.log('Linking.openURL failed:', linkingError.message);
+      }
 
-    // Method 2: Try using WebBrowser to open the file (alternative approach)
-    try {
-      console.log('Trying WebBrowser.openBrowserAsync...');
-      const result = await WebBrowser.openBrowserAsync(fileUri, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-        showTitle: true,
-        toolbarColor: '#00B4E6',
-        controlsColor: '#FFFFFF',
+      // Method 2: Try using WebBrowser to open the file
+      try {
+        console.log('Trying WebBrowser.openBrowserAsync on iOS...');
+        const result = await WebBrowser.openBrowserAsync(fileUri, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+          showTitle: true,
+          toolbarColor: '#00B4E6',
+          controlsColor: '#FFFFFF',
+        });
+        
+        if (result.type !== 'cancel') {
+          console.log('File opened successfully with WebBrowser');
+          return {
+            success: true,
+          };
+        }
+      } catch (webBrowserError) {
+        console.log('WebBrowser.openBrowserAsync failed:', webBrowserError.message);
+      }
+
+      // Method 3: Use expo-sharing as fallback for iOS
+      console.log('Trying Sharing.shareAsync as fallback on iOS...');
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (!isAvailable) {
+        return {
+          success: false,
+          error: 'File opening is not available on this device',
+        };
+      }
+
+      // Use sharing to open the file - this will show a dialog with apps
+      // that can open PDFs, and the user can select one to open the file
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Open PDF with...',
+        UTI: 'com.adobe.pdf', // iOS Universal Type Identifier for PDF
       });
-      
-      if (result.type !== 'cancel') {
-        console.log('File opened successfully with WebBrowser');
-        return {
-          success: true,
-        };
-      }
-    } catch (webBrowserError) {
-      console.log('WebBrowser.openBrowserAsync failed:', webBrowserError.message);
-    }
 
-    // Method 3: Use expo-sharing as fallback (shows "Open with" dialog)
-    console.log('Trying Sharing.shareAsync as fallback...');
-    const isAvailable = await Sharing.isAvailableAsync();
-    
-    if (!isAvailable) {
+      console.log('File opened successfully with Sharing.shareAsync');
       return {
-        success: false,
-        error: 'File opening is not available on this device',
+        success: true,
       };
     }
-
-    // Use sharing to open the file - this will show a dialog with apps
-    // that can open PDFs, and the user can select one to open the file
-    await Sharing.shareAsync(fileUri, {
-      mimeType: 'application/pdf',
-      dialogTitle: 'Open with...',
-      UTI: 'com.adobe.pdf', // iOS Universal Type Identifier for PDF
-    });
-
-    console.log('File opened successfully with Sharing.shareAsync');
-    return {
-      success: true,
-    };
   } catch (error) {
     console.error('Error opening file:', error);
     

@@ -48,9 +48,9 @@ import {
 import { ImageThumbnail, ZoomableImage } from '../../components/common';
 
 const SEVERITY_COLORS = {
-  small: '#4ECDC4',
+  low: '#4ECDC4',
   medium: '#FFA500',
-  dangerous: '#FF6B6B',
+  high: '#FF6B6B',
 };
 
 const STATUS_COLORS = {
@@ -292,9 +292,9 @@ const ReportsList = () => {
                   onChange={(e) => setSeverityFilter(e.target.value)}
                 >
                   <MenuItem value="">All</MenuItem>
-                  <MenuItem value="small">Small</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="dangerous">Dangerous</MenuItem>
+                  <MenuItem value="low">Low Risk</MenuItem>
+                  <MenuItem value="medium">Medium Risk</MenuItem>
+                  <MenuItem value="high">High Risk</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -393,15 +393,26 @@ const ReportsList = () => {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={report.severity}
-                      size="small"
-                      sx={{
-                        backgroundColor: SEVERITY_COLORS[report.severity] + '20',
-                        color: SEVERITY_COLORS[report.severity],
-                        fontWeight: 'bold',
-                      }}
-                    />
+                    {report.severity ? (
+                      <Chip
+                        label={report.severity}
+                        size="small"
+                        sx={{
+                          backgroundColor: SEVERITY_COLORS[report.severity] + '20',
+                          color: SEVERITY_COLORS[report.severity],
+                          fontWeight: 'bold',
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        label="Not Set"
+                        size="small"
+                        sx={{
+                          backgroundColor: '#95A5A620',
+                          color: '#95A5A6',
+                        }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <Chip

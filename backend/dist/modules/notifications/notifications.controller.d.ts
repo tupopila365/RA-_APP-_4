@@ -5,12 +5,12 @@ export declare class NotificationsController {
      * Register push token (public endpoint - no auth required)
      * POST /api/notifications/register
      */
-    registerToken(req: Request, res: Response, next: NextFunction): Promise<Response<any, Record<string, any>> | undefined>;
+    registerToken(req: Request, res: Response, next: NextFunction): Promise<void>;
     /**
      * Send manual notification (requires auth)
      * POST /api/notifications/send
      */
-    sendNotification(req: AuthRequest, res: Response, next: NextFunction): Promise<Response<any, Record<string, any>> | undefined>;
+    sendNotification(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
     /**
      * Get notification logs (requires auth)
      * GET /api/notifications/logs

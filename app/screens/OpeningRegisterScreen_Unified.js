@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -19,7 +19,6 @@ import {
   UnifiedCard,
   UnifiedButton,
   UnifiedSkeletonLoader,
-  RATheme,
   typography,
   spacing,
 } from '../components/UnifiedDesignSystem';
@@ -59,7 +58,6 @@ function getStatusColor(status, colors) {
 
 export default function OpeningRegisterScreen({ navigation }) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('opportunities');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -73,13 +71,11 @@ export default function OpeningRegisterScreen({ navigation }) {
   const {
     isDownloading,
     progress,
-    error: downloadError,
-    downloadedUri,
     startDownload,
     resetDownload,
   } = useDocumentDownload();
 
-  const styles = getStyles(colors, insets);
+  const styles = getStyles(colors);
 
   const fetchItems = useCallback(async (isRefresh = false) => {
     try {
@@ -228,66 +224,68 @@ export default function OpeningRegisterScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         {/* Tab Selection */}
-        <UnifiedCard variant="flat" padding="medium" style={styles.tabCard}>
-          <Text style={styles.tabLabel}>Category</Text>
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === 'opportunities' && styles.tabActive,
-              ]}
-              onPress={() => setActiveTab('opportunities')}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name="briefcase-outline" 
-                size={20} 
-                color={activeTab === 'opportunities' ? colors.primary : colors.textSecondary} 
-              />
-              <Text
+        <View style={styles.tabSectionContainer}>
+          <UnifiedCard variant="flat" padding="medium" style={styles.tabCard}>
+            <Text style={styles.tabLabel}>Category</Text>
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
                 style={[
-                  styles.tabText,
-                  activeTab === 'opportunities' && styles.tabTextActive,
+                  styles.tab,
+                  activeTab === 'opportunities' && styles.tabActive,
                 ]}
+                onPress={() => setActiveTab('opportunities')}
+                activeOpacity={0.7}
               >
-                Procurement Opportunities
-              </Text>
-              <View style={styles.tabBadge}>
-                <Text style={styles.tabBadgeText}>{procurementOpportunities.length}</Text>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === 'rfqs' && styles.tabActive,
-              ]}
-              onPress={() => setActiveTab('rfqs')}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name="document-text-outline" 
-                size={20} 
-                color={activeTab === 'rfqs' ? colors.primary : colors.textSecondary} 
-              />
-              <Text
+                <Ionicons 
+                  name="briefcase-outline" 
+                  size={20} 
+                  color={activeTab === 'opportunities' ? colors.primary : colors.textSecondary} 
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === 'opportunities' && styles.tabTextActive,
+                  ]}
+                >
+                  Procurement Opportunities
+                </Text>
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>{procurementOpportunities.length}</Text>
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
                 style={[
-                  styles.tabText,
-                  activeTab === 'rfqs' && styles.tabTextActive,
+                  styles.tab,
+                  activeTab === 'rfqs' && styles.tabActive,
                 ]}
+                onPress={() => setActiveTab('rfqs')}
+                activeOpacity={0.7}
               >
-                Request for Quotations
-              </Text>
-              <View style={styles.tabBadge}>
-                <Text style={styles.tabBadgeText}>{rfqs.length}</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </UnifiedCard>
+                <Ionicons 
+                  name="document-text-outline" 
+                  size={20} 
+                  color={activeTab === 'rfqs' ? colors.primary : colors.textSecondary} 
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === 'rfqs' && styles.tabTextActive,
+                  ]}
+                >
+                  Request for Quotations
+                </Text>
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>{rfqs.length}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </UnifiedCard>
+        </View>
 
         {/* Search */}
         {baseData.length > 0 && (
-          <UnifiedCard variant="flat" padding="medium" style={styles.searchCard}>
+          <View style={styles.searchInputContainer}>
             <UnifiedFormInput
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -295,138 +293,145 @@ export default function OpeningRegisterScreen({ navigation }) {
               label="Search"
               leftIcon="search-outline"
               clearButtonMode="while-editing"
+              style={styles.searchInput}
             />
-          </UnifiedCard>
+          </View>
         )}
 
         {/* Results Count */}
         {filteredData.length > 0 && searchQuery.trim() && (
-          <UnifiedCard variant="outlined" padding="small" style={styles.resultsCard}>
-            <View style={styles.resultsHeader}>
-              <Ionicons name="funnel-outline" size={16} color={colors.primary} />
-              <Text style={styles.resultsCount}>
-                {filteredData.length} {filteredData.length === 1 ? 'item' : 'items'} found
-              </Text>
-            </View>
-            <UnifiedButton
-              label="Clear Search"
-              variant="ghost"
-              size="small"
-              iconName="close"
-              onPress={() => setSearchQuery('')}
-              style={styles.clearSearchButton}
-            />
-          </UnifiedCard>
+          <View style={styles.resultsSectionContainer}>
+            <UnifiedCard variant="outlined" padding="small" style={styles.resultsCard}>
+              <View style={styles.resultsHeader}>
+                <Ionicons name="funnel-outline" size={16} color={colors.primary} />
+                <Text style={styles.resultsCount}>
+                  {filteredData.length} {filteredData.length === 1 ? 'item' : 'items'} found
+                </Text>
+              </View>
+              <UnifiedButton
+                label="Clear Search"
+                variant="ghost"
+                size="small"
+                iconName="close"
+                onPress={() => setSearchQuery('')}
+                style={styles.clearSearchButton}
+              />
+            </UnifiedCard>
+          </View>
         )}
 
         {/* Content */}
         {filteredData.length === 0 ? (
-          <UnifiedCard variant="default" padding="large" style={styles.emptyStateCard}>
-            <View style={styles.emptyStateContainer}>
-              <View style={styles.emptyStateIcon}>
-                <Ionicons 
-                  name={searchQuery.trim() ? "search-outline" : "document-text-outline"} 
-                  size={48} 
-                  color={colors.textSecondary} 
-                />
+          <View style={styles.contentSectionContainer}>
+            <UnifiedCard variant="default" padding="large" style={styles.emptyStateCard}>
+              <View style={styles.emptyStateContainer}>
+                <View style={styles.emptyStateIcon}>
+                  <Ionicons 
+                    name={searchQuery.trim() ? "search-outline" : "document-text-outline"} 
+                    size={48} 
+                    color={colors.textSecondary} 
+                  />
+                </View>
+                <Text style={styles.emptyStateTitle}>
+                  {searchQuery.trim() ? 'No Results Found' : 'No Items Available'}
+                </Text>
+                <Text style={styles.emptyStateMessage}>
+                  {searchQuery.trim()
+                    ? `No ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQs'} match your search criteria. Try different keywords or clear your search.`
+                    : `No ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQs'} are currently available. Check back later for new postings.`}
+                </Text>
+                {searchQuery.trim() && (
+                  <UnifiedButton
+                    label="Clear Search"
+                    variant="outline"
+                    size="medium"
+                    iconName="refresh"
+                    onPress={() => setSearchQuery('')}
+                    style={styles.emptyStateButton}
+                  />
+                )}
               </View>
-              <Text style={styles.emptyStateTitle}>
-                {searchQuery.trim() ? 'No Results Found' : 'No Items Available'}
-              </Text>
-              <Text style={styles.emptyStateMessage}>
-                {searchQuery.trim()
-                  ? `No ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQs'} match your search criteria. Try different keywords or clear your search.`
-                  : `No ${activeTab === 'opportunities' ? 'procurement opportunities' : 'RFQs'} are currently available. Check back later for new postings.`}
-              </Text>
-              {searchQuery.trim() && (
-                <UnifiedButton
-                  label="Clear Search"
-                  variant="outline"
-                  size="medium"
-                  iconName="refresh"
-                  onPress={() => setSearchQuery('')}
-                  style={styles.emptyStateButton}
-                />
-              )}
-            </View>
-          </UnifiedCard>
+            </UnifiedCard>
+          </View>
         ) : (
-          <View style={styles.itemsContainer}>
-            {filteredData.map((item) => {
-              const statusColor = getStatusColor(item.status, colors);
-              const isItemDownloading = isDownloading && currentDownloadId === item.id;
-              
-              return (
-                <UnifiedCard 
-                  key={item.id} 
-                  variant="default" 
-                  padding="large" 
-                  style={styles.itemCard}
-                >
-                  {/* Status Badge */}
-                  <View style={styles.itemHeader}>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        { 
-                          backgroundColor: statusColor + '15',
-                          borderColor: statusColor + '40',
-                        },
-                      ]}
-                    >
+          <View style={styles.contentSectionContainer}>
+            <View style={styles.itemsContainer}>
+              {filteredData.map((item) => {
+                const statusColor = getStatusColor(item.status, colors);
+                const isItemDownloading = isDownloading && currentDownloadId === item.id;
+                
+                return (
+                  <UnifiedCard 
+                    key={item.id} 
+                    variant="default" 
+                    padding="large" 
+                    style={styles.itemCard}
+                  >
+                    {/* Status Badge */}
+                    <View style={styles.itemHeader}>
                       <View
                         style={[
-                          styles.statusDot,
-                          { backgroundColor: statusColor },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.statusText,
-                          { color: statusColor },
+                          styles.statusBadge,
+                          { 
+                            backgroundColor: statusColor + '15',
+                            borderColor: statusColor + '40',
+                          },
                         ]}
                       >
-                        {item.status || 'N/A'}
-                      </Text>
+                        <View
+                          style={[
+                            styles.statusDot,
+                            { backgroundColor: statusColor },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.statusText,
+                            { color: statusColor },
+                          ]}
+                        >
+                          {item.status || 'N/A'}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
 
-                  {/* Reference Number */}
-                  <Text style={styles.referenceNumber}>{item.reference}</Text>
+                    {/* Reference Number */}
+                    <Text style={styles.referenceNumber}>{item.reference}</Text>
 
-                  {/* Opening Date */}
-                  <View style={styles.dateRow}>
-                    <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                    <Text style={styles.dateLabel}>Opening Date:</Text>
-                    <Text style={styles.dateValue}>{formatDate(item.bidOpeningDate)}</Text>
-                  </View>
-
-                  {/* Description */}
-                  {item.description && (
-                    <View style={styles.descriptionContainer}>
-                      <Text style={styles.descriptionLabel}>Description</Text>
-                      <Text style={styles.descriptionText}>{item.description}</Text>
+                    {/* Opening Date */}
+                    <View style={styles.dateRow}>
+                      <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                      <Text style={styles.dateLabel}>Opening Date:</Text>
+                      <Text style={styles.dateValue}>{formatDate(item.bidOpeningDate)}</Text>
                     </View>
-                  )}
 
-                  {/* Download Button */}
-                  {item.noticeUrl && (
-                    <View style={styles.downloadContainer}>
-                      <UnifiedButton
-                        label={isItemDownloading ? `Downloading... ${Math.round(progress)}%` : (item.noticeFileName || 'Download Notice')}
-                        onPress={() => handleDownload(item)}
-                        variant="outline"
-                        size="medium"
-                        iconName={isItemDownloading ? "download" : "document-outline"}
-                        loading={isItemDownloading}
-                        disabled={isItemDownloading}
-                        fullWidth
-                      />
-                    </View>
-                  )}
-                </UnifiedCard>
-              );
-            })}
+                    {/* Description */}
+                    {item.description && (
+                      <View style={styles.descriptionContainer}>
+                        <Text style={styles.descriptionLabel}>Description</Text>
+                        <Text style={styles.descriptionText}>{item.description}</Text>
+                      </View>
+                    )}
+
+                    {/* Download Button */}
+                    {item.noticeUrl && (
+                      <View style={styles.downloadContainer}>
+                        <UnifiedButton
+                          label={isItemDownloading ? `Downloading... ${Math.round(progress)}%` : (item.noticeFileName || 'Download Notice')}
+                          onPress={() => handleDownload(item)}
+                          variant="outline"
+                          size="medium"
+                          iconName={isItemDownloading ? "download" : "document-outline"}
+                          loading={isItemDownloading}
+                          disabled={isItemDownloading}
+                          fullWidth
+                        />
+                      </View>
+                    )}
+                  </UnifiedCard>
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -437,7 +442,7 @@ export default function OpeningRegisterScreen({ navigation }) {
   );
 }
 
-function getStyles(colors, insets) {
+function getStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -447,8 +452,8 @@ function getStyles(colors, insets) {
       flex: 1,
     },
     scrollContent: {
-      padding: spacing.xl,
-      paddingBottom: spacing.xxl + (insets?.bottom || 0),
+      paddingBottom: spacing.xl,
+      padding: spacing.lg,
     },
 
     // Loading State
@@ -484,9 +489,13 @@ function getStyles(colors, insets) {
       marginBottom: spacing.xl,
     },
 
-    // Tab Selection
+    // Tab Selection (First Filter Section)
+    tabSectionContainer: {
+      paddingHorizontal: 0,
+      paddingVertical: spacing.sm,
+    },
     tabCard: {
-      marginBottom: spacing.lg,
+      margin: 0,
     },
     tabLabel: {
       ...typography.bodySmall,
@@ -535,14 +544,24 @@ function getStyles(colors, insets) {
       fontWeight: '600',
     },
 
-    // Search
-    searchCard: {
-      marginBottom: spacing.lg,
+    // Search Input (like ProcurementAwardsScreen)
+    searchInputContainer: {
+      paddingHorizontal: 0,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+    },
+    searchInput: {
+      margin: 0,
     },
 
     // Results
+    resultsSectionContainer: {
+      paddingHorizontal: 0,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
     resultsCard: {
-      marginBottom: spacing.lg,
+      margin: 0,
     },
     resultsHeader: {
       flexDirection: 'row',
@@ -560,8 +579,12 @@ function getStyles(colors, insets) {
     },
 
     // Empty State
+    contentSectionContainer: {
+      paddingHorizontal: 0,
+      paddingTop: spacing.sm,
+    },
     emptyStateCard: {
-      marginTop: spacing.xl,
+      margin: 0,
     },
     emptyStateContainer: {
       alignItems: 'center',
@@ -593,7 +616,7 @@ function getStyles(colors, insets) {
 
     // Items List
     itemsContainer: {
-      gap: spacing.lg,
+      gap: spacing.md,
     },
     itemCard: {
       overflow: 'hidden',

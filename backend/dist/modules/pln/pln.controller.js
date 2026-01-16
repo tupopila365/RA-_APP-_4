@@ -68,16 +68,8 @@ class PLNController {
             const streetAddress = parseJSONField(req.body.streetAddress);
             const telephoneHome = parseJSONField(req.body.telephoneHome);
             const telephoneDay = parseJSONField(req.body.telephoneDay);
-            const cellNumber = parseJSONField(req.body.cellNumber);
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'pln.controller.ts:41', message: 'Controller received request body', data: { hasIdType: !!req.body.idType, hasSurname: !!req.body.surname, hasPostalAddress: !!postalAddress, postalAddressType: typeof postalAddress, postalAddressValue: postalAddress, hasFullName: !!req.body.fullName }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
-            // #endregion
-            // Check if using new structure or legacy
-            const isNewStructure = req.body.idType && req.body.surname && postalAddress;
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'pln.controller.ts:42', message: 'Controller structure check', data: { isNewStructure, idTypeCheck: !!req.body.idType, surnameCheck: !!req.body.surname, postalAddressCheck: !!postalAddress }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
-            // #endregion
-            // Validate document file
+            const cellNumber = parseJSONField(req.body.cellNumber); // Check if using new structure or legacy
+            const isNewStructure = req.body.idType && req.body.surname && postalAddress; // Validate document file
             if (!req.file) {
                 res.status(400).json({
                     success: false,
@@ -91,11 +83,7 @@ class PLNController {
             }
             // Build DTO based on structure
             let dto;
-            if (isNewStructure) {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'pln.controller.ts:59', message: 'Using new structure path', data: { hasIdType: !!req.body.idType, hasSurname: !!req.body.surname }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
-                // #endregion
-                // New comprehensive structure
+            if (isNewStructure) { // New comprehensive structure
                 dto = {
                     idType: req.body.idType,
                     trafficRegisterNumber: req.body.trafficRegisterNumber,
@@ -127,16 +115,9 @@ class PLNController {
                     declarationRole: req.body.declarationRole || 'applicant',
                 };
             }
-            else {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'pln.controller.ts:92', message: 'Using legacy structure path', data: { hasFullName: !!req.body.fullName, hasIdNumber: !!req.body.idNumber, hasPhoneNumber: !!req.body.phoneNumber }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
-                // #endregion
-                // Legacy structure
+            else { // Legacy structure
                 const { fullName, idNumber, phoneNumber } = req.body;
                 if (!fullName || !fullName.trim()) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'pln.controller.ts:95', message: 'Legacy validation failed - fullName required', data: { hasFullName: !!fullName, fullNameValue: fullName }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
-                    // #endregion
                     res.status(400).json({
                         success: false,
                         error: {
@@ -196,6 +177,7 @@ class PLNController {
                     application: {
                         id: application._id,
                         referenceId: application.referenceId,
+                        trackingPin: application.trackingPin,
                         fullName: application.fullName,
                         status: application.status,
                         createdAt: application.createdAt,
@@ -211,24 +193,25 @@ class PLNController {
         }
     }
     /**
-     * Track application by reference ID and ID number (public)
-     * GET /api/pln/track/:referenceId/:idNumber
+     * Track application by reference ID and PIN (public)
+     * GET /api/pln/track/:referenceId/:pin
+     * Universal PIN: 12345 for all users
      */
     async trackApplication(req, res, next) {
         try {
-            const { referenceId, idNumber } = req.params;
-            if (!referenceId || !idNumber) {
+            const { referenceId, pin } = req.params;
+            if (!referenceId || !pin) {
                 res.status(400).json({
                     success: false,
                     error: {
                         code: errors_1.ERROR_CODES.VALIDATION_ERROR,
-                        message: 'Reference ID and ID number are required',
+                        message: 'Reference ID and PIN are required',
                     },
                     timestamp: new Date().toISOString(),
                 });
                 return;
             }
-            const application = await pln_service_1.plnService.getApplicationByReference(referenceId, idNumber);
+            const application = await pln_service_1.plnService.getApplicationByReference(referenceId, pin);
             res.status(200).json({
                 success: true,
                 data: {
@@ -360,7 +343,7 @@ class PLNController {
                 });
                 return;
             }
-            const adminId = req.user?.email || req.user?.id || 'Unknown';
+            const adminId = req.user?.email || req.user?.userId || 'Unknown';
             const application = await pln_service_1.plnService.updateStatus(id, status, adminId, comment);
             logger_1.logger.info(`Application ${id} status updated to ${status}`);
             res.status(200).json({
@@ -390,7 +373,7 @@ class PLNController {
     async markPaymentReceived(req, res, next) {
         try {
             const { id } = req.params;
-            const adminId = req.user?.email || req.user?.id || 'Unknown';
+            const adminId = req.user?.email || req.user?.userId || 'Unknown';
             const application = await pln_service_1.plnService.markPaymentReceived(id, adminId);
             logger_1.logger.info(`Payment marked as received for application ${id}`);
             res.status(200).json({
@@ -420,7 +403,7 @@ class PLNController {
     async orderPlates(req, res, next) {
         try {
             const { id } = req.params;
-            const adminId = req.user?.email || req.user?.id || 'Unknown';
+            const adminId = req.user?.email || req.user?.userId || 'Unknown';
             const application = await pln_service_1.plnService.orderPlates(id, adminId);
             logger_1.logger.info(`Plates ordered for application ${id}`);
             res.status(200).json({
@@ -449,7 +432,7 @@ class PLNController {
     async markReadyForCollection(req, res, next) {
         try {
             const { id } = req.params;
-            const adminId = req.user?.email || req.user?.id || 'Unknown';
+            const adminId = req.user?.email || req.user?.userId || 'Unknown';
             const application = await pln_service_1.plnService.markReadyForCollection(id, adminId);
             logger_1.logger.info(`Application ${id} marked as ready for collection`);
             res.status(200).json({
@@ -535,9 +518,128 @@ class PLNController {
         }
     }
     /**
-     * Download blank PLN form PDF (public)
-     * GET /api/pln/form
+     * Update admin comments (admin)
+     * PUT /api/pln/applications/:id/comments
      */
+    async updateAdminComments(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { comments } = req.body;
+            if (!comments || typeof comments !== 'string') {
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                        message: 'Comments are required',
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+                return;
+            }
+            const adminId = req.user?.email || req.user?.userId || 'Unknown';
+            const application = await pln_service_1.plnService.updateAdminComments(id, comments, adminId);
+            logger_1.logger.info(`Admin comments updated for application ${id}`);
+            res.status(200).json({
+                success: true,
+                data: {
+                    application: {
+                        id: application._id,
+                        adminComments: application.adminComments,
+                        statusHistory: application.statusHistory,
+                        updatedAt: application.updatedAt,
+                    },
+                    message: 'Admin comments updated successfully',
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Update admin comments error:', error);
+            next(error);
+        }
+    }
+    /**
+     * Assign application to admin (admin)
+     * PUT /api/pln/applications/:id/assign
+     */
+    async assignToAdmin(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { assignedTo } = req.body;
+            if (!assignedTo || typeof assignedTo !== 'string') {
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                        message: 'Assigned to field is required',
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+                return;
+            }
+            const adminId = req.user?.email || req.user?.userId || 'Unknown';
+            const application = await pln_service_1.plnService.assignToAdmin(id, assignedTo, adminId);
+            logger_1.logger.info(`Application ${id} assigned to ${assignedTo}`);
+            res.status(200).json({
+                success: true,
+                data: {
+                    application: {
+                        id: application._id,
+                        assignedTo: application.assignedTo,
+                        statusHistory: application.statusHistory,
+                        updatedAt: application.updatedAt,
+                    },
+                    message: 'Application assigned successfully',
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Assign to admin error:', error);
+            next(error);
+        }
+    }
+    /**
+     * Set application priority (admin)
+     * PUT /api/pln/applications/:id/priority
+     */
+    async setPriority(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { priority } = req.body;
+            if (!priority || !['LOW', 'NORMAL', 'HIGH', 'URGENT'].includes(priority)) {
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                        message: 'Valid priority is required (LOW, NORMAL, HIGH, URGENT)',
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+                return;
+            }
+            const adminId = req.user?.email || req.user?.userId || 'Unknown';
+            const application = await pln_service_1.plnService.setPriority(id, priority, adminId);
+            logger_1.logger.info(`Application ${id} priority set to ${priority}`);
+            res.status(200).json({
+                success: true,
+                data: {
+                    application: {
+                        id: application._id,
+                        priority: application.priority,
+                        statusHistory: application.statusHistory,
+                        updatedAt: application.updatedAt,
+                    },
+                    message: 'Priority updated successfully',
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Set priority error:', error);
+            next(error);
+        }
+    }
     async downloadForm(req, res, next) {
         try {
             // Resolve path to static PDF template file

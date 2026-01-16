@@ -7,6 +7,10 @@ declare class RoadworksController {
     getById(req: Request, res: Response, next: NextFunction): Promise<void>;
     update(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
     delete(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    getRoadClosureWithRoutes(req: Request, res: Response, next: NextFunction): Promise<void>;
+    createRoadClosureWithRoutes(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    updateRoadClosureWithRoutes(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    approveAlternateRoute(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const roadworksController: RoadworksController;
 export {};

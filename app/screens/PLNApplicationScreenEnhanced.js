@@ -31,15 +31,8 @@ import {
   spacing,
 } from '../components/UnifiedDesignSystem';
 
-// Conditionally import native modules
-let ImagePicker = null;
-let DocumentPicker = null;
-try {
-  ImagePicker = require('expo-image-picker');
-  DocumentPicker = require('expo-document-picker');
-} catch (error) {
-  console.warn('Native modules not available:', error.message);
-}
+// Import native modules - use dynamic import for development builds
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function PLNApplicationScreenEnhanced({ navigation }) {
   const { colors, isDark } = useTheme();
@@ -262,29 +255,65 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
     }
   };
   const handleDocumentPick = async () => {
-    if (!DocumentPicker) {
-      Alert.alert('Error', 'Document picker not available');
-      return;
-    }
-
     try {
       setDocumentLoading(true);
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'image/*'],
-        copyToCacheDirectory: true,
+      
+      // Debug: Log DocumentPicker availability
+      console.log('DocumentPicker debug:', {
+        DocumentPicker: !!DocumentPicker,
+        getDocumentAsync: !!DocumentPicker?.getDocumentAsync,
+        type: typeof DocumentPicker,
+        keys: DocumentPicker ? Object.keys(DocumentPicker) : 'null'
       });
+      
+      // Check if DocumentPicker is available
+      if (!DocumentPicker || !DocumentPicker.getDocumentAsync) {
+        Alert.alert(
+          'Document Picker Issue', 
+          'Document picker module is not properly loaded. This usually means:\n\n1. You need to rebuild the development build\n2. The native module is not properly linked\n\nTry running: npx expo run:android'
+        );
+        setDocumentLoading(false);
+        return;
+      }
+
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf', // Only allow PDF files
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      console.log('Document picker result:', result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        
+        // Validate file type
+        if (asset.mimeType !== 'application/pdf') {
+          Alert.alert('Invalid File Type', 'Please select a PDF file only.');
+          return;
+        }
+        
+        // Validate file size (max 10MB)
+        if (asset.size > 10 * 1024 * 1024) {
+          Alert.alert('File Too Large', 'Please select a PDF file smaller than 10MB.');
+          return;
+        }
+        
         setDocument({
           uri: asset.uri,
           name: asset.name,
           type: asset.mimeType,
           size: asset.size,
         });
+        
+        Alert.alert('Success', 'PDF document uploaded successfully!');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick document');
+      console.error('Document picker error:', error);
+      Alert.alert(
+        'Upload Error', 
+        `Failed to pick document: ${error.message}\n\nTip: Make sure you're using a development build or physical device, not Expo Go.`
+      );
     } finally {
       setDocumentLoading(false);
     }
@@ -298,8 +327,8 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
       case 'personal':
         if (!surname.trim()) errors.surname = 'Surname is required';
         if (!initials.trim()) errors.initials = 'Initials are required';
-        if (idType === 'Traffic Register Number' && !trafficRegisterNumber.trim()) {
-          errors.trafficRegisterNumber = 'Traffic Register Number is required';
+        if ((idType === 'Traffic Register Number' || idType === 'Namibia ID-doc') && !trafficRegisterNumber.trim()) {
+          errors.trafficRegisterNumber = idType === 'Traffic Register Number' ? 'Traffic Register Number is required' : 'ID Number is required';
         }
         if (idType === 'Business Reg. No') {
           if (!businessRegNumber.trim()) errors.businessRegNumber = 'Business Registration Number is required';
@@ -357,7 +386,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         transactionType,
         // Section A
         idType,
-        trafficRegisterNumber: idType === 'Traffic Register Number' ? trafficRegisterNumber : undefined,
+        trafficRegisterNumber: (idType === 'Traffic Register Number' || idType === 'Namibia ID-doc') ? trafficRegisterNumber : undefined,
         businessRegNumber: idType === 'Business Reg. No' ? businessRegNumber : undefined,
         surname: idType !== 'Business Reg. No' ? surname : undefined,
         initials: idType !== 'Business Reg. No' ? initials : undefined,
@@ -399,11 +428,14 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
       
       Alert.alert(
         'Application Submitted Successfully',
-        `Your PLN application has been submitted.\n\nReference ID: ${response.referenceId}\n\nPlease save this reference number for tracking your application.`,
+        `Your PLN application has been submitted.\n\nReference ID: ${response.referenceId}\nTracking PIN: ${response.trackingPin}\n\nPlease save these details for tracking your application.`,
         [
           {
             text: 'Track Application',
-            onPress: () => navigation.navigate('PLNTracking', { referenceId: response.referenceId }),
+            onPress: () => navigation.navigate('PLNTracking', { 
+              referenceId: response.referenceId, 
+              trackingPin: response.trackingPin 
+            }),
           },
         ]
       );
@@ -516,15 +548,15 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         ))}
       </View>
 
-      {idType === 'Traffic Register Number' && (
+      {(idType === 'Traffic Register Number' || idType === 'Namibia ID-doc') && (
         <UnifiedFormInput
-          label="Traffic Register Number"
+          label={idType === 'Traffic Register Number' ? 'Traffic Register Number' : 'ID Number'}
           value={trafficRegisterNumber}
           onChangeText={(value) => {
             setTrafficRegisterNumber(value);
             handleFieldChange('trafficRegisterNumber', value);
           }}
-          placeholder="Enter traffic register number"
+          placeholder={idType === 'Traffic Register Number' ? 'Enter traffic register number' : 'Enter ID number'}
           error={validationErrors.trafficRegisterNumber}
           maxLength={13}
           keyboardType="numeric"
@@ -556,6 +588,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
             placeholder="Enter business name"
             error={validationErrors.businessName}
             maxLength={50}
+            autoCapitalize="words"
             required
           />
         </>
@@ -615,6 +648,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         placeholder="P.O. Box or street address"
         error={validationErrors.postalAddressLine1}
         maxLength={40}
+        autoCapitalize="words"
         required
       />
       <UnifiedFormInput
@@ -623,6 +657,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         onChangeText={(text) => setPostalAddress({ ...postalAddress, line2: text })}
         placeholder="City or area"
         maxLength={40}
+        autoCapitalize="words"
       />
       <UnifiedFormInput
         label="Address Line 3"
@@ -630,6 +665,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         onChangeText={(text) => setPostalAddress({ ...postalAddress, line3: text })}
         placeholder="Region or country"
         maxLength={40}
+        autoCapitalize="words"
       />
 
       <Text style={[typography.h5, { color: colors.primary, marginTop: spacing.lg, marginBottom: spacing.md }]}>
@@ -645,6 +681,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         placeholder="Street address"
         error={validationErrors.streetAddressLine1}
         maxLength={40}
+        autoCapitalize="words"
         required
       />
       <UnifiedFormInput
@@ -653,6 +690,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         onChangeText={(text) => setStreetAddress({ ...streetAddress, line2: text })}
         placeholder="Area or suburb"
         maxLength={40}
+        autoCapitalize="words"
       />
       <UnifiedFormInput
         label="Address Line 3"
@@ -660,6 +698,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         onChangeText={(text) => setStreetAddress({ ...streetAddress, line3: text })}
         placeholder="City"
         maxLength={40}
+        autoCapitalize="words"
       />
 
       <Text style={[typography.h5, { color: colors.primary, marginTop: spacing.lg, marginBottom: spacing.md }]}>
@@ -1097,18 +1136,18 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
       </View>
 
       <Text style={[typography.h5, { color: colors.text, marginTop: spacing.xl, marginBottom: spacing.sm }]}>
-        Certified copy of identification document *
+        Certified copy of identification document (PDF only) *
       </Text>
 
         <UnifiedFormInput
           label="Document Upload"
           value={document ? document.name : ''}
-          placeholder="Upload certified ID document"
+          placeholder="Upload certified ID document (PDF only)"
           error={validationErrors.document}
           editable={false}
           rightIcon="cloud-upload-outline"
           onRightIconPress={handleDocumentPick}
-          helperText="Upload a clear, certified copy of your identification document (PDF or image format, max 10MB)"
+          helperText="Upload a clear, certified copy of your identification document in PDF format only (max 10MB)"
         />
 
         <TouchableOpacity
@@ -1120,9 +1159,12 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
             <UnifiedSkeletonLoader type="button" animated={true} />
           ) : (
             <>
-              <Ionicons name="cloud-upload-outline" size={32} color={colors.primary} />
+              <Ionicons name="document-text-outline" size={32} color={colors.primary} />
               <Text style={[typography.body, { color: colors.primary, fontWeight: '600', marginTop: spacing.sm }]}>
-                {document ? 'Change Document' : 'Upload Document'}
+                {document ? 'Change PDF Document' : 'Upload PDF Document'}
+              </Text>
+              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' }]}>
+                PDF files only • Max 10MB
               </Text>
             </>
           )}
@@ -1130,13 +1172,13 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
 
         {document && (
           <View style={styles.documentInfo}>
-            <Ionicons name="document" size={24} color={colors.success} />
+            <Ionicons name="document-text" size={24} color={colors.success} />
             <View style={styles.documentDetails}>
               <Text style={[typography.bodySmall, { color: colors.text, fontWeight: '600' }]}>
                 {document.name}
               </Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                {(document.size / 1024 / 1024).toFixed(2)} MB
+                PDF • {(document.size / 1024 / 1024).toFixed(2)} MB
               </Text>
             </View>
             <TouchableOpacity onPress={() => setDocument(null)}>

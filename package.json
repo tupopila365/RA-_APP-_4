@@ -1,5 +1,14 @@
 {
+  "name": "ra-app-monorepo",
+  "version": "1.0.0",
+  "description": "Roads Authority Mobile App - Monorepo",
+  "scripts": {
+    "update-wifi": "node auto-update-wifi-ip.js",
+    "update-wifi-watch": "node auto-update-wifi-ip.js --watch",
+    "update-wifi-port": "node auto-update-wifi-ip.js 5001"
+  },
   "dependencies": {
+    "mongoose": "^9.1.3",
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {

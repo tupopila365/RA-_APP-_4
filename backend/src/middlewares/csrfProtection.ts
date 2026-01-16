@@ -22,7 +22,7 @@ export class CSRFProtection {
     this.tokenStore.set(sessionId, {
       token,
       expires: Date.now() + this.TOKEN_EXPIRY,
-      ip: req.ip,
+      ip: req.ip || 'unknown',
     });
 
     // Clean up expired tokens
@@ -72,7 +72,7 @@ export class CSRFProtection {
     }
 
     // Check if IP matches (additional security)
-    if (tokenData.ip !== req.ip) {
+    if (tokenData.ip !== (req.ip || 'unknown')) {
       return false;
     }
 
@@ -122,7 +122,7 @@ export class CSRFProtection {
                   req.query._csrf as string;
 
     if (!token) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         error: {
           code: 'CSRF_TOKEN_MISSING',
@@ -130,10 +130,11 @@ export class CSRFProtection {
         },
         timestamp: new Date().toISOString(),
       });
+      return;
     }
 
     if (!CSRFProtection.validateToken(req, token)) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         error: {
           code: 'CSRF_TOKEN_INVALID',
@@ -141,6 +142,7 @@ export class CSRFProtection {
         },
         timestamp: new Date().toISOString(),
       });
+      return;
     }
 
     next();

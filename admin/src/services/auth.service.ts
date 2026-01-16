@@ -20,49 +20,15 @@ class AuthService {
   /**
    * Login with email and password
    */
-  async login(credentials: LoginCredentials): Promise<LoginResult> {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.service.ts:23',message:'AuthService.login called',data:{email:credentials.email,hasPassword:!!credentials.password},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    try {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.service.ts:25',message:'Making API request to /auth/login',data:{baseURL:import.meta.env.VITE_API_BASE_URL||'http://localhost:5000'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      const response = await apiClient.post<IApiResponse<LoginResult>>('/auth/login', credentials);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.service.ts:27',message:'API response received',data:{status:response.status,success:response.data?.success,hasData:!!response.data?.data,hasUser:!!response.data?.data?.user,hasTokens:!!(response.data?.data?.accessToken&&response.data?.data?.refreshToken)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-
-      if (!response.data.success) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.service.ts:28',message:'Response success is false',data:{responseData:response.data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        throw new Error('Login failed');
+  async login(credentials: LoginCredentials): Promise<LoginResult> {try {const response = await apiClient.post<IApiResponse<LoginResult>>('/auth/login', credentials);if (!response.data.success) {throw new Error('Login failed');
       }
 
-      const { user, accessToken, refreshToken } = response.data.data;
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.service.ts:34',message:'Storing tokens and user data',data:{hasAccessToken:!!accessToken,hasRefreshToken:!!refreshToken,hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-
-      // Store tokens
+      const { user, accessToken, refreshToken } = response.data.data;// Store tokens
       tokenManager.setTokens(accessToken, refreshToken);
 
       // Store user data
-      localStorage.setItem('ra_admin_user', JSON.stringify(user));
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.service.ts:39',message:'Login completed successfully',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-
-      return { user, accessToken, refreshToken };
-    } catch (error: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/840482ea-b688-47d0-96ab-c9c7a8f201f8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.service.ts:40',message:'AuthService.login error',data:{errorMessage:error?.message,errorType:error?.constructor?.name,isAxiosError:error?.isAxiosError,responseStatus:error?.response?.status,responseData:error?.response?.data,code:error?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      // Handle API error responses
+      localStorage.setItem('ra_admin_user', JSON.stringify(user));return { user, accessToken, refreshToken };
+    } catch (error: any) {// Handle API error responses
       if (error.response?.data?.error) {
         throw new Error(error.response.data.error.message || 'Login failed');
       }

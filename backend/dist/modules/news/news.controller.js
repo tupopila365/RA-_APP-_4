@@ -39,7 +39,7 @@ class NewsController {
             // Send push notification if published
             if (news.published === true) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendNewsNotification(news._id.toString(), news.title, news.excerpt, { useQueue: false });
+                    const notifResult = await notifications_service_1.notificationsService.sendNewsNotification(news._id.toString(), news.title, news.excerpt);
                     logger_1.logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
                 }
                 catch (notifError) {
@@ -189,7 +189,7 @@ class NewsController {
             // Send push notification only on first publish
             if (published === true && !wasPublishedBefore) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendNewsNotification(news._id.toString(), news.title, news.excerpt, { useQueue: false });
+                    const notifResult = await notifications_service_1.notificationsService.sendNewsNotification(news._id.toString(), news.title, news.excerpt);
                     logger_1.logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
                 }
                 catch (notifError) {

@@ -1,5 +1,5 @@
 import mongoose, { Document as MongooseDocument } from 'mongoose';
-export type Severity = 'small' | 'medium' | 'dangerous';
+export type Severity = 'low' | 'medium' | 'high';
 export type ReportStatus = 'pending' | 'assigned' | 'in-progress' | 'fixed' | 'duplicate' | 'invalid';
 export interface IPotholeReport extends MongooseDocument {
     deviceId: string;
@@ -12,7 +12,7 @@ export interface IPotholeReport extends MongooseDocument {
     region: string;
     roadName: string;
     photoUrl: string;
-    severity: Severity;
+    severity?: Severity;
     description?: string;
     status: ReportStatus;
     assignedTo?: string;

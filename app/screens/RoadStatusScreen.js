@@ -20,6 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
+import { radii, spacing, sizes, shadows } from '../theme/designTokens';
 import { SkeletonLoader, ErrorState, EmptyState, SearchInput, RoadStatusSkeleton } from '../components';
 import { roadStatusService } from '../services/roadStatusService';
 
@@ -28,6 +29,7 @@ let MapView = null;
 let Marker = null;
 let Callout = null;
 let Circle = null;
+let Polyline = null;
 let PROVIDER_GOOGLE = null;
 try {
   const MapModule = require('react-native-maps');
@@ -35,6 +37,7 @@ try {
   Marker = MapModule.Marker;
   Callout = MapModule.Callout;
   Circle = MapModule.Circle;
+  Polyline = MapModule.Polyline;
   PROVIDER_GOOGLE = MapModule.PROVIDER_GOOGLE;
 } catch (error) {
   console.warn('MapView not available:', error.message);
@@ -114,39 +117,139 @@ const getRoadworkCoordinates = (roadwork) => {
 };
 
 /**
- * Geocode road name and area to get approximate coordinates
- * Falls back to region center if specific location not found
+ * Get route polyline color based on route type
  */
-const geocodeRoadworkLocation = async (roadwork) => {
-  try {
-    const searchQuery = `${roadwork.road || ''} ${roadwork.section || ''} ${roadwork.area || ''} Namibia`.trim();
-    
-    if (!searchQuery || searchQuery === 'Namibia') {
-      return null;
-    }
-    
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=1`,
-      {
-        headers: {
-          'User-Agent': 'Roads-Authority-App/1.0',
-        },
-      }
-    );
-    
-    const data = await response.json();
-    
-    if (data && data.length > 0) {
-      return {
-        latitude: parseFloat(data[0].lat),
-        longitude: parseFloat(data[0].lon),
-      };
-    }
-  } catch (error) {
-    console.warn('Geocoding failed:', error);
+const getRouteColor = (route, isClosed = false) => {
+  if (isClosed) return '#DC2626'; // Red for closed roads
+  if (route.isRecommended) return '#059669'; // Green for recommended routes
+  return '#6B7280'; // Gray for other alternate routes
+};
+
+/**
+ * Get route stroke pattern based on route type
+ */
+const getRouteStrokePattern = (route, isClosed = false) => {
+  if (isClosed || route.isRecommended) {
+    return []; // Solid line for closed roads and recommended routes
   }
+  return [10, 5]; // Dashed line for other alternate routes
+};
+
+/**
+ * Render polylines for road closure and alternate routes
+ */
+const renderRoutePolylines = (roadwork, colors) => {
+  if (!Polyline) return null;
+
+  const polylines = [];
+
+  // Render closed road polyline (red)
+  if (roadwork.roadClosure?.polylineCoordinates && roadwork.roadClosure.polylineCoordinates.length > 1) {
+    polylines.push(
+      <Polyline
+        key={`closure-${roadwork._id}`}
+        coordinates={roadwork.roadClosure.polylineCoordinates}
+        strokeColor={getRouteColor(null, true)}
+        strokeWidth={4}
+        strokePattern={getRouteStrokePattern(null, true)}
+        zIndex={1000}
+      />
+    );
+  }
+
+  // Render alternate routes polylines
+  if (roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0) {
+    roadwork.alternateRoutes.forEach((route, index) => {
+      if (route.approved && route.polylineCoordinates && route.polylineCoordinates.length > 1) {
+        polylines.push(
+          <Polyline
+            key={`route-${roadwork._id}-${index}`}
+            coordinates={route.polylineCoordinates}
+            strokeColor={getRouteColor(route)}
+            strokeWidth={route.isRecommended ? 4 : 3}
+            strokePattern={getRouteStrokePattern(route)}
+            zIndex={route.isRecommended ? 900 : 800}
+            onPress={() => showRouteInfo(route)}
+          />
+        );
+      }
+    });
+  }
+
+  return polylines;
+};
+
+/**
+ * Render waypoint markers for alternate routes
+ */
+const renderWaypointMarkers = (roadwork, colors) => {
+  if (!Marker || !roadwork.alternateRoutes) return null;
+
+  const markers = [];
+
+  roadwork.alternateRoutes.forEach((route, routeIndex) => {
+    if (route.approved && route.waypoints) {
+      route.waypoints.forEach((waypoint, waypointIndex) => {
+        markers.push(
+          <Marker
+            key={`waypoint-${roadwork._id}-${routeIndex}-${waypointIndex}`}
+            coordinate={waypoint.coordinates}
+            title={waypoint.name}
+            description={`${route.routeName} - ${route.estimatedTime}`}
+            pinColor={route.isRecommended ? '#059669' : '#6B7280'}
+          >
+            <View style={[
+              styles.waypointMarker,
+              { backgroundColor: route.isRecommended ? '#059669' : '#6B7280' }
+            ]}>
+              <Text style={styles.waypointText}>{waypointIndex + 1}</Text>
+            </View>
+          </Marker>
+        );
+      });
+    }
+  });
+
+  return markers;
+};
+
+/**
+ * Show route information in a modal or alert
+ */
+const showRouteInfo = (route) => {
+  const vehicleTypes = route.vehicleType?.join(', ') || 'All vehicles';
+  const roads = route.roadsUsed?.join(', ') || 'Various roads';
   
-  return null;
+  Alert.alert(
+    route.routeName,
+    `Distance: ${route.distanceKm}km\nTime: ${route.estimatedTime}\nRoads: ${roads}\nVehicles: ${vehicleTypes}`,
+    [
+      { text: 'Get Directions', onPress: () => openExternalMap(route) },
+      { text: 'Close', style: 'cancel' }
+    ]
+  );
+};
+
+/**
+ * Open external map app with route waypoints
+ */
+const openExternalMap = (route) => {
+  if (!route.waypoints || route.waypoints.length === 0) return;
+
+  const start = route.waypoints[0].coordinates;
+  const end = route.waypoints[route.waypoints.length - 1].coordinates;
+  
+  const url = Platform.select({
+    ios: `maps:?saddr=${start.latitude},${start.longitude}&daddr=${end.latitude},${end.longitude}`,
+    android: `google.navigation:q=${end.latitude},${end.longitude}&mode=d`,
+  });
+
+  if (url) {
+    Linking.openURL(url).catch(err => {
+      console.error('Error opening map:', err);
+      Alert.alert('Error', 'Could not open map application');
+    });
+  }
 };
 
 /**
@@ -402,18 +505,25 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
       <Callout onPress={onPress}>
         <View
           style={{
-            backgroundColor: colors.card,
+            backgroundColor: '#FFFFFF', // Solid white background
             borderRadius: 8,
             padding: 12,
             minWidth: 200,
             maxWidth: 250,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 4,
-            elevation: 3,
             borderWidth: 1,
             borderColor: colors.border,
+            // Android-safe elevation
+            ...Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 4,
+              },
+              android: {
+                elevation: 2, // Reduced from 3 to 2
+              },
+            }),
           }}
         >
           <Text style={{ fontSize: 14, fontWeight: '700', marginBottom: 4, color: colors.text }}>
@@ -911,7 +1021,11 @@ export default function RoadStatusScreen() {
 
   const styles = getStyles(colors);
 
-  // Show error state if initial load fails
+  const isInitialLoading = loading && roadworks.length === 0;
+  const isEmpty = filteredRoadworks.length === 0;
+  const showEmptyState = !isInitialLoading && isEmpty;
+
+  // Show error state if initial load fails (moved after all hooks)
   if (error && roadworks.length === 0 && !loading) {
     return (
       <ErrorState
@@ -921,10 +1035,6 @@ export default function RoadStatusScreen() {
       />
     );
   }
-
-  const isInitialLoading = loading && roadworks.length === 0;
-  const isEmpty = filteredRoadworks.length === 0;
-  const showEmptyState = !isInitialLoading && isEmpty;
 
   const formatLastUpdated = (date) => {
     const now = new Date();
@@ -1028,19 +1138,19 @@ export default function RoadStatusScreen() {
             <Text style={styles.legendTitle}>Status Legend</Text>
             <View style={styles.legendItems}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#059669' }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
                 <Text style={styles.legendText}>Open - Normal traffic flow</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#D97706' }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
                 <Text style={styles.legendText}>Ongoing - Expect delays</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#2563EB' }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.info }]} />
                 <Text style={styles.legendText}>Planned - Scheduled</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#DC2626' }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
                 <Text style={styles.legendText}>Closed - Use alternative</Text>
               </View>
             </View>
@@ -1215,6 +1325,13 @@ export default function RoadStatusScreen() {
                 showsMyLocationButton={true}
                 provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
               >
+                {/* Render polylines for road closures and alternate routes */}
+                {filteredRoadworks.map((roadwork) => renderRoutePolylines(roadwork, colors))}
+                
+                {/* Render waypoint markers for alternate routes */}
+                {filteredRoadworks.map((roadwork) => renderWaypointMarkers(roadwork, colors))}
+                
+                {/* Render main roadwork markers */}
                 {filteredRoadworks.map((roadwork) => {
                   const coordinates = getRoadworkCoordinates(roadwork);
                   if (!coordinates) return null;
@@ -1226,10 +1343,19 @@ export default function RoadStatusScreen() {
                       roadwork={roadwork}
                       colors={colors}
                       onPress={() => {
-                        // Show details in alert or bottom sheet
+                        // Show details with alternate routes information
+                        const alternateRoutesText = roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0
+                          ? `\n\nAlternate Routes:\n${roadwork.alternateRoutes
+                              .filter(route => route.approved)
+                              .map(route => `• ${route.routeName}: ${route.distanceKm}km, ${route.estimatedTime}`)
+                              .join('\n')}`
+                          : roadwork.alternativeRoute 
+                            ? `\nAlternative Route:\n${roadwork.alternativeRoute}`
+                            : '';
+                            
                         Alert.alert(
                           `${roadwork.road} - ${roadwork.section}`,
-                          `${roadwork.title}\n\nStatus: ${roadwork.status}\n${roadwork.reason ? `Reason: ${roadwork.reason}\n` : ''}${roadwork.expectedDelayMinutes ? `Expected Delay: ${roadwork.expectedDelayMinutes} min\n` : ''}${roadwork.alternativeRoute ? `\nAlternative Route:\n${roadwork.alternativeRoute}` : ''}`,
+                          `${roadwork.title}\n\nStatus: ${roadwork.status}\n${roadwork.reason ? `Reason: ${roadwork.reason}\n` : ''}${roadwork.expectedDelayMinutes ? `Expected Delay: ${roadwork.expectedDelayMinutes} min\n` : ''}${alternateRoutesText}`,
                           [
                             { text: 'Cancel', style: 'cancel' },
                             { text: 'Directions', onPress: () => handleDirections(roadwork) },
@@ -1252,7 +1378,19 @@ export default function RoadStatusScreen() {
                 <View style={[styles.mapLegendMarker, { backgroundColor: '#DC2626' }]}>
                   <Ionicons name="close-circle" size={12} color="#FFFFFF" />
                 </View>
-                <Text style={styles.mapLegendText}>Critical Alert</Text>
+                <Text style={styles.mapLegendText}>Closed Road</Text>
+              </View>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendMarker, { backgroundColor: '#059669' }]}>
+                  <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
+                </View>
+                <Text style={styles.mapLegendText}>Recommended Route</Text>
+              </View>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendMarker, { backgroundColor: '#6B7280' }]}>
+                  <Ionicons name="ellipsis-horizontal" size={12} color="#FFFFFF" />
+                </View>
+                <Text style={styles.mapLegendText}>Alternate Route</Text>
               </View>
               <View style={styles.mapLegendItem}>
                 <View style={[styles.mapLegendMarker, { backgroundColor: '#D97706' }]}>
@@ -2434,72 +2572,64 @@ function getStyles(colors) {
       color: colors.textSecondary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    // Map View Styles
+    /* ========================
+       Map Container
+       ========================= */
     mapViewContainer: {
-      height: Dimensions.get('window').height - 300,
-      borderRadius: 8,
-      overflow: 'hidden',
-      marginTop: 16,
+      flex: 1,
+      minHeight: 300,
+      marginTop: spacing.md,
+      borderRadius: radii.sm,
       borderWidth: 1,
       borderColor: colors.border,
+      overflow: 'hidden',
     },
     mapView: {
       flex: 1,
     },
+    /* ========================
+       Map Legend Overlay
+       ========================= */
     mapLegendOverlay: {
       position: 'absolute',
-      top: 16,
-      right: 16,
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-      gap: 8,
+      top: spacing.md,
+      right: spacing.md,
+      padding: spacing.sm,
+      backgroundColor: colors.cardBackground,
+      borderRadius: radii.md,
       borderWidth: 1,
       borderColor: colors.border,
+      gap: spacing.xs,
+      ...shadows.sm,
     },
     mapLegendItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: spacing.xs,
     },
     mapLegendMarker: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
+      width: sizes.markerSm,
+      height: sizes.markerSm,
+      borderRadius: sizes.markerSm / 2,
+      alignItems: 'center',
       justifyContent: 'center',
-      alignItems: 'center',
     },
-    mapLegendText: {
+    /* ========================
+       Waypoint Markers
+       ========================= */
+    waypointMarker: {
+      width: sizes.markerSm,
+      height: sizes.markerSm,
+      borderRadius: sizes.markerSm / 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    },
+    waypointText: {
       fontSize: 12,
-      fontWeight: '500',
-      color: colors.text,
-    },
-    mapResultsOverlay: {
-      position: 'absolute',
-      bottom: 16,
-      left: 16,
-      right: 16,
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: 12,
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    mapResultsText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
+      fontWeight: 'bold',
+      color: '#FFFFFF',
     },
     // Alternative Route Inline Styles
     alternativeRouteInline: {
@@ -2559,7 +2689,9 @@ function getStyles(colors) {
       flex: 1,
       textAlign: 'center',
     },
-    // Map Modal Styles
+    /* ========================
+       Map Modal (Full Screen)
+       ========================= */
     mapModalContainer: {
       flex: 1,
       backgroundColor: colors.background,
@@ -2567,119 +2699,73 @@ function getStyles(colors) {
     mapModalHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      gap: spacing.sm,
       borderBottomWidth: 1,
-      gap: 12,
-    },
-    mapModalBackButton: {
-      padding: 4,
-    },
-    mapModalHeaderText: {
-      flex: 1,
-    },
-    mapModalTitle: {
-      fontSize: 17,
-      fontWeight: '600',
-      marginBottom: 2,
-    },
-    mapModalSubtitle: {
-      fontSize: 13,
-    },
-    mapModalCloseButton: {
-      padding: 4,
+      borderBottomColor: colors.border,
     },
     mapModalMap: {
       flex: 1,
     },
-    customMarker: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    customMarkerInner: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: 'white',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3,
-      elevation: 4,
-    },
+    /* ========================
+       Zoom Controls
+       ========================= */
     zoomControls: {
       position: 'absolute',
-      top: 16,
-      right: 16,
-      borderRadius: 10,
+      top: spacing.md,
+      right: spacing.md,
+      backgroundColor: colors.cardBackground,
+      borderRadius: radii.md,
       borderWidth: 1,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 4,
+      borderColor: colors.border,
+      ...shadows.md,
     },
     zoomButton: {
-      padding: 10,
+      width: sizes.touch,
+      height: sizes.touch,
       alignItems: 'center',
       justifyContent: 'center',
-      width: 44,
-      height: 44,
     },
-    zoomDivider: {
-      height: 1,
-      width: '100%',
-    },
+    /* ========================
+       Map Modal Legend
+       ========================= */
     mapModalLegend: {
       position: 'absolute',
-      top: 16,
-      left: 16,
+      top: spacing.md,
+      left: spacing.md,
       right: 80,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 12,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      backgroundColor: colors.cardBackground,
+      borderRadius: radii.lg,
       borderWidth: 1,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      borderColor: colors.border,
+      ...shadows.md,
     },
-    mapModalLegendItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    mapModalLegendDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      borderWidth: 2,
-      borderColor: 'white',
-    },
-    mapModalLegendText: {
-      fontSize: 13,
-      fontWeight: '500',
-      flex: 1,
-    },
+    /* ========================
+       Bottom Sheet
+       ========================= */
     mapModalBottomSheet: {
+      padding: spacing.lg,
+      backgroundColor: colors.cardBackground,
       borderTopWidth: 1,
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-      gap: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 5,
+      borderTopColor: colors.border,
+      gap: spacing.sm,
+      ...shadows.md,
     },
-    mapModalStatusContainer: {
-      flexDirection: 'row',
+    /* ========================
+       Custom Marker
+       ========================= */
+    customMarkerInner: {
+      width: sizes.markerMd,
+      height: sizes.markerMd,
+      borderRadius: sizes.markerMd / 2,
       alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+      ...shadows.md,
     },
     mapModalStatusBadge: {
       flexDirection: 'row',

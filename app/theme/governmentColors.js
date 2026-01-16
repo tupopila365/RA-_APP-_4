@@ -104,13 +104,130 @@ export const SHADOW_COLORS = {
   default: NEUTRAL_COLORS.black,
   light: 'rgba(0, 0, 0, 0.1)',
   medium: 'rgba(0, 0, 0, 0.15)',
+  dark: 'rgba(0, 0, 0, 0.25)',
   heavy: 'rgba(0, 0, 0, 0.25)',
+  colored: 'rgba(0, 180, 230, 0.15)', // Primary color shadow
 };
 
-// UNIFIED THEME STRUCTURE
+// COMPONENT-SPECIFIC COLORS
+export const COMPONENT_COLORS = {
+  // Button colors
+  buttonPrimary: GOVERNMENT_BRAND.primary,
+  buttonPrimaryHover: GOVERNMENT_BRAND.primaryDark,
+  buttonPrimaryDisabled: NEUTRAL_COLORS.gray400,
+  buttonSecondary: NEUTRAL_COLORS.gray100,
+  buttonSecondaryHover: NEUTRAL_COLORS.gray200,
+  buttonOutline: 'transparent',
+  buttonOutlineBorder: GOVERNMENT_BRAND.primary,
+  
+  // Input colors
+  inputBackground: NEUTRAL_COLORS.white,
+  inputBorder: NEUTRAL_COLORS.gray300,
+  inputBorderFocus: GOVERNMENT_BRAND.primary,
+  inputBorderError: STATUS_COLORS.error,
+  inputPlaceholder: NEUTRAL_COLORS.gray500,
+  
+  // Card colors
+  cardBackground: NEUTRAL_COLORS.white,
+  cardBorder: NEUTRAL_COLORS.gray200,
+  cardShadow: SHADOW_COLORS.light,
+  
+  // Feature icon colors (semantic)
+  featureApplication: STATUS_COLORS.success,
+  featureDocument: STATUS_COLORS.warning,
+  featureNews: GOVERNMENT_BRAND.accent,
+  featureInfo: STATUS_COLORS.info,
+  featureChatbot: GOVERNMENT_BRAND.primary,
+  featureLocation: STATUS_COLORS.error,
+};
+
+// DARK MODE THEME
+export const DARK_THEME = {
+  // Brand colors remain the same for consistency
+  brand: GOVERNMENT_BRAND,
+  status: STATUS_COLORS,
+  
+  // Dark backgrounds
+  background: {
+    primary: NEUTRAL_COLORS.gray900,    // #0F172A
+    secondary: NEUTRAL_COLORS.gray800,  // #1E293B
+    tertiary: NEUTRAL_COLORS.gray700,   // #334155
+    overlay: 'rgba(0, 0, 0, 0.8)',
+    overlayLight: 'rgba(0, 0, 0, 0.6)',
+  },
+  
+  // Dark text colors
+  text: {
+    primary: NEUTRAL_COLORS.gray100,    // #F1F5F9
+    secondary: NEUTRAL_COLORS.gray300,  // #CBD5E1
+    muted: NEUTRAL_COLORS.gray400,      // #94A3B8
+    disabled: NEUTRAL_COLORS.gray500,   // #64748B
+    inverse: NEUTRAL_COLORS.gray900,    // For light backgrounds
+    link: GOVERNMENT_BRAND.primaryLight,
+    linkHover: GOVERNMENT_BRAND.primary,
+  },
+  
+  // Dark borders
+  border: {
+    light: NEUTRAL_COLORS.gray700,      // #334155
+    medium: NEUTRAL_COLORS.gray600,     // #475569
+    dark: NEUTRAL_COLORS.gray500,       // #64748B
+    primary: GOVERNMENT_BRAND.primary,
+    focus: GOVERNMENT_BRAND.primaryLight,
+  },
+  
+  // Dark components
+  component: {
+    buttonPrimary: GOVERNMENT_BRAND.primary,
+    buttonPrimaryHover: GOVERNMENT_BRAND.primaryLight,
+    buttonPrimaryDisabled: NEUTRAL_COLORS.gray600,
+    buttonSecondary: NEUTRAL_COLORS.gray700,
+    buttonSecondaryHover: NEUTRAL_COLORS.gray600,
+    
+    inputBackground: NEUTRAL_COLORS.gray800,
+    inputBorder: NEUTRAL_COLORS.gray600,
+    inputBorderFocus: GOVERNMENT_BRAND.primary,
+    inputBorderError: STATUS_COLORS.error,
+    inputPlaceholder: NEUTRAL_COLORS.gray400,
+    
+    cardBackground: NEUTRAL_COLORS.gray800,
+    cardBorder: NEUTRAL_COLORS.gray700,
+    cardShadow: 'rgba(0, 0, 0, 0.3)',
+  },
+};
+
+// ACCESSIBILITY HELPERS
+export const ACCESSIBILITY = {
+  // Minimum contrast ratios for WCAG AA compliance
+  contrastRatios: {
+    normal: 4.5,    // Normal text
+    large: 3.0,     // Large text (18pt+ or 14pt+ bold)
+    ui: 3.0,        // UI components
+  },
+  
+  // Focus indicators
+  focus: {
+    ring: `0 0 0 2px ${GOVERNMENT_BRAND.primaryLight}`,
+    ringOffset: `0 0 0 4px ${NEUTRAL_COLORS.white}`,
+    ringDark: `0 0 0 2px ${GOVERNMENT_BRAND.primaryLight}`,
+    ringOffsetDark: `0 0 0 4px ${NEUTRAL_COLORS.gray900}`,
+  },
+  
+  // High contrast mode support
+  highContrast: {
+    text: NEUTRAL_COLORS.black,
+    background: NEUTRAL_COLORS.white,
+    border: NEUTRAL_COLORS.black,
+    link: '#0000EE',
+    visited: '#551A8B',
+  },
+};
+
+// UNIFIED THEME EXPORT
 export const GOVERNMENT_THEME = {
+  // Light mode (default)
   light: {
-    // Brand colors
+    // Brand colors (flattened)
     primary: GOVERNMENT_BRAND.primary,
     primaryLight: GOVERNMENT_BRAND.primaryLight,
     primaryDark: GOVERNMENT_BRAND.primaryDark,
@@ -119,7 +236,7 @@ export const GOVERNMENT_THEME = {
     secondaryDark: GOVERNMENT_BRAND.secondaryDark,
     accent: GOVERNMENT_BRAND.accent,
     
-    // Status colors
+    // Status colors (flattened)
     success: STATUS_COLORS.success,
     successLight: STATUS_COLORS.successLight,
     successDark: STATUS_COLORS.successDark,
@@ -133,17 +250,7 @@ export const GOVERNMENT_THEME = {
     infoLight: STATUS_COLORS.infoLight,
     infoDark: STATUS_COLORS.infoDark,
     
-    // Backgrounds
-    background: BACKGROUND_COLORS.primary,
-    backgroundSecondary: BACKGROUND_COLORS.secondary,
-    backgroundTertiary: BACKGROUND_COLORS.tertiary,
-    surface: NEUTRAL_COLORS.white,
-    surfaceSecondary: NEUTRAL_COLORS.gray50,
-    card: NEUTRAL_COLORS.white,
-    overlay: BACKGROUND_COLORS.overlay,
-    overlayLight: BACKGROUND_COLORS.overlayLight,
-    
-    // Text
+    // Text colors (flattened)
     text: TEXT_COLORS.primary,
     textSecondary: TEXT_COLORS.secondary,
     textMuted: TEXT_COLORS.muted,
@@ -152,20 +259,67 @@ export const GOVERNMENT_THEME = {
     textLink: TEXT_COLORS.link,
     textLinkHover: TEXT_COLORS.linkHover,
     
-    // Borders
+    // Background colors (flattened)
+    background: BACKGROUND_COLORS.primary,
+    backgroundSecondary: BACKGROUND_COLORS.secondary,
+    backgroundTertiary: BACKGROUND_COLORS.tertiary,
+    overlay: BACKGROUND_COLORS.overlay,
+    overlayLight: BACKGROUND_COLORS.overlayLight,
+    
+    // Border colors (flattened)
     border: BORDER_COLORS.light,
     borderMedium: BORDER_COLORS.medium,
     borderDark: BORDER_COLORS.dark,
     borderPrimary: BORDER_COLORS.primary,
     borderFocus: BORDER_COLORS.focus,
     
-    // Shadows
+    // Shadow colors (flattened)
     shadow: SHADOW_COLORS.default,
     shadowLight: SHADOW_COLORS.light,
     shadowMedium: SHADOW_COLORS.medium,
+    shadowDark: SHADOW_COLORS.dark,
     shadowHeavy: SHADOW_COLORS.heavy,
+    shadowColored: SHADOW_COLORS.colored,
+    
+    // Component colors (flattened)
+    buttonPrimary: COMPONENT_COLORS.buttonPrimary,
+    buttonPrimaryHover: COMPONENT_COLORS.buttonPrimaryHover,
+    buttonPrimaryDisabled: COMPONENT_COLORS.buttonPrimaryDisabled,
+    buttonSecondary: COMPONENT_COLORS.buttonSecondary,
+    buttonSecondaryHover: COMPONENT_COLORS.buttonSecondaryHover,
+    buttonOutline: COMPONENT_COLORS.buttonOutline,
+    buttonOutlineBorder: COMPONENT_COLORS.buttonOutlineBorder,
+    
+    inputBackground: COMPONENT_COLORS.inputBackground,
+    inputBorder: COMPONENT_COLORS.inputBorder,
+    inputBorderFocus: COMPONENT_COLORS.inputBorderFocus,
+    inputBorderError: COMPONENT_COLORS.inputBorderError,
+    inputPlaceholder: COMPONENT_COLORS.inputPlaceholder,
+    
+    cardBackground: COMPONENT_COLORS.cardBackground,
+    cardBorder: COMPONENT_COLORS.cardBorder,
+    cardShadow: COMPONENT_COLORS.cardShadow,
+    
+    // Feature colors
+    featureApplication: COMPONENT_COLORS.featureApplication,
+    featureDocument: COMPONENT_COLORS.featureDocument,
+    featureNews: COMPONENT_COLORS.featureNews,
+    featureInfo: COMPONENT_COLORS.featureInfo,
+    featureChatbot: COMPONENT_COLORS.featureChatbot,
+    featureLocation: COMPONENT_COLORS.featureLocation,
+    
+    // Nested objects for backward compatibility
+    brand: GOVERNMENT_BRAND,
+    status: STATUS_COLORS,
+    neutral: NEUTRAL_COLORS,
+    textColors: TEXT_COLORS,
+    backgrounds: BACKGROUND_COLORS,
+    borders: BORDER_COLORS,
+    shadows: SHADOW_COLORS,
+    components: COMPONENT_COLORS,
   },
   
+  // Dark mode
   dark: {
     // Brand colors (same for consistency)
     primary: GOVERNMENT_BRAND.primary,
@@ -190,107 +344,80 @@ export const GOVERNMENT_THEME = {
     infoLight: STATUS_COLORS.infoLight,
     infoDark: STATUS_COLORS.infoDark,
     
-    // Dark mode backgrounds
-    background: NEUTRAL_COLORS.gray900,
-    backgroundSecondary: NEUTRAL_COLORS.gray800,
-    backgroundTertiary: NEUTRAL_COLORS.gray700,
-    surface: NEUTRAL_COLORS.gray800,
-    surfaceSecondary: NEUTRAL_COLORS.gray700,
-    card: NEUTRAL_COLORS.gray800,
-    overlay: 'rgba(0, 0, 0, 0.7)',
-    overlayLight: 'rgba(0, 0, 0, 0.5)',
+    // Dark mode text colors
+    text: DARK_THEME.text.primary,
+    textSecondary: DARK_THEME.text.secondary,
+    textMuted: DARK_THEME.text.muted,
+    textDisabled: DARK_THEME.text.disabled,
+    textInverse: DARK_THEME.text.inverse,
+    textLink: DARK_THEME.text.link,
+    textLinkHover: DARK_THEME.text.linkHover,
     
-    // Dark mode text
-    text: NEUTRAL_COLORS.white,
-    textSecondary: NEUTRAL_COLORS.gray300,
-    textMuted: NEUTRAL_COLORS.gray400,
-    textDisabled: NEUTRAL_COLORS.gray500,
-    textInverse: NEUTRAL_COLORS.gray900,
-    textLink: GOVERNMENT_BRAND.primaryLight,
-    textLinkHover: GOVERNMENT_BRAND.primary,
+    // Dark mode backgrounds
+    background: DARK_THEME.background.primary,
+    backgroundSecondary: DARK_THEME.background.secondary,
+    backgroundTertiary: DARK_THEME.background.tertiary,
+    overlay: DARK_THEME.background.overlay,
+    overlayLight: DARK_THEME.background.overlayLight,
     
     // Dark mode borders
-    border: NEUTRAL_COLORS.gray600,
-    borderMedium: NEUTRAL_COLORS.gray500,
-    borderDark: NEUTRAL_COLORS.gray400,
-    borderPrimary: GOVERNMENT_BRAND.primary,
-    borderFocus: GOVERNMENT_BRAND.primaryLight,
+    border: DARK_THEME.border.light,
+    borderMedium: DARK_THEME.border.medium,
+    borderDark: DARK_THEME.border.dark,
+    borderPrimary: DARK_THEME.border.primary,
+    borderFocus: DARK_THEME.border.focus,
     
-    // Dark mode shadows (reduced opacity)
-    shadow: NEUTRAL_COLORS.black,
+    // Dark mode shadows
+    shadow: SHADOW_COLORS.default,
     shadowLight: 'rgba(0, 0, 0, 0.3)',
     shadowMedium: 'rgba(0, 0, 0, 0.4)',
+    shadowDark: 'rgba(0, 0, 0, 0.5)',
     shadowHeavy: 'rgba(0, 0, 0, 0.6)',
-  },
-};
-
-// COMPONENT-SPECIFIC COLOR UTILITIES
-export const COMPONENT_COLORS = {
-  // Button states
-  button: {
-    primary: GOVERNMENT_BRAND.primary,
-    primaryHover: GOVERNMENT_BRAND.primaryDark,
-    primaryDisabled: NEUTRAL_COLORS.gray400,
-    secondary: NEUTRAL_COLORS.gray100,
-    secondaryHover: NEUTRAL_COLORS.gray200,
-    outline: 'transparent',
-    outlineHover: NEUTRAL_COLORS.gray50,
-  },
-  
-  // Form elements
-  form: {
-    background: NEUTRAL_COLORS.white,
-    border: BORDER_COLORS.light,
-    borderFocus: GOVERNMENT_BRAND.primary,
-    borderError: STATUS_COLORS.error,
-    placeholder: NEUTRAL_COLORS.gray400,
-  },
-  
-  // Status indicators
-  status: {
-    online: STATUS_COLORS.success,
-    offline: NEUTRAL_COLORS.gray400,
-    pending: STATUS_COLORS.warning,
-    error: STATUS_COLORS.error,
-    processing: GOVERNMENT_BRAND.primary,
-  },
-  
-  // PLN Application specific
-  pln: {
-    stepActive: GOVERNMENT_BRAND.primary,
-    stepCompleted: STATUS_COLORS.success,
-    stepInactive: NEUTRAL_COLORS.gray300,
-    progressBar: GOVERNMENT_BRAND.primary,
-    platePreview: GOVERNMENT_BRAND.primary,
-    plateBackground: NEUTRAL_COLORS.white,
-  },
-};
-
-// ACCESSIBILITY HELPERS
-export const ACCESSIBILITY = {
-  // Minimum contrast ratios (WCAG AA)
-  contrastRatios: {
-    normal: 4.5,
-    large: 3.0,
-    enhanced: 7.0,
+    shadowColored: SHADOW_COLORS.colored,
+    
+    // Dark mode components
+    buttonPrimary: GOVERNMENT_BRAND.primary,
+    buttonPrimaryHover: GOVERNMENT_BRAND.primaryLight,
+    buttonPrimaryDisabled: NEUTRAL_COLORS.gray600,
+    buttonSecondary: NEUTRAL_COLORS.gray700,
+    buttonSecondaryHover: NEUTRAL_COLORS.gray600,
+    buttonOutline: 'transparent',
+    buttonOutlineBorder: GOVERNMENT_BRAND.primary,
+    
+    inputBackground: NEUTRAL_COLORS.gray800,
+    inputBorder: NEUTRAL_COLORS.gray600,
+    inputBorderFocus: GOVERNMENT_BRAND.primary,
+    inputBorderError: STATUS_COLORS.error,
+    inputPlaceholder: NEUTRAL_COLORS.gray400,
+    
+    cardBackground: NEUTRAL_COLORS.gray800,
+    cardBorder: NEUTRAL_COLORS.gray700,
+    cardShadow: 'rgba(0, 0, 0, 0.3)',
+    
+    // Feature colors (same as light mode)
+    featureApplication: COMPONENT_COLORS.featureApplication,
+    featureDocument: COMPONENT_COLORS.featureDocument,
+    featureNews: COMPONENT_COLORS.featureNews,
+    featureInfo: COMPONENT_COLORS.featureInfo,
+    featureChatbot: COMPONENT_COLORS.featureChatbot,
+    featureLocation: COMPONENT_COLORS.featureLocation,
+    
+    // Nested objects for backward compatibility
+    brand: GOVERNMENT_BRAND,
+    status: STATUS_COLORS,
+    neutral: NEUTRAL_COLORS,
+    textColors: DARK_THEME.text,
+    backgrounds: DARK_THEME.background,
+    borders: DARK_THEME.border,
+    shadows: SHADOW_COLORS,
+    components: DARK_THEME.component,
   },
   
-  // Focus indicators
-  focus: {
-    color: GOVERNMENT_BRAND.primaryLight,
-    width: 2,
-    style: 'solid',
-    offset: 2,
-  },
+  // Accessibility
+  accessibility: ACCESSIBILITY,
   
-  // High contrast mode overrides
-  highContrast: {
-    text: NEUTRAL_COLORS.black,
-    background: NEUTRAL_COLORS.white,
-    border: NEUTRAL_COLORS.black,
-    link: '#0000EE',
-    visited: '#551A8B',
-  },
+  // Spacing, typography, etc. (imported from other theme files)
+  // These will be merged in the main theme index
 };
 
 // EXPORT EVERYTHING

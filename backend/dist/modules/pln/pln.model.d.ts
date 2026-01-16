@@ -23,6 +23,7 @@ export interface IPhoneNumber {
 }
 export interface IPLN extends MongooseDocument {
     referenceId: string;
+    trackingPin: string;
     transactionType: string;
     idType: IdType;
     trafficRegisterNumber?: string;
@@ -36,9 +37,24 @@ export interface IPLN extends MongooseDocument {
     telephoneDay?: IPhoneNumber;
     cellNumber?: IPhoneNumber;
     email?: string;
+    trafficRegisterNumber_encrypted?: string;
+    businessRegNumber_encrypted?: string;
+    surname_encrypted: string;
+    initials_encrypted: string;
+    businessName_encrypted?: string;
+    email_encrypted?: string;
+    trafficRegisterNumber_hash?: string;
+    businessRegNumber_hash?: string;
+    surname_hash: string;
+    email_hash?: string;
     fullName?: string;
     idNumber?: string;
     phoneNumber?: string;
+    fullName_encrypted?: string;
+    idNumber_encrypted?: string;
+    phoneNumber_encrypted?: string;
+    fullName_hash?: string;
+    idNumber_hash?: string;
     plateFormat: PlateFormat;
     quantity: 1 | 2;
     plateChoices: IPlateChoice[];
@@ -47,6 +63,7 @@ export interface IPLN extends MongooseDocument {
     representativeIdNumber?: string;
     representativeSurname?: string;
     representativeInitials?: string;
+    hasVehicle?: boolean;
     currentLicenceNumber?: string;
     vehicleRegisterNumber?: string;
     chassisNumber?: string;
@@ -62,6 +79,23 @@ export interface IPLN extends MongooseDocument {
     adminComments?: string;
     paymentDeadline?: Date;
     paymentReceivedAt?: Date;
+    assignedTo?: string;
+    priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+    tags?: string[];
+    internalNotes?: string;
+    paymentAmount?: number;
+    paymentMethod?: string;
+    paymentReference?: string;
+    processedBy?: string;
+    processedAt?: Date;
+    reviewedBy?: string;
+    reviewedAt?: Date;
+    plateOrderNumber?: string;
+    plateSupplier?: string;
+    plateOrderedAt?: Date;
+    plateDeliveredAt?: Date;
+    plateCollectedAt?: Date;
+    plateCollectedBy?: string;
     createdAt: Date;
     updatedAt: Date;
 }

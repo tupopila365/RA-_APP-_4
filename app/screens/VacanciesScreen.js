@@ -6,26 +6,34 @@ import {
   ScrollView,
   TouchableOpacity,
   Pressable,
-  useColorScheme,
   RefreshControl,
   Alert,
   Linking,
   Dimensions,
   Platform,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
 import { vacanciesService } from '../services/vacanciesService';
 import { documentDownloadService } from '../services/documentDownloadService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
-import { SkeletonLoader, ListScreenSkeleton, ErrorState, EmptyState, SearchInput } from '../components';
+
+// Import Unified Design System Components
+import {
+  UnifiedFormInput,
+  UnifiedCard,
+  UnifiedButton,
+  UnifiedSkeletonLoader,
+  RATheme,
+  typography,
+  spacing,
+} from '../components/UnifiedDesignSystem';
 
 export default function VacanciesScreen() {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -301,27 +309,47 @@ export default function VacanciesScreen() {
     return typeMap[type] || type;
   };
 
-  const styles = getStyles(colors);
+  // Professional styles using design system
+  const styles = createStyles(colors, isDark, insets);
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ListScreenSkeleton count={4} />
-      </SafeAreaView>
+      <View style={styles.container}>
+        <UnifiedSkeletonLoader count={4} />
+      </View>
     );
   }
 
   if (error && !refreshing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ErrorState message={error} onRetry={fetchVacancies} />
-      </SafeAreaView>
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <UnifiedCard variant="elevated" padding="large">
+            <View style={styles.errorContent}>
+              <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+              <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginTop: spacing.md }]}>
+                Unable to Load Vacancies
+              </Text>
+              <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>
+                {error}
+              </Text>
+              <UnifiedButton
+                label="Try Again"
+                onPress={fetchVacancies}
+                variant="primary"
+                size="medium"
+                iconName="refresh-outline"
+                style={{ marginTop: spacing.lg }}
+              />
+            </View>
+          </UnifiedCard>
+        </View>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -333,43 +361,27 @@ export default function VacanciesScreen() {
             tintColor={colors.primary}
           />
         }
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
       >
         {/* Search Input */}
-        <View style={styles.searchInputContainer}>
-          <SearchInput
+        <View style={styles.searchContainer}>
+          <UnifiedFormInput
             placeholder="Search vacancies..."
-            onSearch={setSearchQuery}
-            onClear={() => setSearchQuery('')}
-            style={styles.searchInput}
-            accessibilityLabel="Search vacancies"
-            accessibilityHint="Search by title, department, or location"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            leftIcon="search-outline"
+            clearButtonMode="while-editing"
+            returnKeyType="search"
           />
         </View>
 
-        {/* Type Filter Chips - matching Road Status design */}
+        {/* Type Filter Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterContainer}
         >
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              selectedFilter === 'All' && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedFilter('All')}
-          >
-            <Text style={[
-                styles.filterChipText,
-                selectedFilter === 'All' && styles.filterChipTextActive,
-              ]}
-             numberOfLines={1}
-             maxFontSizeMultiplier={1.3}>
-              All
-            </Text>
-          </TouchableOpacity>
-          {filters.filter(f => f !== 'All').map((filter, index) => (
+          {filters.map((filter, index) => (
             <TouchableOpacity
               key={filter || `filter-${index}`}
               style={[
@@ -379,11 +391,9 @@ export default function VacanciesScreen() {
               onPress={() => setSelectedFilter(filter)}
             >
               <Text style={[
-                  styles.filterChipText,
-                  selectedFilter === filter && styles.filterChipTextActive,
-                ]}
-               numberOfLines={1}
-               maxFontSizeMultiplier={1.3}>
+                styles.filterChipText,
+                selectedFilter === filter && styles.filterChipTextActive,
+              ]}>
                 {filter}
               </Text>
             </TouchableOpacity>
@@ -393,7 +403,7 @@ export default function VacanciesScreen() {
         {/* Results Count */}
         {filteredVacancies.length > 0 && (searchQuery.trim() || selectedFilter !== 'All') && (
           <View style={styles.resultsCountContainer}>
-            <Text style={styles.resultsCount} maxFontSizeMultiplier={1.3}>
+            <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
               {filteredVacancies.length} {filteredVacancies.length === 1 ? 'vacancy' : 'vacancies'} found
             </Text>
           </View>
@@ -402,11 +412,20 @@ export default function VacanciesScreen() {
         {/* Vacancies List */}
         {filteredVacancies.length === 0 ? (
           <View style={styles.emptyStateContainer}>
-            <EmptyState
-              icon="briefcase-outline"
-              message={vacancies.length === 0 ? 'No vacancies available' : 'No vacancies match your search'}
-              accessibilityLabel="No vacancies found"
-            />
+            <UnifiedCard variant="elevated" padding="large">
+              <View style={styles.emptyContent}>
+                <Ionicons name="briefcase-outline" size={64} color={colors.textSecondary} />
+                <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginTop: spacing.md }]}>
+                  {vacancies.length === 0 ? 'No Vacancies Available' : 'No Matching Vacancies'}
+                </Text>
+                <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>
+                  {vacancies.length === 0 
+                    ? 'Check back later for new opportunities' 
+                    : 'Try adjusting your search or filter criteria'
+                  }
+                </Text>
+              </View>
+            </UnifiedCard>
           </View>
         ) : (
           <View style={styles.content}>
@@ -414,487 +433,399 @@ export default function VacanciesScreen() {
               const isExpanded = expandedVacancy === vacancy._id;
               const isVacancyDownloading = isDownloading && currentDownloadId === vacancy._id;
               return (
-                <TouchableOpacity 
-                  key={vacancy._id || `vacancy-${index}`} 
-                  style={styles.vacancyCard} 
-                  activeOpacity={0.7}
-                  onPress={() => toggleExpand(vacancy._id)}
+                <UnifiedCard 
+                  key={vacancy._id || `vacancy-${index}`}
+                  variant="elevated"
+                  padding="large"
+                  style={styles.vacancyCard}
                 >
-                <View style={styles.vacancyHeader}>
-                  <View style={[styles.typeBadge, { backgroundColor: colors.secondary }]}>
-                    <Text style={[styles.typeText, { color: colors.secondary }]} maxFontSizeMultiplier={1.3}>
-                      {formatType(vacancy.type)}
-                    </Text>
-                  </View>
-                  <Ionicons 
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                    size={24} 
-                    color={colors.primary} 
-                  />
-                </View>
-                <Text style={styles.vacancyTitle} numberOfLines={2} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{vacancy.title}</Text>
-                <View style={styles.vacancyDetails}>
-                  {vacancy.department && (
-                    <View style={styles.detailItem}>
-                      <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
-                      <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{vacancy.department}</Text>
+                  <TouchableOpacity 
+                    activeOpacity={0.7}
+                    onPress={() => toggleExpand(vacancy._id)}
+                  >
+                    <View style={styles.vacancyHeader}>
+                      <View style={styles.typeBadge}>
+                        <Text style={styles.typeText}>
+                          {formatType(vacancy.type)}
+                        </Text>
+                      </View>
+                      <Ionicons 
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                        size={24} 
+                        color={colors.primary} 
+                      />
                     </View>
-                  )}
-                  {vacancy.location && (
-                    <View style={styles.detailItem}>
-                      <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
-                      <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>{vacancy.location}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.closingDate}>
-                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                  <Text style={[styles.closingDateText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
-                    Closes: {formatDate(vacancy.closingDate)}
-                  </Text>
-                </View>
-
-                {isExpanded && (
-                  <View style={styles.expandedContent}>
-                    <View style={styles.divider} />
                     
-                    {vacancy.salary && (
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Salary</Text>
-                        <Text style={styles.sectionText} maxFontSizeMultiplier={1.3}>{vacancy.salary}</Text>
-                      </View>
-                    )}
-
-                    <View style={styles.section}>
-                      <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Description</Text>
-                      <Text style={styles.sectionText} maxFontSizeMultiplier={1.3}>{vacancy.description}</Text>
+                    <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>
+                      {vacancy.title}
+                    </Text>
+                    
+                    <View style={styles.vacancyDetails}>
+                      {vacancy.department && (
+                        <View style={styles.detailItem}>
+                          <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
+                          <Text style={[typography.bodySmall, { color: colors.textSecondary, marginLeft: spacing.xs }]}>
+                            {vacancy.department}
+                          </Text>
+                        </View>
+                      )}
+                      {vacancy.location && (
+                        <View style={styles.detailItem}>
+                          <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
+                          <Text style={[typography.bodySmall, { color: colors.textSecondary, marginLeft: spacing.xs }]}>
+                            {vacancy.location}
+                          </Text>
+                        </View>
+                      )}
                     </View>
+                    
+                    <View style={styles.closingDate}>
+                      <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                      <Text style={[typography.bodySmall, { color: colors.primary, marginLeft: spacing.xs }]}>
+                        Closes: {formatDate(vacancy.closingDate)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
 
-                    {vacancy.requirements && vacancy.requirements.length > 0 && (
+                  {isExpanded && (
+                    <View style={styles.expandedContent}>
+                      {vacancy.salary && (
+                        <View style={styles.section}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]}>
+                            Salary
+                          </Text>
+                          <Text style={[typography.body, { color: colors.textSecondary }]}>
+                            {vacancy.salary}
+                          </Text>
+                        </View>
+                      )}
+
                       <View style={styles.section}>
-                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Requirements</Text>
-                        {vacancy.requirements.map((req, index) => (
-                          <View key={`req-${vacancy._id || 'unknown'}-${index}`} style={styles.listItem}>
-                            <Text style={styles.bullet} maxFontSizeMultiplier={1.3}>•</Text>
-                            <Text style={styles.listText} maxFontSizeMultiplier={1.3}>{req}</Text>
-                          </View>
-                        ))}
+                        <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]}>
+                          Description
+                        </Text>
+                        <Text style={[typography.body, { color: colors.textSecondary, lineHeight: 22 }]}>
+                          {vacancy.description}
+                        </Text>
                       </View>
-                    )}
 
-                    {vacancy.responsibilities && vacancy.responsibilities.length > 0 && (
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Responsibilities</Text>
-                        {vacancy.responsibilities.map((resp, index) => (
-                          <View key={`resp-${vacancy._id || 'unknown'}-${index}`} style={styles.listItem}>
-                            <Text style={styles.bullet} maxFontSizeMultiplier={1.3}>•</Text>
-                            <Text style={styles.listText} maxFontSizeMultiplier={1.3}>{resp}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    {/* Contact Information & Application Submission */}
-                    {(vacancy.contactName || vacancy.contactEmail || vacancy.contactTelephone || 
-                      vacancy.submissionEmail || vacancy.submissionLink || vacancy.submissionInstructions) && (
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>How to Apply</Text>
-                        
-                        {/* Contact Information */}
-                        {(vacancy.contactName || vacancy.contactEmail || vacancy.contactTelephone) && (
-                          <View style={styles.contactInfo}>
-                            <Text style={styles.contactTitle} maxFontSizeMultiplier={1.3}>Contact Information:</Text>
-                            {vacancy.contactName && (
-                              <View style={styles.contactItem}>
-                                <Ionicons name="person-outline" size={16} color={colors.primary} />
-                                <Text style={styles.contactText} maxFontSizeMultiplier={1.3}>{vacancy.contactName}</Text>
-                              </View>
-                            )}
-                            {vacancy.contactEmail && (
-                              <TouchableOpacity 
-                                style={styles.contactItem}
-                                onPress={() => Linking.openURL(`mailto:${vacancy.contactEmail}`)}
-                              >
-                                <Ionicons name="mail-outline" size={16} color={colors.primary} />
-                                <Text style={[styles.contactText, styles.contactLink]} maxFontSizeMultiplier={1.3}>{vacancy.contactEmail}</Text>
-                              </TouchableOpacity>
-                            )}
-                            {vacancy.contactTelephone && (
-                              <TouchableOpacity 
-                                style={styles.contactItem}
-                                onPress={() => Linking.openURL(`tel:${vacancy.contactTelephone}`)}
-                              >
-                                <Ionicons name="call-outline" size={16} color={colors.primary} />
-                                <Text style={[styles.contactText, styles.contactLink]} maxFontSizeMultiplier={1.3}>{vacancy.contactTelephone}</Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        )}
-
-                        {/* Application Submission Options */}
-                        {(vacancy.submissionEmail || vacancy.submissionLink) && (
-                          <View style={styles.submissionOptions}>
-                            <Text style={styles.contactTitle} maxFontSizeMultiplier={1.3}>Submit Your Application:</Text>
-                            
-                            {vacancy.submissionEmail && (
-                              <TouchableOpacity 
-                                style={styles.submissionButton}
-                                onPress={() => Linking.openURL(`mailto:${vacancy.submissionEmail}?subject=Application for ${vacancy.title}`)}
-                              >
-                                <Ionicons name="mail" size={20} color="#FFFFFF" />
-                                <Text style={styles.submissionButtonText} maxFontSizeMultiplier={1.3}>Email Application</Text>
-                              </TouchableOpacity>
-                            )}
-
-                            {vacancy.submissionLink && (
-                              <TouchableOpacity 
-                                style={[styles.submissionButton, { backgroundColor: colors.secondary }]}
-                                onPress={() => Linking.openURL(vacancy.submissionLink)}
-                              >
-                                <Ionicons name="link" size={20} color="#FFFFFF" />
-                                <Text style={styles.submissionButtonText} maxFontSizeMultiplier={1.3}>Apply Online</Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        )}
-
-                        {/* Application Instructions */}
-                        {vacancy.submissionInstructions && (
-                          <View style={styles.instructionsContainer}>
-                            <Text style={styles.contactTitle} maxFontSizeMultiplier={1.3}>Application Instructions:</Text>
-                            <Text style={styles.instructionsText} maxFontSizeMultiplier={1.3}>{vacancy.submissionInstructions}</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-
-                    {vacancy.pdfUrl && typeof vacancy.pdfUrl === 'string' && vacancy.pdfUrl.trim() !== '' && (
-                      <>
-                        <TouchableOpacity
-                          style={[
-                            styles.downloadButton,
-                            { backgroundColor: colors.primary },
-                            isVacancyDownloading && styles.downloadButtonDisabled,
-                          ]}
-                          onPress={() => handleDownload(vacancy)}
-                          disabled={isVacancyDownloading}
-                        >
-                          {isVacancyDownloading ? (
-                            <>
-                              <SkeletonLoader type="circle" width={16} height={16} />
-                              <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
-                                Downloading {progress}%
+                      {vacancy.requirements && vacancy.requirements.length > 0 && (
+                        <View style={styles.section}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]}>
+                            Requirements
+                          </Text>
+                          {vacancy.requirements.map((req, index) => (
+                            <View key={`req-${vacancy._id || 'unknown'}-${index}`} style={styles.listItem}>
+                              <Text style={[typography.body, { color: colors.primary }]}>•</Text>
+                              <Text style={[typography.body, { color: colors.textSecondary, marginLeft: spacing.sm, flex: 1 }]}>
+                                {req}
                               </Text>
-                            </>
-                          ) : (
-                            <>
-                              <Ionicons name="download-outline" size={20} color="#FFFFFF" />
-                              <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
-                                Download Application Form
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {vacancy.responsibilities && vacancy.responsibilities.length > 0 && (
+                        <View style={styles.section}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]}>
+                            Responsibilities
+                          </Text>
+                          {vacancy.responsibilities.map((resp, index) => (
+                            <View key={`resp-${vacancy._id || 'unknown'}-${index}`} style={styles.listItem}>
+                              <Text style={[typography.body, { color: colors.primary }]}>•</Text>
+                              <Text style={[typography.body, { color: colors.textSecondary, marginLeft: spacing.sm, flex: 1 }]}>
+                                {resp}
                               </Text>
-                            </>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Contact Information & Application Submission */}
+                      {(vacancy.contactName || vacancy.contactEmail || vacancy.contactTelephone || 
+                        vacancy.submissionEmail || vacancy.submissionLink || vacancy.submissionInstructions) && (
+                        <View style={styles.section}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.sm }]}>
+                            How to Apply
+                          </Text>
+                          
+                          {/* Contact Information */}
+                          {(vacancy.contactName || vacancy.contactEmail || vacancy.contactTelephone) && (
+                            <View style={styles.contactInfo}>
+                              <Text style={[typography.body, { color: colors.text, fontWeight: '500', marginBottom: spacing.xs }]}>
+                                Contact Information:
+                              </Text>
+                              {vacancy.contactName && (
+                                <View style={styles.contactItem}>
+                                  <Ionicons name="person-outline" size={16} color={colors.primary} />
+                                  <Text style={[typography.bodySmall, { color: colors.textSecondary, marginLeft: spacing.xs }]}>
+                                    {vacancy.contactName}
+                                  </Text>
+                                </View>
+                              )}
+                              {vacancy.contactEmail && (
+                                <TouchableOpacity 
+                                  style={styles.contactItem}
+                                  onPress={() => Linking.openURL(`mailto:${vacancy.contactEmail}`)}
+                                >
+                                  <Ionicons name="mail-outline" size={16} color={colors.primary} />
+                                  <Text style={[typography.bodySmall, { color: colors.primary, marginLeft: spacing.xs, textDecorationLine: 'underline' }]}>
+                                    {vacancy.contactEmail}
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+                              {vacancy.contactTelephone && (
+                                <TouchableOpacity 
+                                  style={styles.contactItem}
+                                  onPress={() => Linking.openURL(`tel:${vacancy.contactTelephone}`)}
+                                >
+                                  <Ionicons name="call-outline" size={16} color={colors.primary} />
+                                  <Text style={[typography.bodySmall, { color: colors.primary, marginLeft: spacing.xs, textDecorationLine: 'underline' }]}>
+                                    {vacancy.contactTelephone}
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
                           )}
-                        </TouchableOpacity>
-                        {isVacancyDownloading && (
-                          <View style={styles.progressBarContainer}>
-                            <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: colors.primary }]} />
-                          </View>
-                        )}
-                      </>
-                    )}
-                  </View>
-                )}
-              </TouchableOpacity>
+
+                          {/* Application Submission Options */}
+                          {(vacancy.submissionEmail || vacancy.submissionLink) && (
+                            <View style={styles.submissionOptions}>
+                              <Text style={[typography.body, { color: colors.text, fontWeight: '500', marginBottom: spacing.sm }]}>
+                                Submit Your Application:
+                              </Text>
+                              
+                              {vacancy.submissionEmail && (
+                                <UnifiedButton
+                                  label="Email Application"
+                                  onPress={() => Linking.openURL(`mailto:${vacancy.submissionEmail}?subject=Application for ${vacancy.title}`)}
+                                  variant="outline"
+                                  size="small"
+                                  iconName="mail-outline"
+                                  iconPosition="left"
+                                  style={{ marginBottom: spacing.sm }}
+                                />
+                              )}
+
+                              {vacancy.submissionLink && (
+                                <UnifiedButton
+                                  label="Apply Online"
+                                  onPress={() => Linking.openURL(vacancy.submissionLink)}
+                                  variant="secondary"
+                                  size="small"
+                                  iconName="link-outline"
+                                  iconPosition="left"
+                                />
+                              )}
+                            </View>
+                          )}
+
+                          {/* Application Instructions */}
+                          {vacancy.submissionInstructions && (
+                            <View style={styles.instructionsContainer}>
+                              <Text style={[typography.body, { color: colors.text, fontWeight: '500', marginBottom: spacing.xs }]}>
+                                Application Instructions:
+                              </Text>
+                              <Text style={[typography.bodySmall, { color: colors.textSecondary, lineHeight: 20 }]}>
+                                {vacancy.submissionInstructions}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+
+                      {vacancy.pdfUrl && typeof vacancy.pdfUrl === 'string' && vacancy.pdfUrl.trim() !== '' && (
+                        <View style={styles.downloadSection}>
+                          <UnifiedButton
+                            label={isVacancyDownloading ? `Downloading ${progress}%` : "Download Application Form"}
+                            onPress={() => handleDownload(vacancy)}
+                            variant="primary"
+                            size="medium"
+                            iconName={isVacancyDownloading ? "hourglass-outline" : "download-outline"}
+                            iconPosition="left"
+                            loading={isVacancyDownloading}
+                            disabled={isVacancyDownloading}
+                            fullWidth
+                          />
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </UnifiedCard>
             );
           })}
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-function getStyles(colors) {
-  const { width } = Dimensions.get('window');
-  const isSmallScreen = width < 375;
+// Professional government-standard styling using design system
+const createStyles = (colors, isDark, insets) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
   
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      flexGrow: 1,
-      paddingBottom: 20,
-      padding: 20,
-    },
-    searchInputContainer: {
-      paddingHorizontal: 0,
-      paddingTop: 16,
-      paddingBottom: 8,
-    },
-    searchInput: {
-      margin: 0,
-    },
-    filterContainer: {
-      paddingHorizontal: 15,
-      paddingVertical: 10,
-      gap: 10,
-      flexDirection: 'row',
-      flexWrap: 'nowrap',
-    },
-    filterChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginRight: 8,
-      minWidth: 60,
-      maxWidth: 120,
-      height: 36,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    filterChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    filterChipText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textSecondary,
-      textAlign: 'center',
-      numberOfLines: 1,
-      flexShrink: 1,
-    },
-    filterChipTextActive: {
-      color: '#FFFFFF',
-      fontWeight: '600',
-    },
-    resultsCountContainer: {
-      paddingHorizontal: 0,
-      paddingTop: 8,
-      paddingBottom: 8,
-    },
-    resultsCount: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginBottom: 8,
-    },
-    emptyStateContainer: {
-      padding: 20,
-      minHeight: 300,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    content: {
-      padding: 0,
-    },
-    vacancyCard: {
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: 20,
-      marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    vacancyHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 14,
-    },
-    typeBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.secondary,
-    },
-    typeText: {
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    vacancyTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 14,
-      lineHeight: 24,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    vacancyDetails: {
-      flexDirection: 'row',
-      marginBottom: 14,
-      flexWrap: 'wrap',
-      gap: 12,
-    },
-    detailItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginRight: 16,
-      marginBottom: 6,
-      gap: 6,
-    },
-    detailText: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      flex: 1,
-    },
-    closingDate: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 10,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      gap: 6,
-    },
-    closingDateText: {
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    expandedContent: {
-      marginTop: 16,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginBottom: 16,
-    },
-    section: {
-      marginBottom: 18,
-    },
-    sectionTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 10,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    sectionText: {
-      fontSize: 14,
-      color: colors.text,
-      lineHeight: 22,
-    },
-    listItem: {
-      flexDirection: 'row',
-      marginBottom: 6,
-      paddingRight: 10,
-    },
-    bullet: {
-      fontSize: 14,
-      color: colors.primary,
-      marginRight: 8,
-      fontWeight: 'bold',
-    },
-    listText: {
-      flex: 1,
-      fontSize: 14,
-      color: colors.text,
-      lineHeight: 20,
-    },
-    downloadButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 14,
-      paddingHorizontal: 20,
-      borderRadius: 8,
-      marginTop: 12,
-      gap: 8,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-    },
-    downloadButtonDisabled: {
-      opacity: 0.7,
-    },
-    downloadButtonText: {
-      color: '#FFFFFF',
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    progressBarContainer: {
-      height: 4,
-      backgroundColor: colors.border,
-      borderRadius: 2,
-      marginTop: 8,
-      overflow: 'hidden',
-    },
-    progressBar: {
-      height: '100%',
-      borderRadius: 2,
-    },
-    // Contact Information Styles
-    contactInfo: {
-      marginBottom: 16,
-    },
-    contactTitle: {
-      fontSize: isSmallScreen ? 14 : 15,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 8,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    contactItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 6,
-      gap: 8,
-    },
-    contactText: {
-      fontSize: isSmallScreen ? 13 : 14,
-      color: colors.text,
-      flex: 1,
-    },
-    contactLink: {
-      color: colors.primary,
-      textDecorationLine: 'underline',
-    },
-    submissionOptions: {
-      marginBottom: 16,
-    },
-    submissionButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primary,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 6,
-      marginBottom: 8,
-      gap: 8,
-    },
-    submissionButtonText: {
-      color: '#FFFFFF',
-      fontSize: isSmallScreen ? 14 : 15,
-      fontWeight: '600',
-    },
-    instructionsContainer: {
-      marginTop: 8,
-    },
-    instructionsText: {
-      fontSize: isSmallScreen ? 13 : 14,
-      color: colors.text,
-      lineHeight: 20,
-      fontStyle: 'italic',
-    },
-  });
-}
+  // Error State
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  errorContent: {
+    alignItems: 'center',
+  },
+  
+  // Search
+  searchContainer: {
+    marginBottom: spacing.lg,
+  },
+  
+  // Filters
+  filterContainer: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  
+  // Results
+  resultsCountContainer: {
+    marginBottom: spacing.md,
+  },
+  
+  // Empty State
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  emptyContent: {
+    alignItems: 'center',
+  },
+  
+  // Content
+  content: {
+    gap: spacing.lg,
+  },
+  
+  // Vacancy Card
+  vacancyCard: {
+    marginBottom: spacing.md,
+  },
+  vacancyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  typeBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '20',
+  },
+  typeText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  
+  // Vacancy Details
+  vacancyDetails: {
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  closingDate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  
+  // Expanded Content
+  expandedContent: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.lg,
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xs,
+  },
+  
+  // Contact Info
+  contactInfo: {
+    gap: spacing.sm,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  // Submission Options
+  submissionOptions: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  
+  // Instructions
+  instructionsContainer: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+  },
+  
+  // Download Section
+  downloadSection: {
+    marginTop: spacing.md,
+  },
+});
+
+// Screen options to hide the default header since we use GlobalHeader
+VacanciesScreen.options = {
+  headerShown: false,
+};
 

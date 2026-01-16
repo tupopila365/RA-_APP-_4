@@ -12,7 +12,7 @@ export interface PotholeReport {
   region: string;
   roadName: string;
   photoUrl: string;
-  severity: 'small' | 'medium' | 'dangerous';
+  severity?: 'low' | 'medium' | 'high'; // Optional - admin-only field
   description?: string;
   status: 'pending' | 'assigned' | 'in-progress' | 'fixed' | 'duplicate' | 'invalid';
   assignedTo?: string;
@@ -29,7 +29,7 @@ export interface ListReportsParams {
   deviceId?: string;
   region?: string;
   town?: string;
-  severity?: 'small' | 'medium' | 'dangerous';
+  severity?: 'low' | 'medium' | 'high';
   status?: 'pending' | 'assigned' | 'in-progress' | 'fixed' | 'duplicate' | 'invalid';
   search?: string;
   startDate?: string;
@@ -109,7 +109,7 @@ export const getReportById = async (id: string): Promise<ReportResponse> => {
 export const updateReportStatus = async (
   id: string,
   status: PotholeReport['status'],
-  updates?: { assignedTo?: string; adminNotes?: string }
+  updates?: { assignedTo?: string; adminNotes?: string; severity?: PotholeReport['severity'] }
 ): Promise<ReportResponse> => {
   const response = await apiClient.put(`/pothole-reports/${id}/status`, {
     status,

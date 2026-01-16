@@ -12,7 +12,7 @@ class LocationsController {
     async createLocation(req, res, next) {
         try {
             // Validate required fields
-            const { name, address, region, coordinates, contactNumber, email } = req.body;
+            const { name, address, region, coordinates, contactNumber, email, services, operatingHours, closedDays, specialHours } = req.body;
             if (!name || !address || !region || !coordinates) {
                 res.status(400).json({
                     success: false,
@@ -44,6 +44,10 @@ class LocationsController {
                 coordinates,
                 contactNumber,
                 email,
+                services,
+                operatingHours,
+                closedDays,
+                specialHours,
             });
             logger_1.logger.info(`Location created successfully: ${location._id}`);
             res.status(201).json({
@@ -57,6 +61,10 @@ class LocationsController {
                         coordinates: location.coordinates,
                         contactNumber: location.contactNumber,
                         email: location.email,
+                        services: location.services,
+                        operatingHours: location.operatingHours,
+                        closedDays: location.closedDays,
+                        specialHours: location.specialHours,
                         createdAt: location.createdAt,
                         updatedAt: location.updatedAt,
                     },
@@ -92,6 +100,10 @@ class LocationsController {
                         coordinates: location.coordinates,
                         contactNumber: location.contactNumber,
                         email: location.email,
+                        services: location.services,
+                        operatingHours: location.operatingHours,
+                        closedDays: location.closedDays,
+                        specialHours: location.specialHours,
                         createdAt: location.createdAt,
                         updatedAt: location.updatedAt,
                     })),
@@ -123,6 +135,10 @@ class LocationsController {
                         coordinates: location.coordinates,
                         contactNumber: location.contactNumber,
                         email: location.email,
+                        services: location.services,
+                        operatingHours: location.operatingHours,
+                        closedDays: location.closedDays,
+                        specialHours: location.specialHours,
                         createdAt: location.createdAt,
                         updatedAt: location.updatedAt,
                     },
@@ -142,7 +158,7 @@ class LocationsController {
     async updateLocation(req, res, next) {
         try {
             const { id } = req.params;
-            const { name, address, region, coordinates, contactNumber, email } = req.body;
+            const { name, address, region, coordinates, contactNumber, email, services, operatingHours, closedDays, specialHours } = req.body;
             // Build update object with only provided fields
             const updateData = {};
             if (name !== undefined)
@@ -157,6 +173,14 @@ class LocationsController {
                 updateData.contactNumber = contactNumber;
             if (email !== undefined)
                 updateData.email = email;
+            if (services !== undefined)
+                updateData.services = services;
+            if (operatingHours !== undefined)
+                updateData.operatingHours = operatingHours;
+            if (closedDays !== undefined)
+                updateData.closedDays = closedDays;
+            if (specialHours !== undefined)
+                updateData.specialHours = specialHours;
             const location = await locations_service_1.locationsService.updateLocation(id, updateData);
             logger_1.logger.info(`Location updated successfully: ${id}`);
             res.status(200).json({
@@ -170,6 +194,10 @@ class LocationsController {
                         coordinates: location.coordinates,
                         contactNumber: location.contactNumber,
                         email: location.email,
+                        services: location.services,
+                        operatingHours: location.operatingHours,
+                        closedDays: location.closedDays,
+                        specialHours: location.specialHours,
                         createdAt: location.createdAt,
                         updatedAt: location.updatedAt,
                     },

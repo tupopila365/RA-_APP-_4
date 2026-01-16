@@ -40,6 +40,7 @@ export interface IPhoneNumber {
 
 export interface IPLN extends MongooseDocument {
   referenceId: string;
+  trackingPin: string; // Simple tracking PIN for users
   
   // Transaction Type (fixed to "New Personalised Licence Number")
   transactionType: string;
@@ -73,6 +74,9 @@ export interface IPLN extends MongooseDocument {
   email_hash?: string;
   
   // Legacy fields (for backward compatibility) - also encrypted
+  fullName?: string; // Computed from surname + initials
+  idNumber?: string; // Computed based on idType
+  phoneNumber?: string; // Computed from phone numbers
   fullName_encrypted?: string;
   idNumber_encrypted?: string;
   phoneNumber_encrypted?: string;
@@ -222,6 +226,12 @@ const plnSchema = new Schema<IPLN>(
       unique: true,
       trim: true,
       index: true,
+    },
+    trackingPin: {
+      type: String,
+      required: [true, 'Tracking PIN is required'],
+      default: '12345',
+      trim: true,
     },
     transactionType: {
       type: String,

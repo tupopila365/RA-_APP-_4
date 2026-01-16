@@ -86,9 +86,8 @@ const potholeReportSchema = new mongoose_1.Schema({
     },
     severity: {
         type: String,
-        required: [true, 'Severity is required'],
-        enum: ['small', 'medium', 'dangerous'],
-        default: 'medium',
+        required: false, // Admin-only field - not required on creation
+        enum: ['low', 'medium', 'high'],
     },
     description: {
         type: String,
