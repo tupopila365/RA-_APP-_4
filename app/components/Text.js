@@ -1,13 +1,19 @@
 import React from 'react';
-import { Text as RNText } from 'react-native';
+import { Text as RNText, Platform } from 'react-native';
 
 // Enhanced Text component with consistent rendering props
+// includeFontPadding: false is CRITICAL for Android - removes extra padding that causes blurry text
 export function Text({ children, style, allowFontScaling = true, maxFontSizeMultiplier = 1.3, ...props }) {
   return (
     <RNText
       style={style}
       allowFontScaling={allowFontScaling}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
+      {...Platform.select({
+        android: {
+          includeFontPadding: false, // CRITICAL: Prevents blurry/foggy text on Android
+        },
+      })}
       {...props}
     >
       {children}

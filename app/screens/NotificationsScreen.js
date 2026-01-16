@@ -241,7 +241,7 @@ export default function NotificationsScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <UnifiedSkeletonLoader type="list" count={5} />
+          <UnifiedSkeletonLoader type="list-item" count={5} />
         </View>
       </View>
     );

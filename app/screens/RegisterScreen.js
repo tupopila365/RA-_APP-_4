@@ -134,7 +134,27 @@ export default function RegisterScreen({ navigation }) {
       ]);
     } catch (error) {
       console.error('Registration error:', error);
-      Alert.alert('Registration Failed', error.message || 'An unexpected error occurred. Please try again.');
+      
+      // Provide user-friendly error messages
+      let errorMessage = error.message || 'An unexpected error occurred. Please try again.';
+      
+      // Handle specific error cases
+      if (errorMessage.includes('already exists') || errorMessage.includes('User with this email')) {
+        errorMessage = 'An account with this email already exists. Please try logging in instead.';
+      } else if (errorMessage.includes('Password') && errorMessage.includes('8 characters')) {
+        errorMessage = 'Password must be at least 8 characters long.';
+      } else if (errorMessage.includes('Email')) {
+        errorMessage = 'Please enter a valid email address.';
+      }
+      
+      Alert.alert('Registration Failed', errorMessage, [
+        {
+          text: errorMessage.includes('already exists') ? 'Go to Login' : 'OK',
+          onPress: errorMessage.includes('already exists') 
+            ? () => navigation.navigate('Login')
+            : undefined,
+        },
+      ]);
     } finally {
       setLoading(false);
     }

@@ -16,9 +16,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../hooks/useTheme';
-import { SearchInput } from '../components/SearchInput';
-import { SkeletonLoader } from '../components/SkeletonLoader';
+import { useAppContext } from '../context/AppContext';
+import { UnifiedSkeletonLoader } from '../components';
 import { Card, Badge } from '../components';
+import {
+  UnifiedFormInput,
+} from '../components/UnifiedDesignSystem';
 import { bannersService } from '../services/bannersService';
 import { notificationsService } from '../services/notificationsService';
 import RAIcon from '../assets/icon.png';
@@ -131,6 +134,7 @@ const getNotificationIcon = (type) => {
 
 export default function HomeScreen({ navigation, showMenuOnly = false }) {
   const { colors } = useTheme();
+  const { user } = useAppContext();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   
@@ -302,15 +306,6 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       onPress: () => navigation?.navigate('Procurement'),
     },
     {
-      id: 5,
-      title: 'Personalized Number Plates',
-      icon: 'card-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('PLNInfo'),
-    },
-    {
       id: 6,
       title: 'FAQs',
       icon: 'help-circle-outline',
@@ -431,11 +426,30 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
         <SafeAreaView edges={['top']}>
         <View style={styles.headerContent}>
           <View style={styles.brandContainer}>
-            <Image source={RAIcon} style={styles.brandLogo} />
+            <Image 
+              source={RAIcon} 
+              style={styles.brandLogo}
+              resizeMode="contain"
+              // Android-specific rendering optimization for crisp display
+              {...Platform.select({
+                android: {
+                  renderToHardwareTextureAndroid: true,
+                },
+              })}
+            />
             <View style={styles.brandTextContainer}>
-              <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome to</Text>
-              <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority</Text>
-              <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Namibia</Text>
+              {user && user.fullName ? (
+                <>
+                  <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome</Text>
+                  <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>{user.fullName}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome to</Text>
+                  <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority</Text>
+                  <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Namibia</Text>
+                </>
+              )}
             </View>
           </View>
           
@@ -465,13 +479,16 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
         </View>
 
         {/* Search Bar */}
-        <SearchInput
-          placeholder="Search..."
-          onSearch={setSearchQuery}
-          onClear={() => setSearchQuery('')}
-          accessibilityLabel="Search menu items"
-          accessibilityHint="Type to filter available menu options"
-        />
+        <View style={styles.searchContainer}>
+          <UnifiedFormInput
+            placeholder="Search..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            leftIcon="search-outline"
+            clearButtonMode="while-editing"
+            returnKeyType="search"
+          />
+        </View>
         </SafeAreaView>
       </LinearGradient>
 
@@ -483,7 +500,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
         <View style={styles.bannerContainer}>
           {loadingBanners ? (
             <View style={styles.bannerLoadingContainer}>
-              <SkeletonLoader type="card" />
+              <UnifiedSkeletonLoader type="banner" animated={true} />
             </View>
           ) : banners.length > 0 ? (
             <>
@@ -758,11 +775,13 @@ function getStyles(colors, config) {
       width: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
       height: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
       borderRadius: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor) / 2,
-      backgroundColor: '#FFFFFF', // Solid white instead of rgba
-      opacity: 0.9, // Use opacity instead of rgba
+      backgroundColor: '#FFFFFF', // Solid white - no opacity for crisp Android rendering
       justifyContent: 'center',
       alignItems: 'center',
       position: 'relative',
+      // Remove any elevation/shadow that could cause foggy appearance
+      elevation: 0,
+      shadowOpacity: 0,
     },
     alertBadge: {
       position: 'absolute',
@@ -795,14 +814,24 @@ function getStyles(colors, config) {
       height: isPhone ? 56 : isTablet ? 64 : 72,
       resizeMode: 'contain',
       borderRadius: isPhone ? 14 : 16,
-      backgroundColor: '#FFFFFF', // Solid white instead of rgba
-      opacity: 0.8, // Use opacity instead of rgba
+      backgroundColor: '#FFFFFF', // Solid white - no opacity for crisp Android rendering
       padding: isPhone ? 6 : 8,
+      // Remove any elevation/shadow that could cause foggy appearance
+      elevation: 0,
+      shadowOpacity: 0,
     },
     welcomeText: {
       color: '#FFFFFF',
       fontSize: isPhone ? 12 : 14,
-      opacity: 0.95,
+      // Remove opacity on Android - causes foggy text
+      ...Platform.select({
+        ios: {
+          opacity: 0.95, // Keep opacity on iOS
+        },
+        android: {
+          // No opacity on Android for crisp rendering
+        },
+      }),
       fontWeight: '500',
       letterSpacing: 0.3,
     },
@@ -816,7 +845,15 @@ function getStyles(colors, config) {
     subtitleText: {
       color: '#FFFFFF',
       fontSize: isPhone ? 13 : 15,
-      opacity: 0.9,
+      // Remove opacity on Android - causes foggy text
+      ...Platform.select({
+        ios: {
+          opacity: 0.9, // Keep opacity on iOS
+        },
+        android: {
+          // No opacity on Android for crisp rendering
+        },
+      }),
       marginTop: 2,
       fontWeight: '500',
     },
@@ -829,6 +866,10 @@ function getStyles(colors, config) {
       paddingBottom: isPhone ? 80 : 100,
       paddingTop: isPhone ? 12 : 20, // Reduced top padding on phones
     },
+    searchContainer: {
+      marginBottom: isPhone ? 12 : 16,
+      paddingHorizontal: 0,
+    },
     bannerContainer: {
       marginBottom: 24,
       position: 'relative',
@@ -837,9 +878,7 @@ function getStyles(colors, config) {
       width: screenWidth - horizontalPadding * 2,
       height: bannerHeight,
       borderRadius: isPhone ? 16 : 20,
-      backgroundColor: colors.card,
-      justifyContent: 'center',
-      alignItems: 'center',
+      overflow: 'hidden',
     },
     bannerScrollContent: {
       paddingRight: horizontalPadding,

@@ -23,6 +23,7 @@ import { ProcurementAwardsPage } from './pages/ProcurementAwards';
 import { ProcurementOpeningRegisterPage } from './pages/ProcurementOpeningRegister';
 import { BidsRFQsPage } from './pages/BidsRFQs';
 import { RoadStatusList, RoadStatusForm } from './pages/RoadStatus';
+import FormsPage from './pages/Forms/FormsPage';
 import Layout from './components/Layout/Layout';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
@@ -147,31 +148,32 @@ const theme = createTheme({
     borderRadius: 6, // Smaller, sharper corners for professional look
   },
   shadows: [
-    'none',
-    '0px 1px 2px rgba(0, 0, 0, 0.05)',
-    '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
-    '0px 2px 4px rgba(0, 0, 0, 0.1), 0px 1px 3px rgba(0, 0, 0, 0.08)',
-    '0px 3px 6px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
-    '0px 4px 8px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
-    '0px 12px 16px rgba(0, 0, 0, 0.1), 0px 6px 12px rgba(0, 0, 0, 0.08)',
-    '0px 16px 24px rgba(0, 0, 0, 0.12), 0px 8px 16px rgba(0, 0, 0, 0.1)',
-    '0px 20px 32px rgba(0, 0, 0, 0.12), 0px 10px 20px rgba(0, 0, 0, 0.1)',
-    '0px 24px 40px rgba(0, 0, 0, 0.14), 0px 12px 24px rgba(0, 0, 0, 0.12)',
-    '0px 28px 48px rgba(0, 0, 0, 0.14), 0px 14px 28px rgba(0, 0, 0, 0.12)',
-    '0px 32px 56px rgba(0, 0, 0, 0.16), 0px 16px 32px rgba(0, 0, 0, 0.14)',
-    '0px 36px 64px rgba(0, 0, 0, 0.16), 0px 18px 36px rgba(0, 0, 0, 0.14)',
-    '0px 40px 72px rgba(0, 0, 0, 0.18), 0px 20px 40px rgba(0, 0, 0, 0.16)',
-    '0px 44px 80px rgba(0, 0, 0, 0.18), 0px 22px 44px rgba(0, 0, 0, 0.16)',
-    '0px 48px 88px rgba(0, 0, 0, 0.2), 0px 24px 48px rgba(0, 0, 0, 0.18)',
-    '0px 52px 96px rgba(0, 0, 0, 0.2), 0px 26px 52px rgba(0, 0, 0, 0.18)',
-    '0px 56px 104px rgba(0, 0, 0, 0.22), 0px 28px 56px rgba(0, 0, 0, 0.2)',
-    '0px 60px 112px rgba(0, 0, 0, 0.22), 0px 30px 60px rgba(0, 0, 0, 0.2)',
-    '0px 64px 120px rgba(0, 0, 0, 0.24), 0px 32px 64px rgba(0, 0, 0, 0.22)',
-    '0px 68px 128px rgba(0, 0, 0, 0.24), 0px 34px 68px rgba(0, 0, 0, 0.22)',
-    '0px 72px 136px rgba(0, 0, 0, 0.26), 0px 36px 72px rgba(0, 0, 0, 0.24)',
-    '0px 76px 144px rgba(0, 0, 0, 0.26), 0px 38px 76px rgba(0, 0, 0, 0.24)',
-    '0px 80px 152px rgba(0, 0, 0, 0.28), 0px 40px 80px rgba(0, 0, 0, 0.26)',
-  ] as any,
+    'none', // 0
+    '0px 1px 2px rgba(0, 0, 0, 0.05)', // 1
+    '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)', // 2
+    '0px 2px 4px rgba(0, 0, 0, 0.1), 0px 1px 3px rgba(0, 0, 0, 0.08)', // 3
+    '0px 3px 6px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)', // 4
+    '0px 4px 8px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)', // 5
+    '0px 6px 12px rgba(0, 0, 0, 0.1), 0px 3px 6px rgba(0, 0, 0, 0.08)', // 6
+    '0px 12px 16px rgba(0, 0, 0, 0.1), 0px 6px 12px rgba(0, 0, 0, 0.08)', // 7
+    '0px 16px 24px rgba(0, 0, 0, 0.12), 0px 8px 16px rgba(0, 0, 0, 0.1)', // 8
+    '0px 20px 32px rgba(0, 0, 0, 0.12), 0px 10px 20px rgba(0, 0, 0, 0.1)', // 9
+    '0px 24px 40px rgba(0, 0, 0, 0.14), 0px 12px 24px rgba(0, 0, 0, 0.12)', // 10
+    '0px 28px 48px rgba(0, 0, 0, 0.14), 0px 14px 28px rgba(0, 0, 0, 0.12)', // 11
+    '0px 32px 56px rgba(0, 0, 0, 0.16), 0px 16px 32px rgba(0, 0, 0, 0.14)', // 12
+    '0px 36px 64px rgba(0, 0, 0, 0.16), 0px 18px 36px rgba(0, 0, 0, 0.14)', // 13
+    '0px 40px 72px rgba(0, 0, 0, 0.18), 0px 20px 40px rgba(0, 0, 0, 0.16)', // 14
+    '0px 44px 80px rgba(0, 0, 0, 0.18), 0px 22px 44px rgba(0, 0, 0, 0.16)', // 15
+    '0px 48px 88px rgba(0, 0, 0, 0.2), 0px 24px 48px rgba(0, 0, 0, 0.18)', // 16
+    '0px 52px 96px rgba(0, 0, 0, 0.2), 0px 26px 52px rgba(0, 0, 0, 0.18)', // 17
+    '0px 56px 104px rgba(0, 0, 0, 0.22), 0px 28px 56px rgba(0, 0, 0, 0.2)', // 18
+    '0px 60px 112px rgba(0, 0, 0, 0.22), 0px 30px 60px rgba(0, 0, 0, 0.2)', // 19
+    '0px 64px 120px rgba(0, 0, 0, 0.24), 0px 32px 64px rgba(0, 0, 0, 0.22)', // 20
+    '0px 68px 128px rgba(0, 0, 0, 0.24), 0px 34px 68px rgba(0, 0, 0, 0.22)', // 21
+    '0px 72px 136px rgba(0, 0, 0, 0.26), 0px 36px 72px rgba(0, 0, 0, 0.24)', // 22
+    '0px 76px 144px rgba(0, 0, 0, 0.26), 0px 38px 76px rgba(0, 0, 0, 0.24)', // 23
+    '0px 80px 152px rgba(0, 0, 0, 0.28), 0px 40px 80px rgba(0, 0, 0, 0.26)', // 24
+  ],
   transitions: {
     duration: {
       shortest: 150,
@@ -857,6 +859,16 @@ function App() {
                 <ProtectedRoute requiredPermission="procurement:awards:manage">
                   <Layout>
                     <ProcurementAwardsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/forms"
+              element={
+                <ProtectedRoute requiredPermission="procurement:awards:manage">
+                  <Layout>
+                    <FormsPage />
                   </Layout>
                 </ProtectedRoute>
               }

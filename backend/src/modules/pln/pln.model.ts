@@ -225,7 +225,6 @@ const plnSchema = new Schema<IPLN>(
       required: [true, 'Reference ID is required'],
       unique: true,
       trim: true,
-      index: true,
     },
     trackingPin: {
       type: String,
@@ -301,7 +300,6 @@ const plnSchema = new Schema<IPLN>(
     idNumber: {
       type: String,
       trim: true,
-      index: true,
     },
     phoneNumber: {
       type: String,
@@ -519,7 +517,7 @@ const plnSchema = new Schema<IPLN>(
 );
 
 // Indexes for efficient queries
-plnSchema.index({ referenceId: 1 });
+// Note: referenceId index is already created by unique: true in schema definition
 plnSchema.index({ idNumber: 1 });
 plnSchema.index({ trafficRegisterNumber: 1 });
 plnSchema.index({ businessRegNumber: 1 });

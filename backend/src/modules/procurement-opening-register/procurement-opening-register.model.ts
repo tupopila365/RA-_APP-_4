@@ -82,9 +82,10 @@ procurementOpeningRegisterSchema.index({ type: 1 });
 procurementOpeningRegisterSchema.index({ status: 1 });
 procurementOpeningRegisterSchema.index({ category: 1 });
 procurementOpeningRegisterSchema.index({ published: 1 });
-procurementOpeningRegisterSchema.index({ reference: 1 });
+// Note: reference index is already created by unique: true in schema definition
 procurementOpeningRegisterSchema.index({ bidOpeningDate: -1 });
-procurementOpeningRegisterSchema.index({ description: 'text', reference: 'text' });
+// Text index for description only (reference has unique index, so excluded from text index)
+procurementOpeningRegisterSchema.index({ description: 'text' });
 procurementOpeningRegisterSchema.index({ createdAt: -1 });
 procurementOpeningRegisterSchema.index({ publishedAt: -1 });
 

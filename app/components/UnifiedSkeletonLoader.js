@@ -189,6 +189,17 @@ export function UnifiedSkeletonLoader({
           </View>
         );
 
+      case 'banner':
+        return (
+          <View style={styles.bannerSkeleton}>
+            <Animated.View style={[styles.bannerImageSkeleton, { backgroundColor: shimmerColor }]} />
+            <View style={styles.bannerOverlaySkeleton}>
+              <Animated.View style={[styles.bannerTitleSkeleton, { backgroundColor: shimmerColor }]} />
+              <Animated.View style={[styles.bannerSubtitleSkeleton, { backgroundColor: shimmerColor }]} />
+            </View>
+          </View>
+        );
+
       default:
         return (
           <Animated.View style={[styles.defaultSkeleton, { backgroundColor: shimmerColor }]} />
@@ -478,5 +489,37 @@ const getStyles = (colors) =>
     defaultSkeleton: {
       height: 100,
       borderRadius: 8,
+    },
+
+    // Banner Skeleton
+    bannerSkeleton: {
+      width: '100%',
+      height: 180,
+      borderRadius: 16,
+      overflow: 'hidden',
+      position: 'relative',
+      backgroundColor: colors.card,
+    },
+    bannerImageSkeleton: {
+      width: '100%',
+      height: '100%',
+    },
+    bannerOverlaySkeleton: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: spacing.xl,
+    },
+    bannerTitleSkeleton: {
+      height: 24,
+      borderRadius: 4,
+      width: '70%',
+      marginBottom: spacing.sm,
+    },
+    bannerSubtitleSkeleton: {
+      height: 16,
+      borderRadius: 4,
+      width: '50%',
     },
   });

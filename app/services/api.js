@@ -67,11 +67,15 @@ export class ApiClient {
       }
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({}));
+        // Extract error message from response structure
+        const errorMessage = errorData.error?.message || 
+                            errorData.message || 
+                            `HTTP ${response.status}: ${response.statusText}`;
         throw new ApiError(
-          error.message || `HTTP ${response.status}`,
+          errorMessage,
           response.status,
-          error
+          errorData
         );
       }
 

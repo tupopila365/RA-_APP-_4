@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { SkeletonLoader, EmptyState, SearchInput } from '../components';
+import { UnifiedSkeletonLoader, EmptyState, SearchInput } from '../components';
 import { procurementOpeningRegisterService } from '../services/procurementService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
 
@@ -303,7 +303,7 @@ export default function OpeningRegisterScreen() {
         {/* Items List */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <SkeletonLoader type="list" count={5} />
+            <UnifiedSkeletonLoader type="list-item" count={5} />
           </View>
         ) : filteredData.length === 0 ? (
           <View style={styles.emptyStateContainer}>
@@ -370,7 +370,7 @@ export default function OpeningRegisterScreen() {
                         >
                           {isItemDownloading ? (
                             <>
-                              <SkeletonLoader type="circle" width={16} height={16} />
+                              <UnifiedSkeletonLoader type="text-line" style={{ width: 16, height: 16, borderRadius: 8 }} />
                               <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
                                 Downloading {progress}%
                               </Text>

@@ -247,7 +247,7 @@ export default function VacanciesScreen({ navigation }) {
           showBackButton={true}
           onBackPress={() => navigation.goBack()}
         />
-        <UnifiedSkeletonLoader type="list-item" count={4} animated={true} />
+        <UnifiedSkeletonLoader type="list-item" count={5} animated={true} />
       </SafeAreaView>
     );
   }

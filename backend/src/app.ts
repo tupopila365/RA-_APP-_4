@@ -26,6 +26,7 @@ import procurementPlanRoutes from './modules/procurement-plan/procurement-plan.r
 import procurementAwardsRoutes from './modules/procurement-awards/procurement-awards.routes';
 import procurementOpeningRegisterRoutes from './modules/procurement-opening-register/procurement-opening-register.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
+import formsRoutes from './modules/forms/forms.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -72,6 +73,7 @@ export const createApp = (): Application => {
   app.use('/api/procurement-awards', procurementAwardsRoutes);
   app.use('/api/procurement-opening-register', procurementOpeningRegisterRoutes);
   app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/forms', formsRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);

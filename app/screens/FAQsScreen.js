@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { SkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
+import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
 import { useFAQUseCases } from '../src/presentation/di/DependencyContext';
 import { useFAQsViewModel } from '../src/presentation/viewModels/useFAQsViewModel';
 
@@ -99,7 +99,7 @@ export default function FAQsScreen() {
 
         {isInitialLoading ? (
           <View style={styles.loadingContainer}>
-            <SkeletonLoader type="list-item" count={5} />
+            <UnifiedSkeletonLoader type="list-item" count={5} />
             <Text style={styles.loadingText}>Loading FAQs...</Text>
           </View>
         ) : showEmptyState ? (

@@ -284,13 +284,34 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Sign Out */}
-        {user && (
+        {/* Authentication Section */}
+        {user ? (
+          // Show Sign Out button when user is logged in
           <View style={styles.section}>
             <TouchableOpacity style={styles.signOutButton} onPress={handleLogout}>
               <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
               <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
+          </View>
+        ) : (
+          // Show Log In and Create Account buttons when user is not logged in
+          <View style={styles.section}>
+            <View style={styles.authButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.authButton, styles.loginButton]} 
+                onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
+              >
+                <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.authButtonText}>Log In</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.authButton, styles.createAccountButton]} 
+                onPress={() => navigation.navigate('Auth', { screen: 'Register' })}
+              >
+                <Ionicons name="person-add-outline" size={20} color={colors.primary} />
+                <Text style={[styles.authButtonText, { color: colors.primary }]}>Create Account</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -575,6 +596,38 @@ function getStyles(colors, screenWidth) {
       fontSize: 16,
       fontWeight: '600',
       color: '#FF3B30',
+      marginLeft: 8,
+    },
+    
+    // Authentication Buttons Container
+    authButtonsContainer: {
+      gap: 12,
+    },
+    authButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    loginButton: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    createAccountButton: {
+      backgroundColor: colors.card,
+      borderColor: colors.primary,
+    },
+    authButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#FFFFFF',
       marginLeft: 8,
     },
     

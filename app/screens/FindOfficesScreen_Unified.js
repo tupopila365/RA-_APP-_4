@@ -309,7 +309,7 @@ export default function FindOfficesScreen({ navigation }) {
           showBackButton={true}
           onBackPress={() => navigation.goBack()}
         />
-        <UnifiedSkeletonLoader type="office-card" count={5} animated={true} />
+        <UnifiedSkeletonLoader type="list-item" count={5} animated={true} />
       </SafeAreaView>
     );
   }

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { potholeReportsController } from './pothole-reports.controller';
 import { authenticate } from '../../middlewares/auth';
+import { optionalAuthenticateAppUser } from '../../middlewares/appAuth';
 import { requirePermission } from '../../middlewares/roleGuard';
 import { uploadImage } from '../../middlewares/upload';
 
@@ -9,21 +10,23 @@ const router = Router();
 /**
  * @route   POST /api/pothole-reports
  * @desc    Create a new pothole report
- * @access  Public (requires X-Device-ID header)
+ * @access  Public (requires X-Device-ID header, optional auth for logged-in users)
  */
 router.post(
   '/',
+  optionalAuthenticateAppUser, // Optional auth - sets user if token provided
   uploadImage.single('photo'),
   potholeReportsController.createReport.bind(potholeReportsController)
 );
 
 /**
  * @route   GET /api/pothole-reports/my-reports
- * @desc    Get user's reports by device ID
- * @access  Public (requires X-Device-ID header)
+ * @desc    Get user's reports by email (if authenticated) or device ID
+ * @access  Public (requires X-Device-ID header or authentication)
  */
 router.get(
   '/my-reports',
+  optionalAuthenticateAppUser, // Optional auth - sets user if token provided
   potholeReportsController.getMyReports.bind(potholeReportsController)
 );
 

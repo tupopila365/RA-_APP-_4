@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import RAIcon from '../assets/icon.png';
-import { DetailCard, ListScreenSkeleton, ErrorState, EmptyState } from '../components';
+import { DetailCard, UnifiedSkeletonLoader, ErrorState, EmptyState } from '../components';
 import { procurementLegislationService } from '../services/procurementService';
 import { documentDownloadService } from '../services/documentDownloadService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
@@ -124,7 +124,7 @@ export default function ProcurementLegislationScreen() {
   if (loading && !refreshing) {
     return (
       <View style={styles.container}>
-        <ListScreenSkeleton count={4} />
+        <UnifiedSkeletonLoader type="list-item" count={5} />
       </View>
     );
   }

@@ -20,6 +20,11 @@ import {
   Autocomplete,
   Chip,
   Link,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  IconButton,
+  Divider,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -31,6 +36,11 @@ import {
   LocationOn as LocationOnIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Route as RouteIcon,
+  ExpandMore as ExpandMoreIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import {
   getRoadStatusById,
@@ -53,6 +63,7 @@ import {
   GeocodingResult,
 } from '../../services/geocoding.service';
 import MapLocationSelector from '../../components/MapLocationSelector';
+import RouteWaypointMap from '../../components/RouteWaypointMap';
 
 const REGIONS = [
   'Erongo',
@@ -91,7 +102,7 @@ const RoadStatusForm = () => {
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [expectedCompletion, setExpectedCompletion] = useState('');
-  const [alternativeRoute, setAlternativeRoute] = useState('');
+  const [alternativeRoute, setAlternativeRoute] = useState(''); // Legacy text field
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [affectedLanes, setAffectedLanes] = useState('');
@@ -99,6 +110,24 @@ const RoadStatusForm = () => {
   const [estimatedDuration, setEstimatedDuration] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
   const [published, setPublished] = useState(false);
+
+  // Structured Alternate Routes
+  interface AlternateRoute {
+    routeName: string;
+    roadsUsed: string[];
+    waypoints: Array<{
+      name: string;
+      coordinates: { latitude: number; longitude: number };
+    }>;
+    vehicleType: string[];
+    distanceKm?: number;
+    estimatedTime?: string;
+    isRecommended: boolean;
+    approved: boolean;
+  }
+  const [alternateRoutes, setAlternateRoutes] = useState<AlternateRoute[]>([]);
+  const [showRouteMap, setShowRouteMap] = useState<number | null>(null); // Index of route showing map
+  const [showRouteMapAll, setShowRouteMapAll] = useState<number | null>(null); // Index of route showing all waypoints map
 
   // Geocoding validation state
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -124,6 +153,172 @@ const RoadStatusForm = () => {
   const availableTowns = region ? TOWNS_BY_REGION[region] || ALL_TOWNS : ALL_TOWNS;
   const isCriticalStatus = status === 'Closed' || status === 'Restricted';
   const coordinatesRequired = isCriticalStatus;
+
+  // Vehicle types for alternate routes
+  const VEHICLE_TYPES = ['All', 'Light Vehicles', 'Heavy Vehicles', 'Motorcycles', 'Buses', 'Trucks'];
+
+  // Alternate Routes Management Functions
+  const addAlternateRoute = () => {
+    const newRoute: AlternateRoute = {
+      routeName: `Route ${alternateRoutes.length + 1}`,
+      roadsUsed: [],
+      waypoints: [],
+      vehicleType: ['All'],
+      isRecommended: alternateRoutes.length === 0,
+      approved: false,
+    };
+    setAlternateRoutes([...alternateRoutes, newRoute]);
+  };
+
+  const updateAlternateRoute = (index: number, updates: Partial<AlternateRoute>) => {
+    const updated = [...alternateRoutes];
+    updated[index] = { ...updated[index], ...updates };
+    setAlternateRoutes(updated);
+  };
+
+  const removeAlternateRoute = (index: number) => {
+    setAlternateRoutes(alternateRoutes.filter((_, i) => i !== index));
+  };
+
+  const addWaypoint = (routeIndex: number) => {
+    const updated = [...alternateRoutes];
+    updated[routeIndex].waypoints.push({
+      name: '',
+      coordinates: { latitude: 0, longitude: 0 },
+    });
+    setAlternateRoutes(updated);
+  };
+
+  const updateWaypoint = (routeIndex: number, waypointIndex: number, updates: any) => {
+    const updated = [...alternateRoutes];
+    updated[routeIndex].waypoints[waypointIndex] = {
+      ...updated[routeIndex].waypoints[waypointIndex],
+      ...updates,
+    };
+    setAlternateRoutes(updated);
+    
+    // Auto-calculate distance and time when waypoints change
+    if (updated[routeIndex].waypoints.length >= 2) {
+      calculateRouteMetrics(routeIndex);
+    }
+  };
+
+  const removeWaypoint = (routeIndex: number, waypointIndex: number) => {
+    const updated = [...alternateRoutes];
+    updated[routeIndex].waypoints = updated[routeIndex].waypoints.filter((_, i) => i !== waypointIndex);
+    setAlternateRoutes(updated);
+    if (updated[routeIndex].waypoints.length >= 2) {
+      calculateRouteMetrics(routeIndex);
+    }
+  };
+
+  // Calculate distance and time for a route
+  const calculateRouteMetrics = (routeIndex: number) => {
+    const route = alternateRoutes[routeIndex];
+    if (route.waypoints.length < 2) return;
+
+    // Calculate total distance using Haversine formula
+    let totalDistance = 0;
+    for (let i = 0; i < route.waypoints.length - 1; i++) {
+      const wp1 = route.waypoints[i].coordinates;
+      const wp2 = route.waypoints[i + 1].coordinates;
+      const R = 6371; // Earth's radius in km
+      const dLat = (wp2.latitude - wp1.latitude) * Math.PI / 180;
+      const dLon = (wp2.longitude - wp1.longitude) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(wp1.latitude * Math.PI / 180) * Math.cos(wp2.latitude * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      totalDistance += R * c;
+    }
+
+    // Estimate time (average 80 km/h for main roads, 60 km/h for secondary)
+    const avgSpeed = route.roadsUsed.some(r => r.startsWith('B') || r.startsWith('A')) ? 80 : 60;
+    const hours = totalDistance / avgSpeed;
+    const minutes = Math.round(hours * 60);
+    const timeString = hours >= 1 
+      ? `${Math.floor(hours)}h ${minutes % 60}m`
+      : `${minutes}m`;
+
+    updateAlternateRoute(routeIndex, {
+      distanceKm: Math.round(totalDistance * 100) / 100,
+      estimatedTime: timeString,
+    });
+  };
+
+  const handleWaypointMapSelect = (routeIndex: number, waypointIndex: number, location: {
+    coordinates: { latitude: number; longitude: number };
+    address?: string;
+    roadName?: string;
+    area?: string;
+    region?: string;
+  }) => {
+    updateWaypoint(routeIndex, waypointIndex, {
+      coordinates: location.coordinates,
+      name: location.address || location.roadName || `Waypoint ${waypointIndex + 1}`,
+    });
+    setShowRouteMap(null);
+  };
+
+  // Handle adding new waypoint from route map click
+  const handleRouteMapClick = (routeIndex: number, location: {
+    coordinates: { latitude: number; longitude: number };
+    address?: string;
+    roadName?: string;
+    area?: string;
+    region?: string;
+  }) => {
+    // Add new waypoint at the clicked location
+    const updated = [...alternateRoutes];
+    const newWaypoint = {
+      name: location.address || location.roadName || `Waypoint ${updated[routeIndex].waypoints.length + 1}`,
+      coordinates: location.coordinates,
+    };
+    updated[routeIndex].waypoints.push(newWaypoint);
+    setAlternateRoutes(updated);
+    
+    // Auto-calculate distance and time
+    if (updated[routeIndex].waypoints.length >= 2) {
+      const distance = calculateRouteDistance(updated[routeIndex].waypoints.map(wp => wp.coordinates));
+      const time = estimateRouteTime(distance, updated[routeIndex].roadsUsed);
+      updated[routeIndex].distanceKm = distance;
+      updated[routeIndex].estimatedTime = time;
+      setAlternateRoutes(updated);
+    }
+  };
+
+  // Helper function to calculate route distance
+  const calculateRouteDistance = (coordinates: Array<{ latitude: number; longitude: number }>): number => {
+    if (coordinates.length < 2) return 0;
+    
+    let totalDistance = 0;
+    for (let i = 0; i < coordinates.length - 1; i++) {
+      const R = 6371; // Earth's radius in km
+      const dLat = (coordinates[i + 1].latitude - coordinates[i].latitude) * Math.PI / 180;
+      const dLon = (coordinates[i + 1].longitude - coordinates[i].longitude) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(coordinates[i].latitude * Math.PI / 180) * Math.cos(coordinates[i + 1].latitude * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      totalDistance += R * c;
+    }
+    return Math.round(totalDistance * 100) / 100;
+  };
+
+  // Helper function to estimate route time
+  const estimateRouteTime = (distanceKm: number, roadsUsed: string[] = []): string => {
+    if (distanceKm <= 0) return 'Unknown';
+    
+    // Average speed: 80 km/h for main roads (A/B), 60 km/h for secondary (C/D)
+    const avgSpeed = roadsUsed.some(r => r.startsWith('B') || r.startsWith('A')) ? 80 : 60;
+    const hours = distanceKm / avgSpeed;
+    const minutes = Math.round(hours * 60);
+    
+    if (hours >= 1) {
+      return `${Math.floor(hours)}h ${minutes % 60}m`;
+    }
+    return `${minutes}m`;
+  };
 
   useEffect(() => {
     if (isEditMode && id) {
@@ -366,6 +561,9 @@ const RoadStatusForm = () => {
     if (!roadName || !roadName.trim()) {
       return { valid: false, error: 'Road name is required' };
     }
+    if (!section || !section.trim()) {
+      return { valid: false, error: 'Section is required (e.g., "Between Town A and Town B")' };
+    }
     if (!area || !area.trim()) {
       return { valid: false, error: 'Area/Town is required' };
     }
@@ -374,6 +572,48 @@ const RoadStatusForm = () => {
     }
     if (!title || !title.trim()) {
       return { valid: false, error: 'Title is required' };
+    }
+
+    // Validate alternate routes if provided (only validate complete routes)
+    if (alternateRoutes.length > 0) {
+      for (let i = 0; i < alternateRoutes.length; i++) {
+        const route = alternateRoutes[i];
+        
+        // Skip validation for empty/incomplete routes (they'll be filtered out)
+        if (!route.routeName || !route.routeName.trim()) {
+          continue; // Allow incomplete routes to be saved (they won't be used)
+        }
+        
+        // Only validate if route has waypoints
+        if (route.waypoints.length > 0) {
+          if (route.waypoints.length < 2) {
+            return { valid: false, error: `Route "${route.routeName}": At least 2 waypoints are required for navigation. Add more waypoints or remove this route.` };
+          }
+          
+          // Validate waypoints have valid coordinates
+          for (let j = 0; j < route.waypoints.length; j++) {
+            const waypoint = route.waypoints[j];
+            if (!waypoint.name || !waypoint.name.trim()) {
+              return { valid: false, error: `Route "${route.routeName}": Waypoint ${j + 1} name is required` };
+            }
+            if (!waypoint.coordinates || 
+                typeof waypoint.coordinates.latitude !== 'number' || 
+                typeof waypoint.coordinates.longitude !== 'number' ||
+                (waypoint.coordinates.latitude === 0 && waypoint.coordinates.longitude === 0)) {
+              return { valid: false, error: `Route "${route.routeName}": Waypoint "${waypoint.name || j + 1}" has invalid coordinates. Click "Map" button to select location.` };
+            }
+            
+            // Validate coordinates are in Namibia
+            const coordValidation = validateNamibiaCoordinates(
+              waypoint.coordinates.latitude,
+              waypoint.coordinates.longitude
+            );
+            if (!coordValidation.valid) {
+              return { valid: false, error: `Route "${route.routeName}": Waypoint "${waypoint.name}" coordinates are outside Namibia bounds` };
+            }
+          }
+        }
+      }
     }
 
     // Critical status validation
@@ -445,6 +685,41 @@ const RoadStatusForm = () => {
       }
     }
 
+    // Validate description length
+    if (description && description.trim()) {
+      const desc = description.trim();
+      if (desc.length > 1000) {
+        return { 
+          valid: false, 
+          error: 'Description must be 1000 characters or less' 
+        };
+      }
+      
+      // Only check for actual error stack traces (very specific patterns)
+      // Check for stack trace patterns that indicate actual error messages
+      const errorPatterns = [
+        /ERROR\s+\[Error:/i,           // "ERROR [Error:"
+        /TransformError/i,              // "TransformError"
+        /SyntaxError/i,                 // "SyntaxError"
+        /ValidationError/i,             // "ValidationError"
+        /at\s+\w+\.\w+\(/i,            // "at function.name(" (stack trace)
+        /at\s+file:\/\//i,             // "at file://" (file paths in errors)
+        /node_modules/i,                // "node_modules" (error stack traces)
+        /\.js:\d+:\d+/i,                // ".js:123:45" (file locations in errors)
+      ];
+      
+      const hasErrorPattern = errorPatterns.some(pattern => pattern.test(desc));
+      
+      // Only reject if it's clearly an error message (starts with ERROR or has multiple error indicators)
+      if (hasErrorPattern && (desc.startsWith('ERROR') || desc.startsWith('Error') || 
+          (desc.includes('TransformError') || desc.includes('SyntaxError') || desc.includes('ValidationError')))) {
+        return { 
+          valid: false, 
+          error: 'Description appears to contain an error message. Please enter a valid description.' 
+        };
+      }
+    }
+
     return { valid: true };
   };
 
@@ -466,17 +741,43 @@ const RoadStatusForm = () => {
       setSaving(true);
       setError(null);
 
+      // Clean description - truncate if too long
+      let cleanDescription = description.trim() || undefined;
+      if (cleanDescription && cleanDescription.length > 1000) {
+        cleanDescription = cleanDescription.substring(0, 1000);
+      }
+
       const data: RoadStatusCreateInput = {
         road: roadName.trim(),
-        section: section.trim() || undefined,
+        section: section.trim(), // Required by backend - must be non-empty
         area: area.trim(),
         region,
         status,
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: cleanDescription,
         startDate: startDate || undefined,
         expectedCompletion: expectedCompletion || undefined,
         alternativeRoute: alternativeRoute.trim() || undefined,
+        alternateRoutes: alternateRoutes.length > 0 ? alternateRoutes
+          .filter(route => route.routeName && route.routeName.trim() && route.waypoints.length >= 2) // Only include complete routes
+          .map(route => ({
+            routeName: route.routeName.trim(),
+            roadsUsed: route.roadsUsed.filter(r => r && r.trim()),
+            waypoints: route.waypoints
+              .filter(wp => wp.coordinates && wp.coordinates.latitude !== 0 && wp.coordinates.longitude !== 0)
+              .map(wp => ({
+                name: wp.name.trim(),
+                coordinates: {
+                  latitude: wp.coordinates.latitude,
+                  longitude: wp.coordinates.longitude,
+                },
+              })),
+            vehicleType: route.vehicleType.length > 0 ? route.vehicleType : ['All'],
+            distanceKm: route.distanceKm || calculateRouteDistance(route.waypoints.map(wp => wp.coordinates)),
+            estimatedTime: route.estimatedTime || estimateRouteTime(route.distanceKm || calculateRouteDistance(route.waypoints.map(wp => wp.coordinates)), route.roadsUsed),
+            isRecommended: route.isRecommended || false,
+            approved: route.approved || false,
+          })) : undefined,
         coordinates:
           latitude && longitude
             ? {
@@ -500,7 +801,23 @@ const RoadStatusForm = () => {
       navigate('/road-status');
     } catch (err: any) {
       console.error('Error saving roadwork:', err);
-      setError(err.response?.data?.error?.message || 'Failed to save roadwork');
+      
+      // Extract detailed error messages from backend
+      let errorMessage = 'Failed to save roadwork';
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        if (errorData.errors && Array.isArray(errorData.errors)) {
+          errorMessage = errorData.errors.join('. ');
+        } else if (errorData.error?.message) {
+          errorMessage = errorData.error.message;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setSaving(false);
     }
@@ -599,11 +916,13 @@ const RoadStatusForm = () => {
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
-                      label="Section"
+                      required
+                      label="Section *"
                       value={section}
                       onChange={(e) => setSection(e.target.value)}
-                      placeholder="e.g., Section 5, KM 125-135"
-                      helperText="Optional: Specific section or kilometer range"
+                      placeholder="e.g., Between Windhoek and Okahandja, KM 125-135"
+                      helperText="Required: Describe the road section (e.g., 'Between Town A and Town B')"
+                      error={!section || !section.trim()}
                     />
                   </Grid>
 
@@ -804,15 +1123,287 @@ const RoadStatusForm = () => {
                   <Grid item xs={12}>
                     <TextField
                       fullWidth
-                      label="Alternative Route"
+                      label="Alternative Route (Legacy - Use Structured Routes Below)"
                       value={alternativeRoute}
                       onChange={(e) => setAlternativeRoute(e.target.value)}
                       multiline
                       rows={2}
-                      placeholder="Describe alternative routes for motorists"
+                      placeholder="Simple text description (for backward compatibility)"
+                      helperText="For best navigation experience, use the structured alternate routes section below"
                     />
                   </Grid>
                 </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Structured Alternate Routes */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Box>
+                    <Typography variant="h6">
+                      Alternate Routes ({alternateRoutes.length})
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Create structured routes with waypoints for best navigation experience
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={addAlternateRoute}
+                  >
+                    Add Route
+                  </Button>
+                </Box>
+
+                {alternateRoutes.length === 0 ? (
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.50' }}>
+                    <RouteIcon sx={{ fontSize: 48, color: 'grey.400', mb: 1 }} />
+                    <Typography variant="body1" color="text.secondary">
+                      No alternate routes defined yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Add structured routes with waypoints to enable turn-by-turn navigation
+                    </Typography>
+                  </Paper>
+                ) : (
+                  alternateRoutes.map((route, routeIndex) => (
+                    <Accordion key={routeIndex} sx={{ mb: 2 }}>
+                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Box display="flex" alignItems="center" gap={2} width="100%">
+                          <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+                            {route.routeName}
+                          </Typography>
+                          <Box display="flex" gap={1}>
+                            {route.isRecommended && (
+                              <Chip label="Recommended" color="success" size="small" icon={<CheckCircleIcon />} />
+                            )}
+                            {route.distanceKm && (
+                              <Chip label={`${route.distanceKm} km`} size="small" variant="outlined" />
+                            )}
+                            {route.estimatedTime && (
+                              <Chip label={route.estimatedTime} size="small" variant="outlined" />
+                            )}
+                            {route.waypoints.length < 2 && (
+                              <Chip label="Incomplete" color="warning" size="small" icon={<WarningIcon />} />
+                            )}
+                          </Box>
+                        </Box>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              label="Route Name"
+                              value={route.routeName}
+                              onChange={(e) => updateAlternateRoute(routeIndex, { routeName: e.target.value })}
+                              placeholder="e.g., Route via B2 and C28"
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Autocomplete
+                              multiple
+                              options={VEHICLE_TYPES}
+                              value={route.vehicleType}
+                              onChange={(_, newValue) => updateAlternateRoute(routeIndex, { vehicleType: newValue })}
+                              renderInput={(params) => (
+                                <TextField {...params} label="Vehicle Types" />
+                              )}
+                              renderTags={(value, getTagProps) =>
+                                value.map((option, index) => (
+                                  <Chip variant="outlined" label={option} {...getTagProps({ index })} key={option} />
+                                ))
+                              }
+                            />
+                          </Grid>
+                          <Grid item xs={12}>
+                            <Autocomplete
+                              multiple
+                              freeSolo
+                              options={[]}
+                              value={route.roadsUsed}
+                              onChange={(_, newValue) => updateAlternateRoute(routeIndex, { roadsUsed: newValue })}
+                              renderInput={(params) => (
+                                <TextField {...params} label="Roads Used" placeholder="e.g., B2, C28, D1265" />
+                              )}
+                              renderTags={(value, getTagProps) =>
+                                value.map((option, index) => (
+                                  <Chip variant="outlined" label={option} {...getTagProps({ index })} key={option} />
+                                ))
+                              }
+                            />
+                          </Grid>
+
+                          {/* Waypoints Section */}
+                          <Grid item xs={12}>
+                            <Divider sx={{ my: 2 }} />
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                              <Typography variant="subtitle2">
+                                Waypoints ({route.waypoints.length}) - Minimum 2 required for navigation
+                              </Typography>
+                              <Box display="flex" gap={1}>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<MapIcon />}
+                                  onClick={() => setShowRouteMapAll(showRouteMapAll === routeIndex ? null : routeIndex)}
+                                >
+                                  {showRouteMapAll === routeIndex ? 'Hide Route Map' : 'Show Route Map'}
+                                </Button>
+                                <Button
+                                  size="small"
+                                  startIcon={<AddIcon />}
+                                  onClick={() => addWaypoint(routeIndex)}
+                                >
+                                  Add Waypoint
+                                </Button>
+                              </Box>
+                            </Box>
+                            {showRouteMapAll === routeIndex && (
+                              <Box sx={{ mt: 2, mb: 2 }}>
+                                <Alert severity="info" sx={{ mb: 2 }}>
+                                  <Typography variant="body2">
+                                    <strong>Click on the map to add waypoints!</strong> Each click will add a new waypoint at that location. 
+                                    You can see all existing waypoints on the map. Drag markers to adjust positions.
+                                  </Typography>
+                                </Alert>
+                                <RouteWaypointMap
+                                  waypoints={route.waypoints}
+                                  onWaypointAdd={(location) => handleRouteMapClick(routeIndex, location)}
+                                  onWaypointUpdate={(waypointIndex, location) => {
+                                    updateWaypoint(routeIndex, waypointIndex, {
+                                      coordinates: location.coordinates,
+                                      name: location.address || location.roadName || `Waypoint ${waypointIndex + 1}`,
+                                    });
+                                  }}
+                                  height="400px"
+                                />
+                              </Box>
+                            )}
+                            {route.waypoints.length === 0 && (
+                              <Alert severity="info" sx={{ mb: 2 }}>
+                                Add at least 2 waypoints (start and end) to enable navigation. Click "Add Waypoint" and use the map to select locations.
+                              </Alert>
+                            )}
+                            {route.waypoints.map((waypoint, waypointIndex) => (
+                              <Paper key={waypointIndex} sx={{ p: 2, mb: 1 }}>
+                                <Grid container spacing={2} alignItems="center">
+                                  <Grid item xs={12} md={4}>
+                                    <TextField
+                                      fullWidth
+                                      label={`Waypoint ${waypointIndex + 1} Name`}
+                                      value={waypoint.name}
+                                      onChange={(e) => updateWaypoint(routeIndex, waypointIndex, { name: e.target.value })}
+                                      placeholder="e.g., Start at Karibib"
+                                    />
+                                  </Grid>
+                                  <Grid item xs={12} md={3}>
+                                    <TextField
+                                      fullWidth
+                                      type="number"
+                                      label="Latitude"
+                                      value={waypoint.coordinates.latitude || ''}
+                                      onChange={(e) => updateWaypoint(routeIndex, waypointIndex, {
+                                        coordinates: {
+                                          ...waypoint.coordinates,
+                                          latitude: parseFloat(e.target.value) || 0
+                                        }
+                                      })}
+                                      inputProps={{ step: 'any' }}
+                                    />
+                                  </Grid>
+                                  <Grid item xs={12} md={3}>
+                                    <TextField
+                                      fullWidth
+                                      type="number"
+                                      label="Longitude"
+                                      value={waypoint.coordinates.longitude || ''}
+                                      onChange={(e) => updateWaypoint(routeIndex, waypointIndex, {
+                                        coordinates: {
+                                          ...waypoint.coordinates,
+                                          longitude: parseFloat(e.target.value) || 0
+                                        }
+                                      })}
+                                      inputProps={{ step: 'any' }}
+                                    />
+                                  </Grid>
+                                  <Grid item xs={12} md={2}>
+                                    <Box display="flex" gap={1}>
+                                      <Button
+                                        size="small"
+                                        variant="outlined"
+                                        startIcon={<MapIcon />}
+                                        onClick={() => setShowRouteMap(routeIndex * 1000 + waypointIndex)}
+                                      >
+                                        Map
+                                      </Button>
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={() => removeWaypoint(routeIndex, waypointIndex)}
+                                      >
+                                        <DeleteIcon />
+                                      </IconButton>
+                                    </Box>
+                                  </Grid>
+                                </Grid>
+                                {showRouteMap === routeIndex * 1000 + waypointIndex && (
+                                  <Box sx={{ mt: 2 }}>
+                                    <MapLocationSelector
+                                      onLocationSelect={(location) => handleWaypointMapSelect(routeIndex, waypointIndex, location)}
+                                      initialCoordinates={
+                                        waypoint.coordinates.latitude && waypoint.coordinates.longitude
+                                          ? waypoint.coordinates
+                                          : undefined
+                                      }
+                                      height="300px"
+                                    />
+                                  </Box>
+                                )}
+                              </Paper>
+                            ))}
+                            {route.waypoints.length >= 2 && (
+                              <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                                <Typography variant="body2" color="success.dark">
+                                  ✓ Route ready for navigation! Distance and time calculated automatically.
+                                </Typography>
+                              </Box>
+                            )}
+                          </Grid>
+
+                          <Grid item xs={12}>
+                            <Divider sx={{ my: 2 }} />
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={route.isRecommended}
+                                  onChange={(e) => updateAlternateRoute(routeIndex, { isRecommended: e.target.checked })}
+                                />
+                              }
+                              label="Mark as Recommended Route"
+                            />
+                          </Grid>
+
+                          <Grid item xs={12}>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              startIcon={<DeleteIcon />}
+                              onClick={() => removeAlternateRoute(routeIndex)}
+                              size="small"
+                            >
+                              Remove Route
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      </AccordionDetails>
+                    </Accordion>
+                  ))
+                )}
               </CardContent>
             </Card>
           </Grid>

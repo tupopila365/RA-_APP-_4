@@ -23,6 +23,7 @@ import {
   FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import MapLocationSelectorFallback from './MapLocationSelectorFallback';
+import { geocodeLocation, reverseGeocode as reverseGeocodeNominatim } from '../services/geocoding.service';
 
 // Google Maps types
 declare global {
@@ -123,7 +124,7 @@ const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({
     };
     
     script.onerror = () => {
-      setError('Failed to load Google Maps. Please check your API key configuration and billing settings.');
+      setError('Failed to load Google Maps. This usually means: 1) Your API key is invalid, 2) Billing is not enabled in Google Cloud Console, or 3) Required APIs are not enabled. The app will use fallback mode (manual coordinate entry).');
       setIsLoading(false);
     };
 
@@ -140,8 +141,18 @@ const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
 
+    // Ensure Google Maps API is fully loaded
+    if (!window.google || !window.google.maps || !window.google.maps.Map) {
+      setError('Google Maps API is not fully loaded. Please refresh the page.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const mapOptions = {
+      // Check if marker library is available for AdvancedMarkerElement
+      const hasMarkerLibrary = window.google?.maps?.marker?.AdvancedMarkerElement;
+      
+      const mapOptions: google.maps.MapOptions = {
         center: initialCoordinates 
           ? { lat: initialCoordinates.latitude, lng: initialCoordinates.longitude }
           : NAMIBIA_CENTER,
@@ -155,11 +166,13 @@ const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({
         fullscreenControl: false,
         zoomControl: true,
         mapTypeId: 'roadmap',
-        mapId: 'ROAD_STATUS_MAP', // Required for AdvancedMarkerElement
+        // Include mapId only if using AdvancedMarkerElement (requires Map ID)
+        ...(hasMarkerLibrary && { mapId: 'ROAD_STATUS_MAP' }),
       };
 
       mapInstanceRef.current = new window.google.maps.Map(mapRef.current, mapOptions);
-      geocoderRef.current = new window.google.maps.Geocoder();
+      // Note: We use Nominatim for geocoding instead of Google Geocoder
+      // geocoderRef.current is kept for compatibility but not used
 
       // Add click listener
       mapInstanceRef.current.addListener('click', handleMapClick);
@@ -170,7 +183,14 @@ const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({
       }
 
     } catch (err: any) {
-      setError('Failed to initialize map: ' + err.message);
+      console.error('Map initialization error:', err);
+      const errorMessage = err.message || 'Unknown error';
+      if (errorMessage.includes('keys') || errorMessage.includes('undefined')) {
+        setError(`Failed to initialize map: Google Maps API is not properly configured. This usually means billing is not enabled or the API key is invalid. The app will use fallback mode (manual coordinate entry). To enable Google Maps: 1) Enable billing in Google Cloud Console, 2) Enable Maps JavaScript API, 3) Verify your API key.`);
+      } else {
+        setError(`Failed to initialize map: ${errorMessage}. Please check your Google Maps API key and ensure the Maps JavaScript API is enabled.`);
+      }
+      setIsLoading(false);
     }
   }, [isLoaded, initialCoordinates]);
 
@@ -183,60 +203,85 @@ const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({
   }, [roadDetectionEnabled]);
 
   const addMarker = (lat: number, lng: number) => {
+    if (!mapInstanceRef.current) return;
+
     // Remove existing marker
     if (markerRef.current) {
-      markerRef.current.map = null;
+      if ('setMap' in markerRef.current && typeof markerRef.current.setMap === 'function') {
+        markerRef.current.setMap(null);
+      } else if ('map' in markerRef.current) {
+        (markerRef.current as any).map = null;
+      }
     }
 
-    // Create marker element with custom pin
-    const pinElement = new window.google.maps.marker.PinElement({
-      background: '#1976d2',
-      borderColor: '#ffffff',
-      glyphColor: '#ffffff',
-      scale: 1.2,
-    });
+    try {
+      // Try to use AdvancedMarkerElement if available
+      if (window.google?.maps?.marker?.AdvancedMarkerElement && window.google?.maps?.marker?.PinElement) {
+        const pinElement = new window.google.maps.marker.PinElement({
+          background: '#1976d2',
+          borderColor: '#ffffff',
+          glyphColor: '#ffffff',
+          scale: 1.2,
+        });
 
-    // Add new marker using AdvancedMarkerElement
-    markerRef.current = new window.google.maps.marker.AdvancedMarkerElement({
-      position: { lat, lng },
-      map: mapInstanceRef.current,
-      gmpDraggable: true,
-      title: 'Selected Location',
-      content: pinElement.element,
-    });
+        markerRef.current = new window.google.maps.marker.AdvancedMarkerElement({
+          position: { lat, lng },
+          map: mapInstanceRef.current,
+          gmpDraggable: true,
+          title: 'Selected Location',
+          content: pinElement.element,
+        });
 
-    // Add drag listener
-    markerRef.current.addListener('dragend', (event: any) => {
-      const newLat = event.latLng.lat();
-      const newLng = event.latLng.lng();
-      reverseGeocode(newLat, newLng);
-    });
+        // Add drag listener
+        markerRef.current.addListener('dragend', (event: any) => {
+          const newLat = event.latLng.lat();
+          const newLng = event.latLng.lng();
+          reverseGeocode(newLat, newLng);
+        });
+      } else {
+        // Fallback to regular Marker
+        markerRef.current = new window.google.maps.Marker({
+          position: { lat, lng },
+          map: mapInstanceRef.current,
+          draggable: true,
+          title: 'Selected Location',
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: '#1976d2',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+          },
+        });
+
+        // Add drag listener
+        markerRef.current.addListener('dragend', (event: any) => {
+          const newLat = event.latLng.lat();
+          const newLng = event.latLng.lng();
+          reverseGeocode(newLat, newLng);
+        });
+      }
+    } catch (err: any) {
+      console.error('Error creating marker:', err);
+      setError(`Failed to create marker: ${err.message || 'Unknown error'}`);
+    }
   };
 
   const reverseGeocode = async (lat: number, lng: number) => {
-    if (!geocoderRef.current) return;
-
     try {
-      const response = await new Promise((resolve, reject) => {
-        geocoderRef.current.geocode(
-          { location: { lat, lng } },
-          (results: any[], status: string) => {
-            if (status === 'OK') resolve(results);
-            else reject(new Error(status));
-          }
-        );
-      });
+      // Use Nominatim for reverse geocoding (free, no billing required)
+      const result = await reverseGeocodeNominatim(lat, lng);
 
-      const results = response as any[];
-      if (results && results.length > 0) {
-        const result = results[0];
-        const location = extractLocationInfo(result, lat, lng);
+      if (result.success && result.displayName) {
+        const location = extractLocationInfoFromNominatim(result.displayName, lat, lng);
         setSelectedLocation(location);
         onLocationSelect(location);
       } else {
         // Fallback to coordinates only
         const location = {
           coordinates: { latitude: lat, longitude: lng },
+          address: result.error || 'Location details not available',
         };
         setSelectedLocation(location);
         onLocationSelect(location);
@@ -246,12 +291,14 @@ const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({
       // Fallback to coordinates only
       const location = {
         coordinates: { latitude: lat, longitude: lng },
+        address: 'Location details not available',
       };
       setSelectedLocation(location);
       onLocationSelect(location);
     }
   };
 
+  // Extract location info from Google Maps format (kept for backward compatibility)
   const extractLocationInfo = (result: any, lat: number, lng: number) => {
     const components = result.address_components || [];
     let roadName = '';
@@ -293,42 +340,79 @@ const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({
     };
   };
 
+  // Extract location info from Nominatim display_name format
+  // Nominatim returns: "Road Name, Town, Region, Namibia"
+  const extractLocationInfoFromNominatim = (displayName: string, lat: number, lng: number) => {
+    // Parse the display name which is typically: "Road, Town, Region, Namibia"
+    const parts = displayName.split(',').map(p => p.trim());
+    
+    let roadName = '';
+    let area = '';
+    let region = '';
+
+    // Try to extract components
+    // Format is usually: [road/street, town/city, region, country]
+    if (parts.length >= 2) {
+      roadName = parts[0]; // First part is usually the road/street
+    }
+    if (parts.length >= 3) {
+      area = parts[1]; // Second part is usually the town/city
+    }
+    if (parts.length >= 4) {
+      region = parts[2]; // Third part is usually the region
+    }
+
+    // Clean up region name (remove "Region" suffix if present)
+    if (region) {
+      region = region.replace(/\s+Region$/, '').trim();
+    }
+
+    return {
+      coordinates: { latitude: lat, longitude: lng },
+      address: displayName,
+      roadName: roadName || undefined,
+      area: area || undefined,
+      region: region || undefined,
+    };
+  };
+
   const handleSearch = async () => {
-    if (!searchQuery.trim() || !geocoderRef.current) return;
+    if (!searchQuery.trim()) return;
 
     setIsSearching(true);
+    setError(null);
     try {
-      const response = await new Promise((resolve, reject) => {
-        geocoderRef.current.geocode(
-          { 
-            address: searchQuery + ', Namibia',
-            bounds: NAMIBIA_BOUNDS,
-          },
-          (results: any[], status: string) => {
-            if (status === 'OK') resolve(results);
-            else reject(new Error(status));
-          }
-        );
-      });
+      // Use Nominatim for geocoding (free, no billing required)
+      const searchQueryWithNamibia = searchQuery.includes('Namibia') 
+        ? searchQuery 
+        : `${searchQuery}, Namibia`;
+      
+      const result = await geocodeLocation(searchQueryWithNamibia);
 
-      const results = response as any[];
-      if (results && results.length > 0) {
-        const result = results[0];
-        const location = result.geometry.location;
-        const lat = location.lat();
-        const lng = location.lng();
+      if (result.success && result.latitude && result.longitude) {
+        const lat = result.latitude;
+        const lng = result.longitude;
 
         // Center map and add marker
-        mapInstanceRef.current.setCenter({ lat, lng });
-        mapInstanceRef.current.setZoom(15);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setCenter({ lat, lng });
+          mapInstanceRef.current.setZoom(15);
+        }
         addMarker(lat, lng);
 
-        const locationInfo = extractLocationInfo(result, lat, lng);
+        const locationInfo = extractLocationInfoFromNominatim(
+          result.displayName || searchQuery,
+          lat,
+          lng
+        );
         setSelectedLocation(locationInfo);
         onLocationSelect(locationInfo);
+      } else {
+        setError(result.error || 'Location not found. Try a more specific search term.');
       }
     } catch (err: any) {
-      setError('Search failed: ' + err.message);
+      console.error('Search error:', err);
+      setError('Search failed: ' + (err.message || 'Unknown error'));
     } finally {
       setIsSearching(false);
     }

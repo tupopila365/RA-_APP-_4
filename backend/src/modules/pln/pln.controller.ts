@@ -1,5 +1,6 @@
 import { Response, NextFunction, Request } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
+import { AppAuthRequest } from '../../middlewares/appAuth';
 import { plnService } from './pln.service';
 import { pdfService } from '../../services/pdf.service';
 import { logger } from '../../utils/logger';
@@ -13,11 +14,15 @@ export class PLNController {
    * Create a new PLN application
    * POST /api/pln/applications
    */
-  async createApplication(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async createApplication(req: Request | AppAuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
+      const authReq = req as AppAuthRequest;
+      const userEmail = authReq.user?.email;
+      
       logger.info('Received PLN application request:', {
         body: req.body,
         hasFile: !!req.file,
+        hasUser: !!userEmail,
       });
 
       // Parse form data (FormData sends JSON strings for complex objects)
@@ -67,7 +72,7 @@ export class PLNController {
           telephoneHome,
           telephoneDay,
           cellNumber,
-          email: req.body.email,
+          email: userEmail || req.body.email, // Use authenticated user's email if available
           plateFormat: req.body.plateFormat,
           quantity: req.body.quantity ? parseInt(req.body.quantity, 10) : 1,
           plateChoices,
@@ -165,6 +170,55 @@ export class PLNController {
       });
     } catch (error: any) {
       logger.error('Create application error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Get user's PLN applications by email (if authenticated)
+   * GET /api/pln/my-applications
+   */
+  async getMyApplications(req: Request | AppAuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const authReq = req as AppAuthRequest;
+      const userEmail = authReq.user?.email;
+
+      if (!userEmail) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.AUTH_MISSING_TOKEN,
+            message: 'Authentication required. Please log in to view your applications.',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const applications = await plnService.getApplicationsByEmail(userEmail);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          applications: applications.map((app) => ({
+            id: app._id,
+            referenceId: app.referenceId,
+            trackingPin: app.trackingPin,
+            fullName: app.fullName,
+            status: app.status,
+            plateChoices: app.plateChoices,
+            statusHistory: app.statusHistory,
+            paymentDeadline: app.paymentDeadline,
+            paymentReceivedAt: app.paymentReceivedAt,
+            adminComments: app.adminComments,
+            createdAt: app.createdAt,
+            updatedAt: app.updatedAt,
+          })),
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Get my applications error:', error);
       next(error);
     }
   }

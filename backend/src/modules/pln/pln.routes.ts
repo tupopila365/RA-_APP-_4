@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { plnController } from './pln.controller';
 import { authenticate } from '../../middlewares/auth';
+import { authenticateAppUser, optionalAuthenticateAppUser } from '../../middlewares/appAuth';
 import { requirePermission } from '../../middlewares/roleGuard';
 import { uploadDocument } from '../../middlewares/upload';
 // import { InputSanitizer } from '../../middlewares/inputSanitization';
@@ -22,7 +23,7 @@ const router = Router();
 /**
  * @route   POST /api/pln/applications
  * @desc    Create a new PLN application
- * @access  Public (with comprehensive security protection)
+ * @access  Public (with comprehensive security protection, optional auth for logged-in users)
  */
 router.post(
   '/applications',
@@ -33,6 +34,7 @@ router.post(
   // SecureFileUpload.validateUploadedFile,
   // InputSanitizer.sanitizePLNData,
   // AuditLogger.logPLNSubmission,
+  optionalAuthenticateAppUser, // Optional auth - sets user if token provided
   uploadDocument.single('document'),
   plnController.createApplication.bind(plnController)
 );
@@ -53,6 +55,17 @@ router.get(
   '/track/:referenceId/:pin',
   // rateLimiters.tracking,
   plnController.trackApplication.bind(plnController)
+);
+
+/**
+ * @route   GET /api/pln/my-applications
+ * @desc    Get user's PLN applications by email (if authenticated)
+ * @access  Private (requires authentication)
+ */
+router.get(
+  '/my-applications',
+  authenticateAppUser, // Required auth for this endpoint
+  plnController.getMyApplications.bind(plnController)
 );
 
 /**

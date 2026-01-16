@@ -72,6 +72,50 @@ export const authenticateAppUser = async (
   }
 };
 
+/**
+ * Optional authentication middleware - doesn't fail if no token, but sets user if token is valid
+ */
+export const optionalAuthenticateAppUser = async (
+  req: AppAuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // No token provided - continue without user (for public endpoints)
+      next();
+      return;
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+      const decoded = jwt.verify(token, env.JWT_SECRET) as {
+        userId: string;
+        email: string;
+      };
+
+      req.user = {
+        id: decoded.userId,
+        userId: decoded.userId,
+        email: decoded.email,
+      };
+      next();
+    } catch (error) {
+      // Invalid or expired token - continue without user (for public endpoints)
+      // Don't fail the request, just proceed without authentication
+      next();
+    }
+  } catch (error) {
+    // Any other error - continue without user
+    next();
+  }
+};
+
+
+
 
 
 

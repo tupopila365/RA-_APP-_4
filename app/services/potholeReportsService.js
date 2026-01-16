@@ -1,5 +1,6 @@
 import { ApiClient } from './api';
 import { getOrCreateDeviceId } from './deviceIdService';
+import { authService } from './authService';
 import ENV from '../config/env';
 
 const API_BASE_URL = ENV.API_BASE_URL;
@@ -21,13 +22,26 @@ class PotholeReportsService {
   }
 
   /**
-   * Get headers with device ID
+   * Get headers with device ID and optional auth token
    */
   async getHeaders() {
     const deviceId = await getOrCreateDeviceId();
-    return {
+    const headers = {
       'X-Device-ID': deviceId,
     };
+    
+    // Add auth token if user is logged in
+    try {
+      const accessToken = await authService.getAccessToken();
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+    } catch (error) {
+      // User not logged in - continue without auth token
+      console.log('No auth token available (user not logged in)');
+    }
+    
+    return headers;
   }
 
   /**
@@ -114,14 +128,16 @@ class PotholeReportsService {
         controller.abort();
       }, 120000); // 120 second timeout for photo uploads
       
+      // Get headers with device ID and optional auth token
+      const headers = await this.getHeaders();
+      // Don't set Content-Type for FormData - let fetch set it with boundary
+      delete headers['Content-Type'];
+      
       let response;
       try {
         response = await fetch(url, {
           method: 'POST',
-          headers: {
-            'X-Device-ID': deviceId,
-            // Don't set Content-Type, let fetch set it with boundary for FormData
-          },
+          headers,
           body: formData,
           signal: controller.signal,
         });
@@ -236,7 +252,7 @@ class PotholeReportsService {
   }
 
   /**
-   * Get user's reports (by device ID)
+   * Get user's reports (by email if logged in, or device ID if not)
    * @param {string} status - Optional status filter
    */
   async getMyReports(status = null) {

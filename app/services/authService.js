@@ -45,6 +45,17 @@ class AuthService {
       console.error('Registration error:', error);
       const fullUrl = `${API_BASE_URL}/app-users/register`;
       
+      // Handle HTTP 409 - User already exists
+      if (error.status === 409) {
+        // The error message is already extracted by ApiError, but check details as fallback
+        const errorMessage = error.message || 
+                            error.details?.error?.message || 
+                            error.details?.message || 
+                            'An account with this email already exists. Please try logging in instead.';
+        throw new Error(errorMessage);
+      }
+      
+      // Handle timeout errors
       if (error.status === 408 || error.details?.timeout) {
         throw new Error(
           `Connection timeout. The server at ${API_BASE_URL} is not responding. ` +
@@ -55,6 +66,7 @@ class AuthService {
         );
       }
       
+      // Handle network errors
       if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
         throw new Error(
           `Cannot connect to server at ${API_BASE_URL}. ` +
@@ -62,7 +74,13 @@ class AuthService {
         );
       }
       
-      throw error;
+      // Extract error message from API response if available
+      if (error.details?.error?.message) {
+        throw new Error(error.details.error.message);
+      }
+      
+      // Use the error message if available, otherwise provide a generic one
+      throw new Error(error.message || 'Registration failed. Please try again.');
     }
   }
 

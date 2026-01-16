@@ -1,5 +1,6 @@
 import { Response, NextFunction, Request } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
+import { AppAuthRequest } from '../../middlewares/appAuth';
 import { potholeReportsService } from './pothole-reports.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
@@ -10,17 +11,22 @@ export class PotholeReportsController {
    * Create a new pothole report
    * POST /api/pothole-reports
    */
-  async createReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async createReport(req: Request | AppAuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       logger.info('Received pothole report request:', {
         headers: { 'x-device-id': req.headers['x-device-id'] },
         body: req.body,
         hasFile: !!req.file,
         fileInfo: req.file ? { fieldname: req.file.fieldname, mimetype: req.file.mimetype, size: req.file.size } : null,
+        hasUser: !!(req as AuthRequest).user,
       });
 
       // Get deviceId from header (public endpoint, no auth required)
       const deviceId = req.headers['x-device-id'] as string;
+      
+      // Get user email if authenticated (optional - for logged-in users)
+      const authReq = req as AppAuthRequest;
+      const userEmail = authReq.user?.email || req.body.userEmail || undefined;
 
       if (!deviceId) {
         logger.warn('Create report failed: Device ID missing');
@@ -101,6 +107,7 @@ export class PotholeReportsController {
       const report = await potholeReportsService.createReport(
         {
           deviceId,
+          userEmail: userEmail?.toLowerCase(), // Associate with user email if provided
           location,
           roadName: roadName?.trim(),
           townName: townName?.trim(),
@@ -140,30 +147,38 @@ export class PotholeReportsController {
   }
 
   /**
-   * Get user's reports by device ID
+   * Get user's reports by email (if authenticated) or device ID
    * GET /api/pothole-reports/my-reports
    */
-  async getMyReports(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getMyReports(req: Request | AppAuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
+      const authReq = req as AppAuthRequest;
+      const userEmail = authReq.user?.email;
       const deviceId = req.headers['x-device-id'] as string;
 
-      if (!deviceId) {
+      // If user is authenticated, use email; otherwise fall back to deviceId
+      let reports;
+      if (userEmail) {
+        const status = req.query.status as ReportStatus | undefined;
+        reports = await potholeReportsService.getReportsByUserEmail(userEmail, {
+          status,
+        });
+      } else if (deviceId) {
+        const status = req.query.status as ReportStatus | undefined;
+        reports = await potholeReportsService.getReportsByDeviceId(deviceId, {
+          status,
+        });
+      } else {
         res.status(400).json({
           success: false,
           error: {
             code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Device ID is required. Please include X-Device-ID header.',
+            message: 'Either authentication or Device ID is required. Please log in or include X-Device-ID header.',
           },
           timestamp: new Date().toISOString(),
         });
         return;
       }
-
-      const status = req.query.status as ReportStatus | undefined;
-
-      const reports = await potholeReportsService.getReportsByDeviceId(deviceId, {
-        status,
-      });
 
       res.status(200).json({
         success: true,

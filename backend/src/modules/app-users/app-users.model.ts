@@ -25,7 +25,7 @@ const appUserSchema = new Schema<IAppUser>(
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
-      index: true,
+      // Note: unique: true already creates an index, so index: true is not needed
     },
     password: {
       type: String,
@@ -91,8 +91,8 @@ appUserSchema.methods.comparePassword = async function (
   }
 };
 
-// Index for faster email lookups
-appUserSchema.index({ email: 1 });
+// Indexes for efficient queries
+// Note: email index is already created by unique: true in schema definition
 appUserSchema.index({ emailVerificationToken: 1 });
 
 export const AppUser = mongoose.model<IAppUser>('AppUser', appUserSchema);

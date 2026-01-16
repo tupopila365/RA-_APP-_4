@@ -4,7 +4,8 @@ export type Severity = 'low' | 'medium' | 'high';
 export type ReportStatus = 'pending' | 'assigned' | 'in-progress' | 'fixed' | 'duplicate' | 'invalid';
 
 export interface IPotholeReport extends MongooseDocument {
-  deviceId: string;
+  deviceId: string; // Keep for backward compatibility
+  userEmail?: string; // User's email account for logged-in users
   referenceCode: string;
   location: {
     latitude: number;
@@ -31,6 +32,13 @@ const potholeReportSchema = new Schema<IPotholeReport>(
       type: String,
       required: [true, 'Device ID is required'],
       index: true,
+    },
+    userEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+      sparse: true, // Index only documents that have this field
     },
     referenceCode: {
       type: String,
@@ -116,10 +124,11 @@ const potholeReportSchema = new Schema<IPotholeReport>(
 
 // Indexes for efficient queries
 potholeReportSchema.index({ deviceId: 1, createdAt: -1 });
+potholeReportSchema.index({ userEmail: 1, createdAt: -1 }); // Index for user email queries
 potholeReportSchema.index({ status: 1, createdAt: -1 });
 potholeReportSchema.index({ region: 1, town: 1 });
 potholeReportSchema.index({ createdAt: -1 });
-potholeReportSchema.index({ referenceCode: 1 });
+// Note: referenceCode index is already created by unique: true in schema definition
 
 // Auto-set fixedAt when status changes to 'fixed'
 potholeReportSchema.pre('save', function (next) {

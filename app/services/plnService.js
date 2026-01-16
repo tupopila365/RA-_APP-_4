@@ -1,4 +1,5 @@
 import { ApiClient } from './api';
+import { authService } from './authService';
 import ENV from '../config/env';
 import { SecurityUtils } from '../utils/securityUtils';
 
@@ -171,13 +172,25 @@ class PLNService {
         controller.abort();
       }, 120000); // 120 second timeout
 
+      // Get auth token if user is logged in
+      let headers = {};
+      try {
+        const accessToken = await authService.getAccessToken();
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+      } catch (error) {
+        // User not logged in - continue without auth token
+        console.log('No auth token available (user not logged in)');
+      }
+      // Don't set Content-Type for FormData - let fetch set it with boundary
+      
       let response;
       try {
         response = await fetch(url, {
           method: 'POST',
-          headers: {
-            // Don't set Content-Type, let fetch set it with boundary for FormData
-          },
+          headers,
+          // Don't set Content-Type, let fetch set it with boundary for FormData
           body: formData,
           signal: controller.signal,
         });
@@ -282,6 +295,35 @@ class PLNService {
         );
       }
 
+      throw error;
+    }
+  }
+
+  /**
+   * Get user's PLN applications (requires authentication)
+   * @returns {Promise<Array>} Array of user's applications
+   */
+  async getMyApplications() {
+    try {
+      // Get auth token
+      const accessToken = await authService.getAccessToken();
+      if (!accessToken) {
+        throw new Error('Authentication required. Please log in to view your applications.');
+      }
+
+      const response = await ApiClient.get('/pln/my-applications', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to fetch applications');
+      }
+
+      return response.data.applications;
+    } catch (error) {
+      console.error('Error fetching my applications:', error);
       throw error;
     }
   }

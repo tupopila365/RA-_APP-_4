@@ -184,49 +184,39 @@ export default function VacanciesScreen() {
             onPress: async () => {
               console.log('User chose to open PDF:', result.uri);
               
-              // Show a brief loading state
-              Alert.alert(
-                'Opening PDF...',
-                'Please wait while we open your document.',
-                [],
-                { cancelable: false }
-              );
+              // Open PDF directly without showing loading message
+              const openResult = await documentDownloadService.openFile(result.uri);
               
-              // Small delay to show the loading message
-              setTimeout(async () => {
-                const openResult = await documentDownloadService.openFile(result.uri);
-                
-                if (!openResult.success) {
-                  Alert.alert(
-                    'Cannot Open PDF', 
-                    `${openResult.error || 'Failed to open file'}\n\nYou can try sharing the file instead to open it with another app.`,
-                    [
-                      {
-                        text: 'Share Instead',
-                        onPress: async () => {
-                          const filename = documentDownloadService.generateSafeFilename(
-                            vacancy.title || 'vacancy',
-                            'pdf'
-                          );
-                          const shareResult = await documentDownloadService.shareFile(result.uri, filename);
-                          if (!shareResult.success) {
-                            Alert.alert('Error', shareResult.error || 'Failed to share file');
-                          }
-                        },
+              if (!openResult.success) {
+                Alert.alert(
+                  'Cannot Open PDF', 
+                  `${openResult.error || 'Failed to open file'}\n\nYou can try sharing the file instead to open it with another app.`,
+                  [
+                    {
+                      text: 'Share Instead',
+                      onPress: async () => {
+                        const filename = documentDownloadService.generateSafeFilename(
+                          vacancy.title || 'vacancy',
+                          'pdf'
+                        );
+                        const shareResult = await documentDownloadService.shareFile(result.uri, filename);
+                        if (!shareResult.success) {
+                          Alert.alert('Error', shareResult.error || 'Failed to share file');
+                        }
                       },
-                      {
-                        text: 'OK',
-                        style: 'cancel',
-                      },
-                    ]
-                  );
-                } else {
-                  console.log('PDF opened successfully');
-                }
-                
-                resetDownload();
-                setCurrentDownloadId(null);
-              }, 500);
+                    },
+                    {
+                      text: 'OK',
+                      style: 'cancel',
+                    },
+                  ]
+                );
+              } else {
+                console.log('PDF opened successfully');
+              }
+              
+              resetDownload();
+              setCurrentDownloadId(null);
             },
           },
           {
@@ -315,7 +305,7 @@ export default function VacanciesScreen() {
   if (loading && !refreshing) {
     return (
       <View style={styles.container}>
-        <UnifiedSkeletonLoader count={4} />
+        <UnifiedSkeletonLoader type="list-item" count={5} />
       </View>
     );
   }

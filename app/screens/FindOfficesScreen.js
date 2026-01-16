@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { RATheme } from '../theme/colors';
-import { SkeletonLoader, ListScreenSkeleton, ErrorState, EmptyState, FilterBar } from '../components';
+import { UnifiedSkeletonLoader, ErrorState, EmptyState, FilterBar } from '../components';
 import { useOfficesViewModel } from '../src/presentation/viewModels/useOfficesViewModel';
 import { useOfficeUseCases } from '../src/presentation/di/DependencyContext';
 
@@ -300,7 +300,7 @@ export default function FindOfficesScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <ListScreenSkeleton count={5} />
+        <UnifiedSkeletonLoader type="list-item" count={5} />
       </SafeAreaView>
     );
   }
@@ -338,7 +338,7 @@ export default function FindOfficesScreen() {
           <View style={styles.locationStatus}>
             {loadingLocation ? (
               <View style={styles.locationIndicator}>
-                <SkeletonLoader type="text" width={120} height={16} />
+                <UnifiedSkeletonLoader type="text-line" style={{ width: 120, height: 16 }} />
                 <Text style={[styles.locationText, { color: colors.textSecondary }]} maxFontSizeMultiplier={1.3}>Getting location...</Text>
               </View>
             ) : userLocation ? (

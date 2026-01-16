@@ -6,6 +6,7 @@ import { ERROR_CODES } from '../../constants/errors';
 
 export interface CreateReportDTO {
   deviceId: string;
+  userEmail?: string; // User's email if logged in
   location: {
     latitude: number;
     longitude: number;
@@ -102,6 +103,7 @@ class PotholeReportsService {
       // Create report (severity is NOT set - admin will set it later)
       const report = await PotholeReportModel.create({
         deviceId: dto.deviceId,
+        userEmail: dto.userEmail, // Associate with user email if provided
         referenceCode,
         location: dto.location,
         town: town || 'Unknown',
@@ -143,6 +145,32 @@ class PotholeReportsService {
       return reports as unknown as IPotholeReport[];
     } catch (error: any) {
       logger.error('Get reports by device ID error:', error);
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to retrieve reports',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Get reports by user email
+   */
+  async getReportsByUserEmail(userEmail: string, filters?: { status?: ReportStatus }): Promise<IPotholeReport[]> {
+    try {
+      const filter: any = { userEmail: userEmail.toLowerCase() };
+      if (filters?.status) {
+        filter.status = filters.status;
+      }
+
+      const reports = await PotholeReportModel.find(filter)
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return reports as unknown as IPotholeReport[];
+    } catch (error: any) {
+      logger.error('Get reports by user email error:', error);
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,

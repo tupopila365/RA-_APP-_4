@@ -14,6 +14,7 @@ import {
   Animated,
   Dimensions,
   Modal,
+  Share,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,7 +22,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import { radii, spacing, sizes, shadows } from '../theme/designTokens';
-import { SkeletonLoader, ErrorState, EmptyState, SearchInput, RoadStatusSkeleton } from '../components';
+import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
 import { roadStatusService } from '../services/roadStatusService';
 
 // Conditionally import MapView
@@ -98,7 +99,7 @@ const formatDate = (dateString) => {
  * Checks multiple possible locations for coordinates
  */
 const getRoadworkCoordinates = (roadwork) => {
-  // Check various possible coordinate locations
+  // PRIORITY 1: Direct coordinates (from admin or geocoding)
   if (roadwork.coordinates?.latitude && roadwork.coordinates?.longitude) {
     return {
       latitude: roadwork.coordinates.latitude,
@@ -106,6 +107,15 @@ const getRoadworkCoordinates = (roadwork) => {
     };
   }
   
+  // PRIORITY 2: GeoJSON location field
+  if (roadwork.location?.coordinates && Array.isArray(roadwork.location.coordinates)) {
+    return {
+      latitude: roadwork.location.coordinates[1], // GeoJSON is [lon, lat]
+      longitude: roadwork.location.coordinates[0],
+    };
+  }
+  
+  // PRIORITY 3: Legacy location field (backwards compatibility)
   if (roadwork.location?.latitude && roadwork.location?.longitude) {
     return {
       latitude: roadwork.location.latitude,
@@ -114,6 +124,161 @@ const getRoadworkCoordinates = (roadwork) => {
   }
   
   return null;
+};
+
+/**
+ * Geocode roadwork location using optimized search text
+ * Uses pre-built searchText from backend if available
+ */
+const geocodeRoadworkLocation = async (roadwork) => {
+  try {
+    let searchQuery;
+    
+    // PREFERRED: Use pre-built searchText from backend
+    if (roadwork.searchText) {
+      searchQuery = roadwork.searchText;
+    } else {
+      // FALLBACK: Build search query manually
+      searchQuery = [
+        roadwork.road,
+        roadwork.section,
+        roadwork.area,
+        roadwork.region,
+        'Namibia'
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+    }
+    
+    if (!searchQuery || searchQuery === 'Namibia') {
+      return null;
+    }
+    
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=1&addressdetails=1`,
+      {
+        headers: {
+          'User-Agent': 'Roads-Authority-App/1.0',
+        },
+      }
+    );
+    
+    const data = await response.json();
+    
+    if (data && data.length > 0) {
+      return {
+        latitude: parseFloat(data[0].lat),
+        longitude: parseFloat(data[0].lon),
+      };
+    }
+  } catch (error) {
+    console.warn('Geocoding failed:', error);
+  }
+  
+  return null;
+};
+
+/**
+ * Calculate distance between two coordinates in kilometers (Haversine formula)
+ */
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+/**
+ * Check if a point is near a route (within tolerance distance)
+ */
+const isPointNearRoute = (point, routePolyline, toleranceKm = 5) => {
+  if (!routePolyline || routePolyline.length === 0) return false;
+  
+  // Check distance from point to any segment of the route
+  for (let i = 0; i < routePolyline.length - 1; i++) {
+    const segmentStart = routePolyline[i];
+    const segmentEnd = routePolyline[i + 1];
+    
+    // Calculate distance from point to line segment
+    const distance = distanceToLineSegment(
+      point.latitude,
+      point.longitude,
+      segmentStart.latitude,
+      segmentStart.longitude,
+      segmentEnd.latitude,
+      segmentEnd.longitude
+    );
+    
+    if (distance <= toleranceKm) {
+      return true;
+    }
+  }
+  
+  return false;
+};
+
+/**
+ * Calculate distance from a point to a line segment
+ */
+const distanceToLineSegment = (px, py, x1, y1, x2, y2) => {
+  const A = px - x1;
+  const B = py - y1;
+  const C = x2 - x1;
+  const D = y2 - y1;
+  
+  const dot = A * C + B * D;
+  const lenSq = C * C + D * D;
+  let param = -1;
+  
+  if (lenSq !== 0) param = dot / lenSq;
+  
+  let xx, yy;
+  
+  if (param < 0) {
+    xx = x1;
+    yy = y1;
+  } else if (param > 1) {
+    xx = x2;
+    yy = y2;
+  } else {
+    xx = x1 + param * C;
+    yy = y1 + param * D;
+  }
+  
+  const dx = px - xx;
+  const dy = py - yy;
+  
+  // Convert to km using Haversine
+  const R = 6371;
+  const dLat = dx * Math.PI / 180;
+  const dLon = dy * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(px * Math.PI / 180) * Math.cos(xx * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+/**
+ * Generate route polyline between two points (simple interpolation)
+ * In production, this would use Google Directions API or OSRM
+ */
+const generateRoutePolyline = (start, end, steps = 50) => {
+  const polyline = [];
+  for (let i = 0; i <= steps; i++) {
+    const ratio = i / steps;
+    polyline.push({
+      latitude: start.latitude + (end.latitude - start.latitude) * ratio,
+      longitude: start.longitude + (end.longitude - start.longitude) * ratio,
+    });
+  }
+  return polyline;
 };
 
 /**
@@ -561,6 +726,8 @@ export default function RoadStatusScreen() {
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const screenHeight = Dimensions.get('window').height;
+  const screenWidth = Dimensions.get('window').width;
   const [roadworks, setRoadworks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -579,6 +746,108 @@ export default function RoadStatusScreen() {
   const [mapType, setMapType] = useState('standard'); // 'standard', 'satellite', 'hybrid'
   const [showTraffic, setShowTraffic] = useState(true);
   const mapModalRef = useRef(null);
+  const [sortBy, setSortBy] = useState('relevance'); // 'relevance', 'distance', 'date', 'status'
+  const [savedRoadworks, setSavedRoadworks] = useState([]);
+  
+  // Route Planner State
+  const [routePlannerMode, setRoutePlannerMode] = useState(false);
+  const [routeStartPoint, setRouteStartPoint] = useState(null); // { latitude, longitude, name }
+  const [routeEndPoint, setRouteEndPoint] = useState(null);
+  const [routePolyline, setRoutePolyline] = useState([]);
+  const [routeRoadworks, setRouteRoadworks] = useState([]);
+  const [selectingRoutePoint, setSelectingRoutePoint] = useState(null); // 'start' or 'end'
+  const routePlannerMapRef = useRef(null);
+
+  // Calculate route and filter roadworks when start/end points are set
+  useEffect(() => {
+    if (routePlannerMode && routeStartPoint && routeEndPoint) {
+      // Generate route polyline
+      const polyline = generateRoutePolyline(
+        { latitude: routeStartPoint.latitude, longitude: routeStartPoint.longitude },
+        { latitude: routeEndPoint.latitude, longitude: routeEndPoint.longitude }
+      );
+      setRoutePolyline(polyline);
+      
+      // Filter roadworks along the route
+      const roadworksAlongRoute = roadworks.filter(roadwork => {
+        const coords = getRoadworkCoordinates(roadwork);
+        if (!coords) return false;
+        return isPointNearRoute(coords, polyline, 5); // 5km tolerance
+      });
+      setRouteRoadworks(roadworksAlongRoute);
+    } else {
+      setRoutePolyline([]);
+      setRouteRoadworks([]);
+    }
+  }, [routePlannerMode, routeStartPoint, routeEndPoint, roadworks]);
+
+  // Handle map press for route point selection
+  const handleRouteMapPress = (event) => {
+    if (!routePlannerMode || !selectingRoutePoint) return;
+    
+    const { coordinate } = event.nativeEvent;
+    const point = {
+      latitude: coordinate.latitude,
+      longitude: coordinate.longitude,
+      name: `Point ${selectingRoutePoint === 'start' ? 'A' : 'B'}`,
+    };
+    
+    if (selectingRoutePoint === 'start') {
+      setRouteStartPoint(point);
+    } else {
+      setRouteEndPoint(point);
+    }
+    setSelectingRoutePoint(null);
+  };
+
+  // Start route planning
+  const startRoutePlanning = () => {
+    setRoutePlannerMode(true);
+    setViewMode('map');
+    if (userLocation) {
+      setRouteStartPoint({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        name: 'My Location',
+      });
+    }
+  };
+
+  // Clear route planning
+  const clearRoutePlanning = () => {
+    setRoutePlannerMode(false);
+    setRouteStartPoint(null);
+    setRouteEndPoint(null);
+    setRoutePolyline([]);
+    setRouteRoadworks([]);
+    setSelectingRoutePoint(null);
+  };
+
+  // Navigate the planned route
+  const navigatePlannedRoute = () => {
+    if (!routeStartPoint || !routeEndPoint) return;
+    
+    const url = Platform.select({
+      ios: `maps:?saddr=${routeStartPoint.latitude},${routeStartPoint.longitude}&daddr=${routeEndPoint.latitude},${routeEndPoint.longitude}&dirflg=d`,
+      android: `google.navigation:q=${routeEndPoint.latitude},${routeEndPoint.longitude}`,
+      default: `https://www.google.com/maps/dir/?api=1&origin=${routeStartPoint.latitude},${routeStartPoint.longitude}&destination=${routeEndPoint.latitude},${routeEndPoint.longitude}`,
+    });
+    
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          return Linking.openURL(url);
+        } else {
+          return Linking.openURL(
+            `https://www.google.com/maps/dir/?api=1&origin=${routeStartPoint.latitude},${routeStartPoint.longitude}&destination=${routeEndPoint.latitude},${routeEndPoint.longitude}`
+          );
+        }
+      })
+      .catch((err) => {
+        console.error('Error opening navigation:', err);
+        Alert.alert('Error', 'Could not open navigation app.');
+      });
+  };
 
   const statusFilters = ['Open', 'Ongoing', 'Planned', 'Closed'];
   const regions = [
@@ -808,6 +1077,67 @@ export default function RoadStatusScreen() {
     fetchRoadStatus();
   };
 
+  // Load saved roadworks from AsyncStorage on mount
+  useEffect(() => {
+    const loadSavedRoadworks = async () => {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const saved = await AsyncStorage.getItem('savedRoadworks');
+        if (saved) {
+          setSavedRoadworks(JSON.parse(saved));
+        }
+      } catch (error) {
+        console.warn('Failed to load saved roadworks:', error);
+      }
+    };
+    loadSavedRoadworks();
+  }, []);
+
+  const toggleSaveRoadwork = async (roadwork) => {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const roadworkId = roadwork._id || roadwork.id;
+      let updated = [...savedRoadworks];
+      
+      if (savedRoadworks.includes(roadworkId)) {
+        updated = updated.filter(id => id !== roadworkId);
+        Alert.alert('Removed', 'Roadwork removed from saved items');
+      } else {
+        updated.push(roadworkId);
+        Alert.alert('Saved', 'Roadwork saved for quick access');
+      }
+      
+      setSavedRoadworks(updated);
+      await AsyncStorage.setItem('savedRoadworks', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to save roadwork:', error);
+      Alert.alert('Error', 'Failed to save roadwork');
+    }
+  };
+
+  const handleShareRoadwork = async (roadwork) => {
+    try {
+      const coords = getRoadworkCoordinates(roadwork);
+      const locationText = coords 
+        ? `Location: https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`
+        : `${roadwork.road}${roadwork.area ? `, ${roadwork.area}` : ''}`;
+      
+      const message = `${roadwork.title || 'Road Maintenance'}\n\n` +
+        `Road: ${roadwork.road}${roadwork.section ? ` - ${roadwork.section}` : ''}\n` +
+        `Status: ${roadwork.status}\n` +
+        `Area: ${roadwork.area || 'N/A'}\n` +
+        `${locationText}\n\n` +
+        `View in Roads Authority App`;
+      
+      await Share.share({
+        message,
+        title: roadwork.title || 'Road Status',
+      });
+    } catch (error) {
+      console.error('Error sharing roadwork:', error);
+    }
+  };
+
   const handleViewOnMap = async (roadwork) => {
     // First check if roadwork has direct coordinates
     let coordinates = getRoadworkCoordinates(roadwork);
@@ -937,9 +1267,59 @@ export default function RoadStatusScreen() {
       });
   };
 
+  /**
+   * Handle navigation for structured alternate route with waypoints
+   */
+  const handleStructuredRoute = async (route) => {
+    try {
+      if (!route.waypoints || route.waypoints.length === 0) {
+        Alert.alert('No Route Data', 'This route does not have waypoint information.');
+        return;
+      }
+
+      const start = route.waypoints[0].coordinates;
+      const end = route.waypoints[route.waypoints.length - 1].coordinates;
+      
+      // Build waypoints string for navigation
+      const waypoints = route.waypoints.slice(1, -1).map(wp => 
+        `${wp.coordinates.latitude},${wp.coordinates.longitude}`
+      ).join('|');
+      
+      // Open in navigation mode with waypoints
+      const url = Platform.select({
+        ios: waypoints 
+          ? `maps:?saddr=${start.latitude},${start.longitude}&daddr=${end.latitude},${end.longitude}&waypoints=${waypoints}`
+          : `maps:?daddr=${end.latitude},${end.longitude}&dirflg=d`,
+        android: waypoints
+          ? `google.navigation:q=${end.latitude},${end.longitude}&waypoints=${waypoints}`
+          : `google.navigation:q=${end.latitude},${end.longitude}`,
+        default: `https://www.google.com/maps/dir/?api=1&destination=${end.latitude},${end.longitude}${waypoints ? `&waypoints=${waypoints}` : ''}`,
+      });
+      
+      Linking.canOpenURL(url)
+        .then((supported) => {
+          if (supported) {
+            return Linking.openURL(url);
+          } else {
+            // Fallback to Google Maps web
+            return Linking.openURL(
+              `https://www.google.com/maps/dir/?api=1&destination=${end.latitude},${end.longitude}${waypoints ? `&waypoints=${waypoints}` : ''}`
+            );
+          }
+        })
+        .catch((err) => {
+          console.error('Error opening route navigation:', err);
+          Alert.alert('Error', 'Could not open navigation app.');
+        });
+    } catch (error) {
+      console.error('Error handling structured route:', error);
+      Alert.alert('Error', 'Could not process route navigation.');
+    }
+  };
+
   const handleAlternativeRoute = async (alternativeRouteText) => {
     try {
-      // Geocode the alternative route
+      // Geocode the alternative route (fallback for legacy text routes)
       const routeInfo = await geocodeAlternativeRoute(alternativeRouteText);
       
       if (!routeInfo) {
@@ -1016,10 +1396,59 @@ export default function RoadStatusScreen() {
       );
     }
 
-    return filtered;
-  }, [roadworks, searchQuery, selectedStatus, selectedRegion]);
+    // Calculate distance for each roadwork if user location is available
+    if (userLocation) {
+      filtered = filtered.map(rw => {
+        const coords = getRoadworkCoordinates(rw);
+        if (coords) {
+          const distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            coords.latitude,
+            coords.longitude
+          );
+          return { ...rw, distanceKm: distance };
+        }
+        return rw;
+      });
+    }
 
-  const styles = getStyles(colors);
+    // Sort based on selected sort option
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'distance':
+          if (!userLocation) return 0;
+          const distA = a.distanceKm ?? Infinity;
+          const distB = b.distanceKm ?? Infinity;
+          return distA - distB;
+        
+        case 'date':
+          const dateA = new Date(a.startDate || a.createdAt || 0);
+          const dateB = new Date(b.startDate || b.createdAt || 0);
+          return dateB - dateA; // Newest first
+        
+        case 'status':
+          const statusOrder = { 'Closed': 0, 'Restricted': 1, 'Ongoing': 2, 'Planned': 3, 'Open': 4 };
+          return (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+        
+        case 'relevance':
+        default:
+          // Critical roadworks first, then by distance if available
+          const aCritical = a.status === 'Closed' || a.status === 'Restricted' || (a.expectedDelayMinutes && a.expectedDelayMinutes > 30);
+          const bCritical = b.status === 'Closed' || b.status === 'Restricted' || (b.expectedDelayMinutes && b.expectedDelayMinutes > 30);
+          if (aCritical && !bCritical) return -1;
+          if (!aCritical && bCritical) return 1;
+          if (userLocation && a.distanceKm && b.distanceKm) {
+            return a.distanceKm - b.distanceKm;
+          }
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [roadworks, searchQuery, selectedStatus, selectedRegion, userLocation, sortBy]);
+
+  const styles = getStyles(colors, screenHeight, screenWidth);
 
   const isInitialLoading = loading && roadworks.length === 0;
   const isEmpty = filteredRoadworks.length === 0;
@@ -1068,7 +1497,272 @@ export default function RoadStatusScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
-      {/* Entire Screen Scrollable */}
+      {/* Map View Mode - Full Screen Map */}
+      {viewMode === 'map' && !isInitialLoading && (
+        !MapView ? (
+          <View style={styles.mapUnavailableContainer}>
+            <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
+            <Text style={styles.mapUnavailableTitle}>
+              Map View Not Available
+            </Text>
+            <Text style={styles.mapUnavailableText}>
+              Map view requires a development build and is not available in Expo Go.
+            </Text>
+            <TouchableOpacity
+              style={styles.mapUnavailableButton}
+              onPress={() => setViewMode('list')}
+            >
+              <Text style={styles.mapUnavailableButtonText}>Switch to List View</Text>
+            </TouchableOpacity>
+          </View>
+        ) : mapRegion ? (
+          <View style={styles.mapFullScreenContainer}>
+            {/* Map Header with View Toggle */}
+            <View style={styles.mapHeader}>
+              <TouchableOpacity
+                style={styles.mapHeaderButton}
+                onPress={() => setViewMode('list')}
+                accessibilityLabel="Switch to list view"
+              >
+                <Ionicons name="list" size={20} color={colors.text} />
+                <Text style={styles.mapHeaderButtonText}>List View</Text>
+              </TouchableOpacity>
+              <View style={styles.mapHeaderTitle}>
+                <Text style={styles.mapHeaderTitleText}>Road Status Map</Text>
+                <Text style={styles.mapHeaderSubtitle}>
+                  {filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length} roadwork{filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length !== 1 ? 's' : ''} shown
+                </Text>
+              </View>
+            </View>
+            <MapView
+              ref={routePlannerMapRef}
+              style={styles.mapFullScreen}
+              initialRegion={mapRegion}
+              showsUserLocation={true}
+              showsMyLocationButton={true}
+              provider={Platform.OS === 'android' && PROVIDER_GOOGLE ? PROVIDER_GOOGLE : undefined}
+              onPress={routePlannerMode ? handleRouteMapPress : undefined}
+            >
+            {/* Route Planner: Display planned route polyline */}
+            {routePlannerMode && routePolyline.length > 0 && Polyline && (
+              <Polyline
+                coordinates={routePolyline}
+                strokeColor="#2563EB"
+                strokeWidth={4}
+                zIndex={100}
+              />
+            )}
+
+            {/* Route Planner: Start and End Point Markers */}
+            {routePlannerMode && routeStartPoint && Marker && (
+              <Marker
+                coordinate={routeStartPoint}
+                title="Start Point"
+                description={routeStartPoint.name}
+                pinColor="#059669"
+              >
+                <View style={styles.routePointMarker}>
+                  <View style={[styles.routePointInner, { backgroundColor: '#059669' }]}>
+                    <Text style={styles.routePointText}>A</Text>
+                  </View>
+                </View>
+              </Marker>
+            )}
+            {routePlannerMode && routeEndPoint && Marker && (
+              <Marker
+                coordinate={routeEndPoint}
+                title="End Point"
+                description={routeEndPoint.name}
+                pinColor="#DC2626"
+              >
+                <View style={styles.routePointMarker}>
+                  <View style={[styles.routePointInner, { backgroundColor: '#DC2626' }]}>
+                    <Text style={styles.routePointText}>B</Text>
+                  </View>
+                </View>
+              </Marker>
+            )}
+
+            {/* Render polylines for road closures and alternate routes */}
+            {filteredRoadworks.map((roadwork) => renderRoutePolylines(roadwork, colors))}
+            
+            {/* Render waypoint markers for alternate routes */}
+            {filteredRoadworks.map((roadwork) => renderWaypointMarkers(roadwork, colors))}
+            
+            {/* Render main roadwork markers - Highlight roadworks along route in planner mode */}
+            {(routePlannerMode ? routeRoadworks : filteredRoadworks).map((roadwork) => {
+              const coordinates = getRoadworkCoordinates(roadwork);
+              if (!coordinates) return null;
+              
+              const isOnRoute = routePlannerMode && routeRoadworks.includes(roadwork);
+              
+              return (
+                <PulsingMarker
+                  key={roadwork._id || roadwork.id}
+                  coordinate={coordinates}
+                  roadwork={roadwork}
+                  colors={colors}
+                  onPress={() => {
+                    // Show details with alternate routes information
+                    const alternateRoutesText = roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0
+                      ? `\n\nAlternate Routes:\n${roadwork.alternateRoutes
+                          .filter(route => route.approved)
+                          .map(route => `• ${route.routeName}: ${route.distanceKm}km, ${route.estimatedTime}`)
+                          .join('\n')}`
+                      : roadwork.alternativeRoute 
+                        ? `\nAlternative Route:\n${roadwork.alternativeRoute}`
+                        : '';
+                        
+                    Alert.alert(
+                      `${roadwork.road} - ${roadwork.section}${isOnRoute ? ' (On Your Route)' : ''}`,
+                      `${roadwork.title}\n\nStatus: ${roadwork.status}\n${roadwork.reason ? `Reason: ${roadwork.reason}\n` : ''}${roadwork.expectedDelayMinutes ? `Expected Delay: ${roadwork.expectedDelayMinutes} min\n` : ''}${alternateRoutesText}`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Directions', onPress: () => handleDirections(roadwork) },
+                        roadwork.alternativeRoute && {
+                          text: 'Use Alternative Route',
+                          onPress: () => handleAlternativeRoute(roadwork.alternativeRoute)
+                        },
+                      ].filter(Boolean)
+                    );
+                  }}
+                />
+              );
+            })}
+          </MapView>
+          
+          {/* Route Planner Controls */}
+          {routePlannerMode && (
+            <View style={styles.routePlannerControls}>
+              <View style={styles.routePlannerHeader}>
+                <Text style={styles.routePlannerTitle}>Plan Your Route</Text>
+                <TouchableOpacity onPress={clearRoutePlanning} style={styles.routePlannerCloseButton}>
+                  <Ionicons name="close" size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.routePlannerPoints}>
+                <TouchableOpacity
+                  style={[styles.routePointButton, !routeStartPoint && styles.routePointButtonActive]}
+                  onPress={() => setSelectingRoutePoint('start')}
+                >
+                  <Ionicons name="location" size={20} color={routeStartPoint ? '#059669' : colors.primary} />
+                  <View style={styles.routePointInfo}>
+                    <Text style={styles.routePointLabel}>Start Point</Text>
+                    <Text style={styles.routePointValue}>
+                      {routeStartPoint ? routeStartPoint.name : 'Tap to select'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.routePointButton, !routeEndPoint && selectingRoutePoint === 'end' && styles.routePointButtonActive]}
+                  onPress={() => setSelectingRoutePoint('end')}
+                >
+                  <Ionicons name="flag" size={20} color={routeEndPoint ? '#DC2626' : colors.primary} />
+                  <View style={styles.routePointInfo}>
+                    <Text style={styles.routePointLabel}>End Point</Text>
+                    <Text style={styles.routePointValue}>
+                      {routeEndPoint ? routeEndPoint.name : 'Tap to select'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+              
+              {selectingRoutePoint && (
+                <View style={styles.routePlannerHint}>
+                  <Ionicons name="information-circle" size={16} color={colors.primary} />
+                  <Text style={styles.routePlannerHintText}>
+                    Tap on the map to set {selectingRoutePoint === 'start' ? 'start' : 'end'} point
+                  </Text>
+                </View>
+              )}
+              
+              {routeStartPoint && routeEndPoint && (
+                <View style={styles.routePlannerResults}>
+                  <Text style={styles.routePlannerResultsTitle}>
+                    Road Status Along Route
+                  </Text>
+                  <Text style={styles.routePlannerResultsCount}>
+                    {routeRoadworks.length} roadwork{routeRoadworks.length !== 1 ? 's' : ''} found
+                  </Text>
+                  {routeRoadworks.length > 0 && (
+                    <View style={styles.routePlannerAlerts}>
+                      {routeRoadworks.filter(rw => rw.status === 'Closed' || rw.status === 'Restricted').length > 0 && (
+                        <View style={styles.routePlannerAlert}>
+                          <Ionicons name="warning" size={16} color="#DC2626" />
+                          <Text style={styles.routePlannerAlertText}>
+                            {routeRoadworks.filter(rw => rw.status === 'Closed' || rw.status === 'Restricted').length} critical roadwork{routeRoadworks.filter(rw => rw.status === 'Closed' || rw.status === 'Restricted').length !== 1 ? 's' : ''} on route
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.routePlannerNavigateButton}
+                    onPress={navigatePlannedRoute}
+                  >
+                    <Ionicons name="navigate" size={20} color="#FFFFFF" />
+                    <Text style={styles.routePlannerNavigateButtonText}>Navigate Route</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+          
+          {/* Map Legend Overlay */}
+          <View style={styles.mapLegendOverlay}>
+            <View style={styles.mapLegendItem}>
+              <View style={[styles.mapLegendMarker, { backgroundColor: '#DC2626' }]}>
+                <Ionicons name="close-circle" size={12} color="#FFFFFF" />
+              </View>
+              <Text style={styles.mapLegendText}>Closed Road</Text>
+            </View>
+            <View style={styles.mapLegendItem}>
+              <View style={[styles.mapLegendMarker, { backgroundColor: '#059669' }]}>
+                <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
+              </View>
+              <Text style={styles.mapLegendText}>Recommended Route</Text>
+            </View>
+            <View style={styles.mapLegendItem}>
+              <View style={[styles.mapLegendMarker, { backgroundColor: '#6B7280' }]}>
+                <Ionicons name="ellipsis-horizontal" size={12} color="#FFFFFF" />
+              </View>
+              <Text style={styles.mapLegendText}>Alternate Route</Text>
+            </View>
+            <View style={styles.mapLegendItem}>
+              <View style={[styles.mapLegendMarker, { backgroundColor: '#D97706' }]}>
+                <Ionicons name="warning" size={12} color="#FFFFFF" />
+              </View>
+              <Text style={styles.mapLegendText}>Ongoing Work</Text>
+            </View>
+          </View>
+
+          {/* Results Count on Map */}
+          {!routePlannerMode && (
+            <View style={styles.mapResultsOverlay}>
+              <Text style={styles.mapResultsText}>
+                {filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length} roadwork{filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length !== 1 ? 's' : ''} on map
+              </Text>
+            </View>
+          )}
+
+          {/* Route Planner Button */}
+          {!routePlannerMode && (
+            <TouchableOpacity
+              style={styles.routePlannerButton}
+              onPress={startRoutePlanning}
+            >
+              <Ionicons name="navigate" size={24} color="#FFFFFF" />
+              <Text style={styles.routePlannerButtonText}>Plan Route</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        ) : null
+      )}
+      
+      {/* List View Mode - Scrollable Content */}
+      {viewMode === 'list' && (
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -1171,6 +1865,46 @@ export default function RoadStatusScreen() {
           </View>
         )}
 
+        {/* Sort Selector */}
+        {!isInitialLoading && roadworks.length > 0 && viewMode === 'list' && (
+          <View style={styles.sortContainer}>
+            <Text style={styles.sortLabel}>Sort by:</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sortOptions}
+            >
+              {[
+                { value: 'relevance', label: 'Relevance' },
+                { value: 'distance', label: 'Distance', disabled: !userLocation },
+                { value: 'date', label: 'Date' },
+                { value: 'status', label: 'Status' },
+              ].map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.sortChip,
+                    sortBy === option.value && styles.sortChipActive,
+                    option.disabled && styles.sortChipDisabled,
+                  ]}
+                  onPress={() => !option.disabled && setSortBy(option.value)}
+                  disabled={option.disabled}
+                >
+                  <Text
+                    style={[
+                      styles.sortChipText,
+                      sortBy === option.value && styles.sortChipTextActive,
+                      option.disabled && styles.sortChipTextDisabled,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Status Filter Chips */}
         {!isInitialLoading && roadworks.length > 0 && viewMode === 'list' && (
           <ScrollView
@@ -1225,7 +1959,7 @@ export default function RoadStatusScreen() {
               <Text style={styles.regionFilterTitle}>Filter by Region</Text>
               {isDetectingLocation && (
                 <View style={styles.locationDetectingContainer}>
-                  <SkeletonLoader type="circle" width={16} height={16} />
+                  <UnifiedSkeletonLoader type="text-line" style={{ width: 16, height: 16, borderRadius: 8 }} />
                   <Text style={styles.locationDetectingText}>Detecting your location...</Text>
                 </View>
               )}
@@ -1298,124 +2032,12 @@ export default function RoadStatusScreen() {
         {/* Road Status Content */}
         <View style={styles.content}>
 
-        {/* Map View */}
-        {viewMode === 'map' && !isInitialLoading && (
-          <View style={styles.mapViewContainer}>
-            {!MapView ? (
-              <View style={[styles.mapView, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.card }]}>
-                <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
-                <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginTop: 16 }}>
-                  Map View Not Available
-                </Text>
-                <Text style={{ color: colors.textSecondary, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
-                  Map view requires a development build and is not available in Expo Go.
-                </Text>
-                <TouchableOpacity
-                  style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: 8 }}
-                  onPress={() => setViewMode('list')}
-                >
-                  <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Switch to List View</Text>
-                </TouchableOpacity>
-              </View>
-            ) : mapRegion ? (
-              <MapView
-                style={styles.mapView}
-                initialRegion={mapRegion}
-                showsUserLocation={true}
-                showsMyLocationButton={true}
-                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-              >
-                {/* Render polylines for road closures and alternate routes */}
-                {filteredRoadworks.map((roadwork) => renderRoutePolylines(roadwork, colors))}
-                
-                {/* Render waypoint markers for alternate routes */}
-                {filteredRoadworks.map((roadwork) => renderWaypointMarkers(roadwork, colors))}
-                
-                {/* Render main roadwork markers */}
-                {filteredRoadworks.map((roadwork) => {
-                  const coordinates = getRoadworkCoordinates(roadwork);
-                  if (!coordinates) return null;
-                  
-                  return (
-                    <PulsingMarker
-                      key={roadwork._id || roadwork.id}
-                      coordinate={coordinates}
-                      roadwork={roadwork}
-                      colors={colors}
-                      onPress={() => {
-                        // Show details with alternate routes information
-                        const alternateRoutesText = roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0
-                          ? `\n\nAlternate Routes:\n${roadwork.alternateRoutes
-                              .filter(route => route.approved)
-                              .map(route => `• ${route.routeName}: ${route.distanceKm}km, ${route.estimatedTime}`)
-                              .join('\n')}`
-                          : roadwork.alternativeRoute 
-                            ? `\nAlternative Route:\n${roadwork.alternativeRoute}`
-                            : '';
-                            
-                        Alert.alert(
-                          `${roadwork.road} - ${roadwork.section}`,
-                          `${roadwork.title}\n\nStatus: ${roadwork.status}\n${roadwork.reason ? `Reason: ${roadwork.reason}\n` : ''}${roadwork.expectedDelayMinutes ? `Expected Delay: ${roadwork.expectedDelayMinutes} min\n` : ''}${alternateRoutesText}`,
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Directions', onPress: () => handleDirections(roadwork) },
-                            roadwork.alternativeRoute && {
-                              text: 'Use Alternative Route',
-                              onPress: () => handleAlternativeRoute(roadwork.alternativeRoute)
-                            },
-                          ].filter(Boolean)
-                        );
-                      }}
-                    />
-                  );
-                })}
-              </MapView>
-            ) : null}
-            
-            {/* Map Legend Overlay */}
-            {MapView && <View style={styles.mapLegendOverlay}>
-              <View style={styles.mapLegendItem}>
-                <View style={[styles.mapLegendMarker, { backgroundColor: '#DC2626' }]}>
-                  <Ionicons name="close-circle" size={12} color="#FFFFFF" />
-                </View>
-                <Text style={styles.mapLegendText}>Closed Road</Text>
-              </View>
-              <View style={styles.mapLegendItem}>
-                <View style={[styles.mapLegendMarker, { backgroundColor: '#059669' }]}>
-                  <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
-                </View>
-                <Text style={styles.mapLegendText}>Recommended Route</Text>
-              </View>
-              <View style={styles.mapLegendItem}>
-                <View style={[styles.mapLegendMarker, { backgroundColor: '#6B7280' }]}>
-                  <Ionicons name="ellipsis-horizontal" size={12} color="#FFFFFF" />
-                </View>
-                <Text style={styles.mapLegendText}>Alternate Route</Text>
-              </View>
-              <View style={styles.mapLegendItem}>
-                <View style={[styles.mapLegendMarker, { backgroundColor: '#D97706' }]}>
-                  <Ionicons name="warning" size={12} color="#FFFFFF" />
-                </View>
-                <Text style={styles.mapLegendText}>Ongoing Work</Text>
-              </View>
-            </View>}
-
-            {/* Results Count on Map */}
-            <View style={styles.mapResultsOverlay}>
-              <Text style={styles.mapResultsText}>
-                {filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length} roadwork{filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length !== 1 ? 's' : ''} on map
-              </Text>
-            </View>
-          </View>
-        )}
-
         {/* List View */}
         {viewMode === 'list' && isInitialLoading ? (
-          <RoadStatusSkeleton 
+          <UnifiedSkeletonLoader 
+            type="list-item"
+            count={5}
             animated={true}
-            showFilters={true}
-            showViewToggle={true}
-            cardCount={5}
           />
         ) : viewMode === 'list' && showEmptyState ? (
           <View style={styles.emptyStateContainer}>
@@ -1468,9 +2090,41 @@ export default function RoadStatusScreen() {
                         {roadwork.status?.toUpperCase() || 'ALERT'}
                       </Text>
                     </View>
+                    <View style={styles.criticalHeaderRow}>
                     <Text style={styles.criticalRoadName}>
                       {roadwork.road} - {roadwork.section}
                     </Text>
+                      {roadwork.distanceKm !== undefined && (
+                        <View style={[styles.distanceBadge, { backgroundColor: '#DC2626' + '15', borderColor: '#DC2626' + '30' }]}>
+                          <Ionicons name="location" size={12} color="#DC2626" />
+                          <Text style={[styles.distanceText, { color: '#DC2626' }]}>
+                            {roadwork.distanceKm < 1 
+                              ? `${Math.round(roadwork.distanceKm * 1000)}m away`
+                              : `${roadwork.distanceKm.toFixed(1)}km away`}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.cardHeaderActions}>
+                        <TouchableOpacity
+                          style={styles.iconButton}
+                          onPress={() => toggleSaveRoadwork(roadwork)}
+                          accessibilityLabel={savedRoadworks.includes(roadwork._id || roadwork.id) ? "Remove from saved" : "Save roadwork"}
+                        >
+                          <Ionicons 
+                            name={savedRoadworks.includes(roadwork._id || roadwork.id) ? "bookmark" : "bookmark-outline"} 
+                            size={20} 
+                            color={savedRoadworks.includes(roadwork._id || roadwork.id) ? '#DC2626' : colors.textSecondary} 
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.iconButton}
+                          onPress={() => handleShareRoadwork(roadwork)}
+                          accessibilityLabel="Share roadwork"
+                        >
+                          <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                     <Text style={styles.criticalTitle}>{roadwork.title}</Text>
                     {roadwork.reason && (
                       <View style={styles.criticalRow}>
@@ -1522,13 +2176,74 @@ export default function RoadStatusScreen() {
                       </TouchableOpacity>
                     </View>
 
-                    {/* Alternative Route Section - Conditional */}
-                    {roadwork.alternativeRoute && (
+                    {/* Structured Alternate Routes - Priority */}
+                    {roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0 && roadwork.alternateRoutes.some(r => r.approved) && (
                       <View style={styles.criticalAlternativeRoute}>
                         <View style={styles.alternativeRouteHeader}>
                           <Ionicons name="swap-horizontal" size={18} color="#DC2626" />
                           <Text style={[styles.alternativeRouteTitle, { color: '#DC2626', fontWeight: '700' }]}>
-                            Recommended Alternative
+                            Alternate Routes ({roadwork.alternateRoutes.filter(r => r.approved).length})
+                          </Text>
+                        </View>
+                        {roadwork.alternateRoutes
+                          .filter(route => route.approved)
+                          .sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0))
+                          .map((route, index) => (
+                            <View key={index} style={styles.routeOptionCard}>
+                              {route.isRecommended && (
+                                <View style={styles.recommendedBadge}>
+                                  <Ionicons name="star" size={12} color="#FFFFFF" />
+                                  <Text style={styles.recommendedText}>RECOMMENDED</Text>
+                                </View>
+                              )}
+                              <Text style={styles.routeName}>{route.routeName}</Text>
+                              <View style={styles.routeMetrics}>
+                                {route.distanceKm && (
+                                  <View style={styles.routeMetric}>
+                                    <Ionicons name="trail-sign" size={14} color={colors.textSecondary} />
+                                    <Text style={styles.routeMetricText}>{route.distanceKm} km</Text>
+                                  </View>
+                                )}
+                                {route.estimatedTime && (
+                                  <View style={styles.routeMetric}>
+                                    <Ionicons name="time" size={14} color={colors.textSecondary} />
+                                    <Text style={styles.routeMetricText}>{route.estimatedTime}</Text>
+                                  </View>
+                                )}
+                                {route.vehicleType && route.vehicleType.length > 0 && (
+                                  <View style={styles.routeMetric}>
+                                    <Ionicons name="car" size={14} color={colors.textSecondary} />
+                                    <Text style={styles.routeMetricText}>
+                                      {route.vehicleType.includes('All') ? 'All Vehicles' : route.vehicleType.join(', ')}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                              {route.roadsUsed && route.roadsUsed.length > 0 && (
+                                <Text style={styles.routeRoads}>Via: {route.roadsUsed.join(', ')}</Text>
+                              )}
+                              <TouchableOpacity
+                                style={[styles.routeButton, route.isRecommended && styles.routeButtonRecommended]}
+                                onPress={() => handleStructuredRoute(route)}
+                                accessibilityLabel={`Navigate via ${route.routeName}`}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="navigate" size={16} color="#FFFFFF" />
+                                <Text style={styles.routeButtonText}>Navigate This Route</Text>
+                                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                      </View>
+                    )}
+                    
+                    {/* Legacy Text Alternative Route - Fallback */}
+                    {(!roadwork.alternateRoutes || roadwork.alternateRoutes.length === 0 || !roadwork.alternateRoutes.some(r => r.approved)) && roadwork.alternativeRoute && (
+                      <View style={styles.criticalAlternativeRoute}>
+                        <View style={styles.alternativeRouteHeader}>
+                          <Ionicons name="swap-horizontal" size={18} color="#DC2626" />
+                          <Text style={[styles.alternativeRouteTitle, { color: '#DC2626', fontWeight: '700' }]}>
+                            Alternative Route
                           </Text>
                         </View>
                         <Text style={[styles.alternativeRouteDescription, { color: colors.text }]}>
@@ -1632,9 +2347,41 @@ export default function RoadStatusScreen() {
                 <View style={styles.cardHeader}>
                   <View style={styles.cardHeaderText}>
                     <Text style={styles.cardTitle}>{roadwork.title}</Text>
+                    <View style={styles.cardHeaderRow}>
                     <Text style={styles.cardRoad}>
                       {roadwork.road} {roadwork.section ? `- ${roadwork.section}` : ''}
+                      </Text>
+                      {roadwork.distanceKm !== undefined && (
+                        <View style={styles.distanceBadge}>
+                          <Ionicons name="location" size={12} color={colors.primary} />
+                          <Text style={styles.distanceText}>
+                            {roadwork.distanceKm < 1 
+                              ? `${Math.round(roadwork.distanceKm * 1000)}m away`
+                              : `${roadwork.distanceKm.toFixed(1)}km away`}
                     </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.cardHeaderActions}>
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => toggleSaveRoadwork(roadwork)}
+                      accessibilityLabel={savedRoadworks.includes(roadwork._id || roadwork.id) ? "Remove from saved" : "Save roadwork"}
+                    >
+                      <Ionicons 
+                        name={savedRoadworks.includes(roadwork._id || roadwork.id) ? "bookmark" : "bookmark-outline"} 
+                        size={20} 
+                        color={savedRoadworks.includes(roadwork._id || roadwork.id) ? colors.primary : colors.textSecondary} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => handleShareRoadwork(roadwork)}
+                      accessibilityLabel="Share roadwork"
+                    >
+                      <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -1739,8 +2486,69 @@ export default function RoadStatusScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Alternative Route Section - Conditional */}
-                  {roadwork.alternativeRoute && (
+                  {/* Structured Alternate Routes - Priority */}
+                  {roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0 && roadwork.alternateRoutes.some(r => r.approved) && (
+                    <View style={styles.alternativeRouteInline}>
+                      <View style={styles.alternativeRouteHeader}>
+                        <Ionicons name="swap-horizontal" size={18} color={colors.primary} />
+                        <Text style={styles.alternativeRouteTitle}>
+                          Alternate Routes ({roadwork.alternateRoutes.filter(r => r.approved).length})
+                        </Text>
+                      </View>
+                      {roadwork.alternateRoutes
+                        .filter(route => route.approved)
+                        .sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0))
+                        .map((route, index) => (
+                          <View key={index} style={styles.routeOptionCard}>
+                            {route.isRecommended && (
+                              <View style={[styles.recommendedBadge, { backgroundColor: colors.primary }]}>
+                                <Ionicons name="star" size={12} color="#FFFFFF" />
+                                <Text style={styles.recommendedText}>RECOMMENDED</Text>
+                              </View>
+                            )}
+                            <Text style={styles.routeName}>{route.routeName}</Text>
+                            <View style={styles.routeMetrics}>
+                              {route.distanceKm && (
+                                <View style={styles.routeMetric}>
+                                  <Ionicons name="trail-sign" size={14} color={colors.textSecondary} />
+                                  <Text style={styles.routeMetricText}>{route.distanceKm} km</Text>
+                                </View>
+                              )}
+                              {route.estimatedTime && (
+                                <View style={styles.routeMetric}>
+                                  <Ionicons name="time" size={14} color={colors.textSecondary} />
+                                  <Text style={styles.routeMetricText}>{route.estimatedTime}</Text>
+                                </View>
+                              )}
+                              {route.vehicleType && route.vehicleType.length > 0 && (
+                                <View style={styles.routeMetric}>
+                                  <Ionicons name="car" size={14} color={colors.textSecondary} />
+                                  <Text style={styles.routeMetricText}>
+                                    {route.vehicleType.includes('All') ? 'All Vehicles' : route.vehicleType.join(', ')}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            {route.roadsUsed && route.roadsUsed.length > 0 && (
+                              <Text style={styles.routeRoads}>Via: {route.roadsUsed.join(', ')}</Text>
+                            )}
+                            <TouchableOpacity
+                              style={[styles.routeButton, { backgroundColor: colors.primary }, route.isRecommended && styles.routeButtonRecommended]}
+                              onPress={() => handleStructuredRoute(route)}
+                              accessibilityLabel={`Navigate via ${route.routeName}`}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="navigate" size={16} color="#FFFFFF" />
+                              <Text style={styles.routeButtonText}>Navigate This Route</Text>
+                              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                    </View>
+                  )}
+                  
+                  {/* Legacy Text Alternative Route - Fallback */}
+                  {(!roadwork.alternateRoutes || roadwork.alternateRoutes.length === 0 || !roadwork.alternateRoutes.some(r => r.approved)) && roadwork.alternativeRoute && (
                     <View style={styles.alternativeRouteInline}>
                       <View style={styles.alternativeRouteHeader}>
                         <Ionicons name="swap-horizontal" size={18} color={colors.primary} />
@@ -1803,6 +2611,7 @@ export default function RoadStatusScreen() {
         )}
         </View>
       </ScrollView>
+      )}
 
       {/* In-App Map Modal */}
       {MapView && showMapModal && selectedRoadworkForMap && modalMapRegion && (
@@ -1845,7 +2654,7 @@ export default function RoadStatusScreen() {
               ref={mapModalRef}
               style={styles.mapModalMap}
               initialRegion={modalMapRegion}
-              provider={PROVIDER_GOOGLE}
+              provider={PROVIDER_GOOGLE || undefined}
               mapType={mapType}
               minZoomLevel={3}
               maxZoomLevel={21}
@@ -2039,7 +2848,7 @@ export default function RoadStatusScreen() {
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, screenHeight = Dimensions.get('window').height, screenWidth = Dimensions.get('window').width) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -2099,6 +2908,50 @@ function getStyles(colors) {
     },
     searchInput: {
       margin: 0,
+    },
+    sortContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      marginBottom: 8,
+      paddingHorizontal: 20,
+      gap: 12,
+    },
+    sortLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    sortOptions: {
+      gap: 8,
+    },
+    sortChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: 6,
+    },
+    sortChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    sortChipDisabled: {
+      opacity: 0.5,
+    },
+    sortChipText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    sortChipTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+    sortChipTextDisabled: {
+      color: colors.textSecondary,
     },
     filterContainer: {
       paddingHorizontal: 15,
@@ -2243,11 +3096,19 @@ function getStyles(colors) {
       color: '#DC2626',
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
+    criticalHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+      flexWrap: 'wrap',
+      gap: 8,
+    },
     criticalRoadName: {
       fontSize: 16,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 8,
+      flex: 1,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalRow: {
@@ -2402,6 +3263,9 @@ function getStyles(colors) {
       paddingHorizontal: 20,
       paddingTop: 16,
       marginBottom: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
     },
     cardHeaderLeft: {
       flexDirection: 'row',
@@ -2409,6 +3273,37 @@ function getStyles(colors) {
     },
     cardHeaderText: {
       flex: 1,
+    },
+    cardHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+    },
+    cardHeaderActions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginLeft: 8,
+    },
+    iconButton: {
+      padding: 6,
+      borderRadius: 6,
+    },
+    distanceBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: colors.primary + '15',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.primary + '30',
+    },
+    distanceText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.primary,
     },
     cardTitle: {
       fontSize: 16,
@@ -2576,16 +3471,122 @@ function getStyles(colors) {
        Map Container
        ========================= */
     mapViewContainer: {
-      flex: 1,
-      minHeight: 300,
+      width: '100%',
+      height: screenHeight * 0.7, // 70% of screen height
+      minHeight: 500,
+      maxHeight: screenHeight * 0.85, // Max 85% of screen height
       marginTop: spacing.md,
+      marginBottom: spacing.md,
       borderRadius: radii.sm,
       borderWidth: 1,
       borderColor: colors.border,
       overflow: 'hidden',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
     },
     mapView: {
+      width: '100%',
+      height: '100%',
+    },
+    mapFullScreenContainer: {
       flex: 1,
+      width: '100%',
+      height: '100%',
+    },
+    mapHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.1,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+    },
+    mapHeaderButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      gap: 6,
+      marginRight: 12,
+    },
+    mapHeaderButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    mapHeaderTitle: {
+      flex: 1,
+    },
+    mapHeaderTitleText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    mapHeaderSubtitle: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    mapFullScreen: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
+    },
+    mapUnavailableContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 40,
+      backgroundColor: colors.background,
+    },
+    mapUnavailableTitle: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginTop: 16,
+      textAlign: 'center',
+    },
+    mapUnavailableText: {
+      color: colors.textSecondary,
+      marginTop: 8,
+      textAlign: 'center',
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    mapUnavailableButton: {
+      marginTop: 24,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+    },
+    mapUnavailableButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+      fontSize: 16,
     },
     /* ========================
        Map Legend Overlay
@@ -2686,6 +3687,82 @@ function getStyles(colors) {
       fontSize: 13,
       fontWeight: '600',
       color: colors.primary,
+      flex: 1,
+      textAlign: 'center',
+    },
+    // Structured Route Option Styles
+    routeOptionCard: {
+      marginTop: 12,
+      padding: 12,
+      backgroundColor: colors.surface || colors.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 8,
+    },
+    recommendedBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      marginBottom: 4,
+    },
+    recommendedText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      letterSpacing: 0.5,
+    },
+    routeName: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    routeMetrics: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginBottom: 6,
+    },
+    routeMetric: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    routeMetricText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    routeRoads: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+      marginBottom: 8,
+    },
+    routeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      backgroundColor: colors.primary,
+      borderRadius: 6,
+      gap: 6,
+      marginTop: 4,
+    },
+    routeButtonRecommended: {
+      backgroundColor: '#059669',
+    },
+    routeButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#FFFFFF',
       flex: 1,
       textAlign: 'center',
     },
@@ -2832,6 +3909,196 @@ function getStyles(colors) {
     mapModalCloseActionButtonText: {
       fontSize: 15,
       fontWeight: '600',
+    },
+    /* ========================
+       Route Planner Styles
+       ========================= */
+    routePlannerButton: {
+      position: 'absolute',
+      bottom: 20,
+      left: 20,
+      right: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 16,
+      paddingHorizontal: 24,
+      borderRadius: 12,
+      gap: 8,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 8,
+        },
+      }),
+    },
+    routePlannerButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    routePlannerControls: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      maxHeight: screenHeight * 0.5,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 8,
+        },
+      }),
+    },
+    routePlannerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    routePlannerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    routePlannerCloseButton: {
+      padding: 4,
+    },
+    routePlannerPoints: {
+      gap: 12,
+      marginBottom: 16,
+    },
+    routePointButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+      backgroundColor: colors.surface || colors.card,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: colors.border,
+      gap: 12,
+    },
+    routePointButtonActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary + '10',
+    },
+    routePointInfo: {
+      flex: 1,
+    },
+    routePointLabel: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginBottom: 2,
+    },
+    routePointValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    routePlannerHint: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+      backgroundColor: colors.primary + '15',
+      borderRadius: 8,
+      gap: 8,
+      marginBottom: 16,
+    },
+    routePlannerHintText: {
+      fontSize: 13,
+      color: colors.primary,
+      flex: 1,
+    },
+    routePlannerResults: {
+      marginTop: 8,
+    },
+    routePlannerResultsTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    routePlannerResultsCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 12,
+    },
+    routePlannerAlerts: {
+      marginBottom: 16,
+    },
+    routePlannerAlert: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+      backgroundColor: '#DC2626' + '15',
+      borderRadius: 8,
+      gap: 8,
+      marginBottom: 8,
+    },
+    routePlannerAlertText: {
+      fontSize: 13,
+      color: '#DC2626',
+      fontWeight: '600',
+      flex: 1,
+    },
+    routePlannerNavigateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderRadius: 10,
+      gap: 8,
+    },
+    routePlannerNavigateButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    routePointMarker: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    routePointInner: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 3,
+      borderColor: '#FFFFFF',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
+    },
+    routePointText: {
+      color: '#FFFFFF',
+      fontSize: 18,
+      fontWeight: '700',
     },
   });
 }

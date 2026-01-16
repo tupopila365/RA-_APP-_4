@@ -152,6 +152,14 @@ export default function ApplicationsScreen({ navigation }) {
       backgroundColor: '#F5F5F7',
       onPress: () => navigation?.navigate('MyReports'),
     },
+    {
+      id: 4,
+      title: 'Forms',
+      icon: 'document-text-outline',
+      color: '#5856D6',
+      backgroundColor: '#F5F5F7',
+      onPress: () => navigation?.navigate('Procurement', { screen: 'Forms' }),
+    },
   ];
 
   // Filter menu items based on search query

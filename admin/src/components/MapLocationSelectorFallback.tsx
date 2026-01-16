@@ -10,12 +10,14 @@ import {
   Grid,
   Link,
   Chip,
+  CircularProgress,
 } from '@mui/material';
 import {
   LocationOn as LocationOnIcon,
   Search as SearchIcon,
   MyLocation as MyLocationIcon,
 } from '@mui/icons-material';
+import { geocodeLocation, reverseGeocode } from '../services/geocoding.service';
 
 interface MapLocationSelectorFallbackProps {
   onLocationSelect: (location: {
@@ -36,6 +38,7 @@ const MapLocationSelectorFallback: React.FC<MapLocationSelectorFallbackProps> = 
   onLocationSelect,
   initialCoordinates,
   height = '400px',
+  showSearch = true,
   className,
 }) => {
   const [latitude, setLatitude] = useState(
@@ -45,6 +48,9 @@ const MapLocationSelectorFallback: React.FC<MapLocationSelectorFallbackProps> = 
     initialCoordinates?.longitude?.toString() || ''
   );
   const [address, setAddress] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const handleLocationSubmit = () => {
     const lat = parseFloat(latitude);
@@ -66,23 +72,40 @@ const MapLocationSelectorFallback: React.FC<MapLocationSelectorFallbackProps> = 
     });
   };
 
-  const handleCurrentLocation = () => {
+  const handleCurrentLocation = async () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by this browser');
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         setLatitude(lat.toString());
         setLongitude(lng.toString());
         
-        onLocationSelect({
-          coordinates: { latitude: lat, longitude: lng },
-          address: `Current location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-        });
+        // Try to reverse geocode to get address
+        try {
+          const result = await reverseGeocode(lat, lng);
+          if (result.success && result.displayName) {
+            setAddress(result.displayName);
+            onLocationSelect({
+              coordinates: { latitude: lat, longitude: lng },
+              address: result.displayName,
+            });
+          } else {
+            onLocationSelect({
+              coordinates: { latitude: lat, longitude: lng },
+              address: `Current location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+            });
+          }
+        } catch (error) {
+          onLocationSelect({
+            coordinates: { latitude: lat, longitude: lng },
+            address: `Current location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+          });
+        }
       },
       (error) => {
         alert('Failed to get current location: ' + error.message);
@@ -90,18 +113,92 @@ const MapLocationSelectorFallback: React.FC<MapLocationSelectorFallbackProps> = 
     );
   };
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+    try {
+      const searchQueryWithNamibia = searchQuery.includes('Namibia') 
+        ? searchQuery 
+        : `${searchQuery}, Namibia`;
+      
+      const result = await geocodeLocation(searchQueryWithNamibia);
+
+      if (result.success && result.latitude && result.longitude) {
+        setLatitude(result.latitude.toString());
+        setLongitude(result.longitude.toString());
+        setAddress(result.displayName || searchQuery);
+        
+        onLocationSelect({
+          coordinates: { 
+            latitude: result.latitude, 
+            longitude: result.longitude 
+          },
+          address: result.displayName || searchQuery,
+        });
+        setSearchQuery(''); // Clear search after success
+      } else {
+        setSearchError(result.error || 'Location not found. Try a more specific search term.');
+      }
+    } catch (err: any) {
+      console.error('Search error:', err);
+      setSearchError('Search failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   return (
     <Card className={className}>
       <CardContent>
         <Alert severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2" fontWeight="bold">
-            Map Integration Available
+            Using OpenStreetMap (Free)
           </Typography>
           <Typography variant="caption" display="block">
-            To enable the interactive map, add your Google Maps API key to the .env file.
-            For now, you can enter coordinates manually or use the location tools below.
+            This mode uses OpenStreetMap Nominatim for geocoding (free, no billing required).
+            You can search for locations or enter coordinates manually.
           </Typography>
         </Alert>
+
+        {/* Search Section */}
+        {showSearch && (
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Search Location"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSearchError(null);
+              }}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !isSearching) {
+                  handleSearch();
+                }
+              }}
+              placeholder="e.g., Windhoek, B1 Road, Otjiwarongo"
+              InputProps={{
+                endAdornment: isSearching ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <Button
+                    size="small"
+                    startIcon={<SearchIcon />}
+                    onClick={handleSearch}
+                    disabled={!searchQuery.trim() || isSearching}
+                    sx={{ minWidth: 'auto' }}
+                  >
+                    Search
+                  </Button>
+                ),
+              }}
+              helperText={searchError || 'Search for locations using OpenStreetMap'}
+              error={!!searchError}
+            />
+          </Box>
+        )}
 
         <Grid container spacing={2}>
           <Grid item xs={12} md={5}>

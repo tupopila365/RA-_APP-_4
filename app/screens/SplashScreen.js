@@ -76,6 +76,12 @@ export default function SplashScreen() {
               source={RAIcon} 
               style={styles.logo}
               resizeMode="contain"
+              // Android-specific rendering optimizations
+              {...Platform.select({
+                android: {
+                  renderToHardwareTextureAndroid: true,
+                },
+              })}
             />
           </View>
         </Animated.View>
@@ -126,7 +132,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    // Remove rgba overlay - causes foggy appearance on Android
+    // Use solid color with opacity property instead if needed
+    backgroundColor: 'transparent',
   },
   contentContainer: {
     alignItems: 'center',
@@ -143,20 +151,22 @@ const styles = StyleSheet.create({
     width: width * 0.3,
     height: width * 0.3,
     borderRadius: (width * 0.3) / 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF', // Solid white - no opacity for crisp Android rendering
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
+    // Android-safe shadow/elevation
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.3,
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 4,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2, // Reduced from 8 to 2 for Android safety
       },
     }),
   },
@@ -192,15 +202,17 @@ const styles = StyleSheet.create({
     color: '#E0E0E0',
     letterSpacing: 0.3,
     textAlign: 'center',
-    opacity: 0.95,
+    // Remove opacity - use color directly for crisp Android rendering
     ...Platform.select({
       ios: {
         fontFamily: 'SF Pro Text',
         fontWeight: '400',
+        opacity: 0.95, // Keep opacity on iOS
       },
       android: {
         fontFamily: 'Roboto',
         fontWeight: '300',
+        // No opacity on Android - causes foggy text
       },
     }),
   },

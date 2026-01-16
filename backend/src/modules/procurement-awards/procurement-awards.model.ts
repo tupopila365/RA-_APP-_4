@@ -96,7 +96,7 @@ const procurementAwardSchema = new Schema<IProcurementAward>(
 // Indexes for efficient queries
 procurementAwardSchema.index({ type: 1 });
 procurementAwardSchema.index({ published: 1 });
-procurementAwardSchema.index({ procurementReference: 1 });
+// Note: procurementReference index is already created by unique: true in schema definition
 procurementAwardSchema.index({ dateAwarded: -1 });
 procurementAwardSchema.index({ description: 'text', procurementReference: 'text', successfulBidder: 'text' });
 procurementAwardSchema.index({ createdAt: -1 });

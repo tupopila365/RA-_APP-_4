@@ -143,6 +143,12 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         permission: 'procurement:awards:manage',
       },
       {
+        label: 'Forms & Documents',
+        path: '/forms',
+        icon: <ProcurementIcon />,
+        permission: 'procurement:awards:manage',
+      },
+      {
         label: 'Opening Register',
         path: '/procurement-opening-register',
         icon: <ProcurementIcon />,

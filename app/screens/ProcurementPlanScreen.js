@@ -17,7 +17,7 @@ import RAIcon from '../assets/icon.png';
 
 import {
   DetailCard,
-  ListScreenSkeleton,
+  UnifiedSkeletonLoader,
   ErrorState,
   EmptyState,
 } from '../components';
@@ -110,7 +110,7 @@ export default function ProcurementPlanScreen() {
   if (loading && !refreshing) {
     return (
       <View style={styles.container}>
-        <ListScreenSkeleton count={3} />
+        <UnifiedSkeletonLoader type="list-item" count={5} />
       </View>
     );
   }

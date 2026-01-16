@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import useDocumentDownload from '../hooks/useDocumentDownload';
-import { SkeletonLoader, ListScreenSkeleton, ErrorState, EmptyState, SearchInput } from '../components';
+import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
 import { procurementAwardsService } from '../services/procurementService';
 import { spacing } from '../theme/spacing';
 
@@ -189,7 +189,7 @@ export default function ProcurementAwardsScreen() {
   if (loading && !refreshing) {
     return (
       <View style={styles.container}>
-        <ListScreenSkeleton count={5} />
+        <UnifiedSkeletonLoader type="list-item" count={5} />
       </View>
     );
   }
@@ -387,7 +387,7 @@ export default function ProcurementAwardsScreen() {
                         >
                           {isItemDownloading ? (
                             <>
-                              <SkeletonLoader type="circle" width={16} height={16} />
+                              <UnifiedSkeletonLoader type="circle" width={16} height={16} />
                               <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
                                 Downloading {progress}%
                               </Text>

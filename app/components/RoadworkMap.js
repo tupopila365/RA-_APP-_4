@@ -113,7 +113,7 @@ export function RoadworkMap({
       initialRegion={region}
       onRegionChange={onRegionChange}
       onPress={onPress}
-      provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+      provider={Platform.OS === 'android' && PROVIDER_GOOGLE ? PROVIDER_GOOGLE : undefined}
       showsUserLocation={true}
       showsMyLocationButton={false}
       showsCompass={true}

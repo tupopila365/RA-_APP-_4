@@ -159,11 +159,10 @@ export default function NewsScreen({ navigation }) {
 
         {/* News List */}
         {isInitialLoading ? (
-          <NewsScreenSkeleton 
+          <UnifiedSkeletonLoader 
+            type="list-item"
+            count={5}
             animated={true}
-            showSearch={true}
-            showFilters={true}
-            cardCount={5}
           />
         ) : news.length > 0 ? (
           <View style={styles.content}>

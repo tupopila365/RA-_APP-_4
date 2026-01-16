@@ -456,6 +456,29 @@ class PLNService {
   }
 
   /**
+   * Get applications by user email
+   */
+  async getApplicationsByEmail(userEmail: string): Promise<IPLN[]> {
+    try {
+      const applications = await PLNModel.find({
+        email: userEmail.toLowerCase(),
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return applications as unknown as IPLN[];
+    } catch (error: any) {
+      logger.error('Get applications by email error:', error);
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to retrieve applications',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
    * Get application by ID (admin)
    */
   async getApplicationById(id: string): Promise<IPLN> {

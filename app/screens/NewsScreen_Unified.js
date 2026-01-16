@@ -159,13 +159,7 @@ export default function NewsScreen({ navigation }) {
 
   const renderLoadingSkeleton = () => (
     <View style={styles.loadingContainer}>
-      {Array.from({ length: 5 }, (_, index) => (
-        <UnifiedSkeletonLoader
-          key={index}
-          type="news-card"
-          style={styles.skeletonCard}
-        />
-      ))}
+      <UnifiedSkeletonLoader type="list-item" count={5} />
     </View>
   );
 

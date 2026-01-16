@@ -895,7 +895,7 @@ export default function ReportPotholeScreen({ navigation }) {
                 style={styles.map}
                 initialRegion={mapRegion}
                 onPress={handleMapPress}
-                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                provider={Platform.OS === 'android' && PROVIDER_GOOGLE ? PROVIDER_GOOGLE : undefined}
               >
                 {selectedLocation && Marker && (
                   <Marker

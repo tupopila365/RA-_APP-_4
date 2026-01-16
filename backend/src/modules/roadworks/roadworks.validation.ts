@@ -71,6 +71,10 @@ export function validateCoordinatesInNamibia(
 
 /**
  * Validate that coordinates belong to the selected region
+ * Note: This is a soft validation (warning only) because:
+ * - Roads can cross region boundaries
+ * - Coordinates might be at the edge of a region
+ * - The region might be selected based on the main area, not the exact coordinate
  */
 export function validateCoordinatesInRegion(
   latitude: number,
@@ -94,10 +98,14 @@ export function validateCoordinatesInRegion(
     regionalBounds.center.lon
   );
 
-  if (distance > regionalBounds.radiusKm) {
+  // Increased tolerance: use 1.5x the radius, and make it a warning instead of error
+  const toleranceRadius = regionalBounds.radiusKm * 1.5;
+  
+  if (distance > toleranceRadius) {
+    // Make it a warning instead of an error - roads can cross regions
     return {
-      valid: false,
-      error: `Coordinates (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) are ${distance.toFixed(1)}km from ${region} region center. This location appears to be outside the selected region.`
+      valid: true, // Still valid, just a warning
+      warning: `Coordinates (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) are ${distance.toFixed(1)}km from ${region} region center. This location may be near the region boundary or in an adjacent region. Please verify the region selection is correct.`
     };
   }
 
@@ -195,12 +203,10 @@ export function validateRoadworkData(
       if (!namibiaCheck.valid && namibiaCheck.error) {
         errors.push(namibiaCheck.error);
       } else {
-        // Check if coordinates match the selected region
+        // Check if coordinates match the selected region (warning only, not error)
         if (dto.region) {
           const regionCheck = validateCoordinatesInRegion(latitude, longitude, dto.region);
-          if (!regionCheck.valid && regionCheck.error) {
-            errors.push(regionCheck.error);
-          }
+          // Region validation is now always valid (just warnings), so we don't add errors
           if (regionCheck.warning) {
             warnings.push(regionCheck.warning);
           }
@@ -224,6 +230,37 @@ export function validateRoadworkData(
     }
     if (!dto.startDate) {
       warnings.push('Publishing roadwork without a start date may confuse users');
+    }
+  }
+
+  // Description validation - prevent error messages from being saved
+  if (dto.description) {
+    const desc = dto.description.trim();
+    
+    // Check length
+    if (desc.length > 1000) {
+      errors.push('Description must be 1000 characters or less');
+    }
+    
+    // Only check for actual error stack traces (very specific patterns)
+    // Check for stack trace patterns that indicate actual error messages
+    const errorPatterns = [
+      /ERROR\s+\[Error:/i,           // "ERROR [Error:"
+      /TransformError/i,              // "TransformError"
+      /SyntaxError/i,                 // "SyntaxError"
+      /ValidationError/i,             // "ValidationError"
+      /at\s+\w+\.\w+\(/i,            // "at function.name(" (stack trace)
+      /at\s+file:\/\//i,             // "at file://" (file paths in errors)
+      /node_modules/i,                // "node_modules" (error stack traces)
+      /\.js:\d+:\d+/i,                // ".js:123:45" (file locations in errors)
+    ];
+    
+    const hasErrorPattern = errorPatterns.some(pattern => pattern.test(desc));
+    
+    // Only reject if it's clearly an error message (starts with ERROR or has multiple error indicators)
+    if (hasErrorPattern && (desc.startsWith('ERROR') || desc.startsWith('Error') || 
+        (desc.includes('TransformError') || desc.includes('SyntaxError') || desc.includes('ValidationError')))) {
+      errors.push('Description appears to contain an error message. Please enter a valid description.');
     }
   }
 

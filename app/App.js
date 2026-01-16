@@ -28,6 +28,7 @@ import ProcurementLegislationScreen from './screens/ProcurementLegislationScreen
 import ProcurementPlanScreen from './screens/ProcurementPlanScreen';
 import ProcurementAwardsScreen from './screens/ProcurementAwardsScreen';
 import OpeningRegisterScreen from './screens/OpeningRegisterScreen';
+import FormsScreen from './screens/FormsScreen';
 import ChatbotScreen from './screens/ChatbotScreen';
 import FAQsScreen from './screens/FAQsScreen';
 import FindOfficesScreen from './screens/FindOfficesScreen';
@@ -56,6 +57,13 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { DependencyProvider } from './src/presentation/di/DependencyContext';
 import { useNotifications } from './hooks/useNotifications';
 import { authService } from './services/authService';
+
+// CRITICAL: Fix blurry/foggy text on Android by disabling font padding globally
+// This applies to all Text components imported directly from 'react-native'
+if (Platform.OS === 'android') {
+  Text.defaultProps = Text.defaultProps || {};
+  Text.defaultProps.includeFontPadding = false;
+}
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -128,6 +136,7 @@ function ProcurementStack() {
       <Stack.Screen name="ProcurementPlan" component={ProcurementPlanScreen} options={{ title: 'Procurement Plan' }} />
       <Stack.Screen name="ProcurementAwards" component={ProcurementAwardsScreen} options={{ title: 'Awards' }} />
       <Stack.Screen name="OpeningRegister" component={OpeningRegisterScreen} options={{ title: 'Opening Register' }} />
+      <Stack.Screen name="Forms" component={FormsScreen} options={{ title: 'Forms & Documents', headerShown: false }} />
     </Stack.Navigator>
   );
 }
