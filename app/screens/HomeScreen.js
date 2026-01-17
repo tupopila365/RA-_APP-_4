@@ -37,6 +37,9 @@ const BREAKPOINTS = {
 // Minimum touch target size (Material Design & iOS guidelines)
 const MIN_TOUCH_TARGET = 48;
 
+// Gradient used on the welcome/onboarding screens (reused for the home hero)
+const WELCOME_HEADER_COLORS = ['#00B4E6', '#0090C0', '#0078A3'];
+
 /**
  * Determine device type and get responsive values based on screen width
  */
@@ -164,6 +167,22 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
   const primaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(72 * scaleFactor, isLargeTablet ? 80 : 72));
   const secondaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(56 * scaleFactor, isLargeTablet ? 64 : 56));
 
+  // Rotate header background through available banners
+  useEffect(() => {
+    if (!banners || banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [banners]);
+
+  const heroBanner = banners.length > 0 ? banners[activeBannerIndex % banners.length] : null;
+  const heroImageSource = heroBanner
+    ? heroBanner.isLocal
+      ? heroBanner.source
+      : { uri: heroBanner.imageUrl }
+    : Poster1;
+
   const handleNatisOnline = async () => {
     await WebBrowser.openBrowserAsync('https://online.ra.org.na/#/');
   };
@@ -234,14 +253,18 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     }
   };
 
+  const primaryIconColor = colors.primary;
+  const primaryIconBg = '#E3F2FD';
+  const secondaryIconBg = '#F5F5F7';
+
   // Primary actions - most important, larger emphasis
   const primaryMenuItems = [
     {
       id: 1,
       title: 'NATIS Online',
       icon: 'car-outline',
-      color: '#007AFF', // System blue for primary services
-      backgroundColor: '#E3F2FD', // Light blue tint
+      color: primaryIconColor,
+      backgroundColor: primaryIconBg,
       isPrimary: true,
       onPress: handleNatisOnline,
     },
@@ -249,8 +272,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 2.5,
       title: 'Report Road Damage',
       icon: 'alert-circle-outline',
-      color: '#FF3B30', // Red for critical/danger actions
-      backgroundColor: '#FFEBEE', // Light red tint
+      color: primaryIconColor,
+      backgroundColor: primaryIconBg,
       isPrimary: true,
       onPress: () => navigation?.navigate('ReportPothole'),
     },
@@ -258,8 +281,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 8.5,
       title: 'Road Status',
       icon: 'map-outline',
-      color: '#007AFF', // Blue for informational/service
-      backgroundColor: '#E3F2FD',
+      color: primaryIconColor,
+      backgroundColor: primaryIconBg,
       isPrimary: true,
       onPress: () => navigation?.navigate('RoadStatus'),
     },
@@ -271,8 +294,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 1,
       title: 'E-Recruitment',
       icon: 'briefcase-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: handleERecruitment,
     },
@@ -280,8 +303,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 2,
       title: 'News',
       icon: 'newspaper-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('News'),
     },
@@ -289,8 +312,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 3,
       title: 'Careers',
       icon: 'document-text-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('Vacancies'),
     },
@@ -298,8 +321,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 4,
       title: 'Procurement',
       icon: 'business-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('Procurement'),
     },
@@ -307,8 +330,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 6,
       title: 'FAQs',
       icon: 'help-circle-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('FAQs'),
     },
@@ -316,8 +339,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 7,
       title: 'Find Offices',
       icon: 'location-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('Find Offices'),
     },
@@ -325,8 +348,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 8,
       title: 'Settings',
       icon: 'settings-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('MainTabs', { screen: 'Settings' }),
     },
@@ -334,8 +357,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 8.5,
       title: 'Alerts',
       icon: 'notifications-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('Notifications'),
     },
@@ -343,8 +366,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 9,
       title: 'Chat',
       icon: 'chatbubble-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('MainTabs', { screen: 'Chatbot' }),
     },
@@ -352,8 +375,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 10,
       title: 'Applications',
       icon: 'document-text-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       isPrimary: false,
       onPress: () => navigation?.navigate('Applications'),
     },
@@ -417,66 +440,80 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={[colors.primary, colors.primary]}
-        style={styles.header}
-      >
-        <SafeAreaView edges={['top']}>
-        <View style={styles.headerContent}>
-          <View style={styles.brandContainer}>
-            <Image 
-              source={RAIcon} 
-              style={styles.brandLogo}
-              resizeMode="contain"
-              // Android-specific rendering optimization for crisp display
-              {...Platform.select({
-                android: {
-                  renderToHardwareTextureAndroid: true,
-                },
-              })}
-            />
-            <View style={styles.brandTextContainer}>
-              {user && user.fullName ? (
-                <>
-                  <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome</Text>
-                  <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>{user.fullName}</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome to</Text>
-                  <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority</Text>
-                  <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Namibia</Text>
-                </>
-              )}
-            </View>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.alertButton}
-            onPress={() => {
-              const tabNavigator = navigation?.getParent('MainTabs');
-              if (tabNavigator) {
-                tabNavigator.navigate('Notifications');
-              } else {
-                navigation?.navigate('MainTabs', { screen: 'Notifications' });
-              }
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="notifications" size={24} color="#FFFFFF" />
-            {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
-              <View style={styles.alertBadge}>
-                <Text style={styles.alertBadgeText} maxFontSizeMultiplier={1.3}>
-                  {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 9 
-                    ? '9+' 
-                    : notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+      <View style={styles.header}>
+        <ImageBackground
+          source={heroImageSource}
+          style={styles.heroCard}
+          imageStyle={styles.heroImage}
+        >
+          <LinearGradient
+            colors={WELCOME_HEADER_COLORS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.heroOverlay}
+          />
+          <SafeAreaView edges={['top']}>
+            <View style={styles.headerContent}>
+              <TouchableOpacity
+                style={[styles.alertButton, styles.heroAlertButton]}
+                onPress={() => {
+                  const tabNavigator = navigation?.getParent('MainTabs');
+                  if (tabNavigator) {
+                    tabNavigator.navigate('Notifications');
+                  } else {
+                    navigation?.navigate('MainTabs', { screen: 'Notifications' });
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="notifications" size={24} color={colors.primary} />
+                {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
+                  <View style={styles.alertBadge}>
+                    <Text style={styles.alertBadgeText} maxFontSizeMultiplier={1.3}>
+                      {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 9 
+                        ? '9+' 
+                        : notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
 
-        {/* Search Bar */}
+              <View style={styles.heroLogoWrapper}>
+                <Image 
+                  source={RAIcon} 
+                  style={styles.brandLogoHero}
+                  resizeMode="contain"
+                  // Android-specific rendering optimization for crisp display
+                  {...Platform.select({
+                    android: {
+                      renderToHardwareTextureAndroid: true,
+                    },
+                  })}
+                />
+              </View>
+
+              <View style={styles.heroTextContainer}>
+                {user && user.fullName ? (
+                  <>
+                    <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome back</Text>
+                    <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>{user.fullName}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome to</Text>
+                    <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority Namibia</Text>
+                  </>
+                )}
+                <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Safe Roads to Prosperity</Text>
+                <Text style={styles.heroDescription} maxFontSizeMultiplier={1.3}>
+                  Your gateway to safer roads and essential services in Namibia.
+                </Text>
+
+              </View>
+            </View>
+          </SafeAreaView>
+        </ImageBackground>
+
         <View style={styles.searchContainer}>
           <SearchInput
             placeholder="Search..."
@@ -486,77 +523,12 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
             accessibilityHint="Search for content across the app"
           />
         </View>
-        </SafeAreaView>
-      </LinearGradient>
+      </View>
 
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.content}
       >
-        {/* Banner Section */}
-        <View style={styles.bannerContainer}>
-          {loadingBanners ? (
-            <View style={styles.bannerLoadingContainer}>
-              <UnifiedSkeletonLoader type="banner" animated={true} />
-            </View>
-          ) : banners.length > 0 ? (
-            <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                snapToAlignment="start"
-                decelerationRate="fast"
-                pagingEnabled
-                contentContainerStyle={styles.bannerScrollContent}
-                onScroll={(event) => {
-                  const scrollPosition = event.nativeEvent.contentOffset.x;
-                  const bannerWidth = screenWidth - (responsiveConfig.isPhone ? 32 : responsiveConfig.isTablet ? 48 : 64) - (responsiveConfig.isPhone ? 8 : 12);
-                  const index = Math.round(scrollPosition / bannerWidth);
-                  setActiveBannerIndex(index);
-                }}
-                scrollEventThrottle={16}
-              >
-                {banners.map((banner) => (
-                  <TouchableOpacity
-                    key={banner.id}
-                    activeOpacity={banner.linkUrl ? 0.8 : 1}
-                    onPress={() => handleBannerPress(banner)}
-                    disabled={!banner.linkUrl}
-                  >
-                    <ImageBackground
-                      source={banner.isLocal ? banner.source : { uri: banner.imageUrl }}
-                      style={styles.banner}
-                      imageStyle={styles.bannerImage}
-                    >
-                      <View style={styles.bannerOverlay}>
-                        <Text style={styles.bannerText} maxFontSizeMultiplier={1.3}>{banner.title}</Text>
-                        {banner.description && (
-                          <Text style={styles.bannerSubtext} maxFontSizeMultiplier={1.3}>{banner.description}</Text>
-                        )}
-                      </View>
-                    </ImageBackground>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              
-              {/* Pagination Dots */}
-              {banners.length > 1 && (
-                <View style={styles.paginationContainer}>
-                  {banners.map((banner, index) => (
-                    <View
-                      key={banner.id}
-                      style={[
-                        styles.paginationDot,
-                        activeBannerIndex === index && styles.paginationDotActive,
-                      ]}
-                    />
-                  ))}
-                </View>
-              )}
-            </>
-          ) : null}
-        </View>
-
         {/* Recent Alerts Section */}
         {!searchQuery.trim() && 
          !loadingNotifications && 
@@ -743,42 +715,91 @@ function getStyles(colors, config) {
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: isPhone ? 24 : 30,
-      paddingBottom: isPhone ? 20 : 25,
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: isPhone ? 20 : 24,
+      gap: isPhone ? 12 : 16,
+      backgroundColor: colors.background,
+    },
+    headerContent: {
       paddingHorizontal: horizontalPadding,
-      borderBottomLeftRadius: isPhone ? 24 : 32,
-      borderBottomRightRadius: isPhone ? 24 : 32,
-      // Android-safe elevation
+      paddingTop: isPhone ? 16 : 22,
+      paddingBottom: isPhone ? 24 : 30,
+      position: 'relative',
+    },
+    heroCard: {
+      width: '100%',
+      alignSelf: 'stretch',
+      borderRadius: 0,
+      overflow: 'hidden',
+      minHeight: isPhone ? 300 : 340,
+      justifyContent: 'flex-end',
+    },
+    heroImage: {
+      borderRadius: 0,
+    },
+    heroOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      opacity: 0.9,
+    },
+    heroLogoWrapper: {
+      alignSelf: 'center',
+      width: isPhone ? 96 : 108,
+      height: isPhone ? 96 : 108,
+      borderRadius: isPhone ? 48 : 54,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: isPhone ? 12 : 16,
+      borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.5)',
       ...Platform.select({
         ios: {
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.12,
-          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.14,
+          shadowRadius: 8,
         },
         android: {
-          elevation: 2, // Reduced from 8 to 2
+          elevation: 4,
         },
       }),
     },
-    headerContent: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 20,
-      position: 'relative',
+    brandLogoHero: {
+      width: isPhone ? 72 : 80,
+      height: isPhone ? 72 : 80,
+      resizeMode: 'contain',
+    },
+    heroTextContainer: {
+      gap: isPhone ? 6 : 8,
     },
     alertButton: {
       width: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
       height: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
       borderRadius: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor) / 2,
-      backgroundColor: '#FFFFFF', // Solid white - no opacity for crisp Android rendering
+      backgroundColor: '#FFFFFF',
       justifyContent: 'center',
       alignItems: 'center',
       position: 'relative',
-      // Remove any elevation/shadow that could cause foggy appearance
-      elevation: 0,
-      shadowOpacity: 0,
+      borderWidth: 1,
+      borderColor: 'rgba(0,0,0,0.06)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+    },
+    heroAlertButton: {
+      position: 'absolute',
+      top: isPhone ? 16 : 18,
+      right: isPhone ? 16 : 18,
+      zIndex: 2,
     },
     alertBadge: {
       position: 'absolute',
@@ -818,41 +839,38 @@ function getStyles(colors, config) {
       shadowOpacity: 0,
     },
     welcomeText: {
-      color: '#FFFFFF',
-      fontSize: isPhone ? 12 : 14,
-      // Remove opacity on Android - causes foggy text
-      ...Platform.select({
-        ios: {
-          opacity: 0.95, // Keep opacity on iOS
-        },
-        android: {
-          // No opacity on Android for crisp rendering
-        },
-      }),
-      fontWeight: '500',
-      letterSpacing: 0.3,
+      color: '#EAF7FF',
+      fontSize: isPhone ? 13 : 14,
+      fontWeight: '600',
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
     },
     titleText: {
       color: '#FFFFFF',
-      fontSize: titleFontSize,
-      fontWeight: '700',
-      marginTop: 2,
-      letterSpacing: -0.5,
+      fontSize: isPhone ? 26 : 30,
+      fontWeight: '800',
+      letterSpacing: -0.6,
+      lineHeight: isPhone ? 32 : 36,
     },
     subtitleText: {
-      color: '#FFFFFF',
-      fontSize: isPhone ? 13 : 15,
-      // Remove opacity on Android - causes foggy text
-      ...Platform.select({
-        ios: {
-          opacity: 0.9, // Keep opacity on iOS
-        },
-        android: {
-          // No opacity on Android for crisp rendering
-        },
-      }),
+      color: '#E3F5FF',
+      fontSize: isPhone ? 16 : 18,
+      fontWeight: '700',
       marginTop: 2,
+      letterSpacing: -0.2,
+    },
+    heroDescription: {
+      color: '#EAF7FF',
+      fontSize: isPhone ? 13 : 14,
+      opacity: 0.92,
+      marginTop: 4,
+      lineHeight: isPhone ? 20 : 22,
       fontWeight: '500',
+    },
+    searchContainer: {
+      marginTop: isPhone ? -28 : -34,
+      paddingHorizontal: horizontalPadding,
+      marginBottom: isPhone ? 2 : 4,
     },
 
     scrollView: {
@@ -861,92 +879,7 @@ function getStyles(colors, config) {
     content: {
       padding: horizontalPadding,
       paddingBottom: isPhone ? 80 : 100,
-      paddingTop: isPhone ? 12 : 20, // Reduced top padding on phones
-    },
-    searchContainer: {
-      marginBottom: isPhone ? 12 : 16,
-      paddingHorizontal: 0,
-    },
-    bannerContainer: {
-      marginBottom: 24,
-      position: 'relative',
-    },
-    bannerLoadingContainer: {
-      width: screenWidth - horizontalPadding * 2,
-      height: bannerHeight,
-      borderRadius: isPhone ? 16 : 20,
-      overflow: 'hidden',
-    },
-    bannerScrollContent: {
-      paddingRight: horizontalPadding,
-    },
-    banner: {
-      width: screenWidth - horizontalPadding * 2,
-      height: bannerHeight,
-      borderRadius: isPhone ? 16 : 20,
-      overflow: 'hidden',
-      marginRight: gridGap,
-      justifyContent: 'flex-end',
-      // Android-safe elevation
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 1, // Reduced from 8 to 1
-        },
-      }),
-      borderWidth: 1,
-      borderColor: '#E6EAF0',
-    },
-    bannerImage: {
-      borderRadius: 24,
-      resizeMode: 'cover',
-    },
-    bannerOverlay: {
-      backgroundColor: '#000000', // Solid black instead of rgba
-      opacity: 0.6, // Use opacity instead of rgba
-      padding: 20,
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24,
-    },
-    bannerText: {
-      color: '#FFFFFF',
-      fontSize: 20,
-      fontWeight: '700',
-      letterSpacing: -0.3,
-      lineHeight: 26,
-    },
-    bannerSubtext: {
-      color: '#FFFFFF',
-      fontSize: 13,
-      marginTop: 8,
-      opacity: 0.95,
-      fontWeight: '500',
-    },
-    paginationContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 12,
-      gap: 8,
-    },
-    paginationDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.textSecondary,
-      opacity: 0.3,
-    },
-    paginationDotActive: {
-      backgroundColor: colors.primary,
-      opacity: 1,
-      width: 28,
-      height: 8,
-      borderRadius: 4,
+      paddingTop: isPhone ? 4 : 8, // Pull content closer to search
     },
     menuSection: {
       marginTop: 8,

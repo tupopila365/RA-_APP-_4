@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ const BREAKPOINTS = {
 };
 
 const MIN_TOUCH_TARGET = 48;
+const WELCOME_HEADER_COLORS = ['#00B4E6', '#0090C0', '#0078A3'];
 
 /* -------------------- RESPONSIVE CONFIG -------------------- */
 
@@ -104,6 +105,17 @@ export default function ProcurementScreen({ navigation }) {
     },
   ];
 
+  useEffect(() => {
+    if (!banners || banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [banners]);
+
+  const heroBanner = banners.length > 0 ? banners[activeBannerIndex % banners.length] : null;
+  const heroImageSource = heroBanner ? heroBanner.source : ProcurementImage1;
+
   const menuItems = [
     {
       id: 1,
@@ -154,20 +166,38 @@ export default function ProcurementScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* ---------- HEADER ---------- */}
-      <LinearGradient colors={[colors.primary, colors.primary]} style={styles.header}>
-        <SafeAreaView edges={['top']}>
-          <View style={styles.headerContent}>
-            <View style={styles.brandContainer}>
-              <Image source={RAIcon} style={styles.brandLogo} />
-              <View style={styles.brandTextContainer}>
+      {/* ---------- HEADER (Home-style hero) ---------- */}
+      <View style={styles.header}>
+        <ImageBackground
+          source={heroImageSource}
+          style={styles.heroCard}
+          imageStyle={styles.heroImage}
+        >
+          <LinearGradient
+            colors={WELCOME_HEADER_COLORS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.heroOverlay}
+          />
+          <SafeAreaView edges={['top']}>
+            <View style={styles.headerContent}>
+              <View style={styles.heroLogoWrapper}>
+                <Image source={RAIcon} style={styles.brandLogoHero} resizeMode="contain" />
+              </View>
+
+              <View style={styles.heroTextContainer}>
                 <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Roads Authority</Text>
                 <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Procurement</Text>
-                <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Services & Information</Text>
+                <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Transparent and efficient services</Text>
+                <Text style={styles.heroDescription} maxFontSizeMultiplier={1.3}>
+                  Access tenders, plans, awards, and key procurement resources.
+                </Text>
               </View>
             </View>
-          </View>
+          </SafeAreaView>
+        </ImageBackground>
 
+        <View style={styles.searchContainer}>
           <SearchInput
             placeholder="Search procurement services..."
             onSearch={setSearchQuery}
@@ -175,62 +205,14 @@ export default function ProcurementScreen({ navigation }) {
             accessibilityLabel="Search procurement services"
             accessibilityHint="Type to filter available procurement options"
           />
-        </SafeAreaView>
-      </LinearGradient>
+        </View>
+      </View>
 
       {/* ---------- CONTENT ---------- */}
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.content}
       >
-        {/* ---------- BANNERS ---------- */}
-        <View style={styles.bannerContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            pagingEnabled
-            contentContainerStyle={styles.bannerScrollContent}
-            onScroll={(event) => {
-              const scrollPosition = event.nativeEvent.contentOffset.x;
-              const bannerWidth = screenWidth - (responsiveConfig.isPhone ? 32 : responsiveConfig.isTablet ? 48 : 64) - (responsiveConfig.isPhone ? 8 : 12);
-              const index = Math.round(scrollPosition / bannerWidth);
-              setActiveBannerIndex(index);
-            }}
-            scrollEventThrottle={16}
-          >
-            {banners.map((banner) => (
-              <ImageBackground
-                key={banner.id}
-                source={banner.source}
-                style={styles.banner}
-                imageStyle={styles.bannerImage}
-              >
-                <View style={styles.bannerOverlay}>
-                  <Text style={styles.bannerText} maxFontSizeMultiplier={1.3}>{banner.title}</Text>
-                  <Text style={styles.bannerSubtext} maxFontSizeMultiplier={1.3}>{banner.description}</Text>
-                </View>
-              </ImageBackground>
-            ))}
-          </ScrollView>
-
-          {/* Pagination Dots */}
-          {banners.length > 1 && (
-            <View style={styles.paginationContainer}>
-              {banners.map((banner, index) => (
-                <View
-                  key={banner.id}
-                  style={[
-                    styles.paginationDot,
-                    activeBannerIndex === index && styles.paginationDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-
         {/* ---------- ALL SERVICES ---------- */}
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>
@@ -320,9 +302,6 @@ function getStyles(colors, config) {
   const titleFontSize = isPhone ? 22 : isTablet ? 24 : 26;
   const sectionFontSize = isPhone ? 20 : isTablet ? 22 : 24;
 
-  // Banner height responsive to screen size
-  const bannerHeight = isPhone ? (isLandscape ? 140 : 180) : isTablet ? (isLandscape ? 200 : 220) : 240;
-
   return StyleSheet.create({
     container: { 
       flex: 1, 
@@ -330,73 +309,110 @@ function getStyles(colors, config) {
     },
 
     header: {
-      paddingTop: isPhone ? 24 : 30,
-      paddingBottom: isPhone ? 20 : 25,
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: isPhone ? 20 : 24,
+      gap: isPhone ? 12 : 16,
+      backgroundColor: colors.background,
+    },
+
+    headerContent: {
       paddingHorizontal: horizontalPadding,
-      borderBottomLeftRadius: isPhone ? 24 : 32,
-      borderBottomRightRadius: isPhone ? 24 : 32,
+      paddingTop: isPhone ? 16 : 22,
+      paddingBottom: isPhone ? 24 : 30,
+      position: 'relative',
+      alignItems: 'center',
+      gap: isPhone ? 10 : 12,
+    },
+
+    heroCard: {
+      width: '100%',
+      alignSelf: 'stretch',
+      borderRadius: 0,
+      overflow: 'hidden',
+      minHeight: isPhone ? 300 : 340,
+      justifyContent: 'flex-end',
+    },
+
+    heroImage: {
+      borderRadius: 0,
+    },
+
+    heroOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      opacity: 0.9,
+    },
+
+    heroLogoWrapper: {
+      alignSelf: 'center',
+      width: isPhone ? 96 : 108,
+      height: isPhone ? 96 : 108,
+      borderRadius: isPhone ? 48 : 54,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: isPhone ? 6 : 10,
+      borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.5)',
       ...Platform.select({
         ios: {
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.12,
-          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.14,
+          shadowRadius: 8,
         },
         android: {
-          elevation: 2,
+          elevation: 4,
         },
       }),
     },
 
-    headerContent: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 20,
-      position: 'relative',
-    },
-
-    brandContainer: { 
-      flexDirection: 'row', 
-      alignItems: 'center' 
-    },
-
-    brandTextContainer: {
-      marginLeft: 12,
-    },
-
-    brandLogo: {
-      width: isPhone ? 56 : isTablet ? 64 : 72,
-      height: isPhone ? 56 : isTablet ? 64 : 72,
+    brandLogoHero: {
+      width: isPhone ? 72 : 80,
+      height: isPhone ? 72 : 80,
       resizeMode: 'contain',
-      borderRadius: isPhone ? 14 : 16,
-      backgroundColor: colors.card,
-      opacity: 0.9,
-      padding: isPhone ? 6 : 8,
+    },
+
+    heroTextContainer: {
+      gap: isPhone ? 4 : 6,
+      alignItems: 'center',
     },
 
     welcomeText: { 
-      color: '#FFFFFF',
-      fontSize: isPhone ? 12 : 14,
-      opacity: 0.95,
-      fontWeight: '500',
-      letterSpacing: 0.3,
+      color: '#EAF7FF',
+      fontSize: isPhone ? 13 : 14,
+      fontWeight: '600',
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
     },
 
     titleText: { 
       color: '#FFFFFF',
-      fontSize: titleFontSize,
-      fontWeight: '700',
+      fontSize: isPhone ? 26 : 30,
+      fontWeight: '800',
       marginTop: 2,
-      letterSpacing: -0.5,
+      letterSpacing: -0.6,
+      lineHeight: isPhone ? 32 : 36,
+      textAlign: 'center',
     },
 
     subtitleText: { 
-      color: '#FFFFFF',
-      fontSize: isPhone ? 13 : 15,
-      opacity: 0.9,
+      color: '#E3F5FF',
+      fontSize: isPhone ? 16 : 18,
+      marginTop: 0,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      textAlign: 'center',
+    },
+
+    heroDescription: {
+      color: '#EAF7FF',
+      fontSize: isPhone ? 13 : 14,
+      opacity: 0.92,
       marginTop: 2,
+      lineHeight: isPhone ? 20 : 22,
       fontWeight: '500',
+      textAlign: 'center',
     },
 
     scrollView: {
@@ -404,93 +420,15 @@ function getStyles(colors, config) {
     },
 
     content: { 
-      padding: horizontalPadding,
+      paddingHorizontal: horizontalPadding,
       paddingBottom: isPhone ? 80 : 100,
-      paddingTop: isPhone ? 12 : 20,
+      paddingTop: isPhone ? 4 : 8,
     },
 
-    bannerContainer: {
-      marginBottom: 24,
-      position: 'relative',
-    },
-
-    bannerScrollContent: {
-      paddingRight: horizontalPadding,
-    },
-
-    banner: {
-      width: screenWidth - horizontalPadding * 2,
-      height: bannerHeight,
-      borderRadius: isPhone ? 16 : 20,
-      overflow: 'hidden',
-      marginRight: gridGap,
-      justifyContent: 'flex-end',
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 1,
-        },
-      }),
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-
-    bannerImage: { 
-      borderRadius: isPhone ? 16 : 20,
-      resizeMode: 'cover',
-    },
-
-    bannerOverlay: {
-      backgroundColor: colors.text,
-      opacity: 0.6,
-      padding: 20,
-      borderBottomLeftRadius: isPhone ? 16 : 20,
-      borderBottomRightRadius: isPhone ? 16 : 20,
-    },
-
-    bannerText: { 
-      color: '#FFFFFF',
-      fontSize: 20,
-      fontWeight: '700',
-      letterSpacing: -0.3,
-      lineHeight: 26,
-    },
-
-    bannerSubtext: { 
-      color: '#FFFFFF',
-      fontSize: 13,
-      marginTop: 8,
-      opacity: 0.95,
-      fontWeight: '500',
-    },
-
-    paginationContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 12,
-      gap: 8,
-    },
-
-    paginationDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.textSecondary,
-      opacity: 0.3,
-    },
-
-    paginationDotActive: {
-      backgroundColor: colors.primary,
-      opacity: 1,
-      width: 28,
-      height: 8,
-      borderRadius: 4,
+    searchContainer: {
+      marginTop: isPhone ? -28 : -34,
+      paddingHorizontal: horizontalPadding,
+      marginBottom: isPhone ? 6 : 10,
     },
 
     /* ---- ALL SERVICES GRID ---- */

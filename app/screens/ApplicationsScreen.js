@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,7 @@ const BREAKPOINTS = {
 
 // Minimum touch target size (Material Design & iOS guidelines)
 const MIN_TOUCH_TARGET = 48;
+const WELCOME_HEADER_COLORS = ['#00B4E6', '#0090C0', '#0078A3'];
 
 /**
  * Determine device type and get responsive values based on screen width
@@ -107,6 +108,17 @@ export default function ApplicationsScreen({ navigation }) {
     },
   ];
 
+  useEffect(() => {
+    if (!applicationBanners || applicationBanners.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % applicationBanners.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [applicationBanners]);
+
+  const heroBanner = applicationBanners.length > 0 ? applicationBanners[activeBannerIndex % applicationBanners.length] : null;
+  const heroImageSource = heroBanner ? heroBanner.source : ApplicationImage1;
+
   // Handle external links
   const handleExternalLink = async (url) => {
     try {
@@ -126,38 +138,41 @@ export default function ApplicationsScreen({ navigation }) {
     handleExternalLink('https://recruitment.nra.org.na/');
   };
 
+  const primaryIconColor = colors.primary;
+  const secondaryIconBg = '#F5F5F7';
+
   // Application services - only the three specified items
   const applicationMenuItems = [
     {
       id: 1,
       title: 'Personalized Number Plates',
       icon: 'card-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       onPress: () => navigation?.navigate('PLNInfo'),
     },
     {
       id: 2,
       title: 'Track PLN Application',
       icon: 'search-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       onPress: () => navigation?.navigate('PLNTracking'),
     },
     {
       id: 3,
       title: 'My Reports',
       icon: 'list-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       onPress: () => navigation?.navigate('MyReports'),
     },
     {
       id: 4,
       title: 'Forms',
       icon: 'document-text-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: primaryIconColor,
+      backgroundColor: secondaryIconBg,
       onPress: () => navigation?.navigate('Procurement', { screen: 'Forms' }),
     },
   ];
@@ -186,39 +201,54 @@ export default function ApplicationsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header matching home page design exactly */}
-      <LinearGradient
-        colors={[colors.primary, colors.primary]}
-        style={styles.header}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.headerContent}>
-            <View style={styles.brandContainer}>
-              <Image source={RAIcon} style={styles.brandLogo} />
-              <View style={styles.brandTextContainer}>
+      {/* Header matching home page hero */}
+      <View style={styles.header}>
+        <ImageBackground
+          source={heroImageSource}
+          style={styles.heroCard}
+          imageStyle={styles.heroImage}
+        >
+          <LinearGradient
+            colors={WELCOME_HEADER_COLORS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.heroOverlay}
+          />
+          <SafeAreaView edges={['top']}>
+            <View style={styles.headerContent}>
+              <TouchableOpacity
+                style={[styles.alertButton, styles.heroAlertButton]}
+                onPress={() => {
+                  const tabNavigator = navigation?.getParent('MainTabs');
+                  if (tabNavigator) {
+                    tabNavigator.navigate('Notifications');
+                  } else {
+                    navigation?.navigate('MainTabs', { screen: 'Notifications' });
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="notifications" size={24} color={colors.primary} />
+              </TouchableOpacity>
+
+              <View style={styles.heroLogoWrapper}>
+                <Image source={RAIcon} style={styles.brandLogoHero} resizeMode="contain" />
+              </View>
+
+              <View style={styles.heroTextContainer}>
                 <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Roads Authority</Text>
                 <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Applications</Text>
                 <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Services & Forms</Text>
+                <Text style={styles.heroDescription} maxFontSizeMultiplier={1.3}>
+                  Apply, track, and manage your RA services in one place.
+                </Text>
               </View>
             </View>
-            
-            <TouchableOpacity
-              style={styles.alertButton}
-              onPress={() => {
-                const tabNavigator = navigation?.getParent('MainTabs');
-                if (tabNavigator) {
-                  tabNavigator.navigate('Notifications');
-                } else {
-                  navigation?.navigate('MainTabs', { screen: 'Notifications' });
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="notifications" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+          </SafeAreaView>
+        </ImageBackground>
 
-          {/* Search Bar */}
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
           <SearchInput
             placeholder="Search applications..."
             onSearch={setSearchQuery}
@@ -226,68 +256,13 @@ export default function ApplicationsScreen({ navigation }) {
             accessibilityLabel="Search applications"
             accessibilityHint="Type to filter available applications"
           />
-        </SafeAreaView>
-      </LinearGradient>
+        </View>
+      </View>
 
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.content}
       >
-        {/* Banner Section */}
-        <View style={styles.bannerContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            pagingEnabled
-            contentContainerStyle={styles.bannerScrollContent}
-            onScroll={(event) => {
-              const scrollPosition = event.nativeEvent.contentOffset.x;
-              const bannerWidth = screenWidth - (responsiveConfig.isPhone ? 32 : responsiveConfig.isTablet ? 48 : 64) - (responsiveConfig.isPhone ? 8 : 12);
-              const index = Math.round(scrollPosition / bannerWidth);
-              setActiveBannerIndex(index);
-            }}
-            scrollEventThrottle={16}
-          >
-            {applicationBanners.map((banner) => (
-              <TouchableOpacity
-                key={banner.id}
-                activeOpacity={0.8}
-                disabled={true}
-              >
-                <ImageBackground
-                  source={banner.source}
-                  style={styles.banner}
-                  imageStyle={styles.bannerImage}
-                >
-                  <View style={styles.bannerOverlay}>
-                    <Text style={styles.bannerText} maxFontSizeMultiplier={1.3}>{banner.title}</Text>
-                    {banner.description && (
-                      <Text style={styles.bannerSubtext} maxFontSizeMultiplier={1.3}>{banner.description}</Text>
-                    )}
-                  </View>
-                </ImageBackground>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          
-          {/* Pagination Dots */}
-          {applicationBanners.length > 1 && (
-            <View style={styles.paginationContainer}>
-              {applicationBanners.map((banner, index) => (
-                <View
-                  key={banner.id}
-                  style={[
-                    styles.paginationDot,
-                    activeBannerIndex === index && styles.paginationDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-
         {/* All Services Section - Only Application Services */}
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>{searchQuery.trim() ? 'Search Results' : 'All Services'}</Text>
@@ -350,167 +325,146 @@ function getStyles(colors, config) {
   const titleFontSize = isPhone ? 22 : isTablet ? 24 : 26;
   const sectionFontSize = isPhone ? 20 : isTablet ? 22 : 24;
   
-  // Banner height responsive to screen size
-  const bannerHeight = isPhone ? (isLandscape ? 140 : 180) : isTablet ? (isLandscape ? 200 : 220) : 240;
-  
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: isPhone ? 24 : 30,
-      paddingBottom: isPhone ? 20 : 25,
-      paddingHorizontal: horizontalPadding,
-      borderBottomLeftRadius: isPhone ? 24 : 32,
-      borderBottomRightRadius: isPhone ? 24 : 32,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.12,
-          shadowRadius: 6,
-        },
-        android: {
-          elevation: 2,
-        },
-      }),
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: isPhone ? 20 : 24,
+      gap: isPhone ? 12 : 16,
+      backgroundColor: colors.background,
     },
     headerContent: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 20,
+      paddingHorizontal: horizontalPadding,
+      paddingTop: isPhone ? 16 : 22,
+      paddingBottom: isPhone ? 24 : 30,
       position: 'relative',
+      alignItems: 'center',
+      gap: isPhone ? 10 : 12,
+    },
+    heroCard: {
+      width: '100%',
+      alignSelf: 'stretch',
+      borderRadius: 0,
+      overflow: 'hidden',
+      minHeight: isPhone ? 300 : 340,
+      justifyContent: 'flex-end',
+    },
+    heroImage: {
+      borderRadius: 0,
+    },
+    heroOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      opacity: 0.9,
     },
     alertButton: {
       width: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
       height: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
       borderRadius: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor) / 2,
       backgroundColor: '#FFFFFF',
-      opacity: 0.9,
       justifyContent: 'center',
       alignItems: 'center',
       position: 'relative',
+      borderWidth: 1,
+      borderColor: 'rgba(0,0,0,0.06)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
     },
-    brandContainer: {
-      flexDirection: 'row',
+    heroAlertButton: {
+      position: 'absolute',
+      top: isPhone ? 16 : 18,
+      right: isPhone ? 16 : 18,
+      zIndex: 2,
+    },
+    heroLogoWrapper: {
+      alignSelf: 'center',
+      width: isPhone ? 96 : 108,
+      height: isPhone ? 96 : 108,
+      borderRadius: isPhone ? 48 : 54,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: isPhone ? 6 : 10,
+      borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.5)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.14,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
+    },
+    brandLogoHero: {
+      width: isPhone ? 72 : 80,
+      height: isPhone ? 72 : 80,
+      resizeMode: 'contain',
+    },
+    heroTextContainer: {
+      gap: isPhone ? 4 : 6,
       alignItems: 'center',
     },
-    brandTextContainer: {
-      marginLeft: 12,
-    },
-    brandLogo: {
-      width: isPhone ? 56 : isTablet ? 64 : 72,
-      height: isPhone ? 56 : isTablet ? 64 : 72,
-      resizeMode: 'contain',
-      borderRadius: isPhone ? 14 : 16,
-      backgroundColor: '#FFFFFF',
-      opacity: 0.8,
-      padding: isPhone ? 6 : 8,
-    },
     welcomeText: {
-      color: '#FFFFFF',
-      fontSize: isPhone ? 12 : 14,
-      opacity: 0.95,
-      fontWeight: '500',
-      letterSpacing: 0.3,
+      color: '#EAF7FF',
+      fontSize: isPhone ? 13 : 14,
+      fontWeight: '600',
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
     },
     titleText: {
       color: '#FFFFFF',
-      fontSize: titleFontSize,
-      fontWeight: '700',
+      fontSize: isPhone ? 26 : 30,
+      fontWeight: '800',
       marginTop: 2,
-      letterSpacing: -0.5,
+      letterSpacing: -0.6,
+      lineHeight: isPhone ? 32 : 36,
+      textAlign: 'center',
     },
     subtitleText: {
-      color: '#FFFFFF',
-      fontSize: isPhone ? 13 : 15,
-      opacity: 0.9,
+      color: '#E3F5FF',
+      fontSize: isPhone ? 16 : 18,
+      marginTop: 0,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      textAlign: 'center',
+    },
+    heroDescription: {
+      color: '#EAF7FF',
+      fontSize: isPhone ? 13 : 14,
+      opacity: 0.92,
       marginTop: 2,
+      lineHeight: isPhone ? 20 : 22,
       fontWeight: '500',
+      textAlign: 'center',
     },
     scrollView: {
       flex: 1,
     },
     content: {
-      padding: horizontalPadding,
+      paddingHorizontal: horizontalPadding,
       paddingBottom: isPhone ? 80 : 100,
-      paddingTop: isPhone ? 12 : 20,
+      paddingTop: isPhone ? 4 : 8,
     },
-    bannerContainer: {
-      marginBottom: 24,
-      position: 'relative',
-    },
-    bannerScrollContent: {
-      paddingRight: horizontalPadding,
-    },
-    banner: {
-      width: screenWidth - horizontalPadding * 2,
-      height: bannerHeight,
-      borderRadius: isPhone ? 16 : 20,
-      overflow: 'hidden',
-      marginRight: gridGap,
-      justifyContent: 'flex-end',
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 1,
-        },
-      }),
-      borderWidth: 1,
-      borderColor: '#E6EAF0',
-    },
-    bannerImage: {
-      borderRadius: isPhone ? 16 : 20,
-      resizeMode: 'cover',
-    },
-    bannerOverlay: {
-      backgroundColor: '#000000',
-      opacity: 0.6,
-      padding: 20,
-      borderBottomLeftRadius: isPhone ? 16 : 20,
-      borderBottomRightRadius: isPhone ? 16 : 20,
-    },
-    bannerText: {
-      color: '#FFFFFF',
-      fontSize: 20,
-      fontWeight: '700',
-      letterSpacing: -0.3,
-      lineHeight: 26,
-    },
-    bannerSubtext: {
-      color: '#FFFFFF',
-      fontSize: 13,
-      marginTop: 8,
-      opacity: 0.95,
-      fontWeight: '500',
-    },
-    paginationContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 12,
-      gap: 8,
-    },
-    paginationDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.textSecondary,
-      opacity: 0.3,
-    },
-    paginationDotActive: {
-      backgroundColor: colors.primary,
-      opacity: 1,
-      width: 28,
-      height: 8,
-      borderRadius: 4,
+    searchContainer: {
+      marginTop: isPhone ? -28 : -34,
+      paddingHorizontal: horizontalPadding,
+      marginBottom: isPhone ? 6 : 10,
     },
     menuSection: {
       marginTop: 8,

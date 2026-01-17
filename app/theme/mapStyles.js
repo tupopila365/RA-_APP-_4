@@ -36,3 +36,4 @@ export const getSharedMapOptions = (isDark = false) => ({
   loadingEnabled: true,
 });
 
+
