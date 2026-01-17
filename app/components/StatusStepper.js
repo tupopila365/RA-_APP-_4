@@ -6,6 +6,7 @@ import { RATheme } from '../theme/colors';
 const STATUS_ORDER = [
   'SUBMITTED',
   'UNDER_REVIEW',
+  'APPROVED',
   'PAYMENT_PENDING',
   'PAID',
   'PLATES_ORDERED',
@@ -27,6 +28,7 @@ const STATUS_LABELS = {
 const STATUS_DESCRIPTIONS = {
   SUBMITTED: 'Application received and logged',
   UNDER_REVIEW: 'Documents being verified',
+  APPROVED: 'Application approved - continue to payment',
   PAYMENT_PENDING: 'Payment required to proceed',
   PAID: 'Payment confirmed',
   PLATES_ORDERED: 'Plates sent to manufacturer',
@@ -446,6 +448,8 @@ function getStyles(colors) {
     },
   });
 }
+
+
 
 
 

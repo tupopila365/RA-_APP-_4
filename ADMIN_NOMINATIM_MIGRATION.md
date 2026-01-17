@@ -175,3 +175,5 @@ The admin panel now uses **OpenStreetMap Nominatim** for all geocoding operation
 
 **No action required** - Everything works automatically! 🚀
 
+
+

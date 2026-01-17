@@ -176,6 +176,33 @@ const PLNDetailPage = () => {
     return colors[priority || 'NORMAL'] || 'default';
   };
 
+  const formatName = () => {
+    const personalName = [application.surname, application.initials].filter(Boolean).join(' ');
+    return application.businessName || personalName || application.fullName || 'Not provided';
+  };
+
+  const formatIdNumber = () => {
+    return (
+      application.trafficRegisterNumber ||
+      application.businessRegNumber ||
+      application.idNumber ||
+      'Not provided'
+    );
+  };
+
+  const formatAddressLines = (address?: { line1?: string; line2?: string; line3?: string }) => {
+    if (!address) return ['Not provided'];
+    const parts = [address.line1, address.line2, address.line3].filter(Boolean);
+    return parts.length ? parts : ['Not provided'];
+  };
+
+  const formatPhone = (phone?: { code?: string; number?: string }) => {
+    const combined = [phone?.code, phone?.number].filter(Boolean).join(' ');
+    return combined || 'Not provided';
+  };
+
+  const formatEmail = () => application.email || 'Not provided';
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -302,57 +329,53 @@ const PLNDetailPage = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">ID Type</Typography>
-                  <Typography variant="body1">{application.idType}</Typography>
+                  <Typography variant="body1">{application.idType || 'Not provided'}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">ID Number</Typography>
-                  <Typography variant="body1">
-                    {application.trafficRegisterNumber || application.businessRegNumber || application.idNumber}
-                  </Typography>
+                  <Typography variant="body1">{formatIdNumber()}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Name</Typography>
-                  <Typography variant="body1">
-                    {application.businessName || `${application.surname} ${application.initials}` || application.fullName}
-                  </Typography>
+                  <Typography variant="body1">{formatName()}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">Postal Address</Typography>
-                  <Typography variant="body1">
-                    {application.postalAddress?.line1}<br />
-                    {application.postalAddress?.line2 && <>{application.postalAddress.line2}<br /></>}
-                    {application.postalAddress?.line3}
+                  <Typography variant="body1" component="div">
+                    {formatAddressLines(application.postalAddress).map((line, idx, arr) => (
+                      <span key={idx}>
+                        {line}
+                        {idx < arr.length - 1 && <><br /></>}
+                      </span>
+                    ))}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">Street Address</Typography>
-                  <Typography variant="body1">
-                    {application.streetAddress?.line1}<br />
-                    {application.streetAddress?.line2 && <>{application.streetAddress.line2}<br /></>}
-                    {application.streetAddress?.line3}
+                  <Typography variant="body1" component="div">
+                    {formatAddressLines(application.streetAddress).map((line, idx, arr) => (
+                      <span key={idx}>
+                        {line}
+                        {idx < arr.length - 1 && <><br /></>}
+                      </span>
+                    ))}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Home Phone</Typography>
-                  <Typography variant="body1">
-                    {application.telephoneHome ? `+${application.telephoneHome.code} ${application.telephoneHome.number}` : 'Not provided'}
-                  </Typography>
+                  <Typography variant="body1">{formatPhone(application.telephoneHome)}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Day Phone</Typography>
-                  <Typography variant="body1">
-                    {application.telephoneDay ? `+${application.telephoneDay.code} ${application.telephoneDay.number}` : 'Not provided'}
-                  </Typography>
+                  <Typography variant="body1">{formatPhone(application.telephoneDay)}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Cell Phone</Typography>
-                  <Typography variant="body1">
-                    {application.cellNumber ? `+${application.cellNumber.code} ${application.cellNumber.number}` : application.phoneNumber || 'Not provided'}
-                  </Typography>
+                  <Typography variant="body1">{formatPhone(application.cellNumber)}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">Email</Typography>
-                  <Typography variant="body1">{application.email || 'Not provided'}</Typography>
+                  <Typography variant="body1">{formatEmail()}</Typography>
                 </Grid>
               </Grid>
             </AccordionDetails>

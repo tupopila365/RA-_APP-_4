@@ -19,9 +19,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useAppContext } from '../context/AppContext';
 import { UnifiedSkeletonLoader } from '../components';
 import { Card, Badge } from '../components';
-import {
-  UnifiedFormInput,
-} from '../components/UnifiedDesignSystem';
+import { SearchInput } from '../components/SearchInput';
 import { bannersService } from '../services/bannersService';
 import { notificationsService } from '../services/notificationsService';
 import RAIcon from '../assets/icon.png';
@@ -480,13 +478,12 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <UnifiedFormInput
+          <SearchInput
             placeholder="Search..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            leftIcon="search-outline"
-            clearButtonMode="while-editing"
-            returnKeyType="search"
+            onSearch={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            accessibilityLabel="Search"
+            accessibilityHint="Search for content across the app"
           />
         </View>
         </SafeAreaView>

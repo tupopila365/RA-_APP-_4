@@ -13,3 +13,4 @@ export { default as ImageThumbnail } from './ImageThumbnail';
 export type { ImageThumbnailProps } from './ImageThumbnail';
 export { default as ZoomableImage } from './ZoomableImage';
 export type { ZoomableImageProps } from './ZoomableImage';
+export { default as UnifiedSkeletonLoader } from './UnifiedSkeletonLoader';

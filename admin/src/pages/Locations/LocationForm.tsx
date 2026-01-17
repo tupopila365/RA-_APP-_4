@@ -93,6 +93,12 @@ const DAYS_OF_WEEK = [
   'Sunday',
 ];
 
+// Allow either a valid HH:MM time or an empty string (when a time is not applicable)
+const timeString = z.string()
+  .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)')
+  .optional()
+  .or(z.literal(''));
+
 const locationSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
   address: z.string().min(1, 'Address is required').max(200, 'Address must be less than 200 characters'),
@@ -121,16 +127,16 @@ const locationSchema = z.object({
   services: z.array(z.string()).optional(),
   operatingHours: z.object({
     weekdays: z.object({
-      open: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
-      close: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
+      open: timeString,
+      close: timeString,
     }).optional(),
     weekends: z.object({
-      open: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
-      close: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
+      open: timeString,
+      close: timeString,
     }).optional(),
     publicHolidays: z.object({
-      open: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
-      close: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
+      open: timeString,
+      close: timeString,
     }).optional(),
   }).optional(),
   closedDays: z.array(z.string()).optional(),
@@ -139,8 +145,8 @@ const locationSchema = z.object({
     reason: z.string().min(1, 'Reason is required').max(200, 'Reason must be less than 200 characters'),
     closed: z.boolean(),
     hours: z.object({
-      open: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
-      close: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
+      open: timeString,
+      close: timeString,
     }).optional(),
   })).optional(),
 });

@@ -83,3 +83,5 @@ After applying this fix:
 - No performance impact - purely a rendering quality improvement
 - The logo and bell will appear slightly more opaque (which is correct for Android)
 
+
+

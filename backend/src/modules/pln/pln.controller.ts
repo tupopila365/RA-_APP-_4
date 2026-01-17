@@ -5,9 +5,121 @@ import { plnService } from './pln.service';
 import { pdfService } from '../../services/pdf.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
-import { PLNStatus } from './pln.model';
+import { PLNStatus, IPLN } from './pln.model';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+
+/**
+ * Normalize a PLN application document into the structure expected by admin clients.
+ * Includes fallbacks so legacy submissions still show meaningful data.
+ */
+const buildApplicationResponse = (application: IPLN) => {
+  const fullName =
+    application.fullName ||
+    [application.surname, application.initials].filter(Boolean).join(' ') ||
+    application.businessName ||
+    '';
+
+  const idNumber =
+    application.idNumber ||
+    application.trafficRegisterNumber ||
+    application.businessRegNumber ||
+    '';
+
+  const phoneNumber =
+    application.phoneNumber ||
+    [application.cellNumber?.code, application.cellNumber?.number].filter(Boolean).join(' ') ||
+    [application.telephoneDay?.code, application.telephoneDay?.number].filter(Boolean).join(' ') ||
+    [application.telephoneHome?.code, application.telephoneHome?.number].filter(Boolean).join(' ') ||
+    '';
+
+  return {
+    id: application._id,
+    referenceId: application.referenceId,
+    transactionType: application.transactionType,
+
+    // Section A - Owner/Transferor
+    idType: application.idType,
+    trafficRegisterNumber: application.trafficRegisterNumber,
+    businessRegNumber: application.businessRegNumber,
+    surname: application.surname,
+    initials: application.initials,
+    businessName: application.businessName,
+    postalAddress: application.postalAddress,
+    streetAddress: application.streetAddress,
+    telephoneHome: application.telephoneHome,
+    telephoneDay: application.telephoneDay,
+    cellNumber: application.cellNumber,
+    email: application.email,
+
+    // Legacy / computed fallbacks
+    fullName,
+    idNumber,
+    phoneNumber,
+
+    // Section B
+    plateFormat: application.plateFormat,
+    quantity: application.quantity,
+    plateChoices: application.plateChoices,
+
+    // Section C - Representative / Proxy
+    hasRepresentative: application.hasRepresentative,
+    representativeIdType: application.representativeIdType,
+    representativeIdNumber: application.representativeIdNumber,
+    representativeSurname: application.representativeSurname,
+    representativeInitials: application.representativeInitials,
+
+    // Section D - Vehicle
+    hasVehicle: application.hasVehicle,
+    currentLicenceNumber: application.currentLicenceNumber,
+    vehicleRegisterNumber: application.vehicleRegisterNumber,
+    chassisNumber: application.chassisNumber,
+    vehicleMake: application.vehicleMake,
+    seriesName: application.seriesName,
+
+    // Section E - Declaration
+    declarationAccepted: application.declarationAccepted,
+    declarationDate: application.declarationDate,
+    declarationPlace: application.declarationPlace,
+    declarationRole: application.declarationRole,
+
+    // Document and status
+    documentUrl: application.documentUrl,
+    status: application.status,
+    statusHistory: application.statusHistory,
+    adminComments: application.adminComments,
+    paymentDeadline: application.paymentDeadline,
+    paymentReceivedAt: application.paymentReceivedAt,
+
+    // Additional admin fields
+    assignedTo: application.assignedTo,
+    priority: application.priority,
+    tags: application.tags,
+    internalNotes: application.internalNotes,
+
+    // Payment information
+    paymentAmount: application.paymentAmount,
+    paymentMethod: application.paymentMethod,
+    paymentReference: application.paymentReference,
+
+    // Processing information
+    processedBy: application.processedBy,
+    processedAt: application.processedAt,
+    reviewedBy: application.reviewedBy,
+    reviewedAt: application.reviewedAt,
+
+    // Plate production information
+    plateOrderNumber: application.plateOrderNumber,
+    plateSupplier: application.plateSupplier,
+    plateOrderedAt: application.plateOrderedAt,
+    plateDeliveredAt: application.plateDeliveredAt,
+    plateCollectedAt: application.plateCollectedAt,
+    plateCollectedBy: application.plateCollectedBy,
+
+    createdAt: application.createdAt,
+    updatedAt: application.updatedAt,
+  };
+};
 
 export class PLNController {
   /**
@@ -296,19 +408,7 @@ export class PLNController {
       res.status(200).json({
         success: true,
         data: {
-          applications: result.applications.map((app) => ({
-            id: app._id,
-            referenceId: app.referenceId,
-            fullName: app.fullName,
-            idNumber: app.idNumber,
-            phoneNumber: app.phoneNumber,
-            plateChoices: app.plateChoices,
-            status: app.status,
-            paymentDeadline: app.paymentDeadline,
-            paymentReceivedAt: app.paymentReceivedAt,
-            createdAt: app.createdAt,
-            updatedAt: app.updatedAt,
-          })),
+          applications: result.applications.map((app) => buildApplicationResponse(app as any)),
           pagination: {
             total: result.total,
             page: result.page,
@@ -337,22 +437,7 @@ export class PLNController {
       res.status(200).json({
         success: true,
         data: {
-          application: {
-            id: application._id,
-            referenceId: application.referenceId,
-            fullName: application.fullName,
-            idNumber: application.idNumber,
-            phoneNumber: application.phoneNumber,
-            plateChoices: application.plateChoices,
-            documentUrl: application.documentUrl,
-            status: application.status,
-            statusHistory: application.statusHistory,
-            adminComments: application.adminComments,
-            paymentDeadline: application.paymentDeadline,
-            paymentReceivedAt: application.paymentReceivedAt,
-            createdAt: application.createdAt,
-            updatedAt: application.updatedAt,
-          },
+          application: buildApplicationResponse(application as any),
         },
         timestamp: new Date().toISOString(),
       });

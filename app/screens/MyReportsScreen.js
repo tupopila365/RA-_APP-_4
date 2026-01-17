@@ -155,7 +155,7 @@ export default function MyReportsScreen({ navigation }) {
     return filtered;
   }, [reports, searchQuery, selectedFilter, sortOrder]);
 
-  const styles = getStyles(colors);
+  const styles = getStyles(colors, insets);
 
   if (loading) {
     return (
@@ -384,7 +384,7 @@ export default function MyReportsScreen({ navigation }) {
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, insets) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -406,18 +406,25 @@ function getStyles(colors) {
       margin: 0,
     },
     filterContainer: {
-      paddingHorizontal: 15,
+      paddingHorizontal: 16,
       paddingVertical: 10,
       gap: 10,
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
     },
     filterChip: {
       paddingHorizontal: 16,
       paddingVertical: 8,
-      borderRadius: 8,
+      borderRadius: 20,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
       marginRight: 8,
+      minWidth: 70,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     filterChipActive: {
       backgroundColor: colors.primary,
@@ -428,9 +435,10 @@ function getStyles(colors) {
       fontWeight: '500',
       color: colors.textSecondary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      textAlign: 'center',
     },
     filterChipTextActive: {
-      color: colors.primary,
+      color: colors.textInverse || '#FFFFFF',
       fontWeight: '600',
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },

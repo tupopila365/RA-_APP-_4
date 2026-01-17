@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   useColorScheme,
   Linking,
   Platform,
@@ -15,10 +14,12 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { RATheme } from '../theme/colors';
-import { UnifiedSkeletonLoader, ErrorState, EmptyState, FilterBar } from '../components';
+import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
+import { spacing } from '../theme/spacing';
 import { useOfficesViewModel } from '../src/presentation/viewModels/useOfficesViewModel';
 import { useOfficeUseCases } from '../src/presentation/di/DependencyContext';
 
@@ -317,18 +318,30 @@ export default function FindOfficesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header with Search and Controls */}
-      <View style={styles.header}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+        showsVerticalScrollIndicator={true}
+      >
+        {/* Search Input */}
+        <View style={styles.searchInputContainer}>
+          <SearchInput
             placeholder="Search offices, regions, or services..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+            onSearch={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            style={styles.searchInput}
+            accessibilityLabel="Search offices"
+            accessibilityHint="Search by name, region, or services"
           />
         </View>
 
@@ -366,42 +379,73 @@ export default function FindOfficesScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Region Filters */}
-        {sortBy !== 'distance' && (
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel} maxFontSizeMultiplier={1.3}>Region:</Text>
-            <FilterBar
-              filters={regions}
-              selectedFilter={selectedRegion}
-              onFilterChange={setSelectedRegion}
-              testID="offices-filter-bar"
-              accessibilityLabel="Office region filters"
-            />
+        {/* Region Filter Chips */}
+        {sortBy !== 'distance' && regions.length > 0 && (
+          <View style={styles.filterSectionContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterContainer}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  selectedRegion === null && styles.filterChipActive,
+                ]}
+                onPress={() => setSelectedRegion(null)}
+              >
+                <Text style={[
+                  styles.filterChipText,
+                  selectedRegion === null && styles.filterChipTextActive,
+                ]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.3}>
+                  All
+                </Text>
+              </TouchableOpacity>
+              {regions.map((region) => (
+                <TouchableOpacity
+                  key={region}
+                  style={[
+                    styles.filterChip,
+                    selectedRegion === region && styles.filterChipActive,
+                  ]}
+                  onPress={() => setSelectedRegion(selectedRegion === region ? null : region)}
+                >
+                  <Text style={[
+                    styles.filterChipText,
+                    selectedRegion === region && styles.filterChipTextActive,
+                  ]}
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={1.3}>
+                    {region}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
-      </View>
+        {/* Results Count */}
+        {!isEmpty && (searchQuery.trim() || selectedRegion) && (
+          <View style={styles.resultsCountContainer}>
+            <Text style={styles.resultsCount} maxFontSizeMultiplier={1.3}>
+              {sortedOffices.length} {sortedOffices.length === 1 ? 'office' : 'offices'} found
+            </Text>
+          </View>
+        )}
 
-      {/* Locations List */}
-      <ScrollView 
-        style={styles.contentScrollView} 
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={refresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
+        {/* Offices List */}
         {isEmpty ? (
-          <EmptyState
-            icon="location-outline"
-            message={searchQuery ? 'No offices found matching your search' : 'No offices available'}
-            accessibilityLabel="No offices found"
-          />
+          <View style={styles.emptyStateContainer}>
+            <EmptyState
+              icon="location-outline"
+              message={searchQuery ? 'No offices found matching your search' : 'No offices available'}
+              accessibilityLabel="No offices found"
+            />
+          </View>
         ) : (
-          Object.keys(groupedSortedOffices).sort().map((region) => (
+          <View style={styles.content}>
+            {Object.keys(groupedSortedOffices).sort().map((region) => (
             <View key={region} style={styles.regionSection}>
               {sortBy !== 'distance' && (
                 <Text style={styles.regionHeader} maxFontSizeMultiplier={1.3}>{region}</Text>
@@ -410,12 +454,14 @@ export default function FindOfficesScreen() {
                 <View key={office.id} style={styles.locationCard}>
                   <View style={styles.locationHeader}>
                     <View style={styles.locationHeaderLeft}>
-                      <View style={[styles.regionBadge, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
-                        <Ionicons name="location" size={14} color={colors.primary} />
-                        <Text style={[styles.regionBadgeText, { color: colors.primary }]} maxFontSizeMultiplier={1.3}>
-                          {office.region}
-                        </Text>
-                      </View>
+                      {office.region && (
+                        <View style={[styles.regionBadge, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
+                          <Ionicons name="location" size={14} color={colors.primary} />
+                          <Text style={[styles.regionBadgeText, { color: colors.primary }]} maxFontSizeMultiplier={1.3}>
+                            {office.region}
+                          </Text>
+                        </View>
+                      )}
                       {office.distance && (
                         <View style={[styles.distanceBadge, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.success }]}>
                           <Ionicons name="navigate" size={12} color={colors.success} />
@@ -458,20 +504,13 @@ export default function FindOfficesScreen() {
                         </Text>
                       </View>
                       <View style={styles.servicesContainer}>
-                        {office.services.slice(0, 3).map((service, index) => (
+                        {office.services.map((service, index) => (
                           <View key={index} style={[styles.serviceTag, { backgroundColor: colors.card, borderColor: colors.primary }]}>
                             <Text style={[styles.serviceText, { color: colors.primary }]} maxFontSizeMultiplier={1.2}>
                               {service}
                             </Text>
                           </View>
                         ))}
-                        {office.services.length > 3 && (
-                          <View style={[styles.serviceTag, { backgroundColor: colors.card, borderColor: colors.textSecondary }]}>
-                            <Text style={[styles.serviceText, { color: colors.textSecondary }]} maxFontSizeMultiplier={1.2}>
-                              +{office.services.length - 3} more
-                            </Text>
-                          </View>
-                        )}
                       </View>
                     </View>
                   )}
@@ -619,7 +658,8 @@ export default function FindOfficesScreen() {
                 </View>
               ))}
             </View>
-          ))
+            ))}
+          </View>
         )}
       </ScrollView>
 
@@ -630,49 +670,34 @@ export default function FindOfficesScreen() {
 }
 
 function getStyles(colors) {
-  const { width } = Dimensions.get('window');
-  
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
-      backgroundColor: colors.background,
-      paddingTop: 15,
-      paddingBottom: 10,
+    scrollView: {
+      flex: 1,
     },
-    searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      marginHorizontal: 15,
-      marginBottom: 12,
-      borderRadius: 8,
-      paddingHorizontal: 15,
-      height: 50,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-      borderWidth: 1,
-      borderColor: colors.border,
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: spacing.xl,
+      padding: spacing.lg,
     },
-    searchIcon: {
-      marginRight: 10,
+    searchInputContainer: {
+      paddingHorizontal: 0,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
     },
     searchInput: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 16,
+      margin: 0,
     },
     controlsRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 15,
-      marginBottom: 12,
+      paddingHorizontal: 0,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
     },
     locationStatus: {
       flex: 1,
@@ -698,40 +723,83 @@ function getStyles(colors) {
       fontSize: 12,
       fontWeight: '600',
     },
-    filterSection: {
-      paddingHorizontal: 15,
+    filterSectionContainer: {
+      paddingHorizontal: 0,
+      paddingVertical: spacing.sm,
     },
-    filterLabel: {
-      fontSize: 12,
-      fontWeight: '700',
+    filterContainer: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      gap: spacing.sm,
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
+    },
+    filterChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: spacing.sm,
+      minWidth: 60,
+      maxWidth: 180,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    filterChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    filterChipText: {
+      fontSize: 14,
+      fontWeight: '500',
       color: colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 8,
+      textAlign: 'center',
+      numberOfLines: 1,
+      flexShrink: 1,
     },
-    contentScrollView: {
-      flex: 1,
+    filterChipTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+    resultsCountContainer: {
+      paddingHorizontal: 0,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    resultsCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: spacing.sm,
+    },
+    emptyStateContainer: {
+      padding: spacing.xl,
+      minHeight: 300,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     content: {
-      padding: 15,
-      paddingBottom: 25,
+      padding: 0,
     },
     regionSection: {
-      marginBottom: 20,
+      marginBottom: spacing.xl,
     },
     regionHeader: {
       fontSize: 18,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 14,
-      paddingHorizontal: 5,
+      marginBottom: spacing.md,
+      paddingHorizontal: spacing.xs,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     locationCard: {
       backgroundColor: colors.card,
       borderRadius: 8,
-      padding: 20,
-      marginBottom: 16,
+      padding: spacing.xl,
+      marginBottom: spacing.md,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,

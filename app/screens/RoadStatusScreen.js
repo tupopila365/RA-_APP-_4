@@ -22,6 +22,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import { radii, spacing, sizes, shadows } from '../theme/designTokens';
+import { getSharedMapOptions } from '../theme/mapStyles';
 import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
 import { roadStatusService } from '../services/roadStatusService';
 
@@ -54,14 +55,14 @@ try {
 
 const getStatusColor = (status, colors) => {
   const statusColors = {
-    'Open': '#059669', // Professional green
-    'Ongoing': '#D97706', // Professional amber
-    'Ongoing Maintenance': '#D97706', // Professional amber
-    'Planned': '#2563EB', // Professional blue
-    'Planned Works': '#2563EB', // Professional blue
-    'Closed': '#DC2626', // Professional red
-    'Restricted': '#DC2626', // Professional red
-    'Completed': '#059669', // Professional green
+    'Open': colors.success,
+    'Ongoing': colors.warning,
+    'Ongoing Maintenance': colors.warning,
+    'Planned': colors.info,
+    'Planned Works': colors.info,
+    'Closed': colors.error,
+    'Restricted': colors.error,
+    'Completed': colors.success,
   };
   return statusColors[status] || statusColors[status?.replace(/\s+/g, ' ')] || colors.textSecondary;
 };
@@ -284,10 +285,10 @@ const generateRoutePolyline = (start, end, steps = 50) => {
 /**
  * Get route polyline color based on route type
  */
-const getRouteColor = (route, isClosed = false) => {
-  if (isClosed) return '#DC2626'; // Red for closed roads
-  if (route.isRecommended) return '#059669'; // Green for recommended routes
-  return '#6B7280'; // Gray for other alternate routes
+const getRouteColor = (route, isClosed = false, colors) => {
+  if (isClosed) return colors.error;
+  if (route?.isRecommended) return colors.success;
+  return colors.textSecondary;
 };
 
 /**
@@ -314,7 +315,7 @@ const renderRoutePolylines = (roadwork, colors) => {
       <Polyline
         key={`closure-${roadwork._id}`}
         coordinates={roadwork.roadClosure.polylineCoordinates}
-        strokeColor={getRouteColor(null, true)}
+        strokeColor={getRouteColor(null, true, colors)}
         strokeWidth={4}
         strokePattern={getRouteStrokePattern(null, true)}
         zIndex={1000}
@@ -330,7 +331,7 @@ const renderRoutePolylines = (roadwork, colors) => {
           <Polyline
             key={`route-${roadwork._id}-${index}`}
             coordinates={route.polylineCoordinates}
-            strokeColor={getRouteColor(route)}
+        strokeColor={getRouteColor(route, false, colors)}
             strokeWidth={route.isRecommended ? 4 : 3}
             strokePattern={getRouteStrokePattern(route)}
             zIndex={route.isRecommended ? 900 : 800}
@@ -361,11 +362,11 @@ const renderWaypointMarkers = (roadwork, colors) => {
             coordinate={waypoint.coordinates}
             title={waypoint.name}
             description={`${route.routeName} - ${route.estimatedTime}`}
-            pinColor={route.isRecommended ? '#059669' : '#6B7280'}
+            pinColor={route.isRecommended ? colors.success : colors.textSecondary}
           >
             <View style={[
               styles.waypointMarker,
-              { backgroundColor: route.isRecommended ? '#059669' : '#6B7280' }
+              { backgroundColor: route.isRecommended ? colors.success : colors.textSecondary }
             ]}>
               <Text style={styles.waypointText}>{waypointIndex + 1}</Text>
             </View>
@@ -643,7 +644,7 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
   return (
     <Marker
       coordinate={coordinate}
-      pinColor={isCritical ? '#DC2626' : '#D97706'}
+      pinColor={isCritical ? colors.error : colors.warning}
       onPress={onPress}
     >
       <Animated.View
@@ -653,7 +654,7 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
       >
         <View
           style={{
-            backgroundColor: isCritical ? '#DC2626' : '#D97706',
+            backgroundColor: isCritical ? colors.error : colors.warning,
             padding: 8,
             borderRadius: 20,
             borderWidth: 2,
@@ -701,9 +702,9 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
             <Ionicons 
               name={isCritical ? 'close-circle' : 'information-circle'} 
               size={14} 
-              color={isCritical ? '#DC2626' : '#D97706'} 
+              color={isCritical ? colors.error : colors.warning} 
             />
-            <Text style={{ fontSize: 12, color: isCritical ? '#DC2626' : '#D97706', fontWeight: '600' }}>
+            <Text style={{ fontSize: 12, color: isCritical ? colors.error : colors.warning, fontWeight: '600' }}>
               {roadwork.status}
             </Text>
           </View>
@@ -724,6 +725,7 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
 export default function RoadStatusScreen() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const sharedMapOptions = useMemo(() => getSharedMapOptions(colorScheme === 'dark'), [colorScheme]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const screenHeight = Dimensions.get('window').height;
@@ -1535,6 +1537,7 @@ export default function RoadStatusScreen() {
               </View>
             </View>
             <MapView
+              {...sharedMapOptions}
               ref={routePlannerMapRef}
               style={styles.mapFullScreen}
               initialRegion={mapRegion}
@@ -1547,7 +1550,7 @@ export default function RoadStatusScreen() {
             {routePlannerMode && routePolyline.length > 0 && Polyline && (
               <Polyline
                 coordinates={routePolyline}
-                strokeColor="#2563EB"
+                strokeColor={colors.info}
                 strokeWidth={4}
                 zIndex={100}
               />
@@ -1559,10 +1562,10 @@ export default function RoadStatusScreen() {
                 coordinate={routeStartPoint}
                 title="Start Point"
                 description={routeStartPoint.name}
-                pinColor="#059669"
+                pinColor={colors.success}
               >
                 <View style={styles.routePointMarker}>
-                  <View style={[styles.routePointInner, { backgroundColor: '#059669' }]}>
+                  <View style={[styles.routePointInner, { backgroundColor: colors.success }]}>
                     <Text style={styles.routePointText}>A</Text>
                   </View>
                 </View>
@@ -1573,10 +1576,10 @@ export default function RoadStatusScreen() {
                 coordinate={routeEndPoint}
                 title="End Point"
                 description={routeEndPoint.name}
-                pinColor="#DC2626"
+                pinColor={colors.error}
               >
                 <View style={styles.routePointMarker}>
-                  <View style={[styles.routePointInner, { backgroundColor: '#DC2626' }]}>
+                  <View style={[styles.routePointInner, { backgroundColor: colors.error }]}>
                     <Text style={styles.routePointText}>B</Text>
                   </View>
                 </View>
@@ -1646,7 +1649,7 @@ export default function RoadStatusScreen() {
                   style={[styles.routePointButton, !routeStartPoint && styles.routePointButtonActive]}
                   onPress={() => setSelectingRoutePoint('start')}
                 >
-                  <Ionicons name="location" size={20} color={routeStartPoint ? '#059669' : colors.primary} />
+                  <Ionicons name="location" size={20} color={routeStartPoint ? colors.success : colors.primary} />
                   <View style={styles.routePointInfo}>
                     <Text style={styles.routePointLabel}>Start Point</Text>
                     <Text style={styles.routePointValue}>
@@ -1659,7 +1662,7 @@ export default function RoadStatusScreen() {
                   style={[styles.routePointButton, !routeEndPoint && selectingRoutePoint === 'end' && styles.routePointButtonActive]}
                   onPress={() => setSelectingRoutePoint('end')}
                 >
-                  <Ionicons name="flag" size={20} color={routeEndPoint ? '#DC2626' : colors.primary} />
+                  <Ionicons name="flag" size={20} color={routeEndPoint ? colors.error : colors.primary} />
                   <View style={styles.routePointInfo}>
                     <Text style={styles.routePointLabel}>End Point</Text>
                     <Text style={styles.routePointValue}>
@@ -1690,7 +1693,7 @@ export default function RoadStatusScreen() {
                     <View style={styles.routePlannerAlerts}>
                       {routeRoadworks.filter(rw => rw.status === 'Closed' || rw.status === 'Restricted').length > 0 && (
                         <View style={styles.routePlannerAlert}>
-                          <Ionicons name="warning" size={16} color="#DC2626" />
+                          <Ionicons name="warning" size={16} color={colors.error} />
                           <Text style={styles.routePlannerAlertText}>
                             {routeRoadworks.filter(rw => rw.status === 'Closed' || rw.status === 'Restricted').length} critical roadwork{routeRoadworks.filter(rw => rw.status === 'Closed' || rw.status === 'Restricted').length !== 1 ? 's' : ''} on route
                           </Text>
@@ -1713,13 +1716,13 @@ export default function RoadStatusScreen() {
           {/* Map Legend Overlay */}
           <View style={styles.mapLegendOverlay}>
             <View style={styles.mapLegendItem}>
-              <View style={[styles.mapLegendMarker, { backgroundColor: '#DC2626' }]}>
+              <View style={[styles.mapLegendMarker, { backgroundColor: colors.error }]}>
                 <Ionicons name="close-circle" size={12} color="#FFFFFF" />
               </View>
               <Text style={styles.mapLegendText}>Closed Road</Text>
             </View>
             <View style={styles.mapLegendItem}>
-              <View style={[styles.mapLegendMarker, { backgroundColor: '#059669' }]}>
+              <View style={[styles.mapLegendMarker, { backgroundColor: colors.success }]}>
                 <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
               </View>
               <Text style={styles.mapLegendText}>Recommended Route</Text>
@@ -1731,7 +1734,7 @@ export default function RoadStatusScreen() {
               <Text style={styles.mapLegendText}>Alternate Route</Text>
             </View>
             <View style={styles.mapLegendItem}>
-              <View style={[styles.mapLegendMarker, { backgroundColor: '#D97706' }]}>
+              <View style={[styles.mapLegendMarker, { backgroundColor: colors.warning }]}>
                 <Ionicons name="warning" size={12} color="#FFFFFF" />
               </View>
               <Text style={styles.mapLegendText}>Ongoing Work</Text>
@@ -1889,6 +1892,9 @@ export default function RoadStatusScreen() {
                   ]}
                   onPress={() => !option.disabled && setSortBy(option.value)}
                   disabled={option.disabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Sort by ${option.label}${option.disabled ? ' (disabled)' : ''}`}
+                  accessibilityState={{ selected: sortBy === option.value, disabled: option.disabled }}
                 >
                   <Text
                     style={[
@@ -1918,6 +1924,9 @@ export default function RoadStatusScreen() {
                 selectedStatus === null && styles.filterChipActive,
               ]}
               onPress={() => setSelectedStatus(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Show all statuses"
+              accessibilityState={{ selected: selectedStatus === null }}
             >
               <Text
                 style={[
@@ -1938,6 +1947,9 @@ export default function RoadStatusScreen() {
                 onPress={() =>
                   setSelectedStatus(selectedStatus === status ? null : status)
                 }
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by status: ${status}`}
+                accessibilityState={{ selected: selectedStatus === status }}
               >
                 <Text
                   style={[
@@ -1994,6 +2006,9 @@ export default function RoadStatusScreen() {
                   selectedRegion === null && styles.filterChipActive,
                 ]}
                 onPress={() => setSelectedRegion(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Show all regions"
+                accessibilityState={{ selected: selectedRegion === null }}
               >
                 <Text
                   style={[
@@ -2014,6 +2029,9 @@ export default function RoadStatusScreen() {
                   onPress={() =>
                     setSelectedRegion(selectedRegion === region ? null : region)
                   }
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filter by region: ${region}`}
+                  accessibilityState={{ selected: selectedRegion === region }}
                 >
                   <Text
                     style={[
@@ -2040,47 +2058,32 @@ export default function RoadStatusScreen() {
             animated={true}
           />
         ) : viewMode === 'list' && showEmptyState ? (
-          <View style={styles.emptyStateContainer}>
-            <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
-            <Text style={styles.emptyStateTitle}>
-              {searchQuery.trim() || selectedStatus || selectedRegion
-                ? 'No Results Found'
-                : 'No Roadworks in This Area'}
-            </Text>
-            <Text style={styles.emptyStateMessage}>
-              {searchQuery.trim() || selectedStatus || selectedRegion
-                ? `No roadworks match your filters.\n\nTry:\n• Different road name\n• Different region\n• Clear filters`
-                : 'All roads are currently open and operating normally.'}
-            </Text>
-            {searchQuery.trim() || selectedStatus || selectedRegion ? (
-              <TouchableOpacity
-                style={[styles.emptyStateButton, { backgroundColor: colors.primary }]}
-                onPress={() => {
-                  setSearchQuery('');
-                  setSelectedStatus(null);
-                  setSelectedRegion(null);
-                }}
-                accessibilityLabel="Clear search and filters"
-                accessibilityRole="button"
-              >
-                <Text style={styles.emptyStateButtonText}>Clear Filters</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.emptyStateFooter}>
-                <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-                <Text style={styles.emptyStateFooterText}>
-                  Last checked: {formatLastUpdated(lastUpdated)}
-                </Text>
-              </View>
-            )}
-          </View>
+          <EmptyState
+            icon={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'search-outline' : 'map-outline'}
+            title={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'No Results Found' : 'No Roadworks in This Area'}
+            message={(searchQuery.trim() || selectedStatus || selectedRegion)
+              ? 'No roadworks match your search or filters.'
+              : 'All roads are currently open and operating normally.'}
+            primaryActionLabel={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'Clear filters' : 'Refresh'}
+            onPrimaryAction={() => {
+              if (searchQuery.trim() || selectedStatus || selectedRegion) {
+                setSearchQuery('');
+                setSelectedStatus(null);
+                setSelectedRegion(null);
+              } else {
+                handleRetry();
+              }
+            }}
+            secondaryActionLabel={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'Refresh' : undefined}
+            onSecondaryAction={(searchQuery.trim() || selectedStatus || selectedRegion) ? handleRetry : undefined}
+          />
         ) : viewMode === 'list' && (
           <>
             {/* Critical Road Alerts */}
             {criticalRoadworks.length > 0 && (
               <View style={styles.criticalSection}>
                 <View style={styles.criticalHeader}>
-                  <Ionicons name="warning" size={24} color="#DC2626" />
+                  <Ionicons name="warning" size={24} color={colors.error} />
                   <Text style={styles.criticalTitle}>Critical Road Alerts</Text>
                 </View>
                 {criticalRoadworks.map((roadwork) => (
@@ -2095,9 +2098,9 @@ export default function RoadStatusScreen() {
                       {roadwork.road} - {roadwork.section}
                     </Text>
                       {roadwork.distanceKm !== undefined && (
-                        <View style={[styles.distanceBadge, { backgroundColor: '#DC2626' + '15', borderColor: '#DC2626' + '30' }]}>
-                          <Ionicons name="location" size={12} color="#DC2626" />
-                          <Text style={[styles.distanceText, { color: '#DC2626' }]}>
+                        <View style={[styles.distanceBadge, { backgroundColor: colors.error + '15', borderColor: colors.error + '30' }]}>
+                          <Ionicons name="location" size={12} color={colors.error} />
+                          <Text style={[styles.distanceText, { color: colors.error }]}>
                             {roadwork.distanceKm < 1 
                               ? `${Math.round(roadwork.distanceKm * 1000)}m away`
                               : `${roadwork.distanceKm.toFixed(1)}km away`}
@@ -2113,7 +2116,7 @@ export default function RoadStatusScreen() {
                           <Ionicons 
                             name={savedRoadworks.includes(roadwork._id || roadwork.id) ? "bookmark" : "bookmark-outline"} 
                             size={20} 
-                            color={savedRoadworks.includes(roadwork._id || roadwork.id) ? '#DC2626' : colors.textSecondary} 
+                            color={savedRoadworks.includes(roadwork._id || roadwork.id) ? colors.error : colors.textSecondary} 
                           />
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -2128,7 +2131,7 @@ export default function RoadStatusScreen() {
                     <Text style={styles.criticalTitle}>{roadwork.title}</Text>
                     {roadwork.reason && (
                       <View style={styles.criticalRow}>
-                        <Ionicons name="construct" size={16} color="#DC2626" />
+                        <Ionicons name="construct" size={16} color={colors.error} />
                         <Text style={styles.criticalText}>
                           Reason: {roadwork.reason}
                         </Text>
@@ -2136,7 +2139,7 @@ export default function RoadStatusScreen() {
                     )}
                     {roadwork.expectedCompletion && (
                       <View style={styles.criticalRow}>
-                        <Ionicons name="time" size={16} color="#DC2626" />
+                        <Ionicons name="time" size={16} color={colors.error} />
                         <Text style={styles.criticalText}>
                           Expected: {formatDate(roadwork.expectedCompletion)}
                         </Text>
@@ -2144,7 +2147,7 @@ export default function RoadStatusScreen() {
                     )}
                     {/* Warning Banner for Closed Roads */}
                     <View style={styles.criticalWarningBanner}>
-                      <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                      <Ionicons name="alert-circle" size={20} color={colors.error} />
                       <Text style={styles.criticalWarningText}>
                         {roadwork.status === 'Closed' ? 'This road is completely blocked' : 'Significant delays expected'}
                       </Text>
@@ -2153,24 +2156,24 @@ export default function RoadStatusScreen() {
                     {/* Primary Action Buttons - Same as Normal Cards */}
                     <View style={styles.criticalActionButtons}>
                       <TouchableOpacity
-                        style={[styles.criticalActionButton, { borderColor: '#DC2626' }]}
+                        style={[styles.criticalActionButton, { borderColor: colors.error }]}
                         onPress={() => handleViewOnMap(roadwork)}
                         accessibilityLabel="View location on map"
                         accessibilityRole="button"
                       >
-                        <Ionicons name="map-outline" size={16} color="#DC2626" />
-                        <Text style={[styles.criticalActionButtonText, { color: '#DC2626' }]}>
+                        <Ionicons name="map-outline" size={16} color={colors.error} />
+                        <Text style={[styles.criticalActionButtonText, { color: colors.error }]}>
                           View Location
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.criticalActionButton, { borderColor: '#DC2626' }]}
+                        style={[styles.criticalActionButton, { borderColor: colors.error }]}
                         onPress={() => handleDirections(roadwork)}
                         accessibilityLabel="Get directions to this location"
                         accessibilityRole="button"
                       >
-                        <Ionicons name="navigate-outline" size={16} color="#DC2626" />
-                        <Text style={[styles.criticalActionButtonText, { color: '#DC2626' }]}>
+                        <Ionicons name="navigate-outline" size={16} color={colors.error} />
+                        <Text style={[styles.criticalActionButtonText, { color: colors.error }]}>
                           Get Directions
                         </Text>
                       </TouchableOpacity>
@@ -2180,8 +2183,8 @@ export default function RoadStatusScreen() {
                     {roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0 && roadwork.alternateRoutes.some(r => r.approved) && (
                       <View style={styles.criticalAlternativeRoute}>
                         <View style={styles.alternativeRouteHeader}>
-                          <Ionicons name="swap-horizontal" size={18} color="#DC2626" />
-                          <Text style={[styles.alternativeRouteTitle, { color: '#DC2626', fontWeight: '700' }]}>
+                          <Ionicons name="swap-horizontal" size={18} color={colors.error} />
+                          <Text style={[styles.alternativeRouteTitle, { color: colors.error, fontWeight: '700' }]}>
                             Alternate Routes ({roadwork.alternateRoutes.filter(r => r.approved).length})
                           </Text>
                         </View>
@@ -2241,8 +2244,8 @@ export default function RoadStatusScreen() {
                     {(!roadwork.alternateRoutes || roadwork.alternateRoutes.length === 0 || !roadwork.alternateRoutes.some(r => r.approved)) && roadwork.alternativeRoute && (
                       <View style={styles.criticalAlternativeRoute}>
                         <View style={styles.alternativeRouteHeader}>
-                          <Ionicons name="swap-horizontal" size={18} color="#DC2626" />
-                          <Text style={[styles.alternativeRouteTitle, { color: '#DC2626', fontWeight: '700' }]}>
+                          <Ionicons name="swap-horizontal" size={18} color={colors.error} />
+                          <Text style={[styles.alternativeRouteTitle, { color: colors.error, fontWeight: '700' }]}>
                             Alternative Route
                           </Text>
                         </View>
@@ -2651,11 +2654,12 @@ export default function RoadStatusScreen() {
 
             {/* Map View */}
             <MapView
+              {...sharedMapOptions}
               ref={mapModalRef}
               style={styles.mapModalMap}
               initialRegion={modalMapRegion}
               provider={PROVIDER_GOOGLE || undefined}
-              mapType={mapType}
+              mapType={mapType || sharedMapOptions.mapType}
               minZoomLevel={3}
               maxZoomLevel={21}
               rotateEnabled={true}
@@ -2677,7 +2681,6 @@ export default function RoadStatusScreen() {
               loadingIndicatorColor={colors.primary}
               loadingBackgroundColor={colors.background}
               moveOnMarkerPress={false}
-              customMapStyle={[]}
             >
               {/* Colored Circle showing affected area */}
               {Circle && (
@@ -2739,16 +2742,6 @@ export default function RoadStatusScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Legend */}
-            <View style={[styles.mapModalLegend, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.mapModalLegendItem}>
-                <View style={[styles.mapModalLegendDot, { backgroundColor: getStatusColor(selectedRoadworkForMap.status, colors) }]} />
-                <Text style={[styles.mapModalLegendText, { color: colors.text }]}>
-                  {selectedRoadworkForMap.status} - Affected Area (~500m radius)
-                </Text>
-              </View>
-            </View>
-
             {/* Bottom Sheet with Details */}
             <View style={[styles.mapModalBottomSheet, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
               {/* Status Badge */}
@@ -2769,6 +2762,21 @@ export default function RoadStatusScreen() {
                     {selectedRoadworkForMap.status}
                   </Text>
                 </View>
+              </View>
+
+              {/* Affected Area / Section (moved out of map to avoid blocking) */}
+              <View style={[styles.mapModalLegend, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                <View style={styles.mapModalLegendItem}>
+                  <View style={[styles.mapModalLegendDot, { backgroundColor: getStatusColor(selectedRoadworkForMap.status, colors) }]} />
+                  <Text style={[styles.mapModalLegendText, { color: colors.text }]}>
+                    {selectedRoadworkForMap.status} - Affected Area (~500m radius)
+                  </Text>
+                </View>
+                {selectedRoadworkForMap.section && (
+                  <Text style={[styles.mapModalLegendSubtext, { color: colors.textSecondary }]}>
+                    Section: {selectedRoadworkForMap.section}
+                  </Text>
+                )}
               </View>
 
               {/* Details */}
@@ -3073,7 +3081,7 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
     criticalTitle: {
       fontSize: 18,
       fontWeight: '600',
-      color: '#DC2626',
+      color: colors.error,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalCard: {
@@ -3082,9 +3090,9 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       padding: 20,
       marginBottom: 16,
       borderWidth: 1,
-      borderColor: '#DC2626',
+      borderColor: colors.error,
       borderLeftWidth: 4,
-      borderLeftColor: '#DC2626',
+      borderLeftColor: colors.error,
     },
     criticalBadge: {
       alignSelf: 'flex-start',
@@ -3093,7 +3101,7 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
     criticalBadgeText: {
       fontSize: 14,
       fontWeight: '600',
-      color: '#DC2626',
+      color: colors.error,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalHeaderRow: {
@@ -3146,24 +3154,24 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       backgroundColor: colors.card,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: '#DC2626',
+      borderColor: colors.error,
     },
     criticalWarningBanner: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
       padding: 12,
-      backgroundColor: '#DC2626' + '10',
+      backgroundColor: colors.error + '10',
       borderRadius: 6,
       borderWidth: 1,
-      borderColor: '#DC2626' + '30',
+      borderColor: colors.error + '30',
       marginTop: 12,
     },
     criticalWarningText: {
       flex: 1,
       fontSize: 14,
       fontWeight: '600',
-      color: '#DC2626',
+      color: colors.error,
       lineHeight: 20,
     },
     criticalActionButtons: {
@@ -3194,11 +3202,11 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       justifyContent: 'center',
       paddingVertical: 14,
       paddingHorizontal: 16,
-      backgroundColor: '#DC2626',
+      backgroundColor: colors.error,
       borderRadius: 8,
       gap: 8,
       marginTop: 8,
-      shadowColor: '#DC2626',
+      shadowColor: colors.error,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.2,
       shadowRadius: 2,
@@ -3340,11 +3348,11 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
     },
     warningRow: {
       padding: 10,
-      backgroundColor: '#D97706' + '15',
+      backgroundColor: colors.warning + '15',
       borderRadius: 6,
       marginTop: 4,
       borderWidth: 1,
-      borderColor: '#D97706' + '30',
+      borderColor: colors.warning + '30',
     },
     cardText: {
       fontSize: 14,
@@ -3353,7 +3361,7 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       lineHeight: 20,
     },
     warningText: {
-      color: '#D97706',
+      color: colors.warning,
       fontWeight: '500',
     },
     cardActions: {
@@ -3757,7 +3765,7 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       marginTop: 4,
     },
     routeButtonRecommended: {
-      backgroundColor: '#059669',
+      backgroundColor: colors.success,
     },
     routeButtonText: {
       fontSize: 13,
@@ -3808,17 +3816,32 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
        Map Modal Legend
        ========================= */
     mapModalLegend: {
-      position: 'absolute',
-      top: spacing.md,
-      left: spacing.md,
-      right: 80,
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.sm,
       backgroundColor: colors.cardBackground,
       borderRadius: radii.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      ...shadows.md,
+      gap: 6,
+      marginTop: spacing.sm,
+    },
+    mapModalLegendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    mapModalLegendDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+    },
+    mapModalLegendText: {
+      fontSize: 13,
+      fontWeight: '600',
+      flex: 1,
+    },
+    mapModalLegendSubtext: {
+      fontSize: 12,
     },
     /* ========================
        Bottom Sheet
@@ -4045,14 +4068,14 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       flexDirection: 'row',
       alignItems: 'center',
       padding: 12,
-      backgroundColor: '#DC2626' + '15',
+      backgroundColor: colors.error + '15',
       borderRadius: 8,
       gap: 8,
       marginBottom: 8,
     },
     routePlannerAlertText: {
       fontSize: 13,
-      color: '#DC2626',
+      color: colors.error,
       fontWeight: '600',
       flex: 1,
     },

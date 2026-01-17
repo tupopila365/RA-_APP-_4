@@ -214,31 +214,36 @@ const RoadStatusList = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, maxWidth: 1600, mx: 'auto' }}>
+      {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
+        <Typography variant="h4" component="h1" fontWeight="bold">
           Road Status Management
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleCreate}
+          size="large"
         >
           Add Roadwork
         </Button>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
       {/* Filters */}
-      <Card sx={{ mb: 3 }}>
+      <Card elevation={2} sx={{ mb: 3 }}>
         <CardContent>
+          <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 2 }}>
+            Filters & Search
+          </Typography>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 label="Search"
@@ -286,7 +291,7 @@ const RoadStatusList = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={1.5}>
+            <Grid item xs={12} md={2}>
               <TextField
                 fullWidth
                 label="Start Date"
@@ -296,7 +301,7 @@ const RoadStatusList = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} md={1.5}>
+            <Grid item xs={12} md={2}>
               <TextField
                 fullWidth
                 label="End Date"
@@ -306,7 +311,7 @@ const RoadStatusList = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} md={2}>
+            <Grid item xs={12} md={12}>
               <FormControlLabel
                 control={
                   <Switch
@@ -314,7 +319,7 @@ const RoadStatusList = () => {
                     onChange={(e) => setShowPublishedOnly(e.target.checked)}
                   />
                 }
-                label="Published Only"
+                label="Show Published Only"
               />
             </Grid>
           </Grid>
@@ -322,21 +327,22 @@ const RoadStatusList = () => {
       </Card>
 
       {/* Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Road</TableCell>
-              <TableCell>Region</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Title</TableCell>
-              <TableCell>Start Date</TableCell>
-              <TableCell>Expected Completion</TableCell>
-              <TableCell>Priority</TableCell>
-              <TableCell>Published</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
+      <Card elevation={2}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                <TableCell><strong>Road</strong></TableCell>
+                <TableCell><strong>Region</strong></TableCell>
+                <TableCell><strong>Status</strong></TableCell>
+                <TableCell><strong>Title</strong></TableCell>
+                <TableCell><strong>Start Date</strong></TableCell>
+                <TableCell><strong>Expected Completion</strong></TableCell>
+                <TableCell><strong>Priority</strong></TableCell>
+                <TableCell><strong>Published</strong></TableCell>
+                <TableCell align="right"><strong>Actions</strong></TableCell>
+              </TableRow>
+            </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
@@ -443,17 +449,18 @@ const RoadStatusList = () => {
               ))
             )}
           </TableBody>
-        </Table>
-        <TablePagination
-          component="div"
-          count={total}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[10, 25, 50, 100]}
-        />
-      </TableContainer>
+          </Table>
+          <TablePagination
+            component="div"
+            count={total}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+          />
+        </TableContainer>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
@@ -476,6 +483,8 @@ const RoadStatusList = () => {
 };
 
 export default RoadStatusList;
+
+
 
 
 

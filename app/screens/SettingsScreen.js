@@ -156,13 +156,19 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
-            <TouchableOpacity style={styles.quickActionItem}>
+            <TouchableOpacity 
+              style={styles.quickActionItem}
+              onPress={() => navigation.navigate('MyReports')}
+            >
               <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
                 <Ionicons name="document-text-outline" size={24} color={colors.primary} />
               </View>
               <Text style={styles.quickActionText}>My Reports</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
+            <TouchableOpacity 
+              style={styles.quickActionItem}
+              onPress={() => navigation.navigate('Notifications')}
+            >
               <View style={[styles.quickActionIcon, { backgroundColor: '#FF6B35' + '20' }]}>
                 <Ionicons name="notifications-outline" size={24} color="#FF6B35" />
               </View>

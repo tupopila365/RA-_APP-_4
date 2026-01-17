@@ -86,6 +86,9 @@ export default function ProcurementScreen({ navigation }) {
   const primaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(72 * scaleFactor, isLargeTablet ? 80 : 72));
   const secondaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(56 * scaleFactor, isLargeTablet ? 64 : 56));
 
+  const tileColor = colors.primary;
+  const tileBackground = colors.backgroundSecondary || colors.surface || '#F5F5F7';
+
   const banners = [
     {
       id: '1',
@@ -106,40 +109,40 @@ export default function ProcurementScreen({ navigation }) {
       id: 1,
       title: 'Procurement Plan',
       icon: 'calendar-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: tileColor,
+      backgroundColor: tileBackground,
       onPress: () => navigation.navigate('ProcurementPlan'),
     },
     {
       id: 2,
       title: 'Bids & RFQs',
       icon: 'document-text-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: tileColor,
+      backgroundColor: tileBackground,
       onPress: () => navigation.navigate('OpeningRegister'),
     },
     {
       id: 3,
       title: 'Awards',
       icon: 'trophy-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: tileColor,
+      backgroundColor: tileBackground,
       onPress: () => navigation.navigate('ProcurementAwards'),
     },
     {
       id: 4,
       title: 'Opening Register',
       icon: 'list-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: tileColor,
+      backgroundColor: tileBackground,
       onPress: () => navigation.navigate('OpeningRegister'),
     },
     {
       id: 5,
       title: 'Legislation',
       icon: 'library-outline',
-      color: '#5856D6',
-      backgroundColor: '#F5F5F7',
+      color: tileColor,
+      backgroundColor: tileBackground,
       onPress: () => navigation.navigate('ProcurementLegislation'),
     },
   ];
@@ -367,8 +370,8 @@ function getStyles(colors, config) {
       height: isPhone ? 56 : isTablet ? 64 : 72,
       resizeMode: 'contain',
       borderRadius: isPhone ? 14 : 16,
-      backgroundColor: '#FFFFFF',
-      opacity: 0.8,
+      backgroundColor: colors.card,
+      opacity: 0.9,
       padding: isPhone ? 6 : 8,
     },
 
@@ -434,7 +437,7 @@ function getStyles(colors, config) {
         },
       }),
       borderWidth: 1,
-      borderColor: '#E6EAF0',
+      borderColor: colors.border,
     },
 
     bannerImage: { 
@@ -443,7 +446,7 @@ function getStyles(colors, config) {
     },
 
     bannerOverlay: {
-      backgroundColor: '#000000',
+      backgroundColor: colors.text,
       opacity: 0.6,
       padding: 20,
       borderBottomLeftRadius: isPhone ? 16 : 20,
@@ -513,14 +516,14 @@ function getStyles(colors, config) {
     menuItem: {
       width: secondaryItemWidth,
       minWidth: MIN_TOUCH_TARGET * 1.8,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.card,
       borderRadius: isPhone ? 12 : 16,
       padding: isPhone ? 10 : 14,
       marginBottom: isPhone ? 10 : 16,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: '#E6EAF0',
+      borderColor: colors.border,
       ...Platform.select({
         ios: {
           shadowColor: '#000',

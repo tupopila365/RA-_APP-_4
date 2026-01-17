@@ -22,6 +22,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ReanimatedAnimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  Easing,
+  useAnimatedReaction,
+  runOnJS,
+} from 'react-native-reanimated';
 
 // Conditionally import Clipboard - fallback if not available
 let Clipboard = null;
@@ -167,11 +175,36 @@ const QuickReplies = ({ suggestions, onSelect, colors, styles }) => {
 
 // Message Item Component with animations
 function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, formatMessageTime, getTypingAnimation, handleStop, setInputText, inputRef }) {
+  // Ensure Animated is available before using it
+  if (!Animated || typeof Animated.Value !== 'function') {
+    console.error('Animated is not available in MessageItem');
+    // Return a simple view without animations as fallback
+    return (
+      <View style={[styles.messageContainer, message.sender === 'user' ? styles.userMessage : styles.botMessage]}>
+        <View style={[styles.messageBubble, message.sender === 'user' ? styles.userMessageBubble : styles.botMessageBubble]}>
+          <Text style={[styles.messageText, { color: message.sender === 'user' ? '#FFFFFF' : colors.text }]} maxFontSizeMultiplier={1.3}>
+            {message.text}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const typingAnimRef = useRef(null);
 
   useEffect(() => {
+    // Safety check for Animated before using it
+    if (!Animated || !Animated.parallel || !Animated.timing || !Animated.spring) {
+      console.error('Animated methods are not available');
+      return;
+    }
+    
+    if (!fadeAnim || !scaleAnim) {
+      return;
+    }
+    
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -185,15 +218,17 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, scaleAnim]);
 
   // Start typing animation if streaming
   useEffect(() => {
     if (message.isStreaming && message.text === '') {
       typingAnimRef.current = getTypingAnimation(message.id);
-      typingAnimRef.current.start();
+      if (typingAnimRef.current && typeof typingAnimRef.current.start === 'function') {
+        typingAnimRef.current.start();
+      }
       return () => {
-        if (typingAnimRef.current) {
+        if (typingAnimRef.current && typeof typingAnimRef.current.stop === 'function') {
           typingAnimRef.current.stop();
         }
       };
@@ -473,7 +508,6 @@ export default function ChatbotScreen() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
@@ -483,6 +517,11 @@ export default function ChatbotScreen() {
   const typingAnimations = useRef({});
   const abortControllerRef = useRef(null);
   const keyboardTimeoutRef = useRef(null);
+
+  // Use Reanimated for smooth keyboard height animation
+  const keyboardHeight = useSharedValue(0);
+  const isKeyboardVisible = useSharedValue(false);
+  const [keyboardHeightState, setKeyboardHeightState] = useState(0);
 
   // Load chat history on mount
   useEffect(() => {
@@ -589,26 +628,49 @@ export default function ChatbotScreen() {
     }
   }, [colors.primary]));
 
-  // FIX 2: Update the keyboard handling for proper input positioning
+  // Enhanced keyboard handling with Reanimated for smooth animations
   const keyboardShowListener = useRef(null);
   const keyboardHideListener = useRef(null);
 
+  // Sync keyboard height shared value to state for ScrollView padding
+  useAnimatedReaction(
+    () => keyboardHeight.value,
+    (height) => {
+      runOnJS(setKeyboardHeightState)(height);
+    }
+  );
+
   useEffect(() => {
-    // Improved keyboard listeners
+    // Improved keyboard listeners with smooth animations
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     keyboardShowListener.current = Keyboard.addListener(showEvent, (e) => {
       const height = e.endCoordinates.height;
-      setKeyboardHeight(height);
-      // Scroll to bottom after a short delay
+      const duration = e.duration || (Platform.OS === 'ios' ? 250 : 150);
+      
+      // Animate keyboard height smoothly
+      keyboardHeight.value = withTiming(height, {
+        duration: duration,
+        easing: Easing.out(Easing.ease),
+      });
+      isKeyboardVisible.value = true;
+      
+      // Scroll to bottom after keyboard animation
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 250);
+      }, duration + 50);
     });
 
-    keyboardHideListener.current = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
+    keyboardHideListener.current = Keyboard.addListener(hideEvent, (e) => {
+      const duration = e.duration || (Platform.OS === 'ios' ? 250 : 150);
+      
+      // Animate keyboard height to 0 smoothly
+      keyboardHeight.value = withTiming(0, {
+        duration: duration,
+        easing: Easing.in(Easing.ease),
+      });
+      isKeyboardVisible.value = false;
     });
 
     return () => {
@@ -880,6 +942,12 @@ export default function ChatbotScreen() {
 
   const getTypingAnimation = useCallback((messageId) => {
     if (!typingAnimations.current[messageId]) {
+      // Safety check for Animated
+      if (!Animated || typeof Animated.Value !== 'function') {
+        console.error('Animated.Value is not available in getTypingAnimation');
+        return null;
+      }
+      
       const anim1 = new Animated.Value(0.4);
       const anim2 = new Animated.Value(0.4);
       const anim3 = new Animated.Value(0.4);
@@ -967,6 +1035,30 @@ export default function ChatbotScreen() {
 
   const styles = getStyles(colors, screenWidth, colorScheme, insets);
 
+  // Animated style for input area that moves with keyboard
+  const inputAreaAnimatedStyle = useAnimatedStyle(() => {
+    // Offset input when keyboard is visible. On Android, subtract nav inset to avoid floating too high.
+    const bottomOffset =
+      keyboardHeight.value > 0
+        ? Math.max(
+            0,
+            Platform.OS === 'ios'
+              ? keyboardHeight.value
+              : keyboardHeight.value - (insets?.bottom || 0)
+          )
+        : 0;
+    return {
+      marginBottom: bottomOffset,
+    };
+  });
+
+  // Animated style for scroll to bottom button
+  const scrollButtonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: -keyboardHeight.value }],
+    };
+  });
+
   // Set status bar style when component mounts and when screen is focused
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -988,42 +1080,47 @@ export default function ChatbotScreen() {
     }, [colors.primary])
   );
 
-  // FIX 3: Update the render method with proper KeyboardAvoidingView
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]} edges={['top']}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
       
-      {/* FIX: Use proper keyboardVerticalOffset for iOS */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-        style={{ flex: 1 }}
-      >
-        {/* Messages Area */}
-        <View style={styles.messagesArea}>
-          <ScrollView
-            ref={scrollViewRef}
-            contentContainerStyle={[
-              styles.messagesContainer,
-              {
-                paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : 80
-              }
-            ]}
-            style={{ flex: 1 }}
-            onContentSizeChange={() => {
+      {/* Messages Area */}
+      <View style={styles.messagesArea}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={[
+            styles.messagesContainer,
+            {
+              // Add keyboard height padding when visible so input stays above keyboard on all platforms
+              paddingBottom:
+                keyboardHeightState > 0
+                  ? Math.max(
+                      120,
+                      (Platform.OS === 'ios'
+                        ? keyboardHeightState
+                        : keyboardHeightState - (insets?.bottom || 0)) + 120
+                    )
+                  : 120,
+            },
+          ]}
+          style={{ flex: 1 }}
+          onContentSizeChange={() => {
+            if (inputFocused) {
               setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: true });
               }, 100);
-            }}
-            onScroll={(event) => {
-              const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-              const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
-              setShowScrollToBottom(!isNearBottom && messages.length > 3);
-            }}
-            scrollEventThrottle={400}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+            }
+          }}
+          onScroll={(event) => {
+            const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+            const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
+            setShowScrollToBottom(!isNearBottom && messages.length > 3);
+          }}
+          scrollEventThrottle={400}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+        >
             {messages.map((message) => {
               const messageWithRetry = message.isError
                 ? {
@@ -1088,26 +1185,31 @@ export default function ChatbotScreen() {
             )}
           </ScrollView>
 
-          {/* Scroll to Bottom Button */}
+          {/* Scroll to Bottom Button - Animated */}
           {showScrollToBottom && (
-            <TouchableOpacity
-              style={[styles.scrollToBottomButton, { bottom: keyboardHeight > 0 ? keyboardHeight + 80 : 80 }]}
-              onPress={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-              accessibilityLabel="Scroll to bottom"
-              accessibilityRole="button"
+            <ReanimatedAnimated.View
+              style={[
+                styles.scrollToBottomButton,
+                {
+                  bottom: 80,
+                },
+                scrollButtonAnimatedStyle,
+              ]}
             >
-              <Ionicons name="chevron-down" size={20} color={colors.primary} />
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+                accessibilityLabel="Scroll to bottom"
+                accessibilityRole="button"
+                style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+              >
+                <Ionicons name="chevron-down" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            </ReanimatedAnimated.View>
           )}
         </View>
 
-        {/* FIX 4: Update Input Area to position properly */}
-        <View style={[
-          styles.inputArea,
-          Platform.OS === 'ios' && keyboardHeight > 0 && {
-            paddingBottom: 8, // Reduced padding when keyboard is visible
-          }
-        ]}>
+        {/* Input Area - Animated with keyboard */}
+        <ReanimatedAnimated.View style={[styles.inputArea, inputAreaAnimatedStyle]}>
           <View style={styles.inputContainer}>
             <TextInput
               ref={inputRef}
@@ -1120,9 +1222,10 @@ export default function ChatbotScreen() {
               maxLength={500}
               onFocus={() => {
                 setInputFocused(true);
+                // Delay to ensure keyboard is fully shown
                 setTimeout(() => {
                   scrollViewRef.current?.scrollToEnd({ animated: true });
-                }, 100);
+                }, 300);
               }}
               onBlur={() => setInputFocused(false)}
               onSubmitEditing={handleSend}
@@ -1149,8 +1252,7 @@ export default function ChatbotScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </ReanimatedAnimated.View>
     </SafeAreaView>
   );
 }
@@ -1524,8 +1626,8 @@ function getStyles(colors, screenWidth, colorScheme, insets) {
     inputArea: {
       backgroundColor: colors.card,
       paddingHorizontal: 8,
-      paddingVertical: 4,
-      paddingBottom: safeBottomPadding,
+      paddingVertical: 8,
+      paddingBottom: Platform.OS === 'ios' ? safeBottomPadding : 8,
       borderTopWidth: 1,
       borderTopColor: colors.border,
       minHeight: 60,

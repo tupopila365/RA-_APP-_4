@@ -24,6 +24,7 @@ import {
   typography,
   spacing,
 } from '../components/UnifiedDesignSystem';
+import { StatusStepper } from '../components/StatusStepper';
 
 export default function PLNTrackingScreen({ navigation, route }) {
   const { colors, isDark } = useTheme();
@@ -49,6 +50,121 @@ export default function PLNTrackingScreen({ navigation, route }) {
       checkStatus();
     }
   }, []);
+
+  const normalizeStatus = (status) => {
+    if (!status) return 'SUBMITTED';
+    const normalized = status.toString().trim().toUpperCase().replace(/[\s-]+/g, '_');
+    const mapping = {
+      PENDING: 'SUBMITTED',
+      PENDING_REVIEW: 'UNDER_REVIEW',
+      UNDER_REVIEW: 'UNDER_REVIEW',
+      APPROVED: 'APPROVED',
+      REJECTED: 'DECLINED',
+      DECLINED: 'DECLINED',
+      PAYMENT_REQUIRED: 'PAYMENT_PENDING',
+      PAYMENT_PENDING: 'PAYMENT_PENDING',
+      PAYMENT_RECEIVED: 'PAID',
+      PAID: 'PAID',
+      PLATES_ORDERED: 'PLATES_ORDERED',
+      READY_FOR_COLLECTION: 'READY_FOR_COLLECTION',
+      COMPLETED: 'READY_FOR_COLLECTION',
+      EXPIRED: 'EXPIRED',
+    };
+    return mapping[normalized] || normalized;
+  };
+
+  const getStatusLabel = (status) => {
+    const normalized = normalizeStatus(status);
+    const labels = {
+      SUBMITTED: 'Submitted',
+      UNDER_REVIEW: 'Under Review',
+      APPROVED: 'Approved',
+      PAYMENT_PENDING: 'Payment Pending',
+      PAID: 'Payment Received',
+      PLATES_ORDERED: 'Plates Ordered',
+      READY_FOR_COLLECTION: 'Ready for Collection',
+      DECLINED: 'Declined',
+      EXPIRED: 'Expired',
+    };
+    return labels[normalized] || 'In Progress';
+  };
+
+  const getNextStepsMessage = (status) => {
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'SUBMITTED':
+        return 'Your application was received. We will review your documents shortly.';
+      case 'UNDER_REVIEW':
+        return 'Your documents are being verified by our team.';
+      case 'APPROVED':
+        return 'Application approved. Please proceed with payment to continue.';
+      case 'PAYMENT_PENDING':
+        return 'Payment is required to continue processing your plates.';
+      case 'PAID':
+        return 'Payment received. Plates are being ordered.';
+      case 'PLATES_ORDERED':
+        return 'Plates ordered. We will notify you once they are ready for collection.';
+      case 'READY_FOR_COLLECTION':
+        return 'Your plates are ready for collection. Bring your ID to the nearest office.';
+      case 'DECLINED':
+        return 'Your application was declined. Contact support for details.';
+      case 'EXPIRED':
+        return 'Your application expired. Please submit a new application.';
+      default:
+        return 'Your application is being processed. Please check back for updates.';
+    }
+  };
+
+  const formatHistoryTimestamp = (timestamp) => {
+    if (!timestamp) return 'Not specified';
+    try {
+      return new Date(timestamp).toLocaleString();
+    } catch {
+      return timestamp;
+    }
+  };
+
+  const buildStatusHistory = (history, createdAt, normalizedStatus) => {
+    if (Array.isArray(history) && history.length > 0) {
+      return history.map((entry) => {
+        const entryStatus = normalizeStatus(entry.status || normalizedStatus);
+        const entryTimestamp =
+          entry.timestamp ||
+          entry.date ||
+          entry.createdAt ||
+          entry.updatedAt ||
+          createdAt ||
+          new Date().toISOString();
+
+        return {
+          ...entry,
+          status: entryStatus,
+          timestamp: entryTimestamp,
+          comment: entry.comment || entry.note || entry.remark || entry.message,
+        };
+      });
+    }
+
+    // Fallback when no history is returned from the API
+    const baseTimestamp = createdAt || new Date().toISOString();
+    const fallbackHistory = [
+      {
+        status: 'SUBMITTED',
+        timestamp: baseTimestamp,
+        comment: 'Application submitted',
+      },
+    ];
+
+    if (normalizedStatus && normalizedStatus !== 'SUBMITTED') {
+      fallbackHistory.push({
+        status: normalizedStatus,
+        timestamp: baseTimestamp,
+        comment: 'Current status',
+      });
+    }
+
+    return fallbackHistory;
+  };
 
   // Validate inputs
   const validateInputs = () => {
@@ -88,37 +204,21 @@ export default function PLNTrackingScreen({ navigation, route }) {
       // Call the real PLN tracking API with uppercase reference ID
       const submissionRef = referenceId.trim().toUpperCase();
       const result = await plnService.trackApplication(submissionRef, pin);
-      
-      // Helper function to get next steps message
-      const getNextStepsMessage = (status) => {
-        switch (status?.toLowerCase()) {
-          case 'pending':
-          case 'pending review':
-            return 'Your application is being reviewed by our team. You will be notified once the review is complete.';
-          case 'approved':
-            return 'Your application has been approved! You will receive your personalized number plates soon.';
-          case 'rejected':
-            return 'Your application has been rejected. Please contact our office for more information.';
-          default:
-            return 'Your application is being processed. Please check back later for updates.';
-        }
-      };
-      
+
+      const normalizedStatus = normalizeStatus(result.status || 'SUBMITTED');
+      const statusHistory = buildStatusHistory(result.statusHistory, result.createdAt, normalizedStatus);
+
       // Format the result for display
       const trackingResult = {
         referenceId: result.referenceId,
-        status: result.status || 'Pending Review',
-        estimatedTime: '5–7 working days',
+        status: normalizedStatus,
+        estimatedTime: result.estimatedTime || '5–7 working days',
         submittedDate: result.createdAt ? new Date(result.createdAt).toLocaleDateString() : 'Unknown',
         lastUpdated: result.updatedAt ? new Date(result.updatedAt).toLocaleDateString() : 'Unknown',
         nextSteps: getNextStepsMessage(result.status),
-        statusHistory: [
-          { 
-            status: 'Submitted', 
-            date: result.createdAt ? new Date(result.createdAt).toLocaleDateString() : 'Unknown',
-            time: result.createdAt ? new Date(result.createdAt).toLocaleTimeString() : 'Unknown'
-          },
-        ]
+        statusHistory,
+        paymentDeadline: result.paymentDeadline,
+        paymentReceivedAt: result.paymentReceivedAt,
       };
 
       setTrackingResult(trackingResult);
@@ -142,24 +242,26 @@ export default function PLNTrackingScreen({ navigation, route }) {
 
   // Get status color
   const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'submitted':
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'SUBMITTED':
         return '#2196F3';
-      case 'under review':
-      case 'pending review':
+      case 'UNDER_REVIEW':
         return '#FF9800';
-      case 'approved':
+      case 'APPROVED':
         return '#4CAF50';
-      case 'declined':
+      case 'DECLINED':
         return '#F44336';
-      case 'payment pending':
+      case 'PAYMENT_PENDING':
         return '#9C27B0';
-      case 'paid':
+      case 'PAID':
         return '#4CAF50';
-      case 'plates ordered':
+      case 'PLATES_ORDERED':
         return '#00BCD4';
-      case 'ready for collection':
+      case 'READY_FOR_COLLECTION':
         return '#8BC34A';
+      case 'EXPIRED':
+        return '#9C27B0';
       default:
         return '#AAAAAA';
     }
@@ -291,9 +393,25 @@ export default function PLNTrackingScreen({ navigation, route }) {
                 typography.body,
                 { color: getStatusColor(trackingResult.status), fontWeight: '600' }
               ]}>
-                {trackingResult.status}
+                {getStatusLabel(trackingResult.status)}
               </Text>
             </View>
+          </View>
+
+          <View style={styles.progressTracker}>
+            <View style={styles.progressHeaderRow}>
+              <Text style={[typography.h4, { color: colors.text }]}>
+                Progress tracker
+              </Text>
+              <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
+                See exactly where your application sits and what is next.
+              </Text>
+            </View>
+            <StatusStepper
+              currentStatus={trackingResult.status}
+              statusHistory={trackingResult.statusHistory}
+              paymentDeadline={trackingResult.paymentDeadline}
+            />
           </View>
 
           <View style={styles.estimatedTimeContainer}>
@@ -320,19 +438,24 @@ export default function PLNTrackingScreen({ navigation, route }) {
 
       {/* Status History */}
       {trackingResult.statusHistory && trackingResult.statusHistory.length > 0 && (
-        <UnifiedCard variant="default" padding="large">
-          <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginBottom: spacing.lg }]}>
+        <UnifiedCard variant="default" padding="large" style={styles.historyCard}>
+          <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginBottom: spacing.xl }]}>
             Status History
           </Text>
           {trackingResult.statusHistory.map((item, index) => (
             <View key={index} style={styles.historyItem}>
               <View style={[styles.historyDot, { backgroundColor: colors.primary }]} />
               <View style={styles.historyContent}>
-                <Text style={[typography.body, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]}>
-                  {item.status}
+                <Text style={[typography.body, styles.historyStatusText, { color: colors.text }]}>
+                  {getStatusLabel(item.status)}
                 </Text>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                  {item.date} at {item.time}
+                {item.comment && (
+                  <Text style={[typography.caption, styles.historyComment, { color: colors.textSecondary }]}>
+                    {item.comment}
+                  </Text>
+                )}
+                <Text style={[typography.caption, styles.historyTimestamp, { color: colors.textSecondary }]}>
+                  {formatHistoryTimestamp(item.timestamp)}
                 </Text>
               </View>
             </View>
@@ -349,6 +472,8 @@ export default function PLNTrackingScreen({ navigation, route }) {
           size="medium"
           iconName="refresh-outline"
           iconPosition="left"
+          fullWidth
+          style={[styles.actionButton, styles.actionButtonLeft]}
         />
         <UnifiedButton
           label="New Search"
@@ -357,6 +482,8 @@ export default function PLNTrackingScreen({ navigation, route }) {
           size="medium"
           iconName="search-outline"
           iconPosition="left"
+          fullWidth
+          style={styles.actionButton}
         />
       </View>
     </View>
@@ -481,11 +608,28 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
     width: '100%',
   },
   
+  progressTracker: {
+    width: '100%',
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  progressHeaderRow: {
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+
   // History
   historyItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: spacing.lg,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
   },
   
   historyDot: {
@@ -499,13 +643,38 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
   historyContent: {
     flex: 1,
   },
+  historyComment: {
+    marginBottom: spacing.xs,
+  },
+  historyStatusText: {
+    fontWeight: '700',
+    lineHeight: 22,
+    marginBottom: spacing.xs,
+  },
+  historyTimestamp: {
+    lineHeight: 18,
+  },
+  historyCard: {
+    width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
   
   // Action Buttons
   actionButtons: {
     flexDirection: 'row',
-    gap: spacing.md,
     width: '100%',
     maxWidth: 400,
+    marginTop: spacing.xl,
+    alignSelf: 'center',
+  },
+  actionButton: {
+    flex: 1,
+  },
+  actionButtonLeft: {
+    marginRight: spacing.md,
   },
 });
 

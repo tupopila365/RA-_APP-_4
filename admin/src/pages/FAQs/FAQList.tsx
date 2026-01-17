@@ -25,7 +25,6 @@ import {
   Select,
   FormControl,
   InputLabel,
-  CircularProgress,
   Alert,
 } from '@mui/material';
 import {
@@ -35,6 +34,7 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { getFAQsList, deleteFAQ, FAQ } from '../../services/faqs.service';
+import { UnifiedSkeletonLoader } from '../../components/common';
 
 const FAQList = () => {
   const navigate = useNavigate();
@@ -200,11 +200,7 @@ const FAQList = () => {
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                  <CircularProgress />
-                </TableCell>
-              </TableRow>
+              <UnifiedSkeletonLoader rows={5} />
             ) : faqs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: 4 }}>

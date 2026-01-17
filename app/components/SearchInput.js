@@ -1,10 +1,110 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, TextInput, StyleSheet, useColorScheme, TouchableOpacity, Text, ScrollView, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import { useDebounce } from '../hooks/useDebounce';
 
-export function SearchInput({
+// Memoize styles per color scheme
+const stylesCache = new Map();
+
+function getStyles(colors) {
+  const cacheKey = `${colors.primary}-${colors.text}-${colors.border}`;
+  if (stylesCache.has(cacheKey)) {
+    return stylesCache.get(cacheKey);
+  }
+
+  const styles = StyleSheet.create({
+    wrapper: {
+      position: 'relative',
+      zIndex: 1000,
+    },
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 12,
+      paddingHorizontal: 15,
+      height: 50,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 1,
+        },
+      }),
+    },
+    icon: {
+      marginRight: 10,
+    },
+    input: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 16,
+    },
+    clearButton: {
+      padding: 5,
+    },
+    suggestionsContainer: {
+      position: 'absolute',
+      top: 55,
+      left: 0,
+      right: 0,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+      maxHeight: 200,
+      zIndex: 1001,
+    },
+    suggestionsList: {
+      flex: 1,
+    },
+    suggestionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    lastSuggestionItem: {
+      borderBottomWidth: 0,
+    },
+    suggestionItemPressed: {
+      backgroundColor: colors.primary,
+    },
+    suggestionIcon: {
+      marginRight: 10,
+    },
+    suggestionText: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.text,
+    },
+  });
+
+  stylesCache.set(cacheKey, styles);
+  return styles;
+}
+
+export const SearchInput = React.memo(function SearchInput({
   placeholder = 'Search...',
   onSearch,
   onClear,
@@ -17,67 +117,128 @@ export function SearchInput({
   showSuggestions = false, // Control visibility of suggestions
   onSuggestionSelect, // Callback when a suggestion is selected
   maxSuggestions = 5, // Maximum number of suggestions to show
+  value: controlledValue, // Optional controlled value
+  defaultValue = '', // Default for uncontrolled usage
+  onChangeTextImmediate, // Callback fired on every keystroke (before debounce)
 }) {
-  const [value, setValue] = React.useState('');
-  const [isFocused, setIsFocused] = React.useState(false);
-  const [showSuggestionDropdown, setShowSuggestionDropdown] = React.useState(false);
+  const isControlled = controlledValue !== undefined;
+  const [internalValue, setInternalValue] = useState(defaultValue);
+  const value = isControlled ? controlledValue : internalValue;
+  const [isFocused, setIsFocused] = useState(false);
+  const [showSuggestionDropdown, setShowSuggestionDropdown] = useState(false);
   const debouncedValue = useDebounce(value, debounceDelay);
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const styles = getStyles(colors);
+  
+  // Memoize styles to prevent recreation on every render
+  const styles = useMemo(() => getStyles(colors), [colors.primary, colors.text, colors.border]);
+  
+  // Memoize the search callback to prevent unnecessary re-renders
+  const memoizedOnSearch = useRef(onSearch);
+  useEffect(() => {
+    memoizedOnSearch.current = onSearch;
+  }, [onSearch]);
 
-  React.useEffect(() => {
-    if (onSearch) {
-      onSearch(debouncedValue);
+  // Keep internal value in sync when defaultValue changes (uncontrolled only)
+  useEffect(() => {
+    if (!isControlled) {
+      setInternalValue(defaultValue);
     }
-  }, [debouncedValue, onSearch]);
+  }, [defaultValue, isControlled]);
+
+  useEffect(() => {
+    if (memoizedOnSearch.current) {
+      memoizedOnSearch.current(debouncedValue);
+    }
+  }, [debouncedValue]);
+
+  // Memoize filtered suggestions to avoid recalculating on every render
+  const filteredSuggestions = useMemo(() => {
+    if (!value || value.length === 0) return [];
+    
+    const lowerValue = value.toLowerCase();
+    return suggestions
+      .filter(suggestion => {
+        const lowerSuggestion = suggestion.toLowerCase();
+        return lowerSuggestion.includes(lowerValue) && lowerSuggestion !== lowerValue;
+      })
+      .slice(0, maxSuggestions);
+  }, [suggestions, value, maxSuggestions]);
 
   // Show/hide suggestions based on focus, value, and suggestions array
-  React.useEffect(() => {
-    if (showSuggestions && isFocused && value.length > 0 && suggestions.length > 0) {
+  useEffect(() => {
+    if (showSuggestions && isFocused && value.length > 0 && filteredSuggestions.length > 0) {
       setShowSuggestionDropdown(true);
     } else {
       setShowSuggestionDropdown(false);
     }
-  }, [showSuggestions, isFocused, value, suggestions]);
+  }, [showSuggestions, isFocused, value, filteredSuggestions.length]);
 
-  const handleClear = () => {
-    setValue('');
+  const handleChangeText = useCallback(
+    (text) => {
+      if (!isControlled) {
+        setInternalValue(text);
+      }
+      if (onChangeTextImmediate) {
+        onChangeTextImmediate(text);
+      }
+    },
+    [isControlled, onChangeTextImmediate]
+  );
+
+  const handleClear = useCallback(() => {
+    if (!isControlled) {
+      setInternalValue('');
+    }
     setShowSuggestionDropdown(false);
+    if (onChangeTextImmediate) {
+      onChangeTextImmediate('');
+    }
     if (onClear) {
       onClear();
     }
-  };
+  }, [isControlled, onClear, onChangeTextImmediate]);
 
-  const handleSuggestionPress = (suggestion) => {
-    setValue(suggestion);
+  const handleSuggestionPress = useCallback((suggestion) => {
+    if (!isControlled) {
+      setInternalValue(suggestion);
+    }
     setShowSuggestionDropdown(false);
     if (onSuggestionSelect) {
       onSuggestionSelect(suggestion);
     }
-    if (onSearch) {
-      onSearch(suggestion);
+    if (onChangeTextImmediate) {
+      onChangeTextImmediate(suggestion);
     }
-  };
+    if (memoizedOnSearch.current) {
+      memoizedOnSearch.current(suggestion);
+    }
+  }, [isControlled, onSuggestionSelect, onChangeTextImmediate]);
 
-  const handleFocus = () => {
+  const handleFocus = useCallback(() => {
     setIsFocused(true);
-  };
+  }, []);
 
-  const handleBlur = () => {
+  const blurTimeoutRef = useRef(null);
+  const handleBlur = useCallback(() => {
+    // Clear any existing timeout
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+    }
     // Delay blur to allow suggestion tap to register
-    setTimeout(() => {
+    blurTimeoutRef.current = setTimeout(() => {
       setIsFocused(false);
     }, 200);
-  };
+  }, []);
 
-  // Filter and limit suggestions
-  const filteredSuggestions = suggestions
-    .filter(suggestion => 
-      suggestion.toLowerCase().includes(value.toLowerCase()) &&
-      suggestion.toLowerCase() !== value.toLowerCase()
-    )
-    .slice(0, maxSuggestions);
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <View style={[styles.wrapper, style]}>
@@ -88,7 +249,7 @@ export function SearchInput({
           placeholder={placeholder}
           placeholderTextColor={colors.textSecondary}
           value={value}
-          onChangeText={setValue}
+          onChangeText={handleChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
           testID={testID}
@@ -151,95 +312,4 @@ export function SearchInput({
       )}
     </View>
   );
-}
-
-const getStyles = (colors) =>
-  StyleSheet.create({
-    wrapper: {
-      position: 'relative',
-      zIndex: 1000,
-    },
-    container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#FFFFFF', // Solid white background
-      borderRadius: 12, // Professional radius instead of 25
-      paddingHorizontal: 15,
-      height: 50,
-      borderWidth: 1,
-      borderColor: colors.border,
-      // Android-safe elevation
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 1, // Reduced from 3 to 1 for Android safety
-        },
-      }),
-    },
-    icon: {
-      marginRight: 10,
-    },
-    input: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 16,
-    },
-    clearButton: {
-      padding: 5,
-    },
-    suggestionsContainer: {
-      position: 'absolute',
-      top: 55,
-      left: 0,
-      right: 0,
-      backgroundColor: '#FFFFFF', // Solid white background
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      // Android-safe elevation for dropdown
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-        },
-        android: {
-          elevation: 2, // Reduced from 8 to 2 for Android safety
-        },
-      }),
-      maxHeight: 200,
-      zIndex: 1001,
-      // NO overflow: 'hidden' to prevent Android clipping issues
-    },
-    suggestionsList: {
-      flex: 1,
-    },
-    suggestionItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    lastSuggestionItem: {
-      borderBottomWidth: 0,
-    },
-    suggestionItemPressed: {
-      backgroundColor: colors.primary,
-    },
-    suggestionIcon: {
-      marginRight: 10,
-    },
-    suggestionText: {
-      flex: 1,
-      fontSize: 15,
-      color: colors.text,
-    },
-  });
+});

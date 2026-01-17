@@ -15,7 +15,7 @@ import {
   Select,
   MenuItem,
   Alert,
-  CircularProgress,
+  Skeleton,
 } from '@mui/material';
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { createFAQ, updateFAQ, getFAQById, FAQFormData } from '../../services/faqs.service';
@@ -115,8 +115,24 @@ const FAQForm = () => {
 
   if (loading && isEditMode) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-        <CircularProgress />
+      <Box sx={{ p: 3 }}>
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Skeleton variant="text" width="40%" height={32} />
+              <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 1 }} />
+            </Box>
+            <Box sx={{ display: 'grid', gap: 2 }}>
+              <Skeleton variant="text" width="30%" height={20} />
+              <Skeleton variant="rectangular" height={56} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="text" width="30%" height={20} />
+              <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="text" width="30%" height={20} />
+              <Skeleton variant="rectangular" height={56} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" width={160} height={44} sx={{ borderRadius: 1 }} />
+            </Box>
+          </CardContent>
+        </Card>
       </Box>
     );
   }

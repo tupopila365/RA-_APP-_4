@@ -1,7 +1,8 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { View, StyleSheet, Platform, Alert, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import { getSharedMapOptions } from '../theme/mapStyles';
 
 // Conditionally import MapView
 let MapView = null;
@@ -38,8 +39,9 @@ export function RoadworkMap({
   style,
   children,
 }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const mapRef = useRef(null);
+  const sharedMapOptions = useMemo(() => getSharedMapOptions(isDark), [isDark]);
 
   const getStatusColor = (status) => {
     const statusColors = {
@@ -114,6 +116,7 @@ export function RoadworkMap({
       onRegionChange={onRegionChange}
       onPress={onPress}
       provider={Platform.OS === 'android' && PROVIDER_GOOGLE ? PROVIDER_GOOGLE : undefined}
+      {...sharedMapOptions}
       showsUserLocation={true}
       showsMyLocationButton={false}
       showsCompass={true}

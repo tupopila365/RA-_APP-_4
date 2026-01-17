@@ -1228,5 +1228,6 @@ const getStyles = (colors, insets) =>
     mapButtonContainer: {
       padding: spacing.xl,
       paddingTop: 0,
+      paddingBottom: spacing.xl + (insets?.bottom || 0),
     },
   });

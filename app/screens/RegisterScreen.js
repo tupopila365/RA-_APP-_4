@@ -9,12 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  useColorScheme,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { validate, getErrorMessage, validators } from '../utils/validation';
 import { authService } from '../services/authService';
 import { useAppContext } from '../context/AppContext';
+import { RATheme } from '../theme/colors';
 
 // Import Unified Design System Components
 import {
@@ -23,7 +27,6 @@ import {
   UnifiedCard,
   UnifiedButton,
   UnifiedSkeletonLoader,
-  RATheme,
   typography,
   spacing,
 } from '../components/UnifiedDesignSystem';
@@ -31,6 +34,8 @@ import {
 export default function RegisterScreen({ navigation }) {
   const { colors } = useTheme();
   const { login } = useAppContext();
+  const colorScheme = useColorScheme();
+  const themeColors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -41,7 +46,7 @@ export default function RegisterScreen({ navigation }) {
   const [errors, setErrors] = useState({});
 
   // Professional styles using design system
-  const styles = createStyles(colors);
+  const styles = createStyles(themeColors);
 
   const validateField = (fieldName, value, rules) => {
     // Clear error immediately if validation passes
@@ -161,7 +166,8 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
       <GlobalHeader
         title="Create Account"
         subtitle="Join Roads Authority Digital Services"
@@ -176,7 +182,7 @@ export default function RegisterScreen({ navigation }) {
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.formContainer}>
@@ -190,11 +196,12 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             {/* Main Form Card */}
-            <UnifiedCard variant="elevated" padding="large">
-              <Text style={[typography.h3, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
+            <View style={styles.cardContainer}>
+              <UnifiedCard variant="elevated" padding="large">
+              <Text style={[typography.h3, { color: themeColors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
                 Create Account
               </Text>
-              <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 }]}>
+              <Text style={[typography.body, { color: themeColors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 }]}>
                 Join Roads Authority Digital Services
               </Text>
               
@@ -303,12 +310,13 @@ export default function RegisterScreen({ navigation }) {
                 fullWidth
                 style={{ marginTop: spacing.lg }}
               />
-            </UnifiedCard>
+              </UnifiedCard>
+            </View>
 
             {/* Footer Links */}
             <View style={styles.footerLinks}>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={[typography.body, { color: colors.primary, textDecorationLine: 'underline' }]}>
+                <Text style={[typography.body, { color: themeColors.primary, textDecorationLine: 'underline' }]}>
                   Already have an account? Sign In
                 </Text>
               </TouchableOpacity>
@@ -316,17 +324,17 @@ export default function RegisterScreen({ navigation }) {
 
             {/* Government Portal Branding */}
             <View style={styles.brandingContainer}>
-              <Text style={[typography.h2, { color: colors.primary, textAlign: 'center', marginBottom: spacing.xs }]}>
+              <Text style={[typography.h2, { color: themeColors.primary, textAlign: 'center', marginBottom: spacing.xs }]}>
                 Roads Authority
               </Text>
-              <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', fontStyle: 'italic' }]}>
+              <Text style={[typography.body, { color: themeColors.textSecondary, textAlign: 'center', fontStyle: 'italic' }]}>
                 Digital Services Portal
               </Text>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -343,15 +351,17 @@ const createStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.xl,
-    paddingBottom: spacing.xxxl + spacing.lg,
+    flexGrow: 1,
+    paddingBottom: spacing.xl,
+    padding: spacing.lg,
   },
   
   // Logo Section
   logoContainer: {
     alignItems: 'center',
-    marginBottom: spacing.xxxl,
-    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   logo: {
     width: 120,
@@ -370,18 +380,26 @@ const createStyles = (colors) => StyleSheet.create({
     width: '100%',
   },
   
+  // Card Container - matches award card spacing
+  cardContainer: {
+    padding: 0,
+    marginBottom: spacing.md,
+  },
+  
   // Footer Links
   footerLinks: {
     alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.xxxl,
-    gap: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    marginTop: spacing.md,
   },
   
   // Government Branding
   brandingContainer: {
     alignItems: 'center',
-    marginTop: 'auto',
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    marginTop: spacing.md,
   },
 });
 

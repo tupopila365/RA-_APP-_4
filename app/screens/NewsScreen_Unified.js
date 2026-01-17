@@ -154,6 +154,8 @@ export default function NewsScreen({ navigation }) {
       onPress={() => handleCategorySelect(item)}
       style={styles.categoryChip}
       textStyle={styles.categoryChipText}
+      accessibilityState={{ selected: selectedCategory === item }}
+      accessibilityLabel={`Category ${item}`}
     />
   );
 
@@ -164,28 +166,27 @@ export default function NewsScreen({ navigation }) {
   );
 
   const renderEmptyState = () => {
-    if (searchQuery.trim() || selectedCategory !== 'All') {
-      return (
-        <EmptyState
-          icon="search-outline"
-          title="No articles found"
-          message={`No news articles match your ${searchQuery.trim() ? 'search' : 'filter'}`}
-          actionLabel="Clear filters"
-          onAction={() => {
-            clearSearch();
-            setSelectedCategory('All');
-          }}
-        />
-      );
-    }
-
+    const isFiltered = searchQuery.trim() || selectedCategory !== 'All';
     return (
       <EmptyState
-        icon="newspaper-outline"
-        title="No news available"
-        message="Check back later for the latest updates"
-        actionLabel="Refresh"
-        onAction={refresh}
+        icon={isFiltered ? "search-outline" : "newspaper-outline"}
+        title={isFiltered ? "No articles found" : "No news available"}
+        message={
+          isFiltered
+            ? "No news articles match your search or filters."
+            : "Check back later for the latest updates."
+        }
+        primaryActionLabel={isFiltered ? "Clear filters" : "Refresh"}
+        onPrimaryAction={() => {
+          if (isFiltered) {
+            clearSearch();
+            setSelectedCategory('All');
+          } else {
+            refresh();
+          }
+        }}
+        secondaryActionLabel={isFiltered ? "Refresh" : undefined}
+        onSecondaryAction={isFiltered ? refresh : undefined}
       />
     );
   };

@@ -124,3 +124,5 @@ After applying this fix:
 - No performance impact - purely a rendering quality improvement
 - iOS rendering remains unchanged (uses shadows and opacity as before)
 
+
+

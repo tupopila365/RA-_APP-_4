@@ -15,6 +15,10 @@ export class OfficeEntity {
    * @param {number} props.coordinates.longitude - Longitude
    * @param {string} [props.contactNumber] - Contact phone number
    * @param {string} [props.email] - Contact email
+   * @param {Array<string>} [props.services] - Services offered
+   * @param {Object} [props.operatingHours] - Operating hours grouped by day type
+   * @param {Array<string>} [props.closedDays] - Regularly closed days
+   * @param {Array<Object>} [props.specialHours] - Special days with custom hours/closures
    * @param {Date} [props.createdAt] - Creation date
    * @param {Date} [props.updatedAt] - Last update date
    */
@@ -26,6 +30,10 @@ export class OfficeEntity {
     coordinates,
     contactNumber = null,
     email = null,
+    services = [],
+    operatingHours = null,
+    closedDays = [],
+    specialHours = [],
     createdAt = null,
     updatedAt = null,
   }) {
@@ -36,6 +44,10 @@ export class OfficeEntity {
     this.coordinates = coordinates;
     this.contactNumber = contactNumber;
     this.email = email;
+    this.services = services;
+    this.operatingHours = operatingHours;
+    this.closedDays = closedDays;
+    this.specialHours = specialHours;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -157,6 +169,10 @@ export class OfficeEntity {
       coordinates: this.coordinates,
       contactNumber: this.contactNumber,
       email: this.email,
+      services: this.services,
+      operatingHours: this.operatingHours,
+      closedDays: this.closedDays,
+      specialHours: this.specialHours,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

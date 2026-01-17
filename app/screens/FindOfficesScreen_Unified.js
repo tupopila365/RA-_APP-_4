@@ -412,6 +412,7 @@ export default function FindOfficesScreen({ navigation }) {
               onFilterChange={setSelectedRegion}
               testID="offices-filter-bar"
               accessibilityLabel="Office region filters"
+              accessibilityState={{}}
             />
           </View>
         )}
@@ -419,8 +420,20 @@ export default function FindOfficesScreen({ navigation }) {
         {/* Offices List */}
         {isEmpty ? (
           <EmptyState
-            icon="location-outline"
-            message={searchQuery ? 'No offices found matching your search' : 'No offices available'}
+            icon={searchQuery ? "search-outline" : "location-outline"}
+            title={searchQuery ? "No offices found" : "No offices available"}
+            message={searchQuery ? "Try a different search or clear filters." : "Check back later for office updates."}
+            primaryActionLabel={searchQuery ? "Clear filters" : "Refresh"}
+            onPrimaryAction={() => {
+              if (searchQuery) {
+                setSearchQuery('');
+                setSelectedRegion(null);
+              } else {
+                refresh();
+              }
+            }}
+            secondaryActionLabel={searchQuery ? "Refresh" : undefined}
+            onSecondaryAction={searchQuery ? refresh : undefined}
             accessibilityLabel="No offices found"
           />
         ) : (
@@ -486,20 +499,13 @@ export default function FindOfficesScreen({ navigation }) {
                         </Text>
                       </View>
                       <View style={styles.servicesContainer}>
-                        {office.services.slice(0, 3).map((service, index) => (
+                        {office.services.map((service, index) => (
                           <View key={index} style={styles.serviceTag}>
                             <Text style={styles.serviceText} maxFontSizeMultiplier={1.2}>
                               {service}
                             </Text>
                           </View>
                         ))}
-                        {office.services.length > 3 && (
-                          <View style={[styles.serviceTag, styles.serviceTagMore]}>
-                            <Text style={[styles.serviceText, styles.serviceTextMore]} maxFontSizeMultiplier={1.2}>
-                              +{office.services.length - 3} more
-                            </Text>
-                          </View>
-                        )}
                       </View>
                     </View>
                   )}
@@ -544,7 +550,7 @@ export default function FindOfficesScreen({ navigation }) {
                         style={[styles.actionButton, styles.callButton]}
                         onPress={() => handleCall(office)}
                       >
-                        <Ionicons name="call" size={18} color="#FFFFFF" />
+                        <Ionicons name="call" size={18} color={colors.textInverse || colors.card} />
                         <Text style={styles.actionButtonText} maxFontSizeMultiplier={1.3}>
                           Call
                         </Text>
@@ -556,7 +562,7 @@ export default function FindOfficesScreen({ navigation }) {
                         style={[styles.actionButton, styles.directionsButton]}
                         onPress={() => handleDirections(office)}
                       >
-                        <Ionicons name="navigate" size={18} color="#FFFFFF" />
+                        <Ionicons name="navigate" size={18} color={colors.textInverse || colors.card} />
                         <Text style={styles.actionButtonText} maxFontSizeMultiplier={1.3}>
                           Directions
                         </Text>
@@ -797,7 +803,7 @@ function getStyles(colors) {
     },
     actionButtonText: {
       ...typography.bodySmall,
-      color: '#FFFFFF',
+      color: colors.textInverse || colors.card,
       fontWeight: '600',
     },
     

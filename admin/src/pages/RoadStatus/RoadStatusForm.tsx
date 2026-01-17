@@ -25,6 +25,7 @@ import {
   AccordionDetails,
   IconButton,
   Divider,
+  Stack,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -93,7 +94,7 @@ const RoadStatusForm = () => {
 
   // Form fields
   const [selectedRoad, setSelectedRoad] = useState<RoadEntry | null>(null);
-  const [roadCustom, setRoadCustom] = useState(''); // For custom road names
+  const [roadCustom, setRoadCustom] = useState('');
   const [section, setSection] = useState('');
   const [area, setArea] = useState('');
   const [region, setRegion] = useState('');
@@ -102,7 +103,7 @@ const RoadStatusForm = () => {
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [expectedCompletion, setExpectedCompletion] = useState('');
-  const [alternativeRoute, setAlternativeRoute] = useState(''); // Legacy text field
+  const [alternativeRoute, setAlternativeRoute] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [affectedLanes, setAffectedLanes] = useState('');
@@ -126,8 +127,8 @@ const RoadStatusForm = () => {
     approved: boolean;
   }
   const [alternateRoutes, setAlternateRoutes] = useState<AlternateRoute[]>([]);
-  const [showRouteMap, setShowRouteMap] = useState<number | null>(null); // Index of route showing map
-  const [showRouteMapAll, setShowRouteMapAll] = useState<number | null>(null); // Index of route showing all waypoints map
+  const [showRouteMap, setShowRouteMap] = useState<number | null>(null);
+  const [showRouteMapAll, setShowRouteMapAll] = useState<number | null>(null);
 
   // Geocoding validation state
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -197,7 +198,6 @@ const RoadStatusForm = () => {
     };
     setAlternateRoutes(updated);
     
-    // Auto-calculate distance and time when waypoints change
     if (updated[routeIndex].waypoints.length >= 2) {
       calculateRouteMetrics(routeIndex);
     }
@@ -212,17 +212,15 @@ const RoadStatusForm = () => {
     }
   };
 
-  // Calculate distance and time for a route
   const calculateRouteMetrics = (routeIndex: number) => {
     const route = alternateRoutes[routeIndex];
     if (route.waypoints.length < 2) return;
 
-    // Calculate total distance using Haversine formula
     let totalDistance = 0;
     for (let i = 0; i < route.waypoints.length - 1; i++) {
       const wp1 = route.waypoints[i].coordinates;
       const wp2 = route.waypoints[i + 1].coordinates;
-      const R = 6371; // Earth's radius in km
+      const R = 6371;
       const dLat = (wp2.latitude - wp1.latitude) * Math.PI / 180;
       const dLon = (wp2.longitude - wp1.longitude) * Math.PI / 180;
       const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -232,7 +230,6 @@ const RoadStatusForm = () => {
       totalDistance += R * c;
     }
 
-    // Estimate time (average 80 km/h for main roads, 60 km/h for secondary)
     const avgSpeed = route.roadsUsed.some(r => r.startsWith('B') || r.startsWith('A')) ? 80 : 60;
     const hours = totalDistance / avgSpeed;
     const minutes = Math.round(hours * 60);
@@ -260,7 +257,6 @@ const RoadStatusForm = () => {
     setShowRouteMap(null);
   };
 
-  // Handle adding new waypoint from route map click
   const handleRouteMapClick = (routeIndex: number, location: {
     coordinates: { latitude: number; longitude: number };
     address?: string;
@@ -268,7 +264,6 @@ const RoadStatusForm = () => {
     area?: string;
     region?: string;
   }) => {
-    // Add new waypoint at the clicked location
     const updated = [...alternateRoutes];
     const newWaypoint = {
       name: location.address || location.roadName || `Waypoint ${updated[routeIndex].waypoints.length + 1}`,
@@ -277,7 +272,6 @@ const RoadStatusForm = () => {
     updated[routeIndex].waypoints.push(newWaypoint);
     setAlternateRoutes(updated);
     
-    // Auto-calculate distance and time
     if (updated[routeIndex].waypoints.length >= 2) {
       const distance = calculateRouteDistance(updated[routeIndex].waypoints.map(wp => wp.coordinates));
       const time = estimateRouteTime(distance, updated[routeIndex].roadsUsed);
@@ -287,13 +281,12 @@ const RoadStatusForm = () => {
     }
   };
 
-  // Helper function to calculate route distance
   const calculateRouteDistance = (coordinates: Array<{ latitude: number; longitude: number }>): number => {
     if (coordinates.length < 2) return 0;
     
     let totalDistance = 0;
     for (let i = 0; i < coordinates.length - 1; i++) {
-      const R = 6371; // Earth's radius in km
+      const R = 6371;
       const dLat = (coordinates[i + 1].latitude - coordinates[i].latitude) * Math.PI / 180;
       const dLon = (coordinates[i + 1].longitude - coordinates[i].longitude) * Math.PI / 180;
       const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -305,11 +298,9 @@ const RoadStatusForm = () => {
     return Math.round(totalDistance * 100) / 100;
   };
 
-  // Helper function to estimate route time
   const estimateRouteTime = (distanceKm: number, roadsUsed: string[] = []): string => {
     if (distanceKm <= 0) return 'Unknown';
     
-    // Average speed: 80 km/h for main roads (A/B), 60 km/h for secondary (C/D)
     const avgSpeed = roadsUsed.some(r => r.startsWith('B') || r.startsWith('A')) ? 80 : 60;
     const hours = distanceKm / avgSpeed;
     const minutes = Math.round(hours * 60);
@@ -326,9 +317,6 @@ const RoadStatusForm = () => {
     }
   }, [id, isEditMode]);
 
-  /**
-   * Load existing roadwork for editing
-   */
   const loadRoadwork = async (roadworkId: string) => {
     try {
       setLoading(true);
@@ -336,7 +324,6 @@ const RoadStatusForm = () => {
       const response = await getRoadStatusById(roadworkId);
       const rw = response.data.roadwork;
 
-      // Try to match with predefined roads
       const matchedRoad = getRoadByCodeOrName(rw.road);
       if (matchedRoad) {
         setSelectedRoad(matchedRoad);
@@ -368,18 +355,13 @@ const RoadStatusForm = () => {
     }
   };
 
-  /**
-   * Live geocoding validation with debouncing
-   */
   useEffect(() => {
-    // Only validate if we have minimum required fields
     if (!roadName || !area || !region) {
       setGeocodingResult(null);
       setShowGeocodingValidation(false);
       return;
     }
 
-    // Debounce geocoding validation
     const timeoutId = setTimeout(async () => {
       setIsGeocoding(true);
       setShowGeocodingValidation(true);
@@ -395,14 +377,11 @@ const RoadStatusForm = () => {
       } finally {
         setIsGeocoding(false);
       }
-    }, 1000); // Wait 1 second after user stops typing
+    }, 1000);
 
     return () => clearTimeout(timeoutId);
   }, [roadName, section, area, region]);
 
-  /**
-   * Validate Namibia coordinate bounds
-   */
   const validateNamibiaCoordinates = (lat: number, lon: number): { valid: boolean; error?: string } => {
     const NAMIBIA_BOUNDS = {
       minLat: -28,
@@ -428,9 +407,6 @@ const RoadStatusForm = () => {
     return { valid: true };
   };
 
-  /**
-   * Handle map location selection
-   */
   const handleMapLocationSelect = useCallback((location: {
     coordinates: { latitude: number; longitude: number };
     address?: string;
@@ -438,7 +414,6 @@ const RoadStatusForm = () => {
     area?: string;
     region?: string;
   }) => {
-    // Validate coordinates are in Namibia
     const validation = validateNamibiaCoordinates(
       location.coordinates.latitude,
       location.coordinates.longitude
@@ -452,16 +427,12 @@ const RoadStatusForm = () => {
     setMapSelectedLocation(location);
     setCoordinateError(null);
     
-    // Auto-fill coordinates
     setLatitude(location.coordinates.latitude.toString());
     setLongitude(location.coordinates.longitude.toString());
     
-    // Mark location as verified
     setLocationVerified(true);
     
-    // Auto-fill form fields if detected from map
     if (location.roadName && !roadName) {
-      // Try to match with predefined roads first
       const matchedRoad = getRoadByCodeOrName(location.roadName);
       if (matchedRoad) {
         setSelectedRoad(matchedRoad);
@@ -477,7 +448,6 @@ const RoadStatusForm = () => {
     }
     
     if (location.region && !region) {
-      // Match region with our predefined list
       const matchedRegion = REGIONS.find(r => 
         r.toLowerCase().includes(location.region!.toLowerCase()) ||
         location.region!.toLowerCase().includes(r.toLowerCase())
@@ -487,7 +457,6 @@ const RoadStatusForm = () => {
       }
     }
     
-    // Auto-generate title if not set
     if (!title && location.roadName) {
       const statusText = status === 'Planned' ? 'Planned roadwork' : 
                         status === 'Ongoing' ? 'Ongoing roadwork' :
@@ -497,16 +466,12 @@ const RoadStatusForm = () => {
     }
   }, [roadName, area, region, title, status]);
 
-  /**
-   * Reverse geocode when coordinates are manually entered
-   */
   const handleReverseGeocode = useCallback(async () => {
     if (!latitude || !longitude) return;
 
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
 
-    // Validate Namibia bounds first
     const namibiaValidation = validateNamibiaCoordinates(lat, lon);
     if (!namibiaValidation.valid) {
       setCoordinateError(namibiaValidation.error || 'Coordinates are outside Namibia');
@@ -528,7 +493,6 @@ const RoadStatusForm = () => {
       if (result.success) {
         setLocationVerified(true);
         setCoordinateError(null);
-        // Show success message
         alert(`✓ Location Verified: ${result.displayName}`);
       } else {
         setCoordinateError('Could not verify coordinates');
@@ -542,22 +506,14 @@ const RoadStatusForm = () => {
     }
   }, [latitude, longitude]);
 
-  /**
-   * Reset location verification when coordinates change manually
-   */
   useEffect(() => {
-    // If coordinates are changed manually, reset verification
     if (latitude || longitude) {
       setLocationVerified(false);
       setCoordinateError(null);
     }
   }, [latitude, longitude]);
 
-  /**
-   * Validation before save
-   */
   const validateForm = (): { valid: boolean; error?: string } => {
-    // Required fields
     if (!roadName || !roadName.trim()) {
       return { valid: false, error: 'Road name is required' };
     }
@@ -574,23 +530,19 @@ const RoadStatusForm = () => {
       return { valid: false, error: 'Title is required' };
     }
 
-    // Validate alternate routes if provided (only validate complete routes)
     if (alternateRoutes.length > 0) {
       for (let i = 0; i < alternateRoutes.length; i++) {
         const route = alternateRoutes[i];
         
-        // Skip validation for empty/incomplete routes (they'll be filtered out)
         if (!route.routeName || !route.routeName.trim()) {
-          continue; // Allow incomplete routes to be saved (they won't be used)
+          continue;
         }
         
-        // Only validate if route has waypoints
         if (route.waypoints.length > 0) {
           if (route.waypoints.length < 2) {
             return { valid: false, error: `Route "${route.routeName}": At least 2 waypoints are required for navigation. Add more waypoints or remove this route.` };
           }
           
-          // Validate waypoints have valid coordinates
           for (let j = 0; j < route.waypoints.length; j++) {
             const waypoint = route.waypoints[j];
             if (!waypoint.name || !waypoint.name.trim()) {
@@ -603,7 +555,6 @@ const RoadStatusForm = () => {
               return { valid: false, error: `Route "${route.routeName}": Waypoint "${waypoint.name || j + 1}" has invalid coordinates. Click "Map" button to select location.` };
             }
             
-            // Validate coordinates are in Namibia
             const coordValidation = validateNamibiaCoordinates(
               waypoint.coordinates.latitude,
               waypoint.coordinates.longitude
@@ -616,7 +567,6 @@ const RoadStatusForm = () => {
       }
     }
 
-    // Critical status validation
     if (coordinatesRequired) {
       if (!latitude || !longitude) {
         return {
@@ -628,7 +578,6 @@ const RoadStatusForm = () => {
       const lat = parseFloat(latitude);
       const lon = parseFloat(longitude);
 
-      // Validate Namibia bounds
       const namibiaValidation = validateNamibiaCoordinates(lat, lon);
       if (!namibiaValidation.valid) {
         return { valid: false, error: namibiaValidation.error };
@@ -639,7 +588,6 @@ const RoadStatusForm = () => {
         return { valid: false, error: coordValidation.error };
       }
 
-      // Require location verification for critical statuses
       if (!locationVerified) {
         return {
           valid: false,
@@ -648,7 +596,6 @@ const RoadStatusForm = () => {
       }
     }
 
-    // Date validation
     if (startDate && expectedCompletion) {
       const start = new Date(startDate);
       const completion = new Date(expectedCompletion);
@@ -660,7 +607,6 @@ const RoadStatusForm = () => {
       }
     }
 
-    // Published validation for planned jobs
     if (published && (status === 'Planned' || status === 'Planned Works')) {
       if (startDate) {
         const start = new Date(startDate);
@@ -675,7 +621,6 @@ const RoadStatusForm = () => {
       }
     }
 
-    // Geocoding validation (if no coordinates provided)
     if (!latitude && !longitude) {
       if (!geocodingResult || !geocodingResult.success) {
         return {
@@ -685,7 +630,6 @@ const RoadStatusForm = () => {
       }
     }
 
-    // Validate description length
     if (description && description.trim()) {
       const desc = description.trim();
       if (desc.length > 1000) {
@@ -695,22 +639,19 @@ const RoadStatusForm = () => {
         };
       }
       
-      // Only check for actual error stack traces (very specific patterns)
-      // Check for stack trace patterns that indicate actual error messages
       const errorPatterns = [
-        /ERROR\s+\[Error:/i,           // "ERROR [Error:"
-        /TransformError/i,              // "TransformError"
-        /SyntaxError/i,                 // "SyntaxError"
-        /ValidationError/i,             // "ValidationError"
-        /at\s+\w+\.\w+\(/i,            // "at function.name(" (stack trace)
-        /at\s+file:\/\//i,             // "at file://" (file paths in errors)
-        /node_modules/i,                // "node_modules" (error stack traces)
-        /\.js:\d+:\d+/i,                // ".js:123:45" (file locations in errors)
+        /ERROR\s+\[Error:/i,
+        /TransformError/i,
+        /SyntaxError/i,
+        /ValidationError/i,
+        /at\s+\w+\.\w+\(/i,
+        /at\s+file:\/\//i,
+        /node_modules/i,
+        /\.js:\d+:\d+/i,
       ];
       
       const hasErrorPattern = errorPatterns.some(pattern => pattern.test(desc));
       
-      // Only reject if it's clearly an error message (starts with ERROR or has multiple error indicators)
       if (hasErrorPattern && (desc.startsWith('ERROR') || desc.startsWith('Error') || 
           (desc.includes('TransformError') || desc.includes('SyntaxError') || desc.includes('ValidationError')))) {
         return { 
@@ -723,13 +664,9 @@ const RoadStatusForm = () => {
     return { valid: true };
   };
 
-  /**
-   * Handle form submission
-   */
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    // Validate form
     const validation = validateForm();
     if (!validation.valid) {
       setError(validation.error!);
@@ -741,7 +678,6 @@ const RoadStatusForm = () => {
       setSaving(true);
       setError(null);
 
-      // Clean description - truncate if too long
       let cleanDescription = description.trim() || undefined;
       if (cleanDescription && cleanDescription.length > 1000) {
         cleanDescription = cleanDescription.substring(0, 1000);
@@ -749,7 +685,7 @@ const RoadStatusForm = () => {
 
       const data: RoadStatusCreateInput = {
         road: roadName.trim(),
-        section: section.trim(), // Required by backend - must be non-empty
+        section: section.trim(),
         area: area.trim(),
         region,
         status,
@@ -759,7 +695,7 @@ const RoadStatusForm = () => {
         expectedCompletion: expectedCompletion || undefined,
         alternativeRoute: alternativeRoute.trim() || undefined,
         alternateRoutes: alternateRoutes.length > 0 ? alternateRoutes
-          .filter(route => route.routeName && route.routeName.trim() && route.waypoints.length >= 2) // Only include complete routes
+          .filter(route => route.routeName && route.routeName.trim() && route.waypoints.length >= 2)
           .map(route => ({
             routeName: route.routeName.trim(),
             roadsUsed: route.roadsUsed.filter(r => r && r.trim()),
@@ -802,7 +738,6 @@ const RoadStatusForm = () => {
     } catch (err: any) {
       console.error('Error saving roadwork:', err);
       
-      // Extract detailed error messages from backend
       let errorMessage = 'Failed to save roadwork';
       if (err.response?.data) {
         const errorData = err.response.data;
@@ -836,18 +771,23 @@ const RoadStatusForm = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-        {isEditMode ? 'Edit Roadwork' : 'Add New Roadwork'}
-      </Typography>
+    <Box sx={{ p: 3, maxWidth: 1400, mx: 'auto' }}>
+      {/* Header */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Typography variant="h4" component="h1" fontWeight="bold">
+          {isEditMode ? 'Edit Roadwork' : 'Add New Roadwork'}
+        </Typography>
+        <Button variant="outlined" startIcon={<CancelIcon />} onClick={handleCancel}>
+          Cancel
+        </Button>
+      </Stack>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      {/* Critical Status Warning */}
       {isCriticalStatus && (
         <Alert severity="warning" icon={<ErrorIcon />} sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="bold">
@@ -861,130 +801,127 @@ const RoadStatusForm = () => {
       )}
 
       <form onSubmit={handleSubmit}>
-        <Grid container spacing={3}>
-          {/* Basic Information */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Basic Information
-                </Typography>
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <Autocomplete
-                      freeSolo
-                      options={ALL_ROADS}
-                      getOptionLabel={(option) => (typeof option === 'string' ? option : option.displayName)}
-                      value={selectedRoad}
-                      onChange={(event, newValue) => {
-                        if (typeof newValue === 'string') {
-                          setRoadCustom(newValue);
-                          setSelectedRoad(null);
-                        } else {
-                          setSelectedRoad(newValue);
-                          setRoadCustom('');
-                        }
-                      }}
-                      onInputChange={(event, newInputValue) => {
-                        if (!selectedRoad) {
-                          setRoadCustom(newInputValue);
-                        }
-                      }}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Road Name"
-                          required
-                          placeholder="Start typing or select..."
-                          helperText="Select official road or enter custom name"
-                        />
-                      )}
-                      renderOption={(props, option) => (
-                        <Box component="li" {...props}>
-                          <Box>
-                            <Typography variant="body2">{option.displayName}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {option.type} Road • Code: {option.code}
-                            </Typography>
-                          </Box>
+        <Stack spacing={3}>
+          {/* SECTION 1: Basic Information */}
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 3 }}>
+                1. Basic Information
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Autocomplete
+                    freeSolo
+                    options={ALL_ROADS}
+                    getOptionLabel={(option) => (typeof option === 'string' ? option : option.displayName)}
+                    value={selectedRoad}
+                    onChange={(event, newValue) => {
+                      if (typeof newValue === 'string') {
+                        setRoadCustom(newValue);
+                        setSelectedRoad(null);
+                      } else {
+                        setSelectedRoad(newValue);
+                        setRoadCustom('');
+                      }
+                    }}
+                    onInputChange={(event, newInputValue) => {
+                      if (!selectedRoad) {
+                        setRoadCustom(newInputValue);
+                      }
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Road Name"
+                        required
+                        placeholder="Start typing or select..."
+                        helperText="Select official road or enter custom name"
+                      />
+                    )}
+                    renderOption={(props, option) => (
+                      <Box component="li" {...props}>
+                        <Box>
+                          <Typography variant="body2">{option.displayName}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.type} Road • Code: {option.code}
+                          </Typography>
                         </Box>
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      required
-                      label="Section *"
-                      value={section}
-                      onChange={(e) => setSection(e.target.value)}
-                      placeholder="e.g., Between Windhoek and Okahandja, KM 125-135"
-                      helperText="Required: Describe the road section (e.g., 'Between Town A and Town B')"
-                      error={!section || !section.trim()}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth required>
-                      <InputLabel>Region</InputLabel>
-                      <Select value={region} label="Region" onChange={(e) => setRegion(e.target.value)}>
-                        {REGIONS.map((r) => (
-                          <MenuItem key={r} value={r}>
-                            {r}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Autocomplete
-                      options={availableTowns}
-                      value={area}
-                      onChange={(event, newValue) => setArea(newValue || '')}
-                      freeSolo
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Area / Town"
-                          required
-                          placeholder="Select or type town name"
-                          helperText="Required for geocoding"
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      required
-                      placeholder="Brief description of the work"
-                      helperText="e.g., Emergency repairs, Routine maintenance, Road resurfacing"
-                    />
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      multiline
-                      rows={3}
-                      placeholder="Detailed description of the roadwork"
-                    />
-                  </Grid>
+                      </Box>
+                    )}
+                  />
                 </Grid>
 
-                {/* Geocoding Validation Display */}
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Section"
+                    value={section}
+                    onChange={(e) => setSection(e.target.value)}
+                    placeholder="e.g., Between Windhoek and Okahandja, KM 125-135"
+                    helperText="Required: Describe the road section"
+                    error={!section || !section.trim()}
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Region</InputLabel>
+                    <Select value={region} label="Region" onChange={(e) => setRegion(e.target.value)}>
+                      {REGIONS.map((r) => (
+                        <MenuItem key={r} value={r}>
+                          {r}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Autocomplete
+                    options={availableTowns}
+                    value={area}
+                    onChange={(event, newValue) => setArea(newValue || '')}
+                    freeSolo
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Area / Town"
+                        required
+                        placeholder="Select or type town name"
+                        helperText="Required for geocoding"
+                      />
+                    )}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    placeholder="Brief description of the work"
+                    helperText="e.g., Emergency repairs, Routine maintenance, Road resurfacing"
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    multiline
+                    rows={3}
+                    placeholder="Detailed description of the roadwork"
+                    helperText={`${description.length}/1000 characters`}
+                  />
+                </Grid>
+
                 {showGeocodingValidation && (
-                  <Box sx={{ mt: 2 }}>
+                  <Grid item xs={12}>
                     {isGeocoding ? (
                       <Alert severity="info" icon={<CircularProgress size={20} />}>
                         Validating location...
@@ -1014,170 +951,334 @@ const RoadStatusForm = () => {
                         </Typography>
                       </Alert>
                     )}
-                  </Box>
+                  </Grid>
                 )}
-              </CardContent>
-            </Card>
-          </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
 
-          {/* Status & Timeline */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Status & Timeline
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth required>
-                      <InputLabel>Status</InputLabel>
-                      <Select value={status} label="Status" onChange={(e) => setStatus(e.target.value as any)}>
-                        <MenuItem value="Open">Open</MenuItem>
-                        <MenuItem value="Ongoing">Ongoing</MenuItem>
-                        <MenuItem value="Ongoing Maintenance">Ongoing Maintenance</MenuItem>
-                        <MenuItem value="Planned">Planned</MenuItem>
-                        <MenuItem value="Planned Works">Planned Works</MenuItem>
-                        <MenuItem value="Closed">Closed</MenuItem>
-                        <MenuItem value="Restricted">Restricted</MenuItem>
-                        <MenuItem value="Completed">Completed</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Priority</InputLabel>
-                      <Select value={priority} label="Priority" onChange={(e) => setPriority(e.target.value as any)}>
-                        <MenuItem value="low">Low</MenuItem>
-                        <MenuItem value="medium">Medium</MenuItem>
-                        <MenuItem value="high">High</MenuItem>
-                        <MenuItem value="critical">Critical</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <FormControlLabel
-                      control={<Switch checked={published} onChange={(e) => setPublished(e.target.checked)} />}
-                      label="Published"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      label="Start Date"
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      label="Expected Completion"
-                      type="date"
-                      value={expectedCompletion}
-                      onChange={(e) => setExpectedCompletion(e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      label="Estimated Duration"
-                      value={estimatedDuration}
-                      onChange={(e) => setEstimatedDuration(e.target.value)}
-                      placeholder="e.g., 3 months, 2 weeks"
-                    />
-                  </Grid>
+          {/* SECTION 2: Status & Timeline */}
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 3 }}>
+                2. Status & Timeline
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Status</InputLabel>
+                    <Select value={status} label="Status" onChange={(e) => setStatus(e.target.value as any)}>
+                      <MenuItem value="Open">Open</MenuItem>
+                      <MenuItem value="Ongoing">Ongoing</MenuItem>
+                      <MenuItem value="Ongoing Maintenance">Ongoing Maintenance</MenuItem>
+                      <MenuItem value="Planned">Planned</MenuItem>
+                      <MenuItem value="Planned Works">Planned Works</MenuItem>
+                      <MenuItem value="Closed">Closed</MenuItem>
+                      <MenuItem value="Restricted">Restricted</MenuItem>
+                      <MenuItem value="Completed">Completed</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Work Details */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Work Details
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Contractor"
-                      value={contractor}
-                      onChange={(e) => setContractor(e.target.value)}
-                      placeholder="Contractor company name"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Affected Lanes"
-                      value={affectedLanes}
-                      onChange={(e) => setAffectedLanes(e.target.value)}
-                      placeholder="e.g., Both lanes, North-bound lane"
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Alternative Route (Legacy - Use Structured Routes Below)"
-                      value={alternativeRoute}
-                      onChange={(e) => setAlternativeRoute(e.target.value)}
-                      multiline
-                      rows={2}
-                      placeholder="Simple text description (for backward compatibility)"
-                      helperText="For best navigation experience, use the structured alternate routes section below"
-                    />
-                  </Grid>
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel>Priority</InputLabel>
+                    <Select value={priority} label="Priority" onChange={(e) => setPriority(e.target.value as any)}>
+                      <MenuItem value="low">Low</MenuItem>
+                      <MenuItem value="medium">Medium</MenuItem>
+                      <MenuItem value="high">High</MenuItem>
+                      <MenuItem value="critical">Critical</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
+                <Grid item xs={12} md={4}>
+                  <FormControlLabel
+                    control={<Switch checked={published} onChange={(e) => setPublished(e.target.checked)} />}
+                    label="Published"
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Start Date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Expected Completion"
+                    type="date"
+                    value={expectedCompletion}
+                    onChange={(e) => setExpectedCompletion(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Estimated Duration"
+                    value={estimatedDuration}
+                    onChange={(e) => setEstimatedDuration(e.target.value)}
+                    placeholder="e.g., 3 months, 2 weeks"
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
 
-          {/* Structured Alternate Routes */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Box>
-                    <Typography variant="h6">
-                      Alternate Routes ({alternateRoutes.length})
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Create structured routes with waypoints for best navigation experience
-                    </Typography>
-                  </Box>
+          {/* SECTION 3: Work Details */}
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 3 }}>
+                3. Work Details
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Contractor"
+                    value={contractor}
+                    onChange={(e) => setContractor(e.target.value)}
+                    placeholder="Contractor company name"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Affected Lanes"
+                    value={affectedLanes}
+                    onChange={(e) => setAffectedLanes(e.target.value)}
+                    placeholder="e.g., Both lanes, North-bound lane"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Alternative Route (Legacy)"
+                    value={alternativeRoute}
+                    onChange={(e) => setAlternativeRoute(e.target.value)}
+                    multiline
+                    rows={2}
+                    placeholder="Simple text description (for backward compatibility)"
+                    helperText="For best navigation experience, use the structured alternate routes section below"
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* SECTION 4: Location Coordinates */}
+          <Card elevation={2}>
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold">
+                  4. Location Coordinates
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {coordinatesRequired && <Chip label="REQUIRED" color="error" size="small" />}
                   <Button
-                    variant="outlined"
-                    startIcon={<AddIcon />}
-                    onClick={addAlternateRoute}
+                    variant={showMapSelector ? "contained" : "outlined"}
+                    size="small"
+                    startIcon={showMapSelector ? <VisibilityOffIcon /> : <LocationOnIcon />}
+                    onClick={() => setShowMapSelector(!showMapSelector)}
                   >
-                    Add Route
+                    {showMapSelector ? 'Hide Map' : 'Show Map'}
                   </Button>
-                </Box>
+                </Stack>
+              </Stack>
 
-                {alternateRoutes.length === 0 ? (
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.50' }}>
-                    <RouteIcon sx={{ fontSize: 48, color: 'grey.400', mb: 1 }} />
-                    <Typography variant="body1" color="text.secondary">
-                      No alternate routes defined yet
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      Add structured routes with waypoints to enable turn-by-turn navigation
-                    </Typography>
-                  </Paper>
-                ) : (
-                  alternateRoutes.map((route, routeIndex) => (
-                    <Accordion key={routeIndex} sx={{ mb: 2 }}>
+              {showMapSelector && (
+                <Box sx={{ mb: 3 }}>
+                  <MapLocationSelector
+                    onLocationSelect={handleMapLocationSelect}
+                    initialCoordinates={
+                      latitude && longitude 
+                        ? { latitude: parseFloat(latitude), longitude: parseFloat(longitude) }
+                        : undefined
+                    }
+                    height="500px"
+                    showSearch={true}
+                    showRoadDetection={true}
+                  />
+                  {mapSelectedLocation && (
+                    <Alert severity="success" sx={{ mt: 2 }}>
+                      <Typography variant="body2" fontWeight="bold">
+                        ✓ Location Selected from Map
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        {mapSelectedLocation.address || `${mapSelectedLocation.coordinates.latitude.toFixed(6)}, ${mapSelectedLocation.coordinates.longitude.toFixed(6)}`}
+                      </Typography>
+                      {mapSelectedLocation.roadName && (
+                        <Typography variant="caption" display="block">
+                          Road: {mapSelectedLocation.roadName}
+                        </Typography>
+                      )}
+                    </Alert>
+                  )}
+                  {coordinateError && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      <Typography variant="body2" fontWeight="bold">
+                        ❌ Invalid Coordinates
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        {coordinateError}
+                      </Typography>
+                    </Alert>
+                  )}
+                </Box>
+              )}
+
+              {!showMapSelector && (
+                <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 3 }}>
+                  <Typography variant="body2">
+                    <strong>How to get coordinates:</strong>
+                  </Typography>
+                  <Typography variant="caption" component="div">
+                    1. Open{' '}
+                    <Link
+                      href={`https://www.google.com/maps/search/?api=1&query=${buildSearchText(
+                        roadName,
+                        section,
+                        area,
+                        region
+                      )}`}
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      Google Maps
+                    </Link>
+                  </Typography>
+                  <Typography variant="caption" component="div">
+                    2. Right-click on the exact location and copy coordinates
+                  </Typography>
+                </Alert>
+              )}
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={5}>
+                  <TextField
+                    fullWidth
+                    label="Latitude"
+                    value={latitude}
+                    onChange={(e) => setLatitude(e.target.value)}
+                    placeholder="e.g., -22.5597"
+                    type="number"
+                    inputProps={{ step: 'any' }}
+                    required={coordinatesRequired}
+                    error={coordinatesRequired && (!latitude || !!coordinateError)}
+                    helperText={
+                      coordinateError 
+                        ? coordinateError 
+                        : coordinatesRequired && !latitude 
+                          ? 'Required for this status' 
+                          : 'Must be between -28 and -16 (Namibia)'
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} md={5}>
+                  <TextField
+                    fullWidth
+                    label="Longitude"
+                    value={longitude}
+                    onChange={(e) => setLongitude(e.target.value)}
+                    placeholder="e.g., 17.0832"
+                    type="number"
+                    inputProps={{ step: 'any' }}
+                    required={coordinatesRequired}
+                    error={coordinatesRequired && (!longitude || !!coordinateError)}
+                    helperText={
+                      coordinateError 
+                        ? coordinateError 
+                        : coordinatesRequired && !longitude 
+                          ? 'Required for this status' 
+                          : 'Must be between 11 and 26 (Namibia)'
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<MapIcon />}
+                    onClick={handleReverseGeocode}
+                    disabled={!latitude || !longitude || isGeocoding}
+                    sx={{ height: '56px' }}
+                  >
+                    {isGeocoding ? <CircularProgress size={20} /> : 'Verify'}
+                  </Button>
+                </Grid>
+              </Grid>
+
+              {latitude && longitude && (
+                <Box sx={{ mt: 2 }}>
+                  {locationVerified ? (
+                    <Alert severity="success" icon={<CheckCircleIcon />}>
+                      <Typography variant="body2" fontWeight="bold">
+                        ✓ Location Verified
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Coordinates: {latitude}, {longitude}
+                      </Typography>
+                    </Alert>
+                  ) : coordinatesRequired ? (
+                    <Alert severity="warning" icon={<ErrorIcon />}>
+                      <Typography variant="body2" fontWeight="bold">
+                        ⚠️ Location Not Verified
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Please verify the location using the map or "Verify" button before saving
+                      </Typography>
+                    </Alert>
+                  ) : null}
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* SECTION 5: Alternate Routes */}
+          <Card elevation={2}>
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    5. Alternate Routes ({alternateRoutes.length})
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Create structured routes with waypoints for best navigation experience
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={addAlternateRoute}
+                >
+                  Add Route
+                </Button>
+              </Stack>
+
+              {alternateRoutes.length === 0 ? (
+                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.50' }}>
+                  <RouteIcon sx={{ fontSize: 48, color: 'grey.400', mb: 1 }} />
+                  <Typography variant="body1" color="text.secondary">
+                    No alternate routes defined yet
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Add structured routes with waypoints to enable turn-by-turn navigation
+                  </Typography>
+                </Paper>
+              ) : (
+                <Stack spacing={2}>
+                  {alternateRoutes.map((route, routeIndex) => (
+                    <Accordion key={routeIndex}>
                       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Box display="flex" alignItems="center" gap={2} width="100%">
                           <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
                             {route.routeName}
                           </Typography>
-                          <Box display="flex" gap={1}>
+                          <Stack direction="row" spacing={1}>
                             {route.isRecommended && (
                               <Chip label="Recommended" color="success" size="small" icon={<CheckCircleIcon />} />
                             )}
@@ -1190,7 +1291,7 @@ const RoadStatusForm = () => {
                             {route.waypoints.length < 2 && (
                               <Chip label="Incomplete" color="warning" size="small" icon={<WarningIcon />} />
                             )}
-                          </Box>
+                          </Stack>
                         </Box>
                       </AccordionSummary>
                       <AccordionDetails>
@@ -1238,21 +1339,20 @@ const RoadStatusForm = () => {
                             />
                           </Grid>
 
-                          {/* Waypoints Section */}
                           <Grid item xs={12}>
                             <Divider sx={{ my: 2 }} />
-                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                               <Typography variant="subtitle2">
-                                Waypoints ({route.waypoints.length}) - Minimum 2 required for navigation
+                                Waypoints ({route.waypoints.length}) - Minimum 2 required
                               </Typography>
-                              <Box display="flex" gap={1}>
+                              <Stack direction="row" spacing={1}>
                                 <Button
                                   size="small"
                                   variant="outlined"
                                   startIcon={<MapIcon />}
                                   onClick={() => setShowRouteMapAll(showRouteMapAll === routeIndex ? null : routeIndex)}
                                 >
-                                  {showRouteMapAll === routeIndex ? 'Hide Route Map' : 'Show Route Map'}
+                                  {showRouteMapAll === routeIndex ? 'Hide Map' : 'Show Map'}
                                 </Button>
                                 <Button
                                   size="small"
@@ -1261,14 +1361,13 @@ const RoadStatusForm = () => {
                                 >
                                   Add Waypoint
                                 </Button>
-                              </Box>
-                            </Box>
+                              </Stack>
+                            </Stack>
                             {showRouteMapAll === routeIndex && (
                               <Box sx={{ mt: 2, mb: 2 }}>
                                 <Alert severity="info" sx={{ mb: 2 }}>
                                   <Typography variant="body2">
-                                    <strong>Click on the map to add waypoints!</strong> Each click will add a new waypoint at that location. 
-                                    You can see all existing waypoints on the map. Drag markers to adjust positions.
+                                    <strong>Click on the map to add waypoints!</strong> Each click will add a new waypoint at that location.
                                   </Typography>
                                 </Alert>
                                 <RouteWaypointMap
@@ -1286,92 +1385,92 @@ const RoadStatusForm = () => {
                             )}
                             {route.waypoints.length === 0 && (
                               <Alert severity="info" sx={{ mb: 2 }}>
-                                Add at least 2 waypoints (start and end) to enable navigation. Click "Add Waypoint" and use the map to select locations.
+                                Add at least 2 waypoints (start and end) to enable navigation.
                               </Alert>
                             )}
-                            {route.waypoints.map((waypoint, waypointIndex) => (
-                              <Paper key={waypointIndex} sx={{ p: 2, mb: 1 }}>
-                                <Grid container spacing={2} alignItems="center">
-                                  <Grid item xs={12} md={4}>
-                                    <TextField
-                                      fullWidth
-                                      label={`Waypoint ${waypointIndex + 1} Name`}
-                                      value={waypoint.name}
-                                      onChange={(e) => updateWaypoint(routeIndex, waypointIndex, { name: e.target.value })}
-                                      placeholder="e.g., Start at Karibib"
-                                    />
+                            <Stack spacing={1} sx={{ mt: 1 }}>
+                              {route.waypoints.map((waypoint, waypointIndex) => (
+                                <Paper key={waypointIndex} sx={{ p: 2 }}>
+                                  <Grid container spacing={2} alignItems="center">
+                                    <Grid item xs={12} md={4}>
+                                      <TextField
+                                        fullWidth
+                                        label={`Waypoint ${waypointIndex + 1} Name`}
+                                        value={waypoint.name}
+                                        onChange={(e) => updateWaypoint(routeIndex, waypointIndex, { name: e.target.value })}
+                                        placeholder="e.g., Start at Karibib"
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} md={3}>
+                                      <TextField
+                                        fullWidth
+                                        type="number"
+                                        label="Latitude"
+                                        value={waypoint.coordinates.latitude || ''}
+                                        onChange={(e) => updateWaypoint(routeIndex, waypointIndex, {
+                                          coordinates: {
+                                            ...waypoint.coordinates,
+                                            latitude: parseFloat(e.target.value) || 0
+                                          }
+                                        })}
+                                        inputProps={{ step: 'any' }}
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} md={3}>
+                                      <TextField
+                                        fullWidth
+                                        type="number"
+                                        label="Longitude"
+                                        value={waypoint.coordinates.longitude || ''}
+                                        onChange={(e) => updateWaypoint(routeIndex, waypointIndex, {
+                                          coordinates: {
+                                            ...waypoint.coordinates,
+                                            longitude: parseFloat(e.target.value) || 0
+                                          }
+                                        })}
+                                        inputProps={{ step: 'any' }}
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} md={2}>
+                                      <Stack direction="row" spacing={1}>
+                                        <Button
+                                          size="small"
+                                          variant="outlined"
+                                          startIcon={<MapIcon />}
+                                          onClick={() => setShowRouteMap(routeIndex * 1000 + waypointIndex)}
+                                        >
+                                          Map
+                                        </Button>
+                                        <IconButton
+                                          size="small"
+                                          color="error"
+                                          onClick={() => removeWaypoint(routeIndex, waypointIndex)}
+                                        >
+                                          <DeleteIcon />
+                                        </IconButton>
+                                      </Stack>
+                                    </Grid>
                                   </Grid>
-                                  <Grid item xs={12} md={3}>
-                                    <TextField
-                                      fullWidth
-                                      type="number"
-                                      label="Latitude"
-                                      value={waypoint.coordinates.latitude || ''}
-                                      onChange={(e) => updateWaypoint(routeIndex, waypointIndex, {
-                                        coordinates: {
-                                          ...waypoint.coordinates,
-                                          latitude: parseFloat(e.target.value) || 0
+                                  {showRouteMap === routeIndex * 1000 + waypointIndex && (
+                                    <Box sx={{ mt: 2 }}>
+                                      <MapLocationSelector
+                                        onLocationSelect={(location) => handleWaypointMapSelect(routeIndex, waypointIndex, location)}
+                                        initialCoordinates={
+                                          waypoint.coordinates.latitude && waypoint.coordinates.longitude
+                                            ? waypoint.coordinates
+                                            : undefined
                                         }
-                                      })}
-                                      inputProps={{ step: 'any' }}
-                                    />
-                                  </Grid>
-                                  <Grid item xs={12} md={3}>
-                                    <TextField
-                                      fullWidth
-                                      type="number"
-                                      label="Longitude"
-                                      value={waypoint.coordinates.longitude || ''}
-                                      onChange={(e) => updateWaypoint(routeIndex, waypointIndex, {
-                                        coordinates: {
-                                          ...waypoint.coordinates,
-                                          longitude: parseFloat(e.target.value) || 0
-                                        }
-                                      })}
-                                      inputProps={{ step: 'any' }}
-                                    />
-                                  </Grid>
-                                  <Grid item xs={12} md={2}>
-                                    <Box display="flex" gap={1}>
-                                      <Button
-                                        size="small"
-                                        variant="outlined"
-                                        startIcon={<MapIcon />}
-                                        onClick={() => setShowRouteMap(routeIndex * 1000 + waypointIndex)}
-                                      >
-                                        Map
-                                      </Button>
-                                      <IconButton
-                                        size="small"
-                                        color="error"
-                                        onClick={() => removeWaypoint(routeIndex, waypointIndex)}
-                                      >
-                                        <DeleteIcon />
-                                      </IconButton>
+                                        height="300px"
+                                      />
                                     </Box>
-                                  </Grid>
-                                </Grid>
-                                {showRouteMap === routeIndex * 1000 + waypointIndex && (
-                                  <Box sx={{ mt: 2 }}>
-                                    <MapLocationSelector
-                                      onLocationSelect={(location) => handleWaypointMapSelect(routeIndex, waypointIndex, location)}
-                                      initialCoordinates={
-                                        waypoint.coordinates.latitude && waypoint.coordinates.longitude
-                                          ? waypoint.coordinates
-                                          : undefined
-                                      }
-                                      height="300px"
-                                    />
-                                  </Box>
-                                )}
-                              </Paper>
-                            ))}
+                                  )}
+                                </Paper>
+                              ))}
+                            </Stack>
                             {route.waypoints.length >= 2 && (
-                              <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
-                                <Typography variant="body2" color="success.dark">
-                                  ✓ Route ready for navigation! Distance and time calculated automatically.
-                                </Typography>
-                              </Box>
+                              <Alert severity="success" sx={{ mt: 2 }}>
+                                ✓ Route ready for navigation! Distance and time calculated automatically.
+                              </Alert>
                             )}
                           </Grid>
 
@@ -1402,224 +1501,22 @@ const RoadStatusForm = () => {
                         </Grid>
                       </AccordionDetails>
                     </Accordion>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Location Coordinates */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">Location Coordinates</Typography>
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    {coordinatesRequired && <Chip label="REQUIRED" color="error" size="small" />}
-                    <Button
-                      variant={showMapSelector ? "contained" : "outlined"}
-                      size="small"
-                      startIcon={showMapSelector ? <VisibilityOffIcon /> : <LocationOnIcon />}
-                      onClick={() => setShowMapSelector(!showMapSelector)}
-                    >
-                      {showMapSelector ? 'Hide Map' : 'Show Map'}
-                    </Button>
-                  </Box>
-                </Box>
-
-                {/* Map Selector */}
-                {showMapSelector && (
-                  <Box sx={{ mb: 3 }}>
-                    <MapLocationSelector
-                      onLocationSelect={handleMapLocationSelect}
-                      initialCoordinates={
-                        latitude && longitude 
-                          ? { latitude: parseFloat(latitude), longitude: parseFloat(longitude) }
-                          : undefined
-                      }
-                      height="500px"
-                      showSearch={true}
-                      showRoadDetection={true}
-                    />
-                    {mapSelectedLocation && (
-                      <Alert severity="success" sx={{ mt: 2 }}>
-                        <Typography variant="body2" fontWeight="bold">
-                          ✓ Location Selected from Map
-                        </Typography>
-                        <Typography variant="caption" display="block">
-                          {mapSelectedLocation.address || `${mapSelectedLocation.coordinates.latitude.toFixed(6)}, ${mapSelectedLocation.coordinates.longitude.toFixed(6)}`}
-                        </Typography>
-                        {mapSelectedLocation.roadName && (
-                          <Typography variant="caption" display="block">
-                            Road: {mapSelectedLocation.roadName}
-                          </Typography>
-                        )}
-                      </Alert>
-                    )}
-                    {coordinateError && (
-                      <Alert severity="error" sx={{ mt: 2 }}>
-                        <Typography variant="body2" fontWeight="bold">
-                          ❌ Invalid Coordinates
-                        </Typography>
-                        <Typography variant="caption" display="block">
-                          {coordinateError}
-                        </Typography>
-                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                          Please select a location within Namibia.
-                        </Typography>
-                      </Alert>
-                    )}
-                  </Box>
-                )}
-
-                {/* Manual Coordinate Entry */}
-                {!showMapSelector && (
-                  <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
-                    <Typography variant="body2">
-                      <strong>How to get coordinates:</strong>
-                    </Typography>
-                    <Typography variant="caption" component="div">
-                      1. Open{' '}
-                      <Link
-                        href={`https://www.google.com/maps/search/?api=1&query=${buildSearchText(
-                          roadName,
-                          section,
-                          area,
-                          region
-                        )}`}
-                        target="_blank"
-                        rel="noopener"
-                      >
-                        Google Maps
-                      </Link>
-                    </Typography>
-                    <Typography variant="caption" component="div">
-                      2. Right-click on the exact location
-                    </Typography>
-                    <Typography variant="caption" component="div">
-                      3. Click the coordinates to copy them
-                    </Typography>
-                    <Typography variant="caption" component="div">
-                      4. Paste below (format: -22.5597, 17.0832)
-                    </Typography>
-                  </Alert>
-                )}
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={5}>
-                    <TextField
-                      fullWidth
-                      label="Latitude"
-                      value={latitude}
-                      onChange={(e) => setLatitude(e.target.value)}
-                      placeholder="e.g., -22.5597"
-                      type="number"
-                      inputProps={{ step: 'any' }}
-                      required={coordinatesRequired}
-                      error={coordinatesRequired && (!latitude || !!coordinateError)}
-                      helperText={
-                        coordinateError 
-                          ? coordinateError 
-                          : coordinatesRequired && !latitude 
-                            ? 'Required for this status' 
-                            : 'Must be between -28 and -16 (Namibia)'
-                      }
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={5}>
-                    <TextField
-                      fullWidth
-                      label="Longitude"
-                      value={longitude}
-                      onChange={(e) => setLongitude(e.target.value)}
-                      placeholder="e.g., 17.0832"
-                      type="number"
-                      inputProps={{ step: 'any' }}
-                      required={coordinatesRequired}
-                      error={coordinatesRequired && (!longitude || !!coordinateError)}
-                      helperText={
-                        coordinateError 
-                          ? coordinateError 
-                          : coordinatesRequired && !longitude 
-                            ? 'Required for this status' 
-                            : 'Must be between 11 and 26 (Namibia)'
-                      }
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={2}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<MapIcon />}
-                      onClick={handleReverseGeocode}
-                      disabled={!latitude || !longitude || isGeocoding}
-                      sx={{ height: '56px' }}
-                    >
-                      {isGeocoding ? <CircularProgress size={20} /> : 'Verify'}
-                    </Button>
-                  </Grid>
-                </Grid>
-
-                {/* Location Verification Status */}
-                {latitude && longitude && (
-                  <Box sx={{ mt: 2 }}>
-                    {locationVerified ? (
-                      <Alert severity="success" icon={<CheckCircleIcon />}>
-                        <Typography variant="body2" fontWeight="bold">
-                          ✓ Location Verified
-                        </Typography>
-                        <Typography variant="caption" display="block">
-                          Coordinates: {latitude}, {longitude}
-                        </Typography>
-                      </Alert>
-                    ) : coordinatesRequired ? (
-                      <Alert severity="warning" icon={<ErrorIcon />}>
-                        <Typography variant="body2" fontWeight="bold">
-                          ⚠️ Location Not Verified
-                        </Typography>
-                        <Typography variant="caption" display="block">
-                          Please verify the location using the map or "Verify" button before saving
-                        </Typography>
-                      </Alert>
-                    ) : null}
-                  </Box>
-                )}
-
-                {/* Current Location Display */}
-                {latitude && longitude && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="caption" color="textSecondary">
-                      Current coordinates: {latitude}, {longitude}
-                    </Typography>
-                    <Box sx={{ mt: 1 }}>
-                      <Link
-                        href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
-                        target="_blank"
-                        rel="noopener"
-                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
-                      >
-                        <MapIcon fontSize="small" />
-                        View on Google Maps
-                      </Link>
-                    </Box>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
+                  ))}
+                </Stack>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Action Buttons */}
-          <Grid item xs={12}>
-            <Paper sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-              <Button variant="outlined" startIcon={<CancelIcon />} onClick={handleCancel} disabled={saving}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={saving}>
-                {saving ? <CircularProgress size={24} /> : isEditMode ? 'Update' : 'Create'}
-              </Button>
-            </Paper>
-          </Grid>
-        </Grid>
+          <Paper sx={{ p: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <Button variant="outlined" startIcon={<CancelIcon />} onClick={handleCancel} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={saving} size="large">
+              {saving ? <CircularProgress size={24} /> : isEditMode ? 'Update Roadwork' : 'Create Roadwork'}
+            </Button>
+          </Paper>
+        </Stack>
       </form>
     </Box>
   );

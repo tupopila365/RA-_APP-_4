@@ -136,7 +136,7 @@ function ProcurementStack() {
       <Stack.Screen name="ProcurementPlan" component={ProcurementPlanScreen} options={{ title: 'Procurement Plan' }} />
       <Stack.Screen name="ProcurementAwards" component={ProcurementAwardsScreen} options={{ title: 'Awards' }} />
       <Stack.Screen name="OpeningRegister" component={OpeningRegisterScreen} options={{ title: 'Opening Register' }} />
-      <Stack.Screen name="Forms" component={FormsScreen} options={{ title: 'Forms & Documents', headerShown: false }} />
+      <Stack.Screen name="Forms" component={FormsScreen} options={{ title: 'Forms & Documents' }} />
     </Stack.Navigator>
   );
 }

@@ -143,3 +143,5 @@ After applying this fix:
 - No performance impact - purely a rendering quality improvement
 - iOS rendering remains unchanged (uses opacity as before for design consistency)
 
+
+

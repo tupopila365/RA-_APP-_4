@@ -286,56 +286,69 @@ const openFile = async (fileUri) => {
 
     // Platform-specific handling
     if (Platform.OS === 'android') {
-      // Android: Use IntentLauncher to open PDF with appropriate app
+      // Android: Use Sharing to show "Open with" dialog that lets user choose PDF viewer app
       try {
-        console.log('Opening PDF with IntentLauncher on Android...');
+        console.log('Opening PDF with Sharing on Android to show app chooser...');
         
-        // Get the content URI for the file
-        const contentUri = await FileSystem.getContentUriAsync(fileUri);
-        console.log('Content URI:', contentUri);
+        const isAvailable = await Sharing.isAvailableAsync();
         
-        // Launch intent to open PDF
-        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-          data: contentUri,
-          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-          type: 'application/pdf',
+        if (!isAvailable) {
+          return {
+            success: false,
+            error: 'File opening is not available on this device',
+          };
+        }
+
+        // Use sharing to show the "Open with" dialog - this will display all apps
+        // that can open PDFs, allowing the user to choose which one to use
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Open PDF with...',
         });
         
-        console.log('PDF opened successfully with IntentLauncher');
+        console.log('PDF opened successfully with Sharing (showing app chooser)');
         return {
           success: true,
         };
-      } catch (intentError) {
-        console.error('IntentLauncher failed:', intentError.message);
+      } catch (sharingError) {
+        console.error('Sharing failed:', sharingError.message);
         
-        // If no PDF viewer is installed, provide helpful error
-        if (intentError.message.includes('No Activity found') || 
-            intentError.message.includes('ActivityNotFoundException')) {
-          return {
-            success: false,
-            error: 'No PDF viewer app found. Please install a PDF reader app from the Play Store.',
-          };
-        }
-        
-        // Fallback to sharing on Android if intent fails
-        console.log('Falling back to Sharing on Android...');
-        const isAvailable = await Sharing.isAvailableAsync();
-        
-        if (isAvailable) {
-          await Sharing.shareAsync(fileUri, {
-            mimeType: 'application/pdf',
-            dialogTitle: 'Open PDF with...',
+        // Fallback to IntentLauncher if sharing fails
+        try {
+          console.log('Falling back to IntentLauncher on Android...');
+          
+          // Get the content URI for the file
+          const contentUri = await FileSystem.getContentUriAsync(fileUri);
+          console.log('Content URI:', contentUri);
+          
+          // Launch intent to open PDF
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            type: 'application/pdf',
           });
           
+          console.log('PDF opened successfully with IntentLauncher');
           return {
             success: true,
           };
+        } catch (intentError) {
+          console.error('IntentLauncher also failed:', intentError.message);
+          
+          // If no PDF viewer is installed, provide helpful error
+          if (intentError.message.includes('No Activity found') || 
+              intentError.message.includes('ActivityNotFoundException')) {
+            return {
+              success: false,
+              error: 'No PDF viewer app found. Please install a PDF reader app from the Play Store.',
+            };
+          }
+          
+          return {
+            success: false,
+            error: sharingError.message || intentError.message || 'Failed to open PDF',
+          };
         }
-        
-        return {
-          success: false,
-          error: intentError.message || 'Failed to open PDF',
-        };
       }
     } else {
       // iOS: Try multiple methods

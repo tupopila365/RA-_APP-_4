@@ -1,96 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { TextInput, StyleSheet, useColorScheme, View, Text, Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
 
-export function FormInput({
-  value,
-  onChangeText,
-  placeholder,
-  label,
-  error,
-  multiline = false,
-  numberOfLines = 1,
-  keyboardType = 'default',
-  secureTextEntry = false,
-  editable = true,
-  style,
-  textArea = false,
-  ...props
-}) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const styles = getStyles(colors);
-  const [isFocused, setIsFocused] = useState(false);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const hasValue = value && value.length > 0;
+// Memoize styles per color scheme to avoid recreating on every render
+const stylesCache = new Map();
 
-  // Show password toggle button only if secureTextEntry is true
-  const showPasswordToggle = secureTextEntry;
+function getStyles(colors) {
+  const cacheKey = `${colors.primary}-${colors.text}-${colors.border}`;
+  if (stylesCache.has(cacheKey)) {
+    return stylesCache.get(cacheKey);
+  }
 
-  return (
-    <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, (isFocused || hasValue) && styles.labelFocused, error && styles.labelError]}>
-          {label}
-        </Text>
-      )}
-      <View style={[
-        styles.inputWrapper,
-        isFocused && styles.inputWrapperFocused,
-        error && styles.inputWrapperError,
-        !editable && styles.inputWrapperDisabled,
-      ]}>
-        <TextInput
-          style={[
-            styles.input,
-            textArea && styles.textArea,
-            error && styles.inputError,
-            !editable && styles.inputDisabled,
-            showPasswordToggle && styles.inputWithIcon,
-            style,
-          ]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textSecondary}
-          multiline={multiline || textArea}
-          numberOfLines={textArea ? 4 : numberOfLines}
-          keyboardType={keyboardType}
-          secureTextEntry={secureTextEntry && !isPasswordVisible}
-          editable={editable}
-          textAlignVertical={textArea ? 'top' : 'center'}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          {...props}
-        />
-        {showPasswordToggle && (
-          <TouchableOpacity
-            style={styles.passwordToggle}
-            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
-              size={22}
-              color={colors.textSecondary}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-const getStyles = (colors) =>
-  StyleSheet.create({
+  const styles = StyleSheet.create({
     container: {
       marginBottom: spacing.lg,
     },
@@ -195,5 +119,99 @@ const getStyles = (colors) =>
     },
   });
 
+  stylesCache.set(cacheKey, styles);
+  return styles;
+}
+
+export const FormInput = React.memo(function FormInput({
+  value,
+  onChangeText,
+  placeholder,
+  label,
+  error,
+  multiline = false,
+  numberOfLines = 1,
+  keyboardType = 'default',
+  secureTextEntry = false,
+  editable = true,
+  style,
+  textArea = false,
+  ...props
+}) {
+  const colorScheme = useColorScheme();
+  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  
+  // Memoize styles to prevent recreation on every render
+  const styles = useMemo(() => getStyles(colors), [colors.primary, colors.text, colors.border]);
+  
+  const [isFocused, setIsFocused] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  
+  const hasValue = useMemo(() => value && value.length > 0, [value]);
+  const showPasswordToggle = secureTextEntry;
+
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handleFocus = useCallback(() => setIsFocused(true), []);
+  const handleBlur = useCallback(() => setIsFocused(false), []);
+  const handlePasswordToggle = useCallback(() => setIsPasswordVisible(prev => !prev), []);
+
+  return (
+    <View style={styles.container}>
+      {label && (
+        <Text style={[styles.label, (isFocused || hasValue) && styles.labelFocused, error && styles.labelError]}>
+          {label}
+        </Text>
+      )}
+      <View style={[
+        styles.inputWrapper,
+        isFocused && styles.inputWrapperFocused,
+        error && styles.inputWrapperError,
+        !editable && styles.inputWrapperDisabled,
+      ]}>
+        <TextInput
+          style={[
+            styles.input,
+            textArea && styles.textArea,
+            error && styles.inputError,
+            !editable && styles.inputDisabled,
+            showPasswordToggle && styles.inputWithIcon,
+            style,
+          ]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary}
+          multiline={multiline || textArea}
+          numberOfLines={textArea ? 4 : numberOfLines}
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry && !isPasswordVisible}
+          editable={editable}
+          textAlignVertical={textArea ? 'top' : 'center'}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          {...props}
+        />
+        {showPasswordToggle && (
+          <TouchableOpacity
+            style={styles.passwordToggle}
+            onPress={handlePasswordToggle}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+              size={22}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+    </View>
+  );
+});
 
 

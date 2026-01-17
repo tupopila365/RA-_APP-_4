@@ -1743,6 +1743,7 @@ function getStyles(colors, insets) {
     confirmButton: {
       margin: 16,
       marginTop: 0,
+      marginBottom: 16 + (insets?.bottom || 0),
     },
   });
 }

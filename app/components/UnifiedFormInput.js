@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,141 +12,16 @@ import { useTheme } from '../hooks/useTheme';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
 
-export function UnifiedFormInput({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  error,
-  secureTextEntry = false,
-  keyboardType = 'default',
-  autoCapitalize = 'sentences',
-  maxLength,
-  multiline = false,
-  numberOfLines = 1,
-  editable = true,
-  style,
-  leftIcon,
-  rightIcon,
-  onRightIconPress,
-  required = false,
-  helperText,
-  testID,
-  accessibilityLabel,
-  ...props
-}) {
-  const { colors } = useTheme();
-  const [isFocused, setIsFocused] = useState(false);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const styles = getStyles(colors);
+// Memoize styles per color scheme to avoid recreating on every render
+const stylesCache = new Map();
 
-  const hasValue = value?.length > 0;
-  const showPasswordToggle = secureTextEntry;
+function getStyles(colors) {
+  const cacheKey = `${colors.primary}-${colors.text}-${colors.border}`;
+  if (stylesCache.has(cacheKey)) {
+    return stylesCache.get(cacheKey);
+  }
 
-  return (
-    <View style={[styles.container, style]} testID={testID}>
-      {label && (
-        <Text
-          style={[
-            styles.label,
-            (isFocused || hasValue) && styles.labelFocused,
-            error && styles.labelError,
-          ]}
-        >
-          {label}
-          {required && ' *'}
-        </Text>
-      )}
-
-      <View
-        style={[
-          styles.inputWrapper,
-          isFocused && styles.inputWrapperFocused,
-          error && styles.inputWrapperError,
-          !editable && styles.inputWrapperDisabled,
-        ]}
-      >
-        {leftIcon && (
-          <View style={styles.leftIconContainer}>
-            <Ionicons name={leftIcon} size={20} color={colors.textSecondary} />
-          </View>
-        )}
-
-        <TextInput
-          style={[
-            styles.input,
-            multiline && styles.inputMultiline,
-            error && styles.inputError,
-            !editable && styles.inputDisabled,
-            leftIcon && styles.inputWithLeftIcon,
-            (showPasswordToggle || rightIcon) && styles.inputWithRightIcon,
-            { backgroundColor: 'transparent' },
-          ]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textSecondary}
-          multiline={multiline}
-          numberOfLines={multiline ? numberOfLines : 1}
-          keyboardType={keyboardType}
-          secureTextEntry={secureTextEntry && !isPasswordVisible}
-          editable={editable}
-          autoCapitalize={autoCapitalize}
-          maxLength={maxLength}
-          textAlignVertical={multiline ? 'top' : 'center'}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          accessibilityLabel={accessibilityLabel || label}
-          underlineColorAndroid="transparent"
-          selectionColor={colors.primary}
-          cursorColor={colors.primary}
-          importantForAutofill="no"
-          {...props}
-        />
-
-        {showPasswordToggle && (
-          <TouchableOpacity
-            style={styles.rightIconContainer}
-            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityRole="button"
-          >
-            <Ionicons
-              name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
-              size={22}
-              color={colors.textSecondary}
-            />
-          </TouchableOpacity>
-        )}
-
-        {rightIcon && !showPasswordToggle && (
-          <TouchableOpacity
-            style={styles.rightIconContainer}
-            onPress={onRightIconPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityRole="button"
-          >
-            <Ionicons name={rightIcon} size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {error && (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={16} color={colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {helperText && !error && (
-        <Text style={styles.helperText}>{helperText}</Text>
-      )}
-    </View>
-  );
-}
-
-const getStyles = (colors) =>
-  StyleSheet.create({
+  const styles = StyleSheet.create({
     container: {
       marginBottom: spacing.lg,
     },
@@ -273,3 +148,148 @@ const getStyles = (colors) =>
       marginTop: spacing.xs + 2,
     },
   });
+
+  stylesCache.set(cacheKey, styles);
+  return styles;
+}
+
+export const UnifiedFormInput = React.memo(function UnifiedFormInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  error,
+  secureTextEntry = false,
+  keyboardType = 'default',
+  autoCapitalize = 'sentences',
+  maxLength,
+  multiline = false,
+  numberOfLines = 1,
+  editable = true,
+  style,
+  leftIcon,
+  rightIcon,
+  onRightIconPress,
+  required = false,
+  helperText,
+  testID,
+  accessibilityLabel,
+  ...props
+}) {
+  const { colors } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  
+  // Memoize styles to prevent recreation on every render
+  const styles = useMemo(() => getStyles(colors), [colors.primary, colors.text, colors.border]);
+
+  const hasValue = useMemo(() => value?.length > 0, [value]);
+  const showPasswordToggle = secureTextEntry;
+
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handleFocus = useCallback(() => setIsFocused(true), []);
+  const handleBlur = useCallback(() => setIsFocused(false), []);
+  const handlePasswordToggle = useCallback(() => setIsPasswordVisible(prev => !prev), []);
+
+  return (
+    <View style={[styles.container, style]} testID={testID}>
+      {label && (
+        <Text
+          style={[
+            styles.label,
+            (isFocused || hasValue) && styles.labelFocused,
+            error && styles.labelError,
+          ]}
+        >
+          {label}
+          {required && ' *'}
+        </Text>
+      )}
+
+      <View
+        style={[
+          styles.inputWrapper,
+          isFocused && styles.inputWrapperFocused,
+          error && styles.inputWrapperError,
+          !editable && styles.inputWrapperDisabled,
+        ]}
+      >
+        {leftIcon && (
+          <View style={styles.leftIconContainer}>
+            <Ionicons name={leftIcon} size={20} color={colors.textSecondary} />
+          </View>
+        )}
+
+        <TextInput
+          style={[
+            styles.input,
+            multiline && styles.inputMultiline,
+            error && styles.inputError,
+            !editable && styles.inputDisabled,
+            leftIcon && styles.inputWithLeftIcon,
+            (showPasswordToggle || rightIcon) && styles.inputWithRightIcon,
+            { backgroundColor: 'transparent' },
+          ]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary}
+          multiline={multiline}
+          numberOfLines={multiline ? numberOfLines : 1}
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry && !isPasswordVisible}
+          editable={editable}
+          autoCapitalize={autoCapitalize}
+          maxLength={maxLength}
+          textAlignVertical={multiline ? 'top' : 'center'}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          accessibilityLabel={accessibilityLabel || label}
+          underlineColorAndroid="transparent"
+          selectionColor={colors.primary}
+          cursorColor={colors.primary}
+          importantForAutofill="no"
+          {...props}
+        />
+
+        {showPasswordToggle && (
+          <TouchableOpacity
+            style={styles.rightIconContainer}
+            onPress={handlePasswordToggle}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+              size={22}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
+
+        {rightIcon && !showPasswordToggle && (
+          <TouchableOpacity
+            style={styles.rightIconContainer}
+            onPress={onRightIconPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+          >
+            <Ionicons name={rightIcon} size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={16} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
+      {helperText && !error && (
+        <Text style={styles.helperText}>{helperText}</Text>
+      )}
+    </View>
+  );
+});
+

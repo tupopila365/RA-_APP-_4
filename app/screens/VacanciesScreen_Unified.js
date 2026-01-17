@@ -319,6 +319,9 @@ export default function VacanciesScreen({ navigation }) {
               selectedFilter === 'All' && styles.filterChipActive,
             ]}
             onPress={() => setSelectedFilter('All')}
+            accessibilityRole="button"
+            accessibilityLabel="Filter by All"
+            accessibilityState={{ selected: selectedFilter === 'All' }}
           >
             <Text style={[
                 styles.filterChipText,
@@ -336,6 +339,9 @@ export default function VacanciesScreen({ navigation }) {
                 selectedFilter === filter && styles.filterChipActive,
               ]}
               onPress={() => setSelectedFilter(selectedFilter === filter ? 'All' : filter)}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by ${filter}`}
+              accessibilityState={{ selected: selectedFilter === filter }}
             >
               <Text style={[
                   styles.filterChipText,
@@ -361,8 +367,24 @@ export default function VacanciesScreen({ navigation }) {
         {filteredVacancies.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <EmptyState
-              icon="briefcase-outline"
-              message={vacancies.length === 0 ? 'No vacancies available' : 'No vacancies match your search'}
+              icon={vacancies.length === 0 ? "briefcase-outline" : "search-outline"}
+              title={vacancies.length === 0 ? "No vacancies available" : "No vacancies match your search"}
+              message={
+                vacancies.length === 0
+                  ? "Check back later for new openings."
+                  : "Try a different search or clear filters."
+              }
+              primaryActionLabel={vacancies.length === 0 ? "Refresh" : "Clear filters"}
+              onPrimaryAction={() => {
+                if (vacancies.length === 0) {
+                  onRefresh();
+                } else {
+                  setSearchQuery('');
+                  setSelectedFilter('All');
+                }
+              }}
+              secondaryActionLabel={vacancies.length === 0 ? undefined : "Refresh"}
+              onSecondaryAction={vacancies.length === 0 ? undefined : onRefresh}
               accessibilityLabel="No vacancies found"
             />
           </View>
@@ -615,7 +637,7 @@ function getStyles(colors) {
       color: colors.text,
     },
     filterChipTextActive: {
-      color: '#FFFFFF',
+      color: colors.textInverse || colors.card,
       fontWeight: '600',
     },
     resultsCountContainer: {

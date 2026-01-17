@@ -77,3 +77,5 @@ After applying this fix:
 - All Text components (custom and native) now render correctly
 - No performance impact - purely a rendering quality improvement
 
+
+

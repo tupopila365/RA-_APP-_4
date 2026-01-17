@@ -368,50 +368,28 @@ export default function MyReportsScreen({ navigation }) {
         {/* Reports List */}
         {reports.length === 0 ? (
           <UnifiedCard variant="default" padding="large" style={styles.emptyStateCard}>
-            <View style={styles.emptyStateContainer}>
-              <View style={styles.emptyStateIcon}>
-                <Ionicons name="document-outline" size={48} color={colors.textSecondary} />
-              </View>
-              <Text style={styles.emptyStateTitle}>No Reports Yet</Text>
-              <Text style={styles.emptyStateMessage}>
-                You haven't submitted any road damage reports yet. Help improve our roads by reporting issues you encounter.
-              </Text>
-              <UnifiedButton
-                label="Report Road Damage"
-                variant="primary"
-                size="medium"
-                iconName="add-circle-outline"
-                onPress={() => navigation.navigate('ReportPothole')}
-                style={styles.emptyStateButton}
-              />
-            </View>
+            <EmptyState
+              icon="document-outline"
+              title="No Reports Yet"
+              message="You haven't submitted any road damage reports yet."
+              primaryActionLabel="Report Road Damage"
+              onPrimaryAction={() => navigation.navigate('ReportPothole')}
+            />
           </UnifiedCard>
         ) : filteredReports.length === 0 ? (
           <UnifiedCard variant="default" padding="large" style={styles.emptyStateCard}>
-            <View style={styles.emptyStateContainer}>
-              <View style={styles.emptyStateIcon}>
-                <Ionicons name="search-outline" size={48} color={colors.textSecondary} />
-              </View>
-              <Text style={styles.emptyStateTitle}>No Reports Found</Text>
-              <Text style={styles.emptyStateMessage}>
-                {searchQuery.trim() || selectedFilter !== 'All'
-                  ? 'No reports match your current search and filter criteria. Try adjusting your filters or search terms.'
-                  : 'No reports found.'}
-              </Text>
-              {(searchQuery.trim() || selectedFilter !== 'All') && (
-                <UnifiedButton
-                  label="Clear Filters"
-                  variant="outline"
-                  size="medium"
-                  iconName="refresh"
-                  onPress={() => {
-                    setSearchQuery('');
-                    setSelectedFilter('All');
-                  }}
-                  style={styles.emptyStateButton}
-                />
-              )}
-            </View>
+            <EmptyState
+              icon="search-outline"
+              title="No Reports Found"
+              message="No reports match your search or filters."
+              primaryActionLabel="Clear filters"
+              onPrimaryAction={() => {
+                setSearchQuery('');
+                setSelectedFilter('All');
+              }}
+              secondaryActionLabel="Refresh"
+              onSecondaryAction={onRefresh}
+            />
           </UnifiedCard>
         ) : (
           <View style={styles.reportsContainer}>

@@ -5,6 +5,8 @@ import {
   formatDate,
   parseString,
   parseNumber,
+  parseArray,
+  parseBoolean,
 } from './MapperUtils';
 
 /**
@@ -23,6 +25,45 @@ export class OfficeMapper extends BaseMapper {
       throw new Error('Cannot map null or undefined DTO to OfficeEntity');
     }
 
+    const mapHoursPair = (pair) => {
+      if (!pair) return null;
+      return {
+        open: parseString(pair.open || pair.start, ''),
+        close: parseString(pair.close || pair.end, ''),
+      };
+    };
+
+    const mapOperatingHours = (hours) => {
+      if (!hours) return null;
+      const weekdays = mapHoursPair(hours.weekdays);
+      const weekends = mapHoursPair(hours.weekends);
+      const publicHolidays = mapHoursPair(hours.publicHolidays);
+
+      if (!weekdays && !weekends && !publicHolidays) {
+        return null;
+      }
+
+      return {
+        ...(weekdays && { weekdays }),
+        ...(weekends && { weekends }),
+        ...(publicHolidays && { publicHolidays }),
+      };
+    };
+
+    const mapSpecialHours = (items) => {
+      return parseArray(items, []).map(item => ({
+        date: parseString(item.date, ''),
+        reason: parseString(item.reason, ''),
+        closed: parseBoolean(item.closed, false),
+        ...(item.hours ? {
+          hours: {
+            open: parseString(item.hours.open, ''),
+            close: parseString(item.hours.close, ''),
+          }
+        } : {}),
+      }));
+    };
+
     return new OfficeEntity({
       id: parseString(dto._id || dto.id),
       name: parseString(dto.name),
@@ -34,6 +75,10 @@ export class OfficeMapper extends BaseMapper {
       },
       contactNumber: parseString(dto.contactNumber || dto.contact_number || '', null),
       email: parseString(dto.email || '', null),
+      services: parseArray(dto.services, []),
+      operatingHours: mapOperatingHours(dto.operatingHours),
+      closedDays: parseArray(dto.closedDays, []),
+      specialHours: mapSpecialHours(dto.specialHours),
       createdAt: parseDate(dto.createdAt || dto.created_at, null),
       updatedAt: parseDate(dto.updatedAt || dto.updated_at, null),
     });
@@ -57,6 +102,10 @@ export class OfficeMapper extends BaseMapper {
       coordinates: entity.coordinates,
       contact_number: entity.contactNumber,
       email: entity.email,
+      services: entity.services,
+      operatingHours: entity.operatingHours,
+      closedDays: entity.closedDays,
+      specialHours: entity.specialHours,
       created_at: formatDate(entity.createdAt),
       updated_at: formatDate(entity.updatedAt),
     };
