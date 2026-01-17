@@ -58,6 +58,7 @@
     "@babel/core": "^7.20.0",
     "@babel/plugin-transform-modules-commonjs": "^7.27.1",
     "@react-native-community/cli": "^20.0.2",
+    "@react-native/metro-config": "^0.83.1",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.3.3",
     "babel-plugin-module-resolver": "^5.0.2",
