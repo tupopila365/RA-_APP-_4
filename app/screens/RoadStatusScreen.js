@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import { radii, spacing, sizes, shadows } from '../theme/designTokens';
 import { getSharedMapOptions } from '../theme/mapStyles';
+import RoadsMap, { MAP_MODES, MARKER_TYPES } from '../components/RoadsMap';
 import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
 import { roadStatusService } from '../services/roadStatusService';
 
@@ -1496,6 +1497,72 @@ export default function RoadStatusScreen() {
     );
   }, [filteredRoadworks]);
 
+  const mapModalMarkers = useMemo(() => {
+    if (!selectedRoadworkForMap?.coordinates) return [];
+    const coord = selectedRoadworkForMap.coordinates;
+    return [
+      {
+        id: selectedRoadworkForMap._id || selectedRoadworkForMap.id || 'selected-roadwork',
+        coordinate: { latitude: coord.latitude, longitude: coord.longitude },
+        title: selectedRoadworkForMap.road || 'Roadwork',
+        description: selectedRoadworkForMap.title,
+        status: selectedRoadworkForMap.status,
+        statusColor: getStatusColor(selectedRoadworkForMap.status, colors),
+        statusIcon: getStatusIcon(selectedRoadworkForMap.status),
+        type: ['Closed', 'Restricted'].includes(selectedRoadworkForMap.status)
+          ? MARKER_TYPES.CLOSED
+          : MARKER_TYPES.WORK,
+        metadata: [
+          selectedRoadworkForMap.section && { label: 'Section', value: selectedRoadworkForMap.section, iconName: 'pin' },
+          selectedRoadworkForMap.startDate && { label: 'Start', value: formatDate(selectedRoadworkForMap.startDate), iconName: 'calendar-outline' },
+          selectedRoadworkForMap.expectedCompletion && { label: 'Expected', value: formatDate(selectedRoadworkForMap.expectedCompletion), iconName: 'flag-outline' },
+        ].filter(Boolean),
+        primaryAction: {
+          label: 'Get Directions',
+          iconName: 'navigate',
+          onPress: () => handleDirections(selectedRoadworkForMap),
+        },
+      },
+    ];
+  }, [colors, selectedRoadworkForMap]);
+
+  const mapModalCircles = useMemo(() => {
+    if (!selectedRoadworkForMap?.coordinates) return [];
+    const coord = selectedRoadworkForMap.coordinates;
+    return [
+      {
+        id: 'affected-area',
+        center: { latitude: coord.latitude, longitude: coord.longitude },
+        radius: 500,
+        fillColor: getStatusColor(selectedRoadworkForMap.status, colors) + '10',
+        strokeColor: getStatusColor(selectedRoadworkForMap.status, colors),
+        strokeWidth: 1.5,
+        lineDashPattern: [5, 5],
+      },
+    ];
+  }, [colors, selectedRoadworkForMap]);
+
+  const mapModalBottomSheetData = useMemo(() => {
+    if (!selectedRoadworkForMap) return null;
+    return {
+      title: selectedRoadworkForMap.road || 'Roadwork',
+      status: selectedRoadworkForMap.status,
+      statusColor: getStatusColor(selectedRoadworkForMap.status, colors),
+      statusIcon: getStatusIcon(selectedRoadworkForMap.status),
+      description: selectedRoadworkForMap.title,
+      metadata: [
+        selectedRoadworkForMap.section && { label: 'Section', value: selectedRoadworkForMap.section, iconName: 'pin' },
+        selectedRoadworkForMap.startDate && { label: 'Start', value: formatDate(selectedRoadworkForMap.startDate), iconName: 'calendar-outline' },
+        selectedRoadworkForMap.expectedCompletion && { label: 'Expected', value: formatDate(selectedRoadworkForMap.expectedCompletion), iconName: 'flag-outline' },
+      ].filter(Boolean),
+      primaryAction: {
+        label: 'Get Directions',
+        iconName: 'navigate',
+        onPress: () => handleDirections(selectedRoadworkForMap),
+      },
+    };
+  }, [colors, selectedRoadworkForMap]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -1536,103 +1603,103 @@ export default function RoadStatusScreen() {
                 </Text>
               </View>
             </View>
-            <MapView
-              {...sharedMapOptions}
-              ref={routePlannerMapRef}
-              style={styles.mapFullScreen}
+            <RoadsMap
+              mode={routePlannerMode ? MAP_MODES.NAVIGATE : MAP_MODES.VIEW}
               initialRegion={mapRegion}
+              onSelectLocation={routePlannerMode ? handleRouteMapPress : undefined}
               showsUserLocation={true}
-              showsMyLocationButton={true}
-              provider={Platform.OS === 'android' && PROVIDER_GOOGLE ? PROVIDER_GOOGLE : undefined}
-              onPress={routePlannerMode ? handleRouteMapPress : undefined}
+              polylines={
+                routePlannerMode && routePolyline.length > 0
+                  ? [
+                      {
+                        id: 'route-planned',
+                        coordinates: routePolyline,
+                        color: colors.info,
+                        width: 4,
+                        zIndex: 100,
+                      },
+                    ]
+                  : []
+              }
+              style={styles.mapFullScreen}
             >
-            {/* Route Planner: Display planned route polyline */}
-            {routePlannerMode && routePolyline.length > 0 && Polyline && (
-              <Polyline
-                coordinates={routePolyline}
-                strokeColor={colors.info}
-                strokeWidth={4}
-                zIndex={100}
-              />
-            )}
-
-            {/* Route Planner: Start and End Point Markers */}
-            {routePlannerMode && routeStartPoint && Marker && (
-              <Marker
-                coordinate={routeStartPoint}
-                title="Start Point"
-                description={routeStartPoint.name}
-                pinColor={colors.success}
-              >
-                <View style={styles.routePointMarker}>
-                  <View style={[styles.routePointInner, { backgroundColor: colors.success }]}>
-                    <Text style={styles.routePointText}>A</Text>
+              {/* Route Planner: Start and End Point Markers */}
+              {routePlannerMode && routeStartPoint && Marker && (
+                <Marker
+                  coordinate={routeStartPoint}
+                  title="Start Point"
+                  description={routeStartPoint.name}
+                  pinColor={colors.success}
+                >
+                  <View style={styles.routePointMarker}>
+                    <View style={[styles.routePointInner, { backgroundColor: colors.success }]}>
+                      <Text style={styles.routePointText}>A</Text>
+                    </View>
                   </View>
-                </View>
-              </Marker>
-            )}
-            {routePlannerMode && routeEndPoint && Marker && (
-              <Marker
-                coordinate={routeEndPoint}
-                title="End Point"
-                description={routeEndPoint.name}
-                pinColor={colors.error}
-              >
-                <View style={styles.routePointMarker}>
-                  <View style={[styles.routePointInner, { backgroundColor: colors.error }]}>
-                    <Text style={styles.routePointText}>B</Text>
+                </Marker>
+              )}
+              {routePlannerMode && routeEndPoint && Marker && (
+                <Marker
+                  coordinate={routeEndPoint}
+                  title="End Point"
+                  description={routeEndPoint.name}
+                  pinColor={colors.error}
+                >
+                  <View style={styles.routePointMarker}>
+                    <View style={[styles.routePointInner, { backgroundColor: colors.error }]}>
+                      <Text style={styles.routePointText}>B</Text>
+                    </View>
                   </View>
-                </View>
-              </Marker>
-            )}
+                </Marker>
+              )}
 
-            {/* Render polylines for road closures and alternate routes */}
-            {filteredRoadworks.map((roadwork) => renderRoutePolylines(roadwork, colors))}
-            
-            {/* Render waypoint markers for alternate routes */}
-            {filteredRoadworks.map((roadwork) => renderWaypointMarkers(roadwork, colors))}
-            
-            {/* Render main roadwork markers - Highlight roadworks along route in planner mode */}
-            {(routePlannerMode ? routeRoadworks : filteredRoadworks).map((roadwork) => {
-              const coordinates = getRoadworkCoordinates(roadwork);
-              if (!coordinates) return null;
+              {/* Render polylines for road closures and alternate routes */}
+              {filteredRoadworks.map((roadwork) => renderRoutePolylines(roadwork, colors))}
               
-              const isOnRoute = routePlannerMode && routeRoadworks.includes(roadwork);
+              {/* Render waypoint markers for alternate routes */}
+              {filteredRoadworks.map((roadwork) => renderWaypointMarkers(roadwork, colors))}
               
-              return (
-                <PulsingMarker
-                  key={roadwork._id || roadwork.id}
-                  coordinate={coordinates}
-                  roadwork={roadwork}
-                  colors={colors}
-                  onPress={() => {
-                    // Show details with alternate routes information
-                    const alternateRoutesText = roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0
-                      ? `\n\nAlternate Routes:\n${roadwork.alternateRoutes
-                          .filter(route => route.approved)
-                          .map(route => `• ${route.routeName}: ${route.distanceKm}km, ${route.estimatedTime}`)
-                          .join('\n')}`
-                      : roadwork.alternativeRoute 
-                        ? `\nAlternative Route:\n${roadwork.alternativeRoute}`
-                        : '';
-                        
-                    Alert.alert(
-                      `${roadwork.road} - ${roadwork.section}${isOnRoute ? ' (On Your Route)' : ''}`,
-                      `${roadwork.title}\n\nStatus: ${roadwork.status}\n${roadwork.reason ? `Reason: ${roadwork.reason}\n` : ''}${roadwork.expectedDelayMinutes ? `Expected Delay: ${roadwork.expectedDelayMinutes} min\n` : ''}${alternateRoutesText}`,
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Directions', onPress: () => handleDirections(roadwork) },
-                        roadwork.alternativeRoute && {
-                          text: 'Use Alternative Route',
-                          onPress: () => handleAlternativeRoute(roadwork.alternativeRoute)
-                        },
-                      ].filter(Boolean)
-                    );
-                  }}
-                />
-              );
-            })}
-          </MapView>
+              {/* Render main roadwork markers - Highlight roadworks along route in planner mode */}
+              {(routePlannerMode ? routeRoadworks : filteredRoadworks).map((roadwork) => {
+                const coordinates = getRoadworkCoordinates(roadwork);
+                if (!coordinates) return null;
+                
+                const isOnRoute = routePlannerMode && routeRoadworks.includes(roadwork);
+                
+                return (
+                  <PulsingMarker
+                    key={roadwork._id || roadwork.id}
+                    coordinate={coordinates}
+                    roadwork={roadwork}
+                    colors={colors}
+                    onPress={() => {
+                      // Show details with alternate routes information
+                      const alternateRoutesText = roadwork.alternateRoutes && roadwork.alternateRoutes.length > 0
+                        ? `\n\nAlternate Routes:\n${roadwork.alternateRoutes
+                            .filter(route => route.approved)
+                            .map(route => `• ${route.routeName}: ${route.distanceKm}km, ${route.estimatedTime}`)
+                            .join('\n')}`
+                        : roadwork.alternativeRoute 
+                          ? `\nAlternative Route:\n${roadwork.alternativeRoute}`
+                          : '';
+                          
+                      Alert.alert(
+                        `${roadwork.road} - ${roadwork.section}${isOnRoute ? ' (On Your Route)' : ''}`,
+                        `${roadwork.title}\n\nStatus: ${roadwork.status}\n${roadwork.reason ? `Reason: ${roadwork.reason}\n` : ''}${roadwork.expectedDelayMinutes ? `Expected Delay: ${roadwork.expectedDelayMinutes} min\n` : ''}${alternateRoutesText}`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Directions', onPress: () => handleDirections(roadwork) },
+                          roadwork.alternativeRoute && {
+                            text: 'Use Alternative Route',
+                            onPress: () => handleAlternativeRoute(roadwork.alternativeRoute)
+                          },
+                        ].filter(Boolean)
+                      );
+                    }}
+                  />
+                );
+              })}
+            </RoadsMap>
           
           {/* Route Planner Controls */}
           {routePlannerMode && (
@@ -2653,202 +2720,17 @@ export default function RoadStatusScreen() {
             </View>
 
             {/* Map View */}
-            <MapView
-              {...sharedMapOptions}
-              ref={mapModalRef}
-              style={styles.mapModalMap}
+            <RoadsMap
+              mode={MAP_MODES.VIEW}
               initialRegion={modalMapRegion}
-              provider={PROVIDER_GOOGLE || undefined}
-              mapType={mapType || sharedMapOptions.mapType}
-              minZoomLevel={3}
-              maxZoomLevel={21}
-              rotateEnabled={true}
-              pitchEnabled={true}
-              toolbarEnabled={true}
+              markers={mapModalMarkers}
+              circles={mapModalCircles}
+              bottomSheetData={mapModalBottomSheetData}
               showsUserLocation={true}
-              showsMyLocationButton={true}
-              showsCompass={true}
-              showsScale={true}
-              showsTraffic={showTraffic}
-              showsBuildings={true}
-              showsPointsOfInterest={true}
-              showsIndoors={true}
-              zoomEnabled={true}
-              zoomControlEnabled={true}
-              zoomTapEnabled={true}
-              scrollEnabled={true}
-              loadingEnabled={true}
-              loadingIndicatorColor={colors.primary}
-              loadingBackgroundColor={colors.background}
-              moveOnMarkerPress={false}
-            >
-              {/* Colored Circle showing affected area */}
-              {Circle && (
-                <Circle
-                  center={{
-                    latitude: selectedRoadworkForMap.coordinates.latitude,
-                    longitude: selectedRoadworkForMap.coordinates.longitude,
-                  }}
-                  radius={500} // 500 meters affected radius
-                  fillColor={getStatusColor(selectedRoadworkForMap.status, colors) + '10'} // Very subtle fill
-                  strokeColor={getStatusColor(selectedRoadworkForMap.status, colors)}
-                  strokeWidth={1.5}
-                  lineDashPattern={[5, 5]} // Dashed line (less intrusive)
-                />
-              )}
+              showZoomControls={true}
+              style={styles.mapModalMap}
+            />
 
-              {/* Custom Status-Colored Marker */}
-              <Marker
-                coordinate={{
-                  latitude: selectedRoadworkForMap.coordinates.latitude,
-                  longitude: selectedRoadworkForMap.coordinates.longitude,
-                }}
-                title={selectedRoadworkForMap.road || 'Roadwork'}
-                description={selectedRoadworkForMap.title}
-              >
-                <View style={styles.customMarker}>
-                  <View style={[
-                    styles.customMarkerInner,
-                    { backgroundColor: getStatusColor(selectedRoadworkForMap.status, colors) }
-                  ]}>
-                    <Ionicons 
-                      name={getStatusIcon(selectedRoadworkForMap.status)} 
-                      size={16} 
-                      color="white" 
-                    />
-                  </View>
-                </View>
-              </Marker>
-            </MapView>
-
-            {/* Zoom Controls */}
-            <View style={[styles.zoomControls, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <TouchableOpacity
-                style={styles.zoomButton}
-                onPress={handleZoomIn}
-                accessibilityLabel="Zoom in"
-                accessibilityRole="button"
-              >
-                <Ionicons name="add" size={24} color={colors.text} />
-              </TouchableOpacity>
-              <View style={[styles.zoomDivider, { backgroundColor: colors.border }]} />
-              <TouchableOpacity
-                style={styles.zoomButton}
-                onPress={handleZoomOut}
-                accessibilityLabel="Zoom out"
-                accessibilityRole="button"
-              >
-                <Ionicons name="remove" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Bottom Sheet with Details */}
-            <View style={[styles.mapModalBottomSheet, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-              {/* Status Badge */}
-              <View style={styles.mapModalStatusContainer}>
-                <View style={[
-                  styles.mapModalStatusBadge,
-                  { backgroundColor: getStatusColor(selectedRoadworkForMap.status, colors) + '20' }
-                ]}>
-                  <Ionicons 
-                    name={getStatusIcon(selectedRoadworkForMap.status)} 
-                    size={16} 
-                    color={getStatusColor(selectedRoadworkForMap.status, colors)} 
-                  />
-                  <Text style={[
-                    styles.mapModalStatusText,
-                    { color: getStatusColor(selectedRoadworkForMap.status, colors) }
-                  ]}>
-                    {selectedRoadworkForMap.status}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Affected Area / Section (moved out of map to avoid blocking) */}
-              <View style={[styles.mapModalLegend, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <View style={styles.mapModalLegendItem}>
-                  <View style={[styles.mapModalLegendDot, { backgroundColor: getStatusColor(selectedRoadworkForMap.status, colors) }]} />
-                  <Text style={[styles.mapModalLegendText, { color: colors.text }]}>
-                    {selectedRoadworkForMap.status} - Affected Area (~500m radius)
-                  </Text>
-                </View>
-                {selectedRoadworkForMap.section && (
-                  <Text style={[styles.mapModalLegendSubtext, { color: colors.textSecondary }]}>
-                    Section: {selectedRoadworkForMap.section}
-                  </Text>
-                )}
-              </View>
-
-              {/* Details */}
-              <Text style={[styles.mapModalBottomTitle, { color: colors.text }]} numberOfLines={2}>
-                {selectedRoadworkForMap.title || 'Road Maintenance'}
-              </Text>
-              
-              {selectedRoadworkForMap.description && (
-                <Text style={[styles.mapModalBottomDescription, { color: colors.textSecondary }]} numberOfLines={3}>
-                  {selectedRoadworkForMap.description}
-                </Text>
-              )}
-
-              {/* Dates */}
-              {(selectedRoadworkForMap.startDate || selectedRoadworkForMap.expectedCompletion) && (
-                <View style={styles.mapModalBottomDates}>
-                  {selectedRoadworkForMap.startDate && (
-                    <View style={styles.mapModalBottomDateItem}>
-                      <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
-                      <Text style={[styles.mapModalBottomDateText, { color: colors.textSecondary }]}>
-                        Start: {formatDate(selectedRoadworkForMap.startDate)}
-                      </Text>
-                    </View>
-                  )}
-                  {selectedRoadworkForMap.expectedCompletion && (
-                    <View style={styles.mapModalBottomDateItem}>
-                      <Ionicons name="flag-outline" size={14} color={colors.textSecondary} />
-                      <Text style={[styles.mapModalBottomDateText, { color: colors.textSecondary }]}>
-                        Expected: {formatDate(selectedRoadworkForMap.expectedCompletion)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* Action Buttons */}
-              <View style={styles.mapModalActions}>
-                <TouchableOpacity
-                  style={[styles.mapModalActionButton, { backgroundColor: colors.primary }]}
-                  onPress={() => {
-                    openExternalMaps(selectedRoadworkForMap, selectedRoadworkForMap.coordinates);
-                  }}
-                  accessibilityLabel="Open in Maps"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="map-outline" size={18} color="white" />
-                  <Text style={styles.mapModalActionButtonText}>Open in Maps</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.mapModalActionButton, { backgroundColor: colors.primary }]}
-                  onPress={() => {
-                    setShowMapModal(false);
-                    handleDirections(selectedRoadworkForMap);
-                  }}
-                  accessibilityLabel="Get Directions"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="navigate" size={18} color="white" />
-                  <Text style={styles.mapModalActionButtonText}>Get Directions</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.mapModalCloseActionButton, { borderColor: colors.border }]}
-                onPress={() => setShowMapModal(false)}
-                accessibilityLabel="Close"
-                accessibilityRole="button"
-              >
-                <Text style={[styles.mapModalCloseActionButtonText, { color: colors.text }]}>Close</Text>
-              </TouchableOpacity>
-            </View>
           </SafeAreaView>
         </Modal>
       )}

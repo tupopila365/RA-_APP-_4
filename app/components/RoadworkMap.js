@@ -1,25 +1,7 @@
-import React, { useRef, useMemo } from 'react';
-import { View, StyleSheet, Platform, Alert, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
-import { getSharedMapOptions } from '../theme/mapStyles';
-
-// Conditionally import MapView
-let MapView = null;
-let Marker = null;
-let Callout = null;
-let Circle = null;
-let PROVIDER_GOOGLE = null;
-try {
-  const MapModule = require('react-native-maps');
-  MapView = MapModule.default;
-  Marker = MapModule.Marker;
-  Callout = MapModule.Callout;
-  Circle = MapModule.Circle;
-  PROVIDER_GOOGLE = MapModule.PROVIDER_GOOGLE;
-} catch (error) {
-  console.warn('MapView not available:', error.message);
-}
+import RoadsMap, { MAP_MODES, MARKER_TYPES } from './RoadsMap';
 
 /**
  * Shared Roadwork Map Component
@@ -39,9 +21,8 @@ export function RoadworkMap({
   style,
   children,
 }) {
-  const { colors, isDark } = useTheme();
-  const mapRef = useRef(null);
-  const sharedMapOptions = useMemo(() => getSharedMapOptions(isDark), [isDark]);
+  const { colors } = useTheme();
+  const [activeRoadworkId, setActiveRoadworkId] = useState(null);
 
   const getStatusColor = (status) => {
     const statusColors = {
@@ -97,162 +78,104 @@ export function RoadworkMap({
     );
   };
 
-  if (!MapView) {
-    return (
-      <View style={[styles.mapFallback, style]}>
-        <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
-        <Text style={[styles.fallbackText, { color: colors.textSecondary }]}>
-          Map view requires a development build
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <MapView
-      ref={mapRef}
-      style={[styles.map, style]}
-      initialRegion={region}
-      onRegionChange={onRegionChange}
-      onPress={onPress}
-      provider={Platform.OS === 'android' && PROVIDER_GOOGLE ? PROVIDER_GOOGLE : undefined}
-      {...sharedMapOptions}
-      showsUserLocation={true}
-      showsMyLocationButton={false}
-      showsCompass={true}
-      showsScale={true}
-    >
-      {/* Selected Location Marker */}
-      {showSelectedMarker && selectedLocation && (
-        <Marker
-          coordinate={selectedLocation}
-          title={markerTitle}
-          description={markerDescription}
-          draggable={!!onMarkerDragEnd}
-          onDragEnd={onMarkerDragEnd}
-          pinColor="#2563EB"
-        />
-      )}
-
-      {/* Roadwork Markers */}
-      {showRoadworks && roadworks.map((roadwork) => {
+  const roadworkMarkers = useMemo(() => {
+    if (!showRoadworks) return [];
+    return roadworks
+      .map((roadwork) => {
         const coordinates = getRoadworkCoordinates(roadwork);
         if (!coordinates) return null;
 
         const isCritical = roadwork.status === 'Closed' || roadwork.status === 'Restricted';
-        const statusColor = getStatusColor(roadwork.status);
+        const markerType = isCritical
+          ? MARKER_TYPES.CLOSED
+          : roadwork.status === 'Open'
+            ? MARKER_TYPES.ROUTE
+            : MARKER_TYPES.WORK;
 
-        return (
-          <Marker
-            key={roadwork._id || roadwork.id}
-            coordinate={coordinates}
-            onPress={() => handleRoadworkPress(roadwork)}
-          >
-            <View style={[styles.customMarker, { backgroundColor: statusColor }]}>
-              <Ionicons 
-                name={getStatusIcon(roadwork.status)} 
-                size={16} 
-                color="#FFFFFF" 
-              />
-            </View>
-            <Callout onPress={() => handleRoadworkPress(roadwork)}>
-              <View style={[styles.callout, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.calloutTitle, { color: colors.text }]}>
-                  {roadwork.road} - {roadwork.section}
-                </Text>
-                <Text style={[styles.calloutDescription, { color: colors.text }]}>
-                  {roadwork.title}
-                </Text>
-                <View style={styles.calloutStatus}>
-                  <Ionicons 
-                    name={getStatusIcon(roadwork.status)} 
-                    size={12} 
-                    color={statusColor} 
-                  />
-                  <Text style={[styles.calloutStatusText, { color: statusColor }]}>
-                    {roadwork.status}
-                  </Text>
-                </View>
-                <Text style={[styles.calloutTap, { color: colors.textSecondary }]}>
-                  Tap for details
-                </Text>
-              </View>
-            </Callout>
-          </Marker>
-        );
-      })}
+        return {
+          id: roadwork._id || roadwork.id || `${roadwork.road}-${roadwork.section}`,
+          coordinate: coordinates,
+          title: `${roadwork.road} - ${roadwork.section || 'Section'}`,
+          description: roadwork.title,
+          status: roadwork.status,
+          statusColor: getStatusColor(roadwork.status),
+          statusIcon: getStatusIcon(roadwork.status),
+          type: markerType,
+          metadata: [
+            { label: 'Status', value: roadwork.status, iconName: getStatusIcon(roadwork.status) },
+            roadwork.updatedAt && {
+              label: 'Updated',
+              value: new Date(roadwork.updatedAt).toLocaleDateString(),
+              iconName: 'time-outline',
+            },
+            roadwork.expectedDelayMinutes && {
+              label: 'Delay',
+              value: `${roadwork.expectedDelayMinutes} mins`,
+              iconName: 'warning',
+            },
+          ].filter(Boolean),
+          primaryAction: {
+            label: 'View details',
+            iconName: 'arrow-forward',
+            onPress: () => handleRoadworkPress(roadwork),
+          },
+        };
+      })
+      .filter(Boolean);
+  }, [roadworks, showRoadworks]);
 
+  const userMarker = useMemo(() => {
+    if (!showSelectedMarker || !selectedLocation) return null;
+    return {
+      id: 'selected-location',
+      coordinate: selectedLocation,
+      title: markerTitle,
+      description: markerDescription,
+      type: MARKER_TYPES.USER_PIN,
+    };
+  }, [markerDescription, markerTitle, selectedLocation, showSelectedMarker]);
+
+  const markers = useMemo(() => {
+    const combined = [...roadworkMarkers];
+    if (userMarker) combined.push(userMarker);
+    return combined;
+  }, [roadworkMarkers, userMarker]);
+
+  const bottomSheetData = useMemo(() => {
+    if (!activeRoadworkId) return null;
+    const active = roadworkMarkers.find((item) => item.id === activeRoadworkId);
+    return active
+      ? {
+          title: active.title,
+          description: active.description,
+          status: active.status,
+          statusColor: active.statusColor,
+          statusIcon: active.statusIcon,
+          metadata: active.metadata,
+          primaryAction: active.primaryAction,
+        }
+      : null;
+  }, [activeRoadworkId, roadworkMarkers]);
+
+  return (
+    <RoadsMap
+      mode={onMarkerDragEnd || onPress ? MAP_MODES.SELECT : MAP_MODES.VIEW}
+      initialRegion={region}
+      onRegionChange={onRegionChange}
+      onSelectLocation={onPress}
+      onMarkerPress={(marker) => {
+        if (marker.type !== MARKER_TYPES.USER_PIN) {
+          setActiveRoadworkId(marker.id);
+        }
+      }}
+      onMarkerDragEnd={onMarkerDragEnd}
+      markers={markers}
+      bottomSheetData={bottomSheetData}
+      style={style}
+    >
       {children}
-    </MapView>
+    </RoadsMap>
   );
 }
-
-const styles = StyleSheet.create({
-  map: {
-    flex: 1,
-  },
-  mapFallback: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-  },
-  fallbackText: {
-    marginTop: 16,
-    textAlign: 'center',
-    paddingHorizontal: 32,
-    fontSize: 16,
-  },
-  customMarker: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  callout: {
-    borderRadius: 8,
-    padding: 12,
-    minWidth: 200,
-    maxWidth: 250,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-  },
-  calloutTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  calloutDescription: {
-    fontSize: 13,
-    marginBottom: 8,
-  },
-  calloutStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  calloutStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  calloutTap: {
-    fontSize: 10,
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-});
 
 export default RoadworkMap;

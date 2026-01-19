@@ -14,7 +14,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useAppContext } from '../context/AppContext';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { requestLocationPermission } from '../utils/onboarding';
+import { requestLocationPermission, markOnboardingCompleted } from '../utils/onboarding';
 import RAIcon from '../assets/icon.png';
 
 // Import Unified Design System Components
@@ -29,6 +29,8 @@ export default function LocationPermissionScreen({ navigation, onComplete }) {
   const [loading, setLoading] = useState(false);
 
   const handleComplete = async () => {
+    // Mark onboarding as completed
+    await markOnboardingCompleted();
     // Refresh onboarding status in context
     await refreshOnboardingStatus();
     // Also call the callback if provided

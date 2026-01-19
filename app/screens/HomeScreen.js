@@ -17,9 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../hooks/useTheme';
 import { useAppContext } from '../context/AppContext';
-import { UnifiedSkeletonLoader } from '../components';
+import { UnifiedSkeletonLoader, SearchInput } from '../components';
 import { Card, Badge } from '../components';
-import { SearchInput } from '../components/SearchInput';
 import { bannersService } from '../services/bannersService';
 import { notificationsService } from '../services/notificationsService';
 import RAIcon from '../assets/icon.png';
@@ -36,9 +35,6 @@ const BREAKPOINTS = {
 
 // Minimum touch target size (Material Design & iOS guidelines)
 const MIN_TOUCH_TARGET = 48;
-
-// Gradient used on the welcome/onboarding screens (reused for the home hero)
-const WELCOME_HEADER_COLORS = ['#00B4E6', '#0090C0', '#0078A3'];
 
 /**
  * Determine device type and get responsive values based on screen width
@@ -167,22 +163,6 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
   const primaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(72 * scaleFactor, isLargeTablet ? 80 : 72));
   const secondaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(56 * scaleFactor, isLargeTablet ? 64 : 56));
 
-  // Rotate header background through available banners
-  useEffect(() => {
-    if (!banners || banners.length <= 1) return;
-    const interval = setInterval(() => {
-      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [banners]);
-
-  const heroBanner = banners.length > 0 ? banners[activeBannerIndex % banners.length] : null;
-  const heroImageSource = heroBanner
-    ? heroBanner.isLocal
-      ? heroBanner.source
-      : { uri: heroBanner.imageUrl }
-    : Poster1;
-
   const handleNatisOnline = async () => {
     await WebBrowser.openBrowserAsync('https://online.ra.org.na/#/');
   };
@@ -253,18 +233,14 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     }
   };
 
-  const primaryIconColor = colors.primary;
-  const primaryIconBg = '#E3F2FD';
-  const secondaryIconBg = '#F5F5F7';
-
   // Primary actions - most important, larger emphasis
   const primaryMenuItems = [
     {
       id: 1,
       title: 'NATIS Online',
       icon: 'car-outline',
-      color: primaryIconColor,
-      backgroundColor: primaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#E3F2FD',
       isPrimary: true,
       onPress: handleNatisOnline,
     },
@@ -272,8 +248,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 2.5,
       title: 'Report Road Damage',
       icon: 'alert-circle-outline',
-      color: primaryIconColor,
-      backgroundColor: primaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#E3F2FD',
       isPrimary: true,
       onPress: () => navigation?.navigate('ReportPothole'),
     },
@@ -281,8 +257,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 8.5,
       title: 'Road Status',
       icon: 'map-outline',
-      color: primaryIconColor,
-      backgroundColor: primaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#E3F2FD',
       isPrimary: true,
       onPress: () => navigation?.navigate('RoadStatus'),
     },
@@ -294,8 +270,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 1,
       title: 'E-Recruitment',
       icon: 'briefcase-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: handleERecruitment,
     },
@@ -303,8 +279,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 2,
       title: 'News',
       icon: 'newspaper-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('News'),
     },
@@ -312,8 +288,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 3,
       title: 'Careers',
       icon: 'document-text-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('Vacancies'),
     },
@@ -321,8 +297,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 4,
       title: 'Procurement',
       icon: 'business-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('Procurement'),
     },
@@ -330,8 +306,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 6,
       title: 'FAQs',
       icon: 'help-circle-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('FAQs'),
     },
@@ -339,8 +315,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 7,
       title: 'Find Offices',
       icon: 'location-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('Find Offices'),
     },
@@ -348,8 +324,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 8,
       title: 'Settings',
       icon: 'settings-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('MainTabs', { screen: 'Settings' }),
     },
@@ -357,8 +333,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 8.5,
       title: 'Alerts',
       icon: 'notifications-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('Notifications'),
     },
@@ -366,8 +342,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 9,
       title: 'Chat',
       icon: 'chatbubble-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('MainTabs', { screen: 'Chatbot' }),
     },
@@ -375,8 +351,8 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       id: 10,
       title: 'Applications',
       icon: 'document-text-outline',
-      color: primaryIconColor,
-      backgroundColor: secondaryIconBg,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       isPrimary: false,
       onPress: () => navigation?.navigate('Applications'),
     },
@@ -390,6 +366,11 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     () => getStyles(colors, responsiveConfig),
     [colors, responsiveConfig]
   );
+  const headerBackgroundSource = useMemo(() => {
+    if (banners.length === 0) return null;
+    const first = banners[0];
+    return first.isLocal ? first.source : { uri: first.imageUrl };
+  }, [banners]);
 
   const handleNotificationPress = (notification) => {
     // Navigate based on notification type
@@ -440,50 +421,25 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#00B4E6', '#0090C0', '#0078A3']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.header}
+      >
         <ImageBackground
-          source={heroImageSource}
-          style={styles.heroCard}
-          imageStyle={styles.heroImage}
+          source={headerBackgroundSource}
+          style={styles.headerBackground}
+          imageStyle={styles.headerBackgroundImage}
         >
-          <LinearGradient
-            colors={WELCOME_HEADER_COLORS}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.heroOverlay}
-          />
           <SafeAreaView edges={['top']}>
-            <View style={styles.headerContent}>
-              <TouchableOpacity
-                style={[styles.alertButton, styles.heroAlertButton]}
-                onPress={() => {
-                  const tabNavigator = navigation?.getParent('MainTabs');
-                  if (tabNavigator) {
-                    tabNavigator.navigate('Notifications');
-                  } else {
-                    navigation?.navigate('MainTabs', { screen: 'Notifications' });
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="notifications" size={24} color={colors.primary} />
-                {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
-                  <View style={styles.alertBadge}>
-                    <Text style={styles.alertBadgeText} maxFontSizeMultiplier={1.3}>
-                      {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 9 
-                        ? '9+' 
-                        : notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              <View style={styles.heroLogoWrapper}>
+          <View style={styles.headerContent}>
+            <View style={styles.brandContainer}>
+              <View style={styles.brandLogoWrapper}>
                 <Image 
                   source={RAIcon} 
-                  style={styles.brandLogoHero}
+                  style={styles.brandLogo}
                   resizeMode="contain"
-                  // Android-specific rendering optimization for crisp display
                   {...Platform.select({
                     android: {
                       renderToHardwareTextureAndroid: true,
@@ -491,44 +447,63 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                   })}
                 />
               </View>
-
-              <View style={styles.heroTextContainer}>
-                {user && user.fullName ? (
-                  <>
-                    <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome back</Text>
-                    <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>{user.fullName}</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Welcome to</Text>
-                    <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority Namibia</Text>
-                  </>
-                )}
+              <View style={styles.brandTextContainer}>
+                <Text style={styles.welcomeLabel} maxFontSizeMultiplier={1.3}>WELCOME TO</Text>
+                <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority Namibia</Text>
                 <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Safe Roads to Prosperity</Text>
-                <Text style={styles.heroDescription} maxFontSizeMultiplier={1.3}>
+                <Text style={styles.taglineText} maxFontSizeMultiplier={1.3}>
                   Your gateway to safer roads and essential services in Namibia.
                 </Text>
-
               </View>
             </View>
+
+            <TouchableOpacity
+              style={styles.alertButton}
+              onPress={() => {
+                // Always drive to alerts/notifications screen
+                const tabNavigator = navigation?.getParent('MainTabs');
+                if (tabNavigator?.navigate) {
+                  tabNavigator.navigate('Notifications');
+                } else {
+                  navigation?.navigate('Notifications');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="notifications" size={24} color={colors.primary} />
+              {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
+                <View style={styles.alertBadge}>
+                  <Text style={styles.alertBadgeText} maxFontSizeMultiplier={1.3}>
+                    {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 9 
+                      ? '9+' 
+                      : notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <SearchInput
+              placeholder="Search..."
+              value={searchQuery}
+              onSearch={setSearchQuery}
+              onChangeTextImmediate={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+              accessibilityLabel="Search services"
+              accessibilityHint="Search all services and quick actions"
+            />
+          </View>
           </SafeAreaView>
         </ImageBackground>
-
-        <View style={styles.searchContainer}>
-          <SearchInput
-            placeholder="Search..."
-            onSearch={setSearchQuery}
-            onClear={() => setSearchQuery('')}
-            accessibilityLabel="Search"
-            accessibilityHint="Search for content across the app"
-          />
-        </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.content}
       >
+
         {/* Recent Alerts Section */}
         {!searchQuery.trim() && 
          !loadingNotifications && 
@@ -707,7 +682,8 @@ function getStyles(colors, config) {
   const sectionFontSize = isPhone ? 20 : isTablet ? 22 : 24;
   
   // Banner height responsive to screen size
-  const bannerHeight = isPhone ? (isLandscape ? 140 : 180) : isTablet ? (isLandscape ? 200 : 220) : 240;
+  // Slightly shorter hero height to reduce header space
+  const bannerHeight = isPhone ? (isLandscape ? 120 : 160) : isTablet ? (isLandscape ? 180 : 200) : 220;
   
   return StyleSheet.create({
     container: {
@@ -715,63 +691,95 @@ function getStyles(colors, config) {
       backgroundColor: colors.background,
     },
     header: {
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: isPhone ? 20 : 24,
-      gap: isPhone ? 12 : 16,
-      backgroundColor: colors.background,
-    },
-    headerContent: {
-      paddingHorizontal: horizontalPadding,
-      paddingTop: isPhone ? 16 : 22,
-      paddingBottom: isPhone ? 24 : 30,
-      position: 'relative',
-    },
-    heroCard: {
-      width: '100%',
-      alignSelf: 'stretch',
-      borderRadius: 0,
-      overflow: 'hidden',
-      minHeight: isPhone ? 300 : 340,
-      justifyContent: 'flex-end',
-    },
-    heroImage: {
-      borderRadius: 0,
-    },
-    heroOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      opacity: 0.9,
-    },
-    heroLogoWrapper: {
-      alignSelf: 'center',
-      width: isPhone ? 96 : 108,
-      height: isPhone ? 96 : 108,
-      borderRadius: isPhone ? 48 : 54,
-      backgroundColor: '#FFFFFF',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: isPhone ? 12 : 16,
-      borderWidth: 3,
-      borderColor: 'rgba(255,255,255,0.5)',
+      borderBottomLeftRadius: isPhone ? 24 : 32,
+      borderBottomRightRadius: isPhone ? 24 : 32,
+      backgroundColor: 'transparent',
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.14,
-          shadowRadius: 8,
+          shadowColor: 'transparent',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0,
+          shadowRadius: 0,
         },
         android: {
-          elevation: 4,
+          elevation: 0,
         },
       }),
     },
-    brandLogoHero: {
-      width: isPhone ? 72 : 80,
-      height: isPhone ? 72 : 80,
-      resizeMode: 'contain',
+    headerContent: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      position: 'relative',
+      paddingHorizontal: horizontalPadding,
     },
-    heroTextContainer: {
-      gap: isPhone ? 6 : 8,
+    brandContainer: {
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 10,
+      width: '100%',
+    },
+    brandTextContainer: {
+      marginTop: 4,
+      width: '100%',
+      alignItems: 'center',
+    },
+    brandLogoWrapper: {
+      width: isPhone ? 96 : isTablet ? 104 : 112,
+      height: isPhone ? 96 : isTablet ? 104 : 112,
+      borderRadius: 999,
+      backgroundColor: '#FFFFFF',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 12,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    brandLogo: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 999,
+    },
+    welcomeLabel: {
+      color: '#FFFFFF',
+      fontSize: isPhone ? 12 : 13,
+      letterSpacing: 1.2,
+      fontWeight: '700',
+      marginBottom: 6,
+    },
+    titleText: {
+      color: '#FFFFFF',
+      fontSize: titleFontSize + 2,
+      fontWeight: '700',
+      marginTop: 0,
+      letterSpacing: -0.5,
+      textAlign: 'center',
+    },
+    subtitleText: {
+      color: '#FFFFFF',
+      fontSize: isPhone ? 15 : 17,
+      ...Platform.select({
+        ios: {
+          opacity: 0.9,
+        },
+        android: {},
+      }),
+      marginTop: 2,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    taglineText: {
+      color: '#FFFFFF',
+      fontSize: isPhone ? 13 : 14,
+      opacity: 0.9,
+      marginTop: 8,
+      textAlign: 'center',
+      lineHeight: isPhone ? 18 : 20,
+      paddingHorizontal: 0,
     },
     alertButton: {
       width: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
@@ -780,26 +788,11 @@ function getStyles(colors, config) {
       backgroundColor: '#FFFFFF',
       justifyContent: 'center',
       alignItems: 'center',
-      position: 'relative',
-      borderWidth: 1,
-      borderColor: 'rgba(0,0,0,0.06)',
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 2,
-        },
-      }),
-    },
-    heroAlertButton: {
       position: 'absolute',
-      top: isPhone ? 16 : 18,
-      right: isPhone ? 16 : 18,
-      zIndex: 2,
+      right: horizontalPadding,
+      top: 0,
+      elevation: 0,
+      shadowOpacity: 0,
     },
     alertBadge: {
       position: 'absolute',
@@ -820,58 +813,6 @@ function getStyles(colors, config) {
       fontSize: 10,
       fontWeight: '700',
     },
-    brandContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    brandTextContainer: {
-      marginLeft: 12,
-    },
-    brandLogo: {
-      width: isPhone ? 56 : isTablet ? 64 : 72,
-      height: isPhone ? 56 : isTablet ? 64 : 72,
-      resizeMode: 'contain',
-      borderRadius: isPhone ? 14 : 16,
-      backgroundColor: '#FFFFFF', // Solid white - no opacity for crisp Android rendering
-      padding: isPhone ? 6 : 8,
-      // Remove any elevation/shadow that could cause foggy appearance
-      elevation: 0,
-      shadowOpacity: 0,
-    },
-    welcomeText: {
-      color: '#EAF7FF',
-      fontSize: isPhone ? 13 : 14,
-      fontWeight: '600',
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
-    },
-    titleText: {
-      color: '#FFFFFF',
-      fontSize: isPhone ? 26 : 30,
-      fontWeight: '800',
-      letterSpacing: -0.6,
-      lineHeight: isPhone ? 32 : 36,
-    },
-    subtitleText: {
-      color: '#E3F5FF',
-      fontSize: isPhone ? 16 : 18,
-      fontWeight: '700',
-      marginTop: 2,
-      letterSpacing: -0.2,
-    },
-    heroDescription: {
-      color: '#EAF7FF',
-      fontSize: isPhone ? 13 : 14,
-      opacity: 0.92,
-      marginTop: 4,
-      lineHeight: isPhone ? 20 : 22,
-      fontWeight: '500',
-    },
-    searchContainer: {
-      marginTop: isPhone ? -28 : -34,
-      paddingHorizontal: horizontalPadding,
-      marginBottom: isPhone ? 2 : 4,
-    },
 
     scrollView: {
       flex: 1,
@@ -879,7 +820,26 @@ function getStyles(colors, config) {
     content: {
       padding: horizontalPadding,
       paddingBottom: isPhone ? 80 : 100,
-      paddingTop: isPhone ? 4 : 8, // Pull content closer to search
+      paddingTop: isPhone ? 12 : 20, // Reduced top padding on phones
+    },
+    searchContainer: {
+      marginBottom: isPhone ? 12 : 16,
+      paddingHorizontal: 0,
+      backgroundColor: 'transparent',
+    },
+    headerBackground: {
+      width: '100%',
+      borderBottomLeftRadius: isPhone ? 24 : 32,
+      borderBottomRightRadius: isPhone ? 24 : 32,
+      overflow: 'hidden',
+      minHeight: bannerHeight + verticalPadding * 1.5,
+      paddingTop: isPhone ? 18 : 24,
+      paddingBottom: isPhone ? 14 : 20,
+      paddingHorizontal: horizontalPadding,
+    },
+    headerBackgroundImage: {
+      opacity: 0.35,
+      resizeMode: 'cover',
     },
     menuSection: {
       marginTop: 8,

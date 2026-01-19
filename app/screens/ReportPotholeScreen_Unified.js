@@ -15,19 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
-
-// Conditionally import MapView
-let MapView = null;
-let Marker = null;
-let PROVIDER_GOOGLE = null;
-try {
-  const MapModule = require('react-native-maps');
-  MapView = MapModule.default;
-  Marker = MapModule.Marker;
-  PROVIDER_GOOGLE = MapModule.PROVIDER_GOOGLE;
-} catch (error) {
-  console.warn('MapView not available:', error.message);
-}
+import RoadsMap, { MAP_MODES, MARKER_TYPES } from '../components/RoadsMap';
 
 // Conditionally import native modules
 let Location = null;
@@ -889,24 +877,27 @@ export default function ReportPotholeScreen({ navigation }) {
           />
 
           <View style={styles.mapContainer}>
-            {mapRegion && MapView ? (
-              <MapView
-                ref={mapRef}
-                style={styles.map}
+            {mapRegion ? (
+              <RoadsMap
+                mode={MAP_MODES.SELECT}
                 initialRegion={mapRegion}
-                onPress={handleMapPress}
-                provider={Platform.OS === 'android' && PROVIDER_GOOGLE ? PROVIDER_GOOGLE : undefined}
-              >
-                {selectedLocation && Marker && (
-                  <Marker
-                    coordinate={selectedLocation}
-                    title="Road Damage Location"
-                    description="Drag marker to adjust position"
-                    draggable
-                    onDragEnd={handleMarkerDragEnd}
-                  />
-                )}
-              </MapView>
+                onSelectLocation={(coordinate) => handleMapPress({ nativeEvent: { coordinate } })}
+                onMarkerDragEnd={(coordinate) => handleMarkerDragEnd({ nativeEvent: { coordinate } })}
+                markers={
+                  selectedLocation
+                    ? [
+                        {
+                          id: 'damage-location',
+                          coordinate: selectedLocation,
+                          title: 'Road Damage Location',
+                          description: 'Drag marker to adjust position',
+                          type: MARKER_TYPES.USER_PIN,
+                        },
+                      ]
+                    : []
+                }
+                style={styles.map}
+              />
             ) : (
               <View style={[styles.map, styles.mapPlaceholder]}>
                 <Ionicons name="map-outline" size={64} color={colors.textSecondary} />

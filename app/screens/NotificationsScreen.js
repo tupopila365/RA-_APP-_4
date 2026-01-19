@@ -80,16 +80,10 @@ const getNotificationIcon = (type) => {
 };
 
 /**
- * Get color for notification type
+ * Get color for notification type - all use primary color
  */
-const getNotificationColor = (type) => {
-  const colorMap = {
-    news: '#007AFF',
-    tender: '#FF9500',
-    vacancy: '#34C759',
-    general: '#5856D6',
-  };
-  return colorMap[type] || '#5856D6';
+const getNotificationColor = (type, colors) => {
+  return colors.primary;
 };
 
 export default function NotificationsScreen({ navigation }) {
@@ -316,13 +310,13 @@ export default function NotificationsScreen({ navigation }) {
                     <View
                       style={[
                         styles.notificationIconContainer,
-                        { backgroundColor: getNotificationColor(notification.type) + '15' },
+                        { backgroundColor: getNotificationColor(notification.type, colors) + '15' },
                       ]}
                     >
                       <Ionicons
                         name={getNotificationIcon(notification.type)}
                         size={22}
-                        color={getNotificationColor(notification.type)}
+                        color={getNotificationColor(notification.type, colors)}
                       />
                     </View>
                     <View style={styles.notificationContent}>
@@ -389,13 +383,13 @@ export default function NotificationsScreen({ navigation }) {
                     <View
                       style={[
                         styles.modalIconContainer,
-                        { backgroundColor: getNotificationColor(selectedNotification.type) + '15' },
+                        { backgroundColor: getNotificationColor(selectedNotification.type, colors) + '15' },
                       ]}
                     >
                       <Ionicons
                         name={getNotificationIcon(selectedNotification.type)}
                         size={28}
-                        color={getNotificationColor(selectedNotification.type)}
+                        color={getNotificationColor(selectedNotification.type, colors)}
                       />
                     </View>
                     <TouchableOpacity

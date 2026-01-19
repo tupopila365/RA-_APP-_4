@@ -50,3 +50,4 @@ export { ProcurementTable } from './ProcurementTable';
 export { ProcurementTableRow } from './ProcurementTableRow';
 export { DetailCard } from './DetailCard';
 export { UnifiedSkeletonLoader } from './UnifiedSkeletonLoader';
+export { default as RoadsMap } from './RoadsMap';

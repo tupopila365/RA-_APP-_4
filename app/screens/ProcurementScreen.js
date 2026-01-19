@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,6 @@ const BREAKPOINTS = {
 };
 
 const MIN_TOUCH_TARGET = 48;
-const WELCOME_HEADER_COLORS = ['#00B4E6', '#0090C0', '#0078A3'];
 
 /* -------------------- RESPONSIVE CONFIG -------------------- */
 
@@ -75,7 +74,6 @@ export default function ProcurementScreen({ navigation }) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   const responsiveConfig = useMemo(
     () => getResponsiveConfig(screenWidth, screenHeight),
@@ -87,74 +85,45 @@ export default function ProcurementScreen({ navigation }) {
   const primaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(72 * scaleFactor, isLargeTablet ? 80 : 72));
   const secondaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(56 * scaleFactor, isLargeTablet ? 64 : 56));
 
-  const tileColor = colors.primary;
-  const tileBackground = colors.backgroundSecondary || colors.surface || '#F5F5F7';
-
-  const banners = [
-    {
-      id: '1',
-      source: ProcurementImage1,
-      title: 'Procurement Services',
-      description: 'Transparent and Efficient Procurement',
-    },
-    {
-      id: '2',
-      source: ProcurementImage2,
-      title: 'Tender Opportunities',
-      description: 'Open and Fair Bidding Process',
-    },
-  ];
-
-  useEffect(() => {
-    if (!banners || banners.length <= 1) return;
-    const interval = setInterval(() => {
-      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [banners]);
-
-  const heroBanner = banners.length > 0 ? banners[activeBannerIndex % banners.length] : null;
-  const heroImageSource = heroBanner ? heroBanner.source : ProcurementImage1;
-
   const menuItems = [
     {
       id: 1,
       title: 'Procurement Plan',
       icon: 'calendar-outline',
-      color: tileColor,
-      backgroundColor: tileBackground,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       onPress: () => navigation.navigate('ProcurementPlan'),
     },
     {
       id: 2,
       title: 'Bids & RFQs',
       icon: 'document-text-outline',
-      color: tileColor,
-      backgroundColor: tileBackground,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       onPress: () => navigation.navigate('OpeningRegister'),
     },
     {
       id: 3,
       title: 'Awards',
       icon: 'trophy-outline',
-      color: tileColor,
-      backgroundColor: tileBackground,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       onPress: () => navigation.navigate('ProcurementAwards'),
     },
     {
       id: 4,
       title: 'Opening Register',
       icon: 'list-outline',
-      color: tileColor,
-      backgroundColor: tileBackground,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       onPress: () => navigation.navigate('OpeningRegister'),
     },
     {
       id: 5,
       title: 'Legislation',
       icon: 'library-outline',
-      color: tileColor,
-      backgroundColor: tileBackground,
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
       onPress: () => navigation.navigate('ProcurementLegislation'),
     },
   ];
@@ -166,47 +135,58 @@ export default function ProcurementScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* ---------- HEADER (Home-style hero) ---------- */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#00B4E6', '#0090C0', '#0078A3']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.header}
+      >
         <ImageBackground
-          source={heroImageSource}
-          style={styles.heroCard}
-          imageStyle={styles.heroImage}
+          source={ProcurementImage1}
+          style={styles.headerBackground}
+          imageStyle={styles.headerBackgroundImage}
         >
-          <LinearGradient
-            colors={WELCOME_HEADER_COLORS}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.heroOverlay}
-          />
           <SafeAreaView edges={['top']}>
-            <View style={styles.headerContent}>
-              <View style={styles.heroLogoWrapper}>
-                <Image source={RAIcon} style={styles.brandLogoHero} resizeMode="contain" />
+          <View style={styles.headerContent}>
+            <View style={styles.brandContainer}>
+              <View style={styles.brandLogoWrapper}>
+                <Image 
+                  source={RAIcon} 
+                  style={styles.brandLogo}
+                  resizeMode="contain"
+                  {...Platform.select({
+                    android: {
+                      renderToHardwareTextureAndroid: true,
+                    },
+                  })}
+                />
               </View>
-
-              <View style={styles.heroTextContainer}>
-                <Text style={styles.welcomeText} maxFontSizeMultiplier={1.3}>Roads Authority</Text>
-                <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Procurement</Text>
-                <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Transparent and efficient services</Text>
-                <Text style={styles.heroDescription} maxFontSizeMultiplier={1.3}>
-                  Access tenders, plans, awards, and key procurement resources.
+              <View style={styles.brandTextContainer}>
+                <Text style={styles.welcomeLabel} maxFontSizeMultiplier={1.3}>WELCOME TO</Text>
+                <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority Namibia</Text>
+                <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Procurement Services</Text>
+                <Text style={styles.taglineText} maxFontSizeMultiplier={1.3}>
+                  Transparent and efficient procurement services for Namibia.
                 </Text>
               </View>
             </View>
+          </View>
+
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <SearchInput
+              placeholder="Search procurement services..."
+              value={searchQuery}
+              onSearch={setSearchQuery}
+              onChangeTextImmediate={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+              accessibilityLabel="Search procurement services"
+              accessibilityHint="Type to filter available procurement options"
+            />
+          </View>
           </SafeAreaView>
         </ImageBackground>
-
-        <View style={styles.searchContainer}>
-          <SearchInput
-            placeholder="Search procurement services..."
-            onSearch={setSearchQuery}
-            onClear={() => setSearchQuery('')}
-            accessibilityLabel="Search procurement services"
-            accessibilityHint="Type to filter available procurement options"
-          />
-        </View>
-      </View>
+      </LinearGradient>
 
       {/* ---------- CONTENT ---------- */}
       <ScrollView 
@@ -302,6 +282,10 @@ function getStyles(colors, config) {
   const titleFontSize = isPhone ? 22 : isTablet ? 24 : 26;
   const sectionFontSize = isPhone ? 20 : isTablet ? 22 : 24;
 
+  // Banner height responsive to screen size
+  // Match home header compact height
+  const bannerHeight = isPhone ? (isLandscape ? 120 : 160) : isTablet ? (isLandscape ? 180 : 200) : 220;
+
   return StyleSheet.create({
     container: { 
       flex: 1, 
@@ -309,110 +293,114 @@ function getStyles(colors, config) {
     },
 
     header: {
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: isPhone ? 20 : 24,
-      gap: isPhone ? 12 : 16,
-      backgroundColor: colors.background,
-    },
-
-    headerContent: {
-      paddingHorizontal: horizontalPadding,
-      paddingTop: isPhone ? 16 : 22,
-      paddingBottom: isPhone ? 24 : 30,
-      position: 'relative',
-      alignItems: 'center',
-      gap: isPhone ? 10 : 12,
-    },
-
-    heroCard: {
-      width: '100%',
-      alignSelf: 'stretch',
-      borderRadius: 0,
-      overflow: 'hidden',
-      minHeight: isPhone ? 300 : 340,
-      justifyContent: 'flex-end',
-    },
-
-    heroImage: {
-      borderRadius: 0,
-    },
-
-    heroOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      opacity: 0.9,
-    },
-
-    heroLogoWrapper: {
-      alignSelf: 'center',
-      width: isPhone ? 96 : 108,
-      height: isPhone ? 96 : 108,
-      borderRadius: isPhone ? 48 : 54,
-      backgroundColor: '#FFFFFF',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: isPhone ? 6 : 10,
-      borderWidth: 3,
-      borderColor: 'rgba(255,255,255,0.5)',
+      borderBottomLeftRadius: isPhone ? 24 : 32,
+      borderBottomRightRadius: isPhone ? 24 : 32,
+      backgroundColor: 'transparent',
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.14,
-          shadowRadius: 8,
+          shadowColor: 'transparent',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0,
+          shadowRadius: 0,
         },
         android: {
-          elevation: 4,
+          elevation: 0,
         },
       }),
     },
-
-    brandLogoHero: {
-      width: isPhone ? 72 : 80,
-      height: isPhone ? 72 : 80,
-      resizeMode: 'contain',
+    headerContent: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      position: 'relative',
+      paddingHorizontal: horizontalPadding,
     },
-
-    heroTextContainer: {
-      gap: isPhone ? 4 : 6,
+    brandContainer: {
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 10,
+      width: '100%',
+    },
+    brandTextContainer: {
+      marginTop: 4,
+      width: '100%',
       alignItems: 'center',
     },
-
-    welcomeText: { 
-      color: '#EAF7FF',
-      fontSize: isPhone ? 13 : 14,
-      fontWeight: '600',
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
+    brandLogoWrapper: {
+      width: isPhone ? 96 : isTablet ? 104 : 112,
+      height: isPhone ? 96 : isTablet ? 104 : 112,
+      borderRadius: 999,
+      backgroundColor: '#FFFFFF',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 12,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
     },
-
-    titleText: { 
+    brandLogo: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 999,
+    },
+    welcomeLabel: {
       color: '#FFFFFF',
-      fontSize: isPhone ? 26 : 30,
-      fontWeight: '800',
-      marginTop: 2,
-      letterSpacing: -0.6,
-      lineHeight: isPhone ? 32 : 36,
-      textAlign: 'center',
-    },
-
-    subtitleText: { 
-      color: '#E3F5FF',
-      fontSize: isPhone ? 16 : 18,
-      marginTop: 0,
+      fontSize: isPhone ? 12 : 13,
+      letterSpacing: 1.2,
       fontWeight: '700',
-      letterSpacing: -0.2,
+      marginBottom: 6,
+    },
+    titleText: {
+      color: '#FFFFFF',
+      fontSize: titleFontSize + 2,
+      fontWeight: '700',
+      marginTop: 0,
+      letterSpacing: -0.5,
       textAlign: 'center',
     },
-
-    heroDescription: {
-      color: '#EAF7FF',
-      fontSize: isPhone ? 13 : 14,
-      opacity: 0.92,
+    subtitleText: {
+      color: '#FFFFFF',
+      fontSize: isPhone ? 15 : 17,
+      ...Platform.select({
+        ios: {
+          opacity: 0.9,
+        },
+        android: {},
+      }),
       marginTop: 2,
-      lineHeight: isPhone ? 20 : 22,
-      fontWeight: '500',
+      fontWeight: '600',
       textAlign: 'center',
+    },
+    taglineText: {
+      color: '#FFFFFF',
+      fontSize: isPhone ? 13 : 14,
+      opacity: 0.9,
+      marginTop: 8,
+      textAlign: 'center',
+      lineHeight: isPhone ? 18 : 20,
+      paddingHorizontal: 0,
+    },
+    headerBackground: {
+      width: '100%',
+      borderBottomLeftRadius: isPhone ? 24 : 32,
+      borderBottomRightRadius: isPhone ? 24 : 32,
+      overflow: 'hidden',
+      minHeight: bannerHeight + (verticalPadding * 2),
+      paddingTop: isPhone ? 24 : 30,
+      paddingBottom: isPhone ? 20 : 25,
+      paddingHorizontal: horizontalPadding,
+    },
+    headerBackgroundImage: {
+      opacity: 0.35,
+      resizeMode: 'cover',
+    },
+    searchContainer: {
+      marginBottom: isPhone ? 12 : 16,
+      paddingHorizontal: 0,
+      backgroundColor: 'transparent',
     },
 
     scrollView: {
@@ -420,15 +408,93 @@ function getStyles(colors, config) {
     },
 
     content: { 
-      paddingHorizontal: horizontalPadding,
+      padding: horizontalPadding,
       paddingBottom: isPhone ? 80 : 100,
-      paddingTop: isPhone ? 4 : 8,
+      paddingTop: isPhone ? 12 : 20,
     },
 
-    searchContainer: {
-      marginTop: isPhone ? -28 : -34,
-      paddingHorizontal: horizontalPadding,
-      marginBottom: isPhone ? 6 : 10,
+    bannerContainer: {
+      marginBottom: 24,
+      position: 'relative',
+    },
+
+    bannerScrollContent: {
+      paddingRight: horizontalPadding,
+    },
+
+    banner: {
+      width: screenWidth - horizontalPadding * 2,
+      height: bannerHeight,
+      borderRadius: isPhone ? 16 : 20,
+      overflow: 'hidden',
+      marginRight: gridGap,
+      justifyContent: 'flex-end',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 1,
+        },
+      }),
+      borderWidth: 1,
+      borderColor: '#E6EAF0',
+    },
+
+    bannerImage: { 
+      borderRadius: isPhone ? 16 : 20,
+      resizeMode: 'cover',
+    },
+
+    bannerOverlay: {
+      backgroundColor: '#000000',
+      opacity: 0.6,
+      padding: 20,
+      borderBottomLeftRadius: isPhone ? 16 : 20,
+      borderBottomRightRadius: isPhone ? 16 : 20,
+    },
+
+    bannerText: { 
+      color: '#FFFFFF',
+      fontSize: 20,
+      fontWeight: '700',
+      letterSpacing: -0.3,
+      lineHeight: 26,
+    },
+
+    bannerSubtext: { 
+      color: '#FFFFFF',
+      fontSize: 13,
+      marginTop: 8,
+      opacity: 0.95,
+      fontWeight: '500',
+    },
+
+    paginationContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 12,
+      gap: 8,
+    },
+
+    paginationDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.textSecondary,
+      opacity: 0.3,
+    },
+
+    paginationDotActive: {
+      backgroundColor: colors.primary,
+      opacity: 1,
+      width: 28,
+      height: 8,
+      borderRadius: 4,
     },
 
     /* ---- ALL SERVICES GRID ---- */
@@ -454,14 +520,14 @@ function getStyles(colors, config) {
     menuItem: {
       width: secondaryItemWidth,
       minWidth: MIN_TOUCH_TARGET * 1.8,
-      backgroundColor: colors.card,
+      backgroundColor: '#FFFFFF',
       borderRadius: isPhone ? 12 : 16,
       padding: isPhone ? 10 : 14,
       marginBottom: isPhone ? 10 : 16,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: '#E6EAF0',
       ...Platform.select({
         ios: {
           shadowColor: '#000',

@@ -1224,16 +1224,18 @@ export default function ReportPotholeScreen({ navigation }) {
             </View>
           )}
 
-          <UnifiedButton
-            variant="primary"
-            label="Confirm Location"
+          <TouchableOpacity
+            style={[
+              styles.confirmLocationButton,
+              !selectedLocation && { opacity: 0.6 },
+            ]}
             onPress={confirmMapLocation}
             disabled={!selectedLocation}
-            fullWidth
-            size="large"
-            iconName="checkmark"
-            style={styles.confirmButton}
-          />
+            activeOpacity={0.8}
+          >
+            <Ionicons name="navigate" size={20} color="#FFFFFF" />
+            <Text style={styles.confirmLocationButtonText}>Confirm Location</Text>
+          </TouchableOpacity>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -1740,10 +1742,34 @@ function getStyles(colors, insets) {
       fontSize: 13,
       color: colors.textSecondary,
     },
-    confirmButton: {
+    confirmLocationButton: {
       margin: 16,
       marginTop: 0,
       marginBottom: 16 + (insets?.bottom || 0),
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 16,
+      paddingHorizontal: 24,
+      borderRadius: 12,
+      gap: 8,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 8,
+        },
+      }),
+    },
+    confirmLocationButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
     },
   });
 }

@@ -126,11 +126,17 @@ export function AppProvider({ children }) {
         setHasCompletedOnboarding(true);
         return true;
       }
+      // In production, if we just marked onboarding as completed, 
+      // we should set it to true even if SecureStore hasn't updated yet
+      // But we'll still check SecureStore to be safe
       setHasCompletedOnboarding(completed);
       return completed;
     } catch (err) {
       console.error('Error refreshing onboarding status:', err);
-      throw err;
+      // If there's an error checking, assume onboarding is completed
+      // to prevent getting stuck on onboarding screens
+      setHasCompletedOnboarding(true);
+      return true;
     }
   }, [onboardingShownThisSession]);
 

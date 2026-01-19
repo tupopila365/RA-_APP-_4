@@ -160,7 +160,7 @@ export default function SettingsScreen() {
               style={styles.quickActionItem}
               onPress={() => navigation.navigate('MyReports')}
             >
-              <View style={[styles.quickActionIcon, { backgroundColor: `${colors.primary}20`, borderWidth: 1, borderColor: colors.primary }]}>
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
                 <Ionicons name="document-text-outline" size={24} color={colors.primary} />
               </View>
               <Text style={styles.quickActionText}>My Reports</Text>
@@ -169,19 +169,19 @@ export default function SettingsScreen() {
               style={styles.quickActionItem}
               onPress={() => navigation.navigate('Notifications')}
             >
-              <View style={[styles.quickActionIcon, { backgroundColor: `${colors.primary}20` }]}>
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
                 <Ionicons name="notifications-outline" size={24} color={colors.primary} />
               </View>
               <Text style={styles.quickActionText}>Alerts</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionItem}>
-              <View style={[styles.quickActionIcon, { backgroundColor: `${colors.primary}20` }]}>
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
                 <Ionicons name="help-circle-outline" size={24} color={colors.primary} />
               </View>
               <Text style={styles.quickActionText}>Help</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionItem}>
-              <View style={[styles.quickActionIcon, { backgroundColor: `${colors.primary}20` }]}>
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
                 <Ionicons name="chatbubble-outline" size={24} color={colors.primary} />
               </View>
               <Text style={styles.quickActionText}>Support</Text>
@@ -295,7 +295,7 @@ export default function SettingsScreen() {
           // Show Sign Out button when user is logged in
           <View style={styles.section}>
             <TouchableOpacity style={styles.signOutButton} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={20} color={colors.primary} />
+              <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
               <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
           </View>

@@ -404,6 +404,11 @@ function AppNavigator() {
         component={PLNTrackingScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen 
+        name="Forms" 
+        component={FormsScreen}
+        options={{ title: 'Forms & Documents' }}
+      />
       <Stack.Screen
         name="Auth"
         component={AuthStack}
