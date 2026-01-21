@@ -16,6 +16,7 @@ import faqsRoutes from './modules/faqs/faqs.routes';
 import potholeReportsRoutes from './modules/pothole-reports/pothole-reports.routes';
 import notificationsRoutes from './modules/notifications/notifications.routes';
 import plnRoutes from './modules/pln/pln.routes';
+import vehicleRegRoutes from './modules/vehicle-reg/vehicle-reg.routes';
 import appUsersRoutes from './modules/app-users/app-users.routes';
 import trafficRoutes from './modules/traffic/traffic.routes';
 import incidentsRoutes from './modules/incidents/incidents.routes';
@@ -63,6 +64,7 @@ export const createApp = (): Application => {
   app.use('/api/pothole-reports', potholeReportsRoutes);
   app.use('/api/notifications', notificationsRoutes);
   app.use('/api/pln', plnRoutes);
+  app.use('/api/vehicle-reg', vehicleRegRoutes);
   app.use('/api/app-users', appUsersRoutes);
   app.use('/api/traffic', trafficRoutes);
   app.use('/api/incidents', incidentsRoutes);

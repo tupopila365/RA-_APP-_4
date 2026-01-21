@@ -24,6 +24,7 @@ import {
   Warning as PotholeIcon,
   Traffic as RoadStatusIcon,
   ReportProblem as IncidentIcon,
+  DirectionsCar as VehicleIcon,
   Description as ProcurementIcon,
   ListAlt as RegisterIcon,
 } from '@mui/icons-material';
@@ -123,6 +124,12 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         path: '/incidents',
         icon: <IncidentIcon />,
         permission: 'incidents:manage',
+      },
+      {
+        label: 'Vehicle Registration',
+        path: '/vehicle-reg',
+        icon: <VehicleIcon />,
+        permission: 'vehicle-reg:manage',
       },
       {
         label: 'Procurement Legislation',

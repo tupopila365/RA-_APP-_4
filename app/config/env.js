@@ -32,7 +32,7 @@ const ENV = {
     // Option 1: USB Connection (RECOMMENDED - bypasses firewall)
     // Requires: adb reverse tcp:5000 tcp:5000
     //API_BASE_URL: 'http://192.168.11.52:5000/api',
-   API_BASE_URL: 'http://192.168.0.2:5000/api',
+   API_BASE_URL: 'http://192.168.100.103:5000/api',
     
     // Option 2: WiFi Connection (if localhost doesn't work)
     // Your backend is running on: http://192.168.108.1:5000

@@ -127,6 +127,22 @@ export default function ApplicationsScreen({ navigation }) {
     },
     {
       id: 3,
+      title: 'Vehicle Registration (New)',
+      icon: 'car-outline',
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
+      onPress: () => navigation?.navigate('VehicleRegistrationInfo', { type: 'new' }),
+    },
+    {
+      id: 4,
+      title: 'Vehicle Registration (Existing)',
+      icon: 'car-sport-outline',
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
+      onPress: () => navigation?.navigate('VehicleRegistrationInfo', { type: 'existing' }),
+    },
+    {
+      id: 5,
       title: 'My Reports',
       icon: 'list-outline',
       color: colors.primary,
@@ -134,7 +150,7 @@ export default function ApplicationsScreen({ navigation }) {
       onPress: () => navigation?.navigate('MyReports'),
     },
     {
-      id: 4,
+      id: 6,
       title: 'Forms',
       icon: 'document-text-outline',
       color: colors.primary,

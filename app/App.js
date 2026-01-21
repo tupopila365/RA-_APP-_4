@@ -43,6 +43,8 @@ import PLNApplicationScreenEnhanced from './screens/PLNApplicationScreenEnhanced
 import PLNWizardScreen from './screens/PLNWizardScreen';
 import PLNConfirmationScreen from './screens/PLNConfirmationScreen';
 import PLNTrackingScreen from './screens/PLNTrackingScreen';
+import VehicleRegistrationInfoScreen from './screens/VehicleRegistrationInfoScreen';
+import VehicleRegistrationWizardScreen from './screens/VehicleRegistrationWizardScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import EmailVerificationScreen from './screens/EmailVerificationScreen';
@@ -402,6 +404,16 @@ function AppNavigator() {
       <Stack.Screen 
         name="PLNTracking" 
         component={PLNTrackingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="VehicleRegistrationInfo" 
+        component={VehicleRegistrationInfoScreen}
+        options={{ title: 'Vehicle Registration' }}
+      />
+      <Stack.Screen 
+        name="VehicleRegistrationWizard" 
+        component={VehicleRegistrationWizardScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen 

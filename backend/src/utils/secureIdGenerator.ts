@@ -22,6 +22,22 @@ export class SecureIdGenerator {
   }
 
   /**
+   * Generate cryptographically secure Vehicle Registration reference ID
+   * Format: VREG-{YYYY}-{SecureRandom12}
+   */
+  static generateVehicleRegReferenceId(): string {
+    const year = new Date().getFullYear();
+    
+    // Generate 12-character secure random string
+    // Using custom alphabet to avoid confusion (no 0, O, I, l)
+    const alphabet = '123456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+    const nanoid = customAlphabet(alphabet, 12);
+    const secureRandom = nanoid();
+    
+    return `VREG-${year}-${secureRandom}`;
+  }
+
+  /**
    * Generate secure tracking token (for additional security layer)
    */
   static generateTrackingToken(): string {

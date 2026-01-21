@@ -16,6 +16,9 @@ import { ReportsList, ReportDetail } from './pages/PotholeReports';
 import PLNDashboardPage from './pages/PLN/PLNDashboardPage';
 import PLNListPage from './pages/PLN/PLNListPage';
 import PLNDetailPage from './pages/PLN/PLNDetailPage';
+import VehicleDashboardPage from './pages/Vehicle/VehicleDashboardPage';
+import VehicleListPage from './pages/Vehicle/VehicleListPage';
+import VehicleDetailPage from './pages/Vehicle/VehicleDetailPage';
 import { IncidentsList, IncidentForm } from './pages/Incidents';
 import { ProcurementLegislationPage } from './pages/ProcurementLegislation';
 import { ProcurementPlanPage } from './pages/ProcurementPlan';
@@ -829,6 +832,36 @@ function App() {
                 <ProtectedRoute requiredPermission="pln:manage">
                   <Layout>
                     <PLNDetailPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vehicle-reg"
+              element={
+                <ProtectedRoute requiredPermission="vehicle-reg:manage">
+                  <Layout>
+                    <VehicleDashboardPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vehicle-reg/applications"
+              element={
+                <ProtectedRoute requiredPermission="vehicle-reg:manage">
+                  <Layout>
+                    <VehicleListPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vehicle-reg/applications/:id"
+              element={
+                <ProtectedRoute requiredPermission="vehicle-reg:manage">
+                  <Layout>
+                    <VehicleDetailPage />
                   </Layout>
                 </ProtectedRoute>
               }
