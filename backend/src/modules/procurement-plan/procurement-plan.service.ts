@@ -1,4 +1,5 @@
-import { ProcurementPlanModel, IProcurementPlan } from './procurement-plan.model';
+import { AppDataSource } from '../../config/db';
+import { ProcurementPlan } from './procurement-plan.entity';
 import {
   CreateProcurementPlanDTO,
   UpdateProcurementPlanDTO,
@@ -8,29 +9,26 @@ import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
 export interface ListProcurementPlanResult {
-  items: IProcurementPlan[];
+  items: ProcurementPlan[];
   total: number;
   page: number;
   totalPages: number;
 }
 
 class ProcurementPlanService {
-  /**
-   * Create a new procurement plan
-   */
-  async createPlan(dto: CreateProcurementPlanDTO, createdBy?: string): Promise<IProcurementPlan> {
+  async createPlan(dto: CreateProcurementPlanDTO, createdBy?: string): Promise<ProcurementPlan> {
     try {
       logger.info('Creating procurement plan:', { fiscalYear: dto.fiscalYear });
-
-      const plan = await ProcurementPlanModel.create({
+      const repo = AppDataSource.getRepository(ProcurementPlan);
+      const plan = repo.create({
         fiscalYear: dto.fiscalYear,
         documentUrl: dto.documentUrl,
         documentFileName: dto.documentFileName,
         published: dto.published || false,
         createdBy,
       });
-
-      logger.info(`Procurement plan created with ID: ${plan._id}`);
+      await repo.save(plan);
+      logger.info(`Procurement plan created with ID: ${plan.id}`);
       return plan;
     } catch (error: any) {
       logger.error('Create procurement plan error:', error);
@@ -43,46 +41,27 @@ class ProcurementPlanService {
     }
   }
 
-  /**
-   * List procurement plans with pagination, filtering, and search
-   */
   async listPlans(query: ListProcurementPlanQuery): Promise<ListProcurementPlanResult> {
     try {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
+      const repo = AppDataSource.getRepository(ProcurementPlan);
 
-      // Build filter
-      const filter: any = {};
+      const buildQb = () => {
+        const qb = repo.createQueryBuilder('p');
+        if (query.fiscalYear) qb.andWhere('p.fiscalYear = :fiscalYear', { fiscalYear: query.fiscalYear });
+        if (query.published !== undefined) qb.andWhere('p.published = :published', { published: query.published });
+        if (query.search) qb.andWhere('p.fiscalYear LIKE :search', { search: `%${query.search}%` });
+        return qb;
+      };
 
-      if (query.fiscalYear) {
-        filter.fiscalYear = query.fiscalYear;
-      }
-
-      if (query.published !== undefined) {
-        filter.published = query.published;
-      }
-
-      if (query.search) {
-        filter.$text = { $search: query.search };
-      }
-
-      // Execute query with pagination
       const [items, total] = await Promise.all([
-        ProcurementPlanModel.find(filter)
-          .sort({ publishedAt: -1, createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        ProcurementPlanModel.countDocuments(filter),
+        buildQb().orderBy('p.publishedAt', 'DESC').addOrderBy('p.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+        buildQb().getCount(),
       ]);
 
-      return {
-        items: items as unknown as IProcurementPlan[],
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
-      };
+      return { items, total, page, totalPages: Math.ceil(total / limit) };
     } catch (error: any) {
       logger.error('List procurement plans error:', error);
       throw {
@@ -94,27 +73,18 @@ class ProcurementPlanService {
     }
   }
 
-  /**
-   * Get a single procurement plan by ID
-   */
-  async getPlanById(id: string): Promise<IProcurementPlan> {
+  async getPlanById(id: string): Promise<ProcurementPlan> {
     try {
-      const plan = await ProcurementPlanModel.findById(id).lean();
-
+      const idNum = parseInt(id, 10);
+      const repo = AppDataSource.getRepository(ProcurementPlan);
+      const plan = await repo.findOne({ where: { id: idNum } });
       if (!plan) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Procurement plan not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Procurement plan not found' };
       }
-
-      return plan as unknown as IProcurementPlan;
+      return plan;
     } catch (error: any) {
       logger.error('Get procurement plan error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -124,43 +94,23 @@ class ProcurementPlanService {
     }
   }
 
-  /**
-   * Update procurement plan
-   */
-  async updatePlan(id: string, dto: UpdateProcurementPlanDTO): Promise<IProcurementPlan> {
+  async updatePlan(id: string, dto: UpdateProcurementPlanDTO): Promise<ProcurementPlan> {
     try {
       logger.info(`Updating procurement plan: ${id}`);
-
-      const updateData: any = { ...dto };
-
-      // If publishing for the first time, set publishedAt
-      if (dto.published === true) {
-        const existing = await ProcurementPlanModel.findById(id);
-        if (existing && !existing.published && !existing.publishedAt) {
-          updateData.publishedAt = new Date();
-        }
-      }
-
-      const plan = await ProcurementPlanModel.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      }).lean();
-
+      const idNum = parseInt(id, 10);
+      const repo = AppDataSource.getRepository(ProcurementPlan);
+      const plan = await repo.findOne({ where: { id: idNum } });
       if (!plan) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Procurement plan not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Procurement plan not found' };
       }
-
+      if (dto.published === true && !plan.publishedAt) plan.publishedAt = new Date();
+      Object.assign(plan, dto);
+      await repo.save(plan);
       logger.info(`Procurement plan ${id} updated successfully`);
-      return plan as unknown as IProcurementPlan;
+      return plan;
     } catch (error: any) {
       logger.error('Update procurement plan error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -170,48 +120,26 @@ class ProcurementPlanService {
     }
   }
 
-  /**
-   * Delete procurement plan
-   */
   async deletePlan(id: string): Promise<void> {
     try {
       if (!id || id === 'undefined' || id === 'null') {
-        logger.error('Delete called with invalid ID:', id);
-        throw {
-          statusCode: 400,
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Procurement plan ID is required',
-        };
+        throw { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR, message: 'Procurement plan ID is required' };
       }
-
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
+        throw { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR, message: 'Invalid procurement plan ID format' };
+      }
       logger.info(`Deleting procurement plan: ${id}`);
-
-      const plan = await ProcurementPlanModel.findByIdAndDelete(id);
-
+      const repo = AppDataSource.getRepository(ProcurementPlan);
+      const plan = await repo.findOne({ where: { id: idNum } });
       if (!plan) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Procurement plan not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Procurement plan not found' };
       }
-
+      await repo.remove(plan);
       logger.info(`Procurement plan ${id} deleted successfully`);
     } catch (error: any) {
-      logger.error('Delete procurement plan error:', { id, error: error.message });
-      if (error.statusCode) {
-        throw error;
-      }
-
-      if (error.name === 'CastError') {
-        throw {
-          statusCode: 400,
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Invalid procurement plan ID format',
-          details: error.message,
-        };
-      }
-
+      logger.error('Delete procurement plan error:', { id, error: (error as Error).message });
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -223,4 +151,3 @@ class ProcurementPlanService {
 }
 
 export const procurementPlanService = new ProcurementPlanService();
-

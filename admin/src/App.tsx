@@ -27,6 +27,7 @@ import { ProcurementOpeningRegisterPage } from './pages/ProcurementOpeningRegist
 import { BidsRFQsPage } from './pages/BidsRFQs';
 import { RoadStatusList, RoadStatusForm } from './pages/RoadStatus';
 import FormsPage from './pages/Forms/FormsPage';
+import { RAServicesPage } from './pages/RAServices';
 import Layout from './components/Layout/Layout';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
@@ -902,6 +903,16 @@ function App() {
                 <ProtectedRoute requiredPermission="procurement:awards:manage">
                   <Layout>
                     <FormsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ra-services"
+              element={
+                <ProtectedRoute requiredPermission="ra-services:manage">
+                  <Layout>
+                    <RAServicesPage />
                   </Layout>
                 </ProtectedRoute>
               }

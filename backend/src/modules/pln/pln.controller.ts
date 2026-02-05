@@ -34,7 +34,7 @@ const buildApplicationResponse = (application: IPLN) => {
     '';
 
   return {
-    id: application._id,
+    id: application.id,
     referenceId: application.referenceId,
     transactionType: application.transactionType,
 
@@ -263,13 +263,13 @@ export class PLNController {
       // Create application
       const application = await plnService.createApplication(dto, req.file);
 
-      logger.info(`PLN application created successfully: ${application._id}`);
+      logger.info(`PLN application created successfully: ${application.id}`);
 
       res.status(201).json({
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             referenceId: application.referenceId,
             trackingPin: application.trackingPin,
             fullName: application.fullName,
@@ -313,7 +313,7 @@ export class PLNController {
         success: true,
         data: {
           applications: applications.map((app) => ({
-            id: app._id,
+            id: app.id,
             referenceId: app.referenceId,
             trackingPin: app.trackingPin,
             fullName: app.fullName,
@@ -362,7 +362,7 @@ export class PLNController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             referenceId: application.referenceId,
             fullName: application.fullName,
             status: application.status,
@@ -477,7 +477,7 @@ export class PLNController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             status: application.status,
             paymentDeadline: application.paymentDeadline,
             statusHistory: application.statusHistory,
@@ -510,7 +510,7 @@ export class PLNController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             status: application.status,
             paymentReceivedAt: application.paymentReceivedAt,
             statusHistory: application.statusHistory,
@@ -543,7 +543,7 @@ export class PLNController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             status: application.status,
             statusHistory: application.statusHistory,
             updatedAt: application.updatedAt,
@@ -575,7 +575,7 @@ export class PLNController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             status: application.status,
             statusHistory: application.statusHistory,
             updatedAt: application.updatedAt,
@@ -694,7 +694,7 @@ export class PLNController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             adminComments: application.adminComments,
             statusHistory: application.statusHistory,
             updatedAt: application.updatedAt,
@@ -739,7 +739,7 @@ export class PLNController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             assignedTo: application.assignedTo,
             statusHistory: application.statusHistory,
             updatedAt: application.updatedAt,
@@ -784,7 +784,7 @@ export class PLNController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             priority: application.priority,
             statusHistory: application.statusHistory,
             updatedAt: application.updatedAt,

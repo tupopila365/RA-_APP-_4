@@ -35,12 +35,7 @@ export class SecurityConfig {
    * Security environment validation
    */
   static validateEnvironment(): void {
-    const requiredEnvVars = [
-      'JWT_SECRET',
-      'CLOUDINARY_CLOUD_NAME',
-      'CLOUDINARY_API_KEY',
-      'CLOUDINARY_API_SECRET',
-    ];
+    const requiredEnvVars = ['JWT_SECRET'];
 
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 

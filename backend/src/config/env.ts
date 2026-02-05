@@ -5,7 +5,13 @@ dotenv.config();
 interface EnvConfig {
   NODE_ENV: string;
   PORT: number;
-  MONGODB_URI: string;
+  DB_HOST: string;
+  DB_PORT: number;
+  DB_NAME: string;
+  DB_USER: string;
+  DB_PASSWORD: string;
+  DB_TRUST_SERVER_CERTIFICATE?: boolean;
+  DB_TRUSTED_CONNECTION?: boolean;
   REDIS_HOST: string;
   REDIS_PORT: number;
   REDIS_PASSWORD?: string;
@@ -17,11 +23,6 @@ interface EnvConfig {
   JWT_SECRET: string;
   JWT_ACCESS_EXPIRY: string;
   JWT_REFRESH_EXPIRY: string;
-  CLOUDINARY_CLOUD_NAME?: string;
-  CLOUDINARY_API_KEY?: string;
-  CLOUDINARY_API_SECRET?: string;
-  CLOUDINARY_PDF_ACCESS_MODE?: 'public' | 'signed';
-  CLOUDINARY_SIGNED_URL_EXPIRY?: number;
   GOOGLE_DRIVE_CLIENT_ID?: string;
   GOOGLE_DRIVE_CLIENT_SECRET?: string;
   GOOGLE_DRIVE_REDIRECT_URI?: string;
@@ -29,6 +30,7 @@ interface EnvConfig {
   GOOGLE_DRIVE_FOLDER_ID?: string;
   GOOGLE_MAPS_API_KEY?: string;
   RAG_SERVICE_URL: string;
+  BACKEND_PUBLIC_URL: string;
   CORS_ORIGIN: string;
   GEOCODING_API_KEY?: string;
   GEOCODING_SERVICE?: 'nominatim' | 'google';
@@ -56,6 +58,13 @@ interface EnvConfig {
   FILE_QUARANTINE_ENABLED?: boolean;
 }
 
+/** Parse env string to boolean. Treats "true", "1", "yes" (case-insensitive) as true. */
+const parseBooleanEnv = (value: string | undefined): boolean => {
+  if (value === undefined || value === '') return false;
+  const v = String(value).toLowerCase().trim();
+  return v === 'true' || v === '1' || v === 'yes';
+};
+
 const getEnvVar = (key: string, defaultValue?: string): string => {
   const value = process.env[key] || defaultValue;
   if (!value) {
@@ -67,9 +76,13 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
 export const env: EnvConfig = {
   NODE_ENV: getEnvVar('NODE_ENV', 'development'),
   PORT: parseInt(getEnvVar('PORT', '5000'), 10),
-  MONGODB_URI: process.env.NODE_ENV === 'production' 
-    ? getEnvVar('MONGODB_URI') // Use Atlas URI for production
-    : 'mongodb://localhost:27017/ra_db', // Always use local MongoDB for development
+  DB_HOST: process.env.DB_HOST || 'localhost',
+  DB_PORT: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 1433,
+  DB_NAME: process.env.DB_NAME || 'ra_db',
+  DB_USER: process.env.DB_USER || 'sa',
+  DB_PASSWORD: process.env.DB_PASSWORD || '',
+  DB_TRUST_SERVER_CERTIFICATE: process.env.DB_TRUST_SERVER_CERTIFICATE === 'false' ? false : true,
+  DB_TRUSTED_CONNECTION: parseBooleanEnv(process.env.DB_TRUSTED_CONNECTION),
   REDIS_HOST: process.env.REDIS_HOST || '',
   REDIS_PORT: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 0,
   REDIS_PASSWORD: process.env.REDIS_PASSWORD,
@@ -81,13 +94,6 @@ export const env: EnvConfig = {
   JWT_SECRET: getEnvVar('JWT_SECRET'),
   JWT_ACCESS_EXPIRY: getEnvVar('JWT_ACCESS_EXPIRY', '15m'),
   JWT_REFRESH_EXPIRY: getEnvVar('JWT_REFRESH_EXPIRY', '7d'),
-  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
-  CLOUDINARY_PDF_ACCESS_MODE: (process.env.CLOUDINARY_PDF_ACCESS_MODE === 'signed' ? 'signed' : 'public') as 'public' | 'signed',
-  CLOUDINARY_SIGNED_URL_EXPIRY: process.env.CLOUDINARY_SIGNED_URL_EXPIRY 
-    ? parseInt(process.env.CLOUDINARY_SIGNED_URL_EXPIRY, 10) 
-    : 86400, // Default to 24 hours (86400 seconds)
   GOOGLE_DRIVE_CLIENT_ID: process.env.GOOGLE_DRIVE_CLIENT_ID,
   GOOGLE_DRIVE_CLIENT_SECRET: process.env.GOOGLE_DRIVE_CLIENT_SECRET,
   GOOGLE_DRIVE_REDIRECT_URI: process.env.GOOGLE_DRIVE_REDIRECT_URI,
@@ -95,6 +101,7 @@ export const env: EnvConfig = {
   GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID,
   GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY || process.env.GEOCODING_API_KEY,
   RAG_SERVICE_URL: getEnvVar('RAG_SERVICE_URL', 'http://localhost:8001'),
+  BACKEND_PUBLIC_URL: getEnvVar('BACKEND_PUBLIC_URL', 'http://localhost:5000'),
   CORS_ORIGIN: getEnvVar('CORS_ORIGIN', 'http://localhost:3000'),
   GEOCODING_API_KEY: process.env.GEOCODING_API_KEY,
   GEOCODING_SERVICE: (process.env.GEOCODING_SERVICE as 'nominatim' | 'google') || 'nominatim',

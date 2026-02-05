@@ -1,6 +1,5 @@
-import mongoose, { Document } from 'mongoose';
-export interface IPushToken extends Document {
-    userId?: mongoose.Types.ObjectId;
+export interface IPushToken {
+    userId?: number;
     pushToken: string;
     platform: 'ios' | 'android';
     deviceInfo: {
@@ -14,21 +13,16 @@ export interface IPushToken extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const PushTokenModel: mongoose.Model<IPushToken, {}, {}, {}, mongoose.Document<unknown, {}, IPushToken, {}, {}> & IPushToken & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
-export interface INotificationLog extends Document {
+export interface INotificationLog {
     title: string;
     body: string;
-    data?: any;
+    data?: Record<string, unknown>;
     recipients: string[];
     sentCount: number;
     failedCount: number;
     type: 'news' | 'tender' | 'vacancy' | 'general';
     relatedId?: string;
-    sentBy?: mongoose.Types.ObjectId;
+    sentById?: number;
     jobId?: string;
     status?: 'queued' | 'sent' | 'failed' | 'partial';
     platforms?: ('ios' | 'android')[];
@@ -36,9 +30,4 @@ export interface INotificationLog extends Document {
     sentAt: Date;
     createdAt: Date;
 }
-export declare const NotificationLogModel: mongoose.Model<INotificationLog, {}, {}, {}, mongoose.Document<unknown, {}, INotificationLog, {}, {}> & INotificationLog & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=notifications.model.d.ts.map

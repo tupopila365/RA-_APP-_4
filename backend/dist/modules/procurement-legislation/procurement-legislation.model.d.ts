@@ -1,5 +1,4 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
-export interface IProcurementLegislation extends MongooseDocument {
+export interface IProcurementLegislation {
     section: 'act' | 'regulations' | 'guidelines';
     title: string;
     documentUrl: string;
@@ -10,9 +9,4 @@ export interface IProcurementLegislation extends MongooseDocument {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const ProcurementLegislationModel: mongoose.Model<IProcurementLegislation, {}, {}, {}, mongoose.Document<unknown, {}, IProcurementLegislation, {}, {}> & IProcurementLegislation & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=procurement-legislation.model.d.ts.map

@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+require("reflect-metadata");
 const db_1 = require("../config/db");
-const auth_model_1 = require("../modules/auth/auth.model");
+const auth_entity_1 = require("../modules/auth/auth.entity");
 const roles_1 = require("../constants/roles");
 const logger_1 = require("../utils/logger");
 /**
@@ -11,27 +12,23 @@ const logger_1 = require("../utils/logger");
  */
 const createAdminUser = async () => {
     try {
-        // Connect to database
         await (0, db_1.connectDB)();
-        logger_1.logger.info('Connected to MongoDB');
-        // Check if admin user already exists
-        const existingAdmin = await auth_model_1.User.findOne({ email: 'admin@roadsauthority.na' });
+        logger_1.logger.info('Connected to SQL Server');
+        const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
+        const existingAdmin = await repo.findOne({ where: { email: 'admin@roadsauthority.na' } });
         if (existingAdmin) {
             logger_1.logger.info('Admin user already exists');
-            logger_1.logger.info(`Email: admin@roadsauthority.na`);
+            logger_1.logger.info('Email: admin@roadsauthority.na');
+            await (0, db_1.disconnectDB)();
             process.exit(0);
         }
-        // Create super-admin user
-        const adminUser = new auth_model_1.User({
+        const adminUser = repo.create({
             email: 'admin@roadsauthority.na',
-            password: 'Admin@123', // Will be hashed by the model
-            firstName: 'Super',
-            lastName: 'Admin',
+            password: 'Admin@123',
             role: roles_1.ROLES.SUPER_ADMIN,
-            permissions: Object.values(roles_1.PERMISSIONS), // All permissions
-            isActive: true,
+            permissions: Object.values(roles_1.PERMISSIONS),
         });
-        await adminUser.save();
+        await repo.save(adminUser);
         logger_1.logger.info('✅ Super-admin user created successfully!');
         logger_1.logger.info('');
         logger_1.logger.info('Login credentials:');
@@ -39,10 +36,12 @@ const createAdminUser = async () => {
         logger_1.logger.info('  Password: Admin@123');
         logger_1.logger.info('');
         logger_1.logger.info('⚠️  Please change the password after first login!');
+        await (0, db_1.disconnectDB)();
         process.exit(0);
     }
     catch (error) {
         logger_1.logger.error('Error creating admin user:', error);
+        await (0, db_1.disconnectDB)().catch(() => { });
         process.exit(1);
     }
 };

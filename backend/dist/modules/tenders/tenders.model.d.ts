@@ -1,5 +1,4 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
-export interface ITender extends MongooseDocument {
+export interface ITender {
     referenceNumber: string;
     title: string;
     description: string;
@@ -13,9 +12,4 @@ export interface ITender extends MongooseDocument {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const TenderModel: mongoose.Model<ITender, {}, {}, {}, mongoose.Document<unknown, {}, ITender, {}, {}> & ITender & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=tenders.model.d.ts.map

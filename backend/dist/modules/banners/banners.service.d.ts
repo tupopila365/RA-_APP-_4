@@ -1,4 +1,4 @@
-import { IBanner } from './banners.model';
+import { Banner } from './banners.entity';
 export interface CreateBannerDTO {
     title: string;
     description?: string;
@@ -19,26 +19,10 @@ export interface ListBannersQuery {
     activeOnly?: boolean;
 }
 declare class BannersService {
-    /**
-     * Create a new banner
-     */
-    createBanner(dto: CreateBannerDTO): Promise<IBanner>;
-    /**
-     * List banners with optional filtering for active banners only
-     * Returns banners ordered by order field
-     */
-    listBanners(query?: ListBannersQuery): Promise<IBanner[]>;
-    /**
-     * Get a single banner by ID
-     */
-    getBannerById(bannerId: string): Promise<IBanner>;
-    /**
-     * Update a banner
-     */
-    updateBanner(bannerId: string, dto: UpdateBannerDTO): Promise<IBanner>;
-    /**
-     * Delete a banner
-     */
+    createBanner(dto: CreateBannerDTO): Promise<Banner>;
+    listBanners(query?: ListBannersQuery): Promise<Banner[]>;
+    getBannerById(bannerId: string): Promise<Banner>;
+    updateBanner(bannerId: string, dto: UpdateBannerDTO): Promise<Banner>;
     deleteBanner(bannerId: string): Promise<void>;
 }
 export declare const bannersService: BannersService;

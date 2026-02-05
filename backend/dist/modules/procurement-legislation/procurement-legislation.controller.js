@@ -35,7 +35,7 @@ class ProcurementLegislationController {
                 success: true,
                 data: {
                     legislation: {
-                        id: legislation._id,
+                        id: legislation.id,
                         section: legislation.section,
                         title: legislation.title,
                         documentUrl: legislation.documentUrl,
@@ -77,7 +77,7 @@ class ProcurementLegislationController {
                 success: true,
                 data: {
                     items: result.items.map((item) => ({
-                        id: item._id,
+                        id: item.id,
                         section: item.section,
                         title: item.title,
                         documentUrl: item.documentUrl,
@@ -114,7 +114,7 @@ class ProcurementLegislationController {
                 success: true,
                 data: {
                     legislation: {
-                        id: legislation._id,
+                        id: legislation.id,
                         section: legislation.section,
                         title: legislation.title,
                         documentUrl: legislation.documentUrl,
@@ -157,7 +157,7 @@ class ProcurementLegislationController {
                 success: true,
                 data: {
                     legislation: {
-                        id: legislation._id,
+                        id: legislation.id,
                         section: legislation.section,
                         title: legislation.title,
                         documentUrl: legislation.documentUrl,
@@ -272,7 +272,7 @@ class ProcurementLegislationController {
                         published: published === 'true',
                     }, req.user?.userId);
                     createdItems.push({
-                        id: legislation._id,
+                        id: legislation.id,
                         title: legislation.title,
                         documentFileName: legislation.documentFileName,
                     });

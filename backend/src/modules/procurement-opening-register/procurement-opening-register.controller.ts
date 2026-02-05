@@ -64,7 +64,7 @@ export class ProcurementOpeningRegisterController {
         success: true,
         data: {
           item: {
-            id: item._id,
+            id: item.id,
             type: item.type,
             reference: item.reference,
             description: item.description,
@@ -117,7 +117,7 @@ export class ProcurementOpeningRegisterController {
         success: true,
         data: {
           items: result.items.map((item) => ({
-            id: item._id,
+            id: item.id,
             type: item.type,
             reference: item.reference,
             description: item.description,
@@ -159,7 +159,7 @@ export class ProcurementOpeningRegisterController {
         success: true,
         data: {
           item: {
-            id: item._id,
+            id: item.id,
             type: item.type,
             reference: item.reference,
             description: item.description,
@@ -218,7 +218,7 @@ export class ProcurementOpeningRegisterController {
         success: true,
         data: {
           item: {
-            id: item._id,
+            id: item.id,
             type: item.type,
             reference: item.reference,
             description: item.description,

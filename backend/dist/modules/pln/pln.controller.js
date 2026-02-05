@@ -40,6 +40,99 @@ const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs/promises"));
+/**
+ * Normalize a PLN application document into the structure expected by admin clients.
+ * Includes fallbacks so legacy submissions still show meaningful data.
+ */
+const buildApplicationResponse = (application) => {
+    const fullName = application.fullName ||
+        [application.surname, application.initials].filter(Boolean).join(' ') ||
+        application.businessName ||
+        '';
+    const idNumber = application.idNumber ||
+        application.trafficRegisterNumber ||
+        application.businessRegNumber ||
+        '';
+    const phoneNumber = application.phoneNumber ||
+        [application.cellNumber?.code, application.cellNumber?.number].filter(Boolean).join(' ') ||
+        [application.telephoneDay?.code, application.telephoneDay?.number].filter(Boolean).join(' ') ||
+        [application.telephoneHome?.code, application.telephoneHome?.number].filter(Boolean).join(' ') ||
+        '';
+    return {
+        id: application.id,
+        referenceId: application.referenceId,
+        transactionType: application.transactionType,
+        // Section A - Owner/Transferor
+        idType: application.idType,
+        trafficRegisterNumber: application.trafficRegisterNumber,
+        businessRegNumber: application.businessRegNumber,
+        surname: application.surname,
+        initials: application.initials,
+        businessName: application.businessName,
+        postalAddress: application.postalAddress,
+        streetAddress: application.streetAddress,
+        telephoneHome: application.telephoneHome,
+        telephoneDay: application.telephoneDay,
+        cellNumber: application.cellNumber,
+        email: application.email,
+        // Legacy / computed fallbacks
+        fullName,
+        idNumber,
+        phoneNumber,
+        // Section B
+        plateFormat: application.plateFormat,
+        quantity: application.quantity,
+        plateChoices: application.plateChoices,
+        // Section C - Representative / Proxy
+        hasRepresentative: application.hasRepresentative,
+        representativeIdType: application.representativeIdType,
+        representativeIdNumber: application.representativeIdNumber,
+        representativeSurname: application.representativeSurname,
+        representativeInitials: application.representativeInitials,
+        // Section D - Vehicle
+        hasVehicle: application.hasVehicle,
+        currentLicenceNumber: application.currentLicenceNumber,
+        vehicleRegisterNumber: application.vehicleRegisterNumber,
+        chassisNumber: application.chassisNumber,
+        vehicleMake: application.vehicleMake,
+        seriesName: application.seriesName,
+        // Section E - Declaration
+        declarationAccepted: application.declarationAccepted,
+        declarationDate: application.declarationDate,
+        declarationPlace: application.declarationPlace,
+        declarationRole: application.declarationRole,
+        // Document and status
+        documentUrl: application.documentUrl,
+        status: application.status,
+        statusHistory: application.statusHistory,
+        adminComments: application.adminComments,
+        paymentDeadline: application.paymentDeadline,
+        paymentReceivedAt: application.paymentReceivedAt,
+        // Additional admin fields
+        assignedTo: application.assignedTo,
+        priority: application.priority,
+        tags: application.tags,
+        internalNotes: application.internalNotes,
+        // Payment information
+        paymentAmount: application.paymentAmount,
+        paymentMethod: application.paymentMethod,
+        paymentReference: application.paymentReference,
+        // Processing information
+        processedBy: application.processedBy,
+        processedAt: application.processedAt,
+        reviewedBy: application.reviewedBy,
+        reviewedAt: application.reviewedAt,
+        // Plate production information
+        plateOrderNumber: application.plateOrderNumber,
+        plateSupplier: application.plateSupplier,
+        plateOrderedAt: application.plateOrderedAt,
+        plateDeliveredAt: application.plateDeliveredAt,
+        plateCollectedAt: application.plateCollectedAt,
+        plateCollectedBy: application.plateCollectedBy,
+        createdAt: application.createdAt,
+        updatedAt: application.updatedAt,
+    };
+};
 class PLNController {
     /**
      * Create a new PLN application
@@ -47,9 +140,12 @@ class PLNController {
      */
     async createApplication(req, res, next) {
         try {
+            const authReq = req;
+            const userEmail = authReq.user?.email;
             logger_1.logger.info('Received PLN application request:', {
                 body: req.body,
                 hasFile: !!req.file,
+                hasUser: !!userEmail,
             });
             // Parse form data (FormData sends JSON strings for complex objects)
             const parseJSONField = (field) => {
@@ -96,7 +192,7 @@ class PLNController {
                     telephoneHome,
                     telephoneDay,
                     cellNumber,
-                    email: req.body.email,
+                    email: userEmail || req.body.email, // Use authenticated user's email if available
                     plateFormat: req.body.plateFormat,
                     quantity: req.body.quantity ? parseInt(req.body.quantity, 10) : 1,
                     plateChoices,
@@ -170,12 +266,12 @@ class PLNController {
             }
             // Create application
             const application = await pln_service_1.plnService.createApplication(dto, req.file);
-            logger_1.logger.info(`PLN application created successfully: ${application._id}`);
+            logger_1.logger.info(`PLN application created successfully: ${application.id}`);
             res.status(201).json({
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         referenceId: application.referenceId,
                         trackingPin: application.trackingPin,
                         fullName: application.fullName,
@@ -189,6 +285,52 @@ class PLNController {
         }
         catch (error) {
             logger_1.logger.error('Create application error:', error);
+            next(error);
+        }
+    }
+    /**
+     * Get user's PLN applications by email (if authenticated)
+     * GET /api/pln/my-applications
+     */
+    async getMyApplications(req, res, next) {
+        try {
+            const authReq = req;
+            const userEmail = authReq.user?.email;
+            if (!userEmail) {
+                res.status(401).json({
+                    success: false,
+                    error: {
+                        code: errors_1.ERROR_CODES.AUTH_MISSING_TOKEN,
+                        message: 'Authentication required. Please log in to view your applications.',
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+                return;
+            }
+            const applications = await pln_service_1.plnService.getApplicationsByEmail(userEmail);
+            res.status(200).json({
+                success: true,
+                data: {
+                    applications: applications.map((app) => ({
+                        id: app.id,
+                        referenceId: app.referenceId,
+                        trackingPin: app.trackingPin,
+                        fullName: app.fullName,
+                        status: app.status,
+                        plateChoices: app.plateChoices,
+                        statusHistory: app.statusHistory,
+                        paymentDeadline: app.paymentDeadline,
+                        paymentReceivedAt: app.paymentReceivedAt,
+                        adminComments: app.adminComments,
+                        createdAt: app.createdAt,
+                        updatedAt: app.updatedAt,
+                    })),
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Get my applications error:', error);
             next(error);
         }
     }
@@ -216,7 +358,7 @@ class PLNController {
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         referenceId: application.referenceId,
                         fullName: application.fullName,
                         status: application.status,
@@ -260,19 +402,7 @@ class PLNController {
             res.status(200).json({
                 success: true,
                 data: {
-                    applications: result.applications.map((app) => ({
-                        id: app._id,
-                        referenceId: app.referenceId,
-                        fullName: app.fullName,
-                        idNumber: app.idNumber,
-                        phoneNumber: app.phoneNumber,
-                        plateChoices: app.plateChoices,
-                        status: app.status,
-                        paymentDeadline: app.paymentDeadline,
-                        paymentReceivedAt: app.paymentReceivedAt,
-                        createdAt: app.createdAt,
-                        updatedAt: app.updatedAt,
-                    })),
+                    applications: result.applications.map((app) => buildApplicationResponse(app)),
                     pagination: {
                         total: result.total,
                         page: result.page,
@@ -299,22 +429,7 @@ class PLNController {
             res.status(200).json({
                 success: true,
                 data: {
-                    application: {
-                        id: application._id,
-                        referenceId: application.referenceId,
-                        fullName: application.fullName,
-                        idNumber: application.idNumber,
-                        phoneNumber: application.phoneNumber,
-                        plateChoices: application.plateChoices,
-                        documentUrl: application.documentUrl,
-                        status: application.status,
-                        statusHistory: application.statusHistory,
-                        adminComments: application.adminComments,
-                        paymentDeadline: application.paymentDeadline,
-                        paymentReceivedAt: application.paymentReceivedAt,
-                        createdAt: application.createdAt,
-                        updatedAt: application.updatedAt,
-                    },
+                    application: buildApplicationResponse(application),
                 },
                 timestamp: new Date().toISOString(),
             });
@@ -350,7 +465,7 @@ class PLNController {
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         status: application.status,
                         paymentDeadline: application.paymentDeadline,
                         statusHistory: application.statusHistory,
@@ -380,7 +495,7 @@ class PLNController {
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         status: application.status,
                         paymentReceivedAt: application.paymentReceivedAt,
                         statusHistory: application.statusHistory,
@@ -410,7 +525,7 @@ class PLNController {
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         status: application.status,
                         statusHistory: application.statusHistory,
                         updatedAt: application.updatedAt,
@@ -439,7 +554,7 @@ class PLNController {
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         status: application.status,
                         statusHistory: application.statusHistory,
                         updatedAt: application.updatedAt,
@@ -543,7 +658,7 @@ class PLNController {
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         adminComments: application.adminComments,
                         statusHistory: application.statusHistory,
                         updatedAt: application.updatedAt,
@@ -584,7 +699,7 @@ class PLNController {
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         assignedTo: application.assignedTo,
                         statusHistory: application.statusHistory,
                         updatedAt: application.updatedAt,
@@ -625,7 +740,7 @@ class PLNController {
                 success: true,
                 data: {
                     application: {
-                        id: application._id,
+                        id: application.id,
                         priority: application.priority,
                         statusHistory: application.statusHistory,
                         updatedAt: application.updatedAt,

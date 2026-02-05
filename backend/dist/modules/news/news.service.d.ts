@@ -1,4 +1,4 @@
-import { INews } from './news.model';
+import { News } from './news.entity';
 export interface CreateNewsDTO {
     title: string;
     content: string;
@@ -25,31 +25,16 @@ export interface ListNewsQuery {
     search?: string;
 }
 export interface ListNewsResult {
-    news: INews[];
+    news: News[];
     total: number;
     page: number;
     totalPages: number;
 }
 declare class NewsService {
-    /**
-     * Create a new news article
-     */
-    createNews(dto: CreateNewsDTO): Promise<INews>;
-    /**
-     * List news articles with pagination, filtering, and search
-     */
+    createNews(dto: CreateNewsDTO): Promise<News>;
     listNews(query: ListNewsQuery): Promise<ListNewsResult>;
-    /**
-     * Get a single news article by ID
-     */
-    getNewsById(newsId: string): Promise<INews>;
-    /**
-     * Update a news article
-     */
-    updateNews(newsId: string, dto: UpdateNewsDTO): Promise<INews>;
-    /**
-     * Delete a news article
-     */
+    getNewsById(newsId: string): Promise<News>;
+    updateNews(newsId: string, dto: UpdateNewsDTO): Promise<News>;
     deleteNews(newsId: string): Promise<void>;
 }
 export declare const newsService: NewsService;

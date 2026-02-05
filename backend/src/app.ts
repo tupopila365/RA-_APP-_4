@@ -12,6 +12,7 @@ import bannersRoutes from './modules/banners/banners.routes';
 import locationsRoutes from './modules/locations/locations.routes';
 import chatbotRoutes from './modules/chatbot/chatbot.routes';
 import uploadRoutes from './modules/upload/upload.routes';
+import fileStorageRoutes from './modules/file-storage/file-storage.routes';
 import faqsRoutes from './modules/faqs/faqs.routes';
 import potholeReportsRoutes from './modules/pothole-reports/pothole-reports.routes';
 import notificationsRoutes from './modules/notifications/notifications.routes';
@@ -28,6 +29,7 @@ import procurementAwardsRoutes from './modules/procurement-awards/procurement-aw
 import procurementOpeningRegisterRoutes from './modules/procurement-opening-register/procurement-opening-register.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
 import formsRoutes from './modules/forms/forms.routes';
+import raServicesRoutes from './modules/ra-services/ra-services.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -60,6 +62,7 @@ export const createApp = (): Application => {
   app.use('/api/locations', locationsRoutes);
   app.use('/api/chatbot', chatbotRoutes);
   app.use('/api/upload', uploadRoutes);
+  app.use('/api/files', fileStorageRoutes);
   app.use('/api/faqs', faqsRoutes);
   app.use('/api/pothole-reports', potholeReportsRoutes);
   app.use('/api/notifications', notificationsRoutes);
@@ -76,6 +79,7 @@ export const createApp = (): Application => {
   app.use('/api/procurement-opening-register', procurementOpeningRegisterRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/forms', formsRoutes);
+  app.use('/api/ra-services', raServicesRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);

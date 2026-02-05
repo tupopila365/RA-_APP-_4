@@ -84,12 +84,12 @@ class VacanciesController {
                 submissionEmail,
                 submissionInstructions,
             });
-            logger_1.logger.info(`Vacancy created successfully: ${vacancy._id}`);
+            logger_1.logger.info(`Vacancy created successfully: ${vacancy.id}`);
             // Send push notification if published
             if (vacancy.published === true) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy._id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString());
-                    logger_1.logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy.id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString());
+                    logger_1.logger.info(`Push notification sent for vacancy ${vacancy.id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
                 }
                 catch (notifError) {
                     logger_1.logger.error('Failed to send notification for vacancy:', notifError);
@@ -99,7 +99,7 @@ class VacanciesController {
                 success: true,
                 data: {
                     vacancy: {
-                        id: vacancy._id,
+                        id: vacancy.id,
                         title: vacancy.title,
                         type: vacancy.type,
                         department: vacancy.department,
@@ -157,7 +157,7 @@ class VacanciesController {
                 success: true,
                 data: {
                     vacancies: result.vacancies.map((vacancy) => ({
-                        id: vacancy._id,
+                        id: vacancy.id,
                         title: vacancy.title,
                         type: vacancy.type,
                         department: vacancy.department,
@@ -206,7 +206,7 @@ class VacanciesController {
                 success: true,
                 data: {
                     vacancy: {
-                        id: vacancy._id,
+                        id: vacancy.id,
                         title: vacancy.title,
                         type: vacancy.type,
                         department: vacancy.department,
@@ -362,8 +362,8 @@ class VacanciesController {
             // Send push notification only on first publish
             if (published === true && !wasPublishedBefore) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy._id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString());
-                    logger_1.logger.info(`Push notification sent for vacancy ${vacancy._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+                    const notifResult = await notifications_service_1.notificationsService.sendVacancyNotification(vacancy.id.toString(), vacancy.title, new Date(vacancy.closingDate).toLocaleDateString());
+                    logger_1.logger.info(`Push notification sent for vacancy ${vacancy.id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
                 }
                 catch (notifError) {
                     logger_1.logger.error('Failed to send notification for vacancy:', notifError);
@@ -373,7 +373,7 @@ class VacanciesController {
                 success: true,
                 data: {
                     vacancy: {
-                        id: vacancy._id,
+                        id: vacancy.id,
                         title: vacancy.title,
                         type: vacancy.type,
                         department: vacancy.department,

@@ -1,5 +1,6 @@
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
-import { PushTokenModel, NotificationLogModel, IPushToken } from './notifications.model';
+import { AppDataSource } from '../../config/db';
+import { PushToken, NotificationLog } from './notifications.entity';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -19,17 +20,13 @@ class NotificationsService {
     this.expo = new Expo();
   }
 
-  /**
-   * Register a push token
-   */
   async registerPushToken(
     pushToken: string,
     platform: 'ios' | 'android',
     deviceInfo: any,
     userId?: string
-  ): Promise<IPushToken> {
+  ): Promise<PushToken> {
     try {
-      // Validate the push token
       if (!Expo.isExpoPushToken(pushToken)) {
         throw {
           statusCode: 400,
@@ -38,38 +35,33 @@ class NotificationsService {
         };
       }
 
-      // Check if token already exists
-      let token = await PushTokenModel.findOne({ pushToken });
+      const repo = AppDataSource.getRepository(PushToken);
+      let token = await repo.findOne({ where: { pushToken } });
 
       if (token) {
-        // Update existing token
         token.platform = platform;
         token.deviceInfo = deviceInfo;
         token.active = true;
         token.lastUsed = new Date();
-        if (userId) {
-          token.userId = userId as any;
-        }
-        await token.save();
+        if (userId) token.userId = parseInt(userId, 10);
+        await repo.save(token);
       } else {
-        // Create new token
-        token = await PushTokenModel.create({
+        token = repo.create({
           pushToken,
           platform,
           deviceInfo,
-          userId,
+          userId: userId ? parseInt(userId, 10) : null,
           active: true,
           lastUsed: new Date(),
         });
+        await repo.save(token);
       }
 
       logger.info(`Push token registered: ${pushToken.substring(0, 20)}...`);
       return token;
     } catch (error: any) {
       logger.error('Register push token error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -79,9 +71,6 @@ class NotificationsService {
     }
   }
 
-  /**
-   * Send push notification to specific tokens
-   */
   async sendPushNotification(dto: SendNotificationDTO, pushTokens?: string[]): Promise<any> {
     try {
       let tokens: string[];
@@ -89,28 +78,22 @@ class NotificationsService {
       if (pushTokens && pushTokens.length > 0) {
         tokens = pushTokens;
       } else {
-        // Get all active push tokens
-        const tokenDocs = await PushTokenModel.find({ active: true });
+        const repo = AppDataSource.getRepository(PushToken);
+        const tokenDocs = await repo.find({ where: { active: true } });
         tokens = tokenDocs.map((doc) => doc.pushToken);
       }
 
       if (tokens.length === 0) {
         logger.warn('No push tokens available to send notification');
-        return {
-          sentCount: 0,
-          failedCount: 0,
-          message: 'No recipients available',
-        };
+        return { sentCount: 0, failedCount: 0, message: 'No recipients available' };
       }
 
-      // Create messages
       const messages: ExpoPushMessage[] = [];
       for (const pushToken of tokens) {
         if (!Expo.isExpoPushToken(pushToken)) {
           logger.warn(`Invalid push token: ${pushToken}`);
           continue;
         }
-
         messages.push({
           to: pushToken,
           sound: 'default',
@@ -121,7 +104,6 @@ class NotificationsService {
         });
       }
 
-      // Send notifications in chunks
       const chunks = this.expo.chunkPushNotifications(messages);
       const tickets: ExpoPushTicket[] = [];
 
@@ -134,21 +116,18 @@ class NotificationsService {
         }
       }
 
-      // Count successes and failures
       let sentCount = 0;
       let failedCount = 0;
-
       for (const ticket of tickets) {
-        if (ticket.status === 'ok') {
-          sentCount++;
-        } else {
+        if (ticket.status === 'ok') sentCount++;
+        else {
           failedCount++;
           logger.error('Push notification error:', ticket);
         }
       }
 
-      // Log notification
-      await NotificationLogModel.create({
+      const logRepo = AppDataSource.getRepository(NotificationLog);
+      const log = logRepo.create({
         title: dto.title,
         body: dto.body,
         data: dto.data,
@@ -157,17 +136,13 @@ class NotificationsService {
         failedCount,
         type: dto.type,
         relatedId: dto.relatedId,
-        sentBy: dto.sentBy,
+        sentById: dto.sentBy ? parseInt(dto.sentBy, 10) : null,
         sentAt: new Date(),
       });
+      await logRepo.save(log);
 
       logger.info(`Sent ${sentCount} notifications, ${failedCount} failed`);
-
-      return {
-        sentCount,
-        failedCount,
-        totalRecipients: tokens.length,
-      };
+      return { sentCount, failedCount, totalRecipients: tokens.length };
     } catch (error: any) {
       logger.error('Send push notification error:', error);
       throw {
@@ -179,80 +154,45 @@ class NotificationsService {
     }
   }
 
-  /**
-   * Send notification for new news article
-   */
   async sendNewsNotification(newsId: string, title: string, excerpt: string): Promise<any> {
     return this.sendPushNotification({
       title: 'New News Article',
       body: title,
-      data: {
-        type: 'news',
-        newsId,
-        screen: 'NewsDetail',
-      },
+      data: { type: 'news', newsId, screen: 'NewsDetail' },
       type: 'news',
       relatedId: newsId,
     });
   }
 
-  /**
-   * Send notification for new tender
-   */
   async sendTenderNotification(tenderId: string, title: string, closingDate: string): Promise<any> {
     return this.sendPushNotification({
       title: 'New Tender Available',
       body: `${title} - Closes: ${closingDate}`,
-      data: {
-        type: 'tender',
-        tenderId,
-        screen: 'Tenders',
-      },
+      data: { type: 'tender', tenderId, screen: 'Tenders' },
       type: 'tender',
       relatedId: tenderId,
     });
   }
 
-  /**
-   * Send notification for new vacancy
-   */
   async sendVacancyNotification(vacancyId: string, title: string, closingDate: string): Promise<any> {
     return this.sendPushNotification({
       title: 'New Job Vacancy',
       body: `${title} - Closes: ${closingDate}`,
-      data: {
-        type: 'vacancy',
-        vacancyId,
-        screen: 'Vacancies',
-      },
+      data: { type: 'vacancy', vacancyId, screen: 'Vacancies' },
       type: 'vacancy',
       relatedId: vacancyId,
     });
   }
 
-  /**
-   * Get notification logs
-   */
   async getNotificationLogs(page: number = 1, limit: number = 20): Promise<any> {
     try {
       const skip = (page - 1) * limit;
-
+      const repo = AppDataSource.getRepository(NotificationLog);
       const [logs, total] = await Promise.all([
-        NotificationLogModel.find()
-          .sort({ sentAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .populate('sentBy', 'email')
-          .lean(),
-        NotificationLogModel.countDocuments(),
+        repo.find({ order: { sentAt: 'DESC' }, skip, take: limit }),
+        repo.count(),
       ]);
-
-      return {
-        logs,
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
-      };
+      return { logs, total, page, totalPages: Math.ceil(total / limit) };
     } catch (error: any) {
       logger.error('Get notification logs error:', error);
       throw {
@@ -264,25 +204,25 @@ class NotificationsService {
     }
   }
 
-  /**
-   * Get active push tokens count
-   */
   async getActivePushTokensCount(): Promise<number> {
     try {
-      return await PushTokenModel.countDocuments({ active: true });
+      const repo = AppDataSource.getRepository(PushToken);
+      return await repo.count({ where: { active: true } });
     } catch (error: any) {
       logger.error('Get active push tokens count error:', error);
       return 0;
     }
   }
 
-  /**
-   * Deactivate a push token
-   */
   async deactivatePushToken(pushToken: string): Promise<void> {
     try {
-      await PushTokenModel.updateOne({ pushToken }, { active: false });
-      logger.info(`Push token deactivated: ${pushToken.substring(0, 20)}...`);
+      const repo = AppDataSource.getRepository(PushToken);
+      const token = await repo.findOne({ where: { pushToken } });
+      if (token) {
+        token.active = false;
+        await repo.save(token);
+        logger.info(`Push token deactivated: ${pushToken.substring(0, 20)}...`);
+      }
     } catch (error: any) {
       logger.error('Deactivate push token error:', error);
     }

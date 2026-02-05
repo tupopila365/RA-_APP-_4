@@ -13,9 +13,9 @@ export class SecurityHeaders {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+        imgSrc: ["'self'", "data:", "blob:"],
         scriptSrc: ["'self'", "https://www.google.com", "https://www.gstatic.com"],
-        connectSrc: ["'self'", "https://api.cloudinary.com"],
+        connectSrc: ["'self'"],
         frameSrc: ["https://www.google.com"],
       },
     },
@@ -74,7 +74,7 @@ export class SecurityHeaders {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "blob:"],
+        imgSrc: ["'self'", "data:", "blob:"],
       },
     },
   });

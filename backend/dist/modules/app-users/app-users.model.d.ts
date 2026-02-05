@@ -1,5 +1,4 @@
-import mongoose, { Document } from 'mongoose';
-export interface IAppUser extends Document {
+export interface IAppUser {
     email: string;
     password: string;
     fullName?: string;
@@ -13,9 +12,4 @@ export interface IAppUser extends Document {
     updatedAt: Date;
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
-export declare const AppUser: mongoose.Model<IAppUser, {}, {}, {}, mongoose.Document<unknown, {}, IAppUser, {}, {}> & IAppUser & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=app-users.model.d.ts.map

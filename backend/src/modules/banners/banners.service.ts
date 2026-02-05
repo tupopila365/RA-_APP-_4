@@ -1,4 +1,5 @@
-import { BannerModel, IBanner } from './banners.model';
+import { AppDataSource } from '../../config/db';
+import { Banner } from './banners.entity';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -25,14 +26,11 @@ export interface ListBannersQuery {
 }
 
 class BannersService {
-  /**
-   * Create a new banner
-   */
-  async createBanner(dto: CreateBannerDTO): Promise<IBanner> {
+  async createBanner(dto: CreateBannerDTO): Promise<Banner> {
     try {
       logger.info('Creating banner:', { title: dto.title });
-
-      const banner = await BannerModel.create({
+      const repo = AppDataSource.getRepository(Banner);
+      const banner = repo.create({
         title: dto.title,
         description: dto.description,
         imageUrl: dto.imageUrl,
@@ -40,8 +38,8 @@ class BannersService {
         order: dto.order !== undefined ? dto.order : 0,
         active: dto.active !== undefined ? dto.active : true,
       });
-
-      logger.info(`Banner created with ID: ${banner._id}`);
+      await repo.save(banner);
+      logger.info(`Banner created with ID: ${banner.id}`);
       return banner;
     } catch (error: any) {
       logger.error('Create banner error:', error);
@@ -54,26 +52,16 @@ class BannersService {
     }
   }
 
-  /**
-   * List banners with optional filtering for active banners only
-   * Returns banners ordered by order field
-   */
-  async listBanners(query: ListBannersQuery = {}): Promise<IBanner[]> {
+  async listBanners(query: ListBannersQuery = {}): Promise<Banner[]> {
     try {
-      // Build filter
-      const filter: any = {};
-
-      // If activeOnly is true, only return active banners
-      if (query.activeOnly === true) {
-        filter.active = true;
-      }
-
-      // Execute query ordered by order field
-      const banners = await BannerModel.find(filter)
-        .sort({ order: 1, createdAt: -1 })
-        .lean();
-
-      return banners as unknown as IBanner[];
+      const repo = AppDataSource.getRepository(Banner);
+      const where: any = {};
+      if (query.activeOnly === true) where.active = true;
+      const banners = await repo.find({
+        where,
+        order: { order: 'ASC', createdAt: 'DESC' },
+      });
+      return banners;
     } catch (error: any) {
       logger.error('List banners error:', error);
       throw {
@@ -85,13 +73,11 @@ class BannersService {
     }
   }
 
-  /**
-   * Get a single banner by ID
-   */
-  async getBannerById(bannerId: string): Promise<IBanner> {
+  async getBannerById(bannerId: string): Promise<Banner> {
     try {
-      const banner = await BannerModel.findById(bannerId).lean();
-
+      const id = parseInt(bannerId, 10);
+      const repo = AppDataSource.getRepository(Banner);
+      const banner = await repo.findOne({ where: { id } });
       if (!banner) {
         throw {
           statusCode: 404,
@@ -99,13 +85,10 @@ class BannersService {
           message: 'Banner not found',
         };
       }
-
-      return banner as unknown as IBanner;
+      return banner;
     } catch (error: any) {
       logger.error('Get banner error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -115,19 +98,12 @@ class BannersService {
     }
   }
 
-  /**
-   * Update a banner
-   */
-  async updateBanner(bannerId: string, dto: UpdateBannerDTO): Promise<IBanner> {
+  async updateBanner(bannerId: string, dto: UpdateBannerDTO): Promise<Banner> {
     try {
       logger.info(`Updating banner: ${bannerId}`);
-
-      const banner = await BannerModel.findByIdAndUpdate(
-        bannerId,
-        dto,
-        { new: true, runValidators: true }
-      ).lean();
-
+      const id = parseInt(bannerId, 10);
+      const repo = AppDataSource.getRepository(Banner);
+      const banner = await repo.findOne({ where: { id } });
       if (!banner) {
         throw {
           statusCode: 404,
@@ -135,14 +111,13 @@ class BannersService {
           message: 'Banner not found',
         };
       }
-
+      Object.assign(banner, dto);
+      await repo.save(banner);
       logger.info(`Banner ${bannerId} updated successfully`);
-      return banner as unknown as IBanner;
+      return banner;
     } catch (error: any) {
       logger.error('Update banner error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -152,15 +127,12 @@ class BannersService {
     }
   }
 
-  /**
-   * Delete a banner
-   */
   async deleteBanner(bannerId: string): Promise<void> {
     try {
       logger.info(`Deleting banner: ${bannerId}`);
-
-      const banner = await BannerModel.findByIdAndDelete(bannerId);
-
+      const id = parseInt(bannerId, 10);
+      const repo = AppDataSource.getRepository(Banner);
+      const banner = await repo.findOne({ where: { id } });
       if (!banner) {
         throw {
           statusCode: 404,
@@ -168,13 +140,11 @@ class BannersService {
           message: 'Banner not found',
         };
       }
-
+      await repo.remove(banner);
       logger.info(`Banner ${bannerId} deleted successfully`);
     } catch (error: any) {
       logger.error('Delete banner error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,

@@ -47,7 +47,7 @@ class AppUsersController {
                 success: true,
                 data: {
                     user: {
-                        id: user._id,
+                        id: user.id,
                         email: user.email,
                         fullName: user.fullName,
                         phoneNumber: user.phoneNumber,
@@ -93,7 +93,7 @@ class AppUsersController {
                 success: true,
                 data: {
                     user: {
-                        id: user._id,
+                        id: user.id,
                         email: user.email,
                         fullName: user.fullName,
                         phoneNumber: user.phoneNumber,
@@ -190,7 +190,7 @@ class AppUsersController {
                 success: true,
                 data: {
                     user: {
-                        id: user._id,
+                        id: user.id,
                         email: user.email,
                         fullName: user.fullName,
                         phoneNumber: user.phoneNumber,
@@ -236,7 +236,7 @@ class AppUsersController {
                 success: true,
                 data: {
                     user: {
-                        id: user._id,
+                        id: user.id,
                         email: user.email,
                         fullName: user.fullName,
                         phoneNumber: user.phoneNumber,
@@ -332,7 +332,7 @@ class AppUsersController {
                 success: true,
                 data: {
                     user: {
-                        id: user._id,
+                        id: user.id,
                         email: user.email,
                         fullName: user.fullName,
                         phoneNumber: user.phoneNumber,

@@ -1,7 +1,6 @@
-import {
-  ProcurementLegislationModel,
-  IProcurementLegislation,
-} from './procurement-legislation.model';
+import { AppDataSource } from '../../config/db';
+import { ProcurementLegislation } from './procurement-legislation.entity';
+import type { IProcurementLegislation } from './procurement-legislation.model';
 import {
   CreateProcurementLegislationDTO,
   UpdateProcurementLegislationDTO,
@@ -11,34 +10,45 @@ import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
 export interface ListProcurementLegislationResult {
-  items: IProcurementLegislation[];
+  items: ProcurementLegislation[];
   total: number;
   page: number;
   totalPages: number;
 }
 
+function parseId(id: string): number {
+  const num = parseInt(id, 10);
+  if (isNaN(num)) {
+    throw {
+      statusCode: 404,
+      code: ERROR_CODES.NOT_FOUND,
+      message: 'Procurement legislation not found',
+    };
+  }
+  return num;
+}
+
 class ProcurementLegislationService {
-  /**
-   * Create a new procurement legislation document
-   */
   async createLegislation(
     dto: CreateProcurementLegislationDTO,
     createdBy?: string
-  ): Promise<IProcurementLegislation> {
+  ): Promise<ProcurementLegislation> {
     try {
       logger.info('Creating procurement legislation:', { title: dto.title, section: dto.section });
 
-      const legislation = await ProcurementLegislationModel.create({
+      const repo = AppDataSource.getRepository(ProcurementLegislation);
+      const legislation = repo.create({
         section: dto.section,
         title: dto.title,
         documentUrl: dto.documentUrl,
         documentFileName: dto.documentFileName,
         published: dto.published || false,
-        createdBy,
+        createdBy: createdBy ?? null,
       });
 
-      logger.info(`Procurement legislation created with ID: ${legislation._id}`);
-      return legislation;
+      const saved = await repo.save(legislation);
+      logger.info(`Procurement legislation created with ID: ${saved.id}`);
+      return saved;
     } catch (error: any) {
       logger.error('Create procurement legislation error:', error);
       throw {
@@ -50,42 +60,30 @@ class ProcurementLegislationService {
     }
   }
 
-  /**
-   * List procurement legislation with pagination, filtering, and search
-   */
   async listLegislation(query: ListProcurementLegislationQuery): Promise<ListProcurementLegislationResult> {
     try {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
 
-      // Build filter
-      const filter: any = {};
+      const repo = AppDataSource.getRepository(ProcurementLegislation);
+      const qb = repo.createQueryBuilder('p');
 
-      if (query.section) {
-        filter.section = query.section;
-      }
-
-      if (query.published !== undefined) {
-        filter.published = query.published;
-      }
-
+      if (query.section) qb.andWhere('p.section = :section', { section: query.section });
+      if (query.published !== undefined) qb.andWhere('p.published = :published', { published: query.published });
       if (query.search) {
-        filter.$text = { $search: query.search };
+        qb.andWhere('(p.title LIKE :search OR p.section LIKE :search)', { search: `%${query.search}%` });
       }
 
-      // Execute query with pagination
-      const [items, total] = await Promise.all([
-        ProcurementLegislationModel.find(filter)
-          .sort({ publishedAt: -1, createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        ProcurementLegislationModel.countDocuments(filter),
-      ]);
+      const [items, total] = await qb
+        .orderBy('p.publishedAt', 'DESC')
+        .addOrderBy('p.createdAt', 'DESC')
+        .skip(skip)
+        .take(limit)
+        .getManyAndCount();
 
       return {
-        items: items as unknown as IProcurementLegislation[],
+        items,
         total,
         page,
         totalPages: Math.ceil(total / limit),
@@ -101,12 +99,12 @@ class ProcurementLegislationService {
     }
   }
 
-  /**
-   * Get a single procurement legislation by ID
-   */
-  async getLegislationById(id: string): Promise<IProcurementLegislation> {
+  async getLegislationById(id: string): Promise<ProcurementLegislation> {
     try {
-      const legislation = await ProcurementLegislationModel.findById(id).lean();
+      const numId = parseId(id);
+      const legislation = await AppDataSource.getRepository(ProcurementLegislation).findOne({
+        where: { id: numId },
+      });
 
       if (!legislation) {
         throw {
@@ -116,12 +114,10 @@ class ProcurementLegislationService {
         };
       }
 
-      return legislation as unknown as IProcurementLegislation;
+      return legislation;
     } catch (error: any) {
       logger.error('Get procurement legislation error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -131,33 +127,18 @@ class ProcurementLegislationService {
     }
   }
 
-  /**
-   * Update procurement legislation
-   */
   async updateLegislation(
     id: string,
     dto: UpdateProcurementLegislationDTO
-  ): Promise<IProcurementLegislation> {
+  ): Promise<ProcurementLegislation> {
     try {
       logger.info(`Updating procurement legislation: ${id}`);
 
-      const updateData: any = { ...dto };
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(ProcurementLegislation);
+      const existing = await repo.findOne({ where: { id: numId } });
 
-      // If publishing for the first time, set publishedAt
-      if (dto.published === true) {
-        const existing = await ProcurementLegislationModel.findById(id);
-        if (existing && !existing.published && !existing.publishedAt) {
-          updateData.publishedAt = new Date();
-        }
-      }
-
-      const legislation = await ProcurementLegislationModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true, runValidators: true }
-      ).lean();
-
-      if (!legislation) {
+      if (!existing) {
         throw {
           statusCode: 404,
           code: ERROR_CODES.NOT_FOUND,
@@ -165,13 +146,21 @@ class ProcurementLegislationService {
         };
       }
 
+      if (dto.section !== undefined) existing.section = dto.section;
+      if (dto.title !== undefined) existing.title = dto.title;
+      if (dto.documentUrl !== undefined) existing.documentUrl = dto.documentUrl;
+      if (dto.documentFileName !== undefined) existing.documentFileName = dto.documentFileName;
+      if (dto.published === true && !existing.published && !existing.publishedAt) {
+        existing.publishedAt = new Date();
+      }
+      if (dto.published !== undefined) existing.published = dto.published;
+
+      const legislation = await repo.save(existing);
       logger.info(`Procurement legislation ${id} updated successfully`);
-      return legislation as unknown as IProcurementLegislation;
+      return legislation;
     } catch (error: any) {
       logger.error('Update procurement legislation error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -181,9 +170,6 @@ class ProcurementLegislationService {
     }
   }
 
-  /**
-   * Delete procurement legislation
-   */
   async deleteLegislation(id: string): Promise<void> {
     try {
       if (!id || id === 'undefined' || id === 'null') {
@@ -197,7 +183,9 @@ class ProcurementLegislationService {
 
       logger.info(`Deleting procurement legislation: ${id}`);
 
-      const legislation = await ProcurementLegislationModel.findByIdAndDelete(id);
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(ProcurementLegislation);
+      const legislation = await repo.findOne({ where: { id: numId } });
 
       if (!legislation) {
         throw {
@@ -207,22 +195,11 @@ class ProcurementLegislationService {
         };
       }
 
+      await repo.remove(legislation);
       logger.info(`Procurement legislation ${id} deleted successfully`);
     } catch (error: any) {
       logger.error('Delete procurement legislation error:', { id, error: error.message });
-      if (error.statusCode) {
-        throw error;
-      }
-
-      if (error.name === 'CastError') {
-        throw {
-          statusCode: 400,
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Invalid procurement legislation ID format',
-          details: error.message,
-        };
-      }
-
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -234,4 +211,3 @@ class ProcurementLegislationService {
 }
 
 export const procurementLegislationService = new ProcurementLegislationService();
-

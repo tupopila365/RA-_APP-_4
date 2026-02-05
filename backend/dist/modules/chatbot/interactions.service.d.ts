@@ -1,4 +1,5 @@
-import { IChatbotInteraction, FeedbackType } from './interactions.model';
+import { ChatbotInteraction } from './interactions.entity';
+import type { FeedbackType } from './interactions.model';
 export interface LogInteractionDTO {
     question: string;
     answer: string;
@@ -19,7 +20,7 @@ export interface ListInteractionsQuery {
     sessionId?: string;
 }
 export interface ListInteractionsResult {
-    interactions: IChatbotInteraction[];
+    interactions: ChatbotInteraction[];
     total: number;
     page: number;
     totalPages: number;
@@ -42,25 +43,10 @@ export interface MetricsResult {
     }>;
 }
 declare class InteractionsService {
-    /**
-     * Auto-detect category from question text using keyword matching
-     */
     detectCategory(question: string): string;
-    /**
-     * Log a new interaction after chatbot query
-     */
-    logInteraction(dto: LogInteractionDTO): Promise<IChatbotInteraction>;
-    /**
-     * Update feedback for an existing interaction
-     */
-    updateFeedback(interactionId: string, dto: UpdateFeedbackDTO): Promise<IChatbotInteraction>;
-    /**
-     * Get interactions with pagination and filtering
-     */
+    logInteraction(dto: LogInteractionDTO): Promise<ChatbotInteraction>;
+    updateFeedback(interactionId: string, dto: UpdateFeedbackDTO): Promise<ChatbotInteraction>;
     getInteractions(query: ListInteractionsQuery): Promise<ListInteractionsResult>;
-    /**
-     * Get metrics and statistics
-     */
     getMetrics(startDate?: Date, endDate?: Date): Promise<MetricsResult>;
 }
 export declare const interactionsService: InteractionsService;

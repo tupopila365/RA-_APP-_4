@@ -8,6 +8,11 @@ export declare class SecureIdGenerator {
      */
     static generatePLNReferenceId(): string;
     /**
+     * Generate cryptographically secure Vehicle Registration reference ID
+     * Format: VREG-{YYYY}-{SecureRandom12}
+     */
+    static generateVehicleRegReferenceId(): string;
+    /**
      * Generate secure tracking token (for additional security layer)
      */
     static generateTrackingToken(): string;

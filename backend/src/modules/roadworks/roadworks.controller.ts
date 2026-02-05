@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
+import type { IAlternateRoute } from './roadworks.model';
 import { roadworksService, CreateRoadworkDTO, UpdateRoadworkDTO, ListRoadworksQuery } from './roadworks.service';
 
 class RoadworksController {
@@ -171,11 +172,12 @@ class RoadworksController {
       }
       
       // Update the specific route's approval status
-      roadwork.alternateRoutes[routeIdx].approved = true;
-      
+      const alternateRoutes = (roadwork.alternateRoutes || []) as IAlternateRoute[];
+      alternateRoutes[routeIdx].approved = true;
+
       const updatedRoadwork = await roadworksService.updateRoadwork(
-        id, 
-        { alternateRoutes: roadwork.alternateRoutes }, 
+        id,
+        { alternateRoutes },
         req.user?.userId,
         req.user?.email
       );

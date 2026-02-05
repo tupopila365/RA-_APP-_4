@@ -1,4 +1,5 @@
-import { LocationModel, ILocation } from './locations.model';
+import { AppDataSource } from '../../config/db';
+import { Location } from './locations.entity';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 import { calculateDistance } from '../../utils/distance';
@@ -7,76 +8,26 @@ export interface CreateLocationDTO {
   name: string;
   address: string;
   region: string;
-  coordinates: {
-    latitude: number;
-    longitude: number;
-  };
+  coordinates: { latitude: number; longitude: number };
   contactNumber?: string;
   email?: string;
-  // NATIS-specific fields
   services?: string[];
-  operatingHours?: {
-    weekdays?: {
-      open: string;
-      close: string;
-    };
-    weekends?: {
-      open: string;
-      close: string;
-    };
-    publicHolidays?: {
-      open: string;
-      close: string;
-    };
-  };
+  operatingHours?: Record<string, unknown>;
   closedDays?: string[];
-  specialHours?: Array<{
-    date: string;
-    reason: string;
-    closed: boolean;
-    hours?: {
-      open: string;
-      close: string;
-    };
-  }>;
+  specialHours?: Array<{ date: string; reason: string; closed: boolean; hours?: { open: string; close: string } }>;
 }
 
 export interface UpdateLocationDTO {
   name?: string;
   address?: string;
   region?: string;
-  coordinates?: {
-    latitude: number;
-    longitude: number;
-  };
+  coordinates?: { latitude: number; longitude: number };
   contactNumber?: string;
   email?: string;
-  // NATIS-specific fields
   services?: string[];
-  operatingHours?: {
-    weekdays?: {
-      open: string;
-      close: string;
-    };
-    weekends?: {
-      open: string;
-      close: string;
-    };
-    publicHolidays?: {
-      open: string;
-      close: string;
-    };
-  };
+  operatingHours?: Record<string, unknown>;
   closedDays?: string[];
-  specialHours?: Array<{
-    date: string;
-    reason: string;
-    closed: boolean;
-    hours?: {
-      open: string;
-      close: string;
-    };
-  }>;
+  specialHours?: Array<{ date: string; reason: string; closed: boolean; hours?: { open: string; close: string } }>;
 }
 
 export interface ListLocationsQuery {
@@ -84,14 +35,11 @@ export interface ListLocationsQuery {
 }
 
 class LocationsService {
-  /**
-   * Create a new location
-   */
-  async createLocation(dto: CreateLocationDTO): Promise<ILocation> {
+  async createLocation(dto: CreateLocationDTO): Promise<Location> {
     try {
       logger.info('Creating location:', { name: dto.name, region: dto.region });
-
-      const location = await LocationModel.create({
+      const repo = AppDataSource.getRepository(Location);
+      const location = repo.create({
         name: dto.name,
         address: dto.address,
         region: dto.region,
@@ -103,8 +51,8 @@ class LocationsService {
         closedDays: dto.closedDays,
         specialHours: dto.specialHours,
       });
-
-      logger.info(`Location created with ID: ${location._id}`);
+      await repo.save(location);
+      logger.info(`Location created with ID: ${location.id}`);
       return location;
     } catch (error: any) {
       logger.error('Create location error:', error);
@@ -117,25 +65,16 @@ class LocationsService {
     }
   }
 
-  /**
-   * List locations with optional filtering by region
-   */
-  async listLocations(query: ListLocationsQuery = {}): Promise<ILocation[]> {
+  async listLocations(query: ListLocationsQuery = {}): Promise<Location[]> {
     try {
-      // Build filter
-      const filter: any = {};
-
-      // Filter by region if provided
-      if (query.region) {
-        filter.region = query.region;
-      }
-
-      // Execute query ordered by region and name
-      const locations = await LocationModel.find(filter)
-        .sort({ region: 1, name: 1 })
-        .lean();
-
-      return locations as unknown as ILocation[];
+      const repo = AppDataSource.getRepository(Location);
+      const where: any = {};
+      if (query.region) where.region = query.region;
+      const locations = await repo.find({
+        where,
+        order: { region: 'ASC', name: 'ASC' },
+      });
+      return locations;
     } catch (error: any) {
       logger.error('List locations error:', error);
       throw {
@@ -147,27 +86,18 @@ class LocationsService {
     }
   }
 
-  /**
-   * Get a single location by ID
-   */
-  async getLocationById(locationId: string): Promise<ILocation> {
+  async getLocationById(locationId: string): Promise<Location> {
     try {
-      const location = await LocationModel.findById(locationId).lean();
-
+      const id = parseInt(locationId, 10);
+      const repo = AppDataSource.getRepository(Location);
+      const location = await repo.findOne({ where: { id } });
       if (!location) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Location not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Location not found' };
       }
-
-      return location as unknown as ILocation;
+      return location;
     } catch (error: any) {
       logger.error('Get location error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -177,34 +107,22 @@ class LocationsService {
     }
   }
 
-  /**
-   * Update a location
-   */
-  async updateLocation(locationId: string, dto: UpdateLocationDTO): Promise<ILocation> {
+  async updateLocation(locationId: string, dto: UpdateLocationDTO): Promise<Location> {
     try {
       logger.info(`Updating location: ${locationId}`);
-
-      const location = await LocationModel.findByIdAndUpdate(
-        locationId,
-        dto,
-        { new: true, runValidators: true }
-      ).lean();
-
+      const id = parseInt(locationId, 10);
+      const repo = AppDataSource.getRepository(Location);
+      const location = await repo.findOne({ where: { id } });
       if (!location) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Location not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Location not found' };
       }
-
+      Object.assign(location, dto);
+      await repo.save(location);
       logger.info(`Location ${locationId} updated successfully`);
-      return location as unknown as ILocation;
+      return location;
     } catch (error: any) {
       logger.error('Update location error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -214,29 +132,20 @@ class LocationsService {
     }
   }
 
-  /**
-   * Delete a location
-   */
   async deleteLocation(locationId: string): Promise<void> {
     try {
       logger.info(`Deleting location: ${locationId}`);
-
-      const location = await LocationModel.findByIdAndDelete(locationId);
-
+      const id = parseInt(locationId, 10);
+      const repo = AppDataSource.getRepository(Location);
+      const location = await repo.findOne({ where: { id } });
       if (!location) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Location not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Location not found' };
       }
-
+      await repo.remove(location);
       logger.info(`Location ${locationId} deleted successfully`);
     } catch (error: any) {
       logger.error('Delete location error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -246,23 +155,13 @@ class LocationsService {
     }
   }
 
-  /**
-   * Find nearest offices to a given location
-   * 
-   * @param latitude - User's latitude
-   * @param longitude - User's longitude
-   * @param limit - Maximum number of offices to return (default: 5)
-   * @returns Array of offices with distance in kilometers, sorted by distance
-   */
   async findNearestOffices(
     latitude: number,
     longitude: number,
     limit: number = 5
-  ): Promise<Array<ILocation & { distance: number }>> {
+  ): Promise<Array<Location & { distance: number }>> {
     try {
       logger.info('Finding nearest offices', { latitude, longitude, limit });
-
-      // Validate coordinates
       if (typeof latitude !== 'number' || typeof longitude !== 'number' || isNaN(latitude) || isNaN(longitude)) {
         throw {
           statusCode: 400,
@@ -270,7 +169,6 @@ class LocationsService {
           message: 'Invalid coordinates provided',
         };
       }
-
       if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
         throw {
           statusCode: 400,
@@ -278,11 +176,8 @@ class LocationsService {
           message: 'Coordinates out of valid range',
         };
       }
-
-      // Retrieve all offices from database
-      const offices = await LocationModel.find({}).lean();
-
-      // Calculate distance for each office and add to result
+      const repo = AppDataSource.getRepository(Location);
+      const offices = await repo.find({});
       const officesWithDistance = offices.map((office) => {
         const distance = calculateDistance(
           latitude,
@@ -290,26 +185,15 @@ class LocationsService {
           office.coordinates.latitude,
           office.coordinates.longitude
         );
-
-        return {
-          ...office,
-          distance,
-        } as unknown as ILocation & { distance: number };
+        return { ...office, distance };
       });
-
-      // Sort by distance (ascending)
       officesWithDistance.sort((a, b) => a.distance - b.distance);
-
-      // Return top N offices
       const result = officesWithDistance.slice(0, limit);
-
       logger.info(`Found ${result.length} nearest offices`);
-      return result as unknown as Array<ILocation & { distance: number }>;
+      return result;
     } catch (error: any) {
       logger.error('Find nearest offices error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,

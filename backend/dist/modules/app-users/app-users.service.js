@@ -6,7 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.appUsersService = exports.AppUsersService = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = __importDefault(require("crypto"));
-const app_users_model_1 = require("./app-users.model");
+const db_1 = require("../../config/db");
+const app_users_entity_1 = require("./app-users.entity");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 const env_1 = require("../../config/env");
@@ -20,8 +21,8 @@ class AppUsersService {
     async register(dto) {
         try {
             const { email, password, fullName, phoneNumber } = dto;
-            // Check if user already exists
-            const existingUser = await app_users_model_1.AppUser.findOne({ email });
+            const repo = db_1.AppDataSource.getRepository(app_users_entity_1.AppUser);
+            const existingUser = await repo.findOne({ where: { email: email.toLowerCase().trim() } });
             if (existingUser) {
                 throw {
                     code: errors_1.ERROR_CODES.VALIDATION_ERROR,
@@ -29,26 +30,20 @@ class AppUsersService {
                     statusCode: 409,
                 };
             }
-            // Create user with email automatically verified (email verification disabled)
-            const user = await app_users_model_1.AppUser.create({
+            const user = repo.create({
                 email: email.toLowerCase().trim(),
                 password,
-                fullName: fullName?.trim(),
-                phoneNumber: phoneNumber?.trim(),
-                isEmailVerified: true, // Email verification disabled
+                fullName: fullName?.trim() ?? null,
+                phoneNumber: phoneNumber?.trim() ?? null,
+                isEmailVerified: true,
                 emailVerifiedAt: new Date(),
             });
-            // Email verification disabled - skipping verification email
-            // Generate tokens (user can still login, but email verification is required)
-            const tokens = await this.generateTokens(user);
-            // Store refresh token
-            await this.storeRefreshToken(user._id.toString(), tokens.refreshToken);
-            logger_1.logger.info(`New app user registered: ${user.email}`);
-            // Return user without password
-            const userObject = user.toObject();
-            delete userObject.password;
-            delete userObject.emailVerificationToken;
-            return { user: userObject, tokens };
+            const saved = await repo.save(user);
+            const tokens = await this.generateTokens(saved);
+            await this.storeRefreshToken(saved.id.toString(), tokens.refreshToken);
+            logger_1.logger.info(`New app user registered: ${saved.email}`);
+            const { password: _, emailVerificationToken: __, ...rest } = saved;
+            return { user: rest, tokens };
         }
         catch (error) {
             logger_1.logger.error('Register app user error:', error);
@@ -69,8 +64,11 @@ class AppUsersService {
     async login(credentials) {
         try {
             const { email, password } = credentials;
-            // Find user with password field included
-            const user = await app_users_model_1.AppUser.findOne({ email: email.toLowerCase().trim() }).select('+password');
+            const repo = db_1.AppDataSource.getRepository(app_users_entity_1.AppUser);
+            const user = await repo.findOne({
+                where: { email: email.toLowerCase().trim() },
+                select: ['id', 'email', 'password', 'fullName', 'phoneNumber', 'isEmailVerified', 'lastLoginAt', 'createdAt', 'updatedAt'],
+            });
             if (!user) {
                 throw {
                     code: errors_1.ERROR_CODES.AUTH_INVALID_CREDENTIALS,
@@ -78,7 +76,6 @@ class AppUsersService {
                     statusCode: 401,
                 };
             }
-            // Verify password
             const isPasswordValid = await user.comparePassword(password);
             if (!isPasswordValid) {
                 throw {
@@ -87,18 +84,13 @@ class AppUsersService {
                     statusCode: 401,
                 };
             }
-            // Generate tokens
             const tokens = await this.generateTokens(user);
-            // Store refresh token
-            await this.storeRefreshToken(user._id.toString(), tokens.refreshToken);
-            // Update last login
+            await this.storeRefreshToken(String(user.id), tokens.refreshToken);
             user.lastLoginAt = new Date();
-            await user.save();
+            await repo.save(user);
             logger_1.logger.info(`App user logged in: ${user.email}`);
-            // Return user without password
-            const userObject = user.toObject();
-            delete userObject.password;
-            return { user: userObject, tokens };
+            const { password: _, ...rest } = user;
+            return { user: rest, tokens };
         }
         catch (error) {
             logger_1.logger.error('Login app user error:', error);
@@ -118,7 +110,15 @@ class AppUsersService {
      */
     async getUserById(id) {
         try {
-            const user = await app_users_model_1.AppUser.findById(id).lean();
+            const idNum = parseInt(id, 10);
+            if (isNaN(idNum)) {
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'User not found' };
+            }
+            const repo = db_1.AppDataSource.getRepository(app_users_entity_1.AppUser);
+            const user = await repo.findOne({
+                where: { id: idNum },
+                select: ['id', 'email', 'fullName', 'phoneNumber', 'isEmailVerified', 'emailVerifiedAt', 'lastLoginAt', 'createdAt', 'updatedAt'],
+            });
             if (!user) {
                 throw {
                     statusCode: 404,
@@ -146,17 +146,9 @@ class AppUsersService {
      */
     async updateUser(id, dto) {
         try {
-            const updateData = {};
-            if (dto.fullName !== undefined) {
-                updateData.fullName = dto.fullName?.trim();
-            }
-            if (dto.phoneNumber !== undefined) {
-                updateData.phoneNumber = dto.phoneNumber?.trim();
-            }
-            const user = await app_users_model_1.AppUser.findByIdAndUpdate(id, updateData, {
-                new: true,
-                runValidators: true,
-            }).lean();
+            const idNum = parseInt(id, 10);
+            const repo = db_1.AppDataSource.getRepository(app_users_entity_1.AppUser);
+            const user = await repo.findOne({ where: { id: idNum } });
             if (!user) {
                 throw {
                     statusCode: 404,
@@ -164,8 +156,14 @@ class AppUsersService {
                     message: 'User not found',
                 };
             }
+            if (dto.fullName !== undefined)
+                user.fullName = dto.fullName?.trim() ?? null;
+            if (dto.phoneNumber !== undefined)
+                user.phoneNumber = dto.phoneNumber?.trim() ?? null;
+            await repo.save(user);
             logger_1.logger.info(`App user profile updated: ${id}`);
-            return user;
+            const { password: _, ...rest } = user;
+            return rest;
         }
         catch (error) {
             logger_1.logger.error('Update user error:', error);
@@ -187,7 +185,12 @@ class AppUsersService {
         try {
             const { oldPassword, newPassword } = dto;
             // Get user with password
-            const user = await app_users_model_1.AppUser.findById(id).select('+password');
+            const idNum = parseInt(id, 10);
+            if (isNaN(idNum)) {
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'User not found' };
+            }
+            const repo = db_1.AppDataSource.getRepository(app_users_entity_1.AppUser);
+            const user = await repo.findOne({ where: { id: idNum } });
             if (!user) {
                 throw {
                     statusCode: 404,
@@ -206,7 +209,7 @@ class AppUsersService {
             }
             // Update password (will be hashed by pre-save hook)
             user.password = newPassword;
-            await user.save();
+            await repo.save(user);
             logger_1.logger.info(`App user password changed: ${id}`);
         }
         catch (error) {
@@ -227,15 +230,13 @@ class AppUsersService {
      */
     async generateTokens(user) {
         const payload = {
-            userId: user._id.toString(),
+            userId: String(user.id),
             email: user.email,
         };
-        // Generate access token (15 minutes)
         const accessToken = jsonwebtoken_1.default.sign(payload, env_1.env.JWT_SECRET, {
             expiresIn: env_1.env.JWT_ACCESS_EXPIRY,
         });
-        // Generate refresh token (7 days)
-        const refreshToken = jsonwebtoken_1.default.sign({ userId: user._id.toString() }, env_1.env.JWT_SECRET, {
+        const refreshToken = jsonwebtoken_1.default.sign({ userId: String(user.id) }, env_1.env.JWT_SECRET, {
             expiresIn: env_1.env.JWT_REFRESH_EXPIRY,
         });
         return { accessToken, refreshToken };
@@ -284,8 +285,9 @@ class AppUsersService {
             else {
                 logger_1.logger.warn('Redis not configured - skipping refresh token validation');
             }
-            // Get user details
-            const user = await app_users_model_1.AppUser.findById(decoded.userId);
+            const userId = parseInt(decoded.userId, 10);
+            const repo = db_1.AppDataSource.getRepository(app_users_entity_1.AppUser);
+            const user = await repo.findOne({ where: { id: userId } });
             if (!user) {
                 throw {
                     code: errors_1.ERROR_CODES.AUTH_INVALID_TOKEN,
@@ -293,9 +295,8 @@ class AppUsersService {
                     statusCode: 401,
                 };
             }
-            // Generate new access token
             const payload = {
-                userId: user._id.toString(),
+                userId: String(user.id),
                 email: user.email,
             };
             const accessToken = jsonwebtoken_1.default.sign(payload, env_1.env.JWT_SECRET, {
@@ -354,10 +355,10 @@ class AppUsersService {
      */
     async verifyEmail(token) {
         try {
-            // Find user by verification token
-            const user = await app_users_model_1.AppUser.findOne({
-                emailVerificationToken: token,
-            }).select('+emailVerificationToken');
+            const repo = db_1.AppDataSource.getRepository(app_users_entity_1.AppUser);
+            const user = await repo.findOne({
+                where: { emailVerificationToken: token },
+            });
             if (!user) {
                 throw {
                     statusCode: 400,
@@ -365,7 +366,6 @@ class AppUsersService {
                     message: 'Invalid verification token',
                 };
             }
-            // Check if token is expired
             if (user.emailVerificationTokenExpiry && user.emailVerificationTokenExpiry < new Date()) {
                 throw {
                     statusCode: 400,
@@ -373,7 +373,6 @@ class AppUsersService {
                     message: 'Verification token has expired',
                 };
             }
-            // Check if already verified
             if (user.isEmailVerified) {
                 throw {
                     statusCode: 400,
@@ -381,26 +380,20 @@ class AppUsersService {
                     message: 'Email is already verified',
                 };
             }
-            // Verify email
             user.isEmailVerified = true;
             user.emailVerifiedAt = new Date();
-            user.emailVerificationToken = undefined;
-            user.emailVerificationTokenExpiry = undefined;
-            await user.save();
+            user.emailVerificationToken = null;
+            user.emailVerificationTokenExpiry = null;
+            await repo.save(user);
             logger_1.logger.info(`Email verified for user: ${user.email}`);
-            // Send welcome email
             try {
-                await email_service_1.emailService.sendWelcomeEmail(user.email, user.fullName);
+                await email_service_1.emailService.sendWelcomeEmail(user.email, user.fullName ?? undefined);
             }
             catch (emailError) {
                 logger_1.logger.error('Failed to send welcome email:', emailError);
-                // Don't fail verification if welcome email fails
             }
-            // Return user without sensitive fields
-            const userObject = user.toObject();
-            delete userObject.password;
-            delete userObject.emailVerificationToken;
-            return userObject;
+            const { password: _, emailVerificationToken: __, ...rest } = user;
+            return rest;
         }
         catch (error) {
             logger_1.logger.error('Verify email error:', error);
@@ -420,7 +413,11 @@ class AppUsersService {
      */
     async resendVerificationEmail(email) {
         try {
-            const user = await app_users_model_1.AppUser.findOne({ email: email.toLowerCase().trim() }).select('+emailVerificationToken');
+            const repo = db_1.AppDataSource.getRepository(app_users_entity_1.AppUser);
+            const user = await repo.findOne({
+                where: { email: email.toLowerCase().trim() },
+                select: ['id', 'email', 'fullName', 'isEmailVerified', 'emailVerificationToken'],
+            });
             if (!user) {
                 throw {
                     statusCode: 404,
@@ -428,7 +425,6 @@ class AppUsersService {
                     message: 'User not found',
                 };
             }
-            // Check if already verified
             if (user.isEmailVerified) {
                 throw {
                     statusCode: 400,
@@ -436,16 +432,13 @@ class AppUsersService {
                     message: 'Email is already verified',
                 };
             }
-            // Generate new verification token
             const verificationToken = this.generateEmailVerificationToken();
             const tokenExpiry = new Date();
-            tokenExpiry.setHours(tokenExpiry.getHours() + 24); // 24 hours expiry
-            // Update user with new token
+            tokenExpiry.setHours(tokenExpiry.getHours() + 24);
             user.emailVerificationToken = verificationToken;
             user.emailVerificationTokenExpiry = tokenExpiry;
-            await user.save();
-            // Send verification email
-            await email_service_1.emailService.sendVerificationEmail(user.email, user.fullName, verificationToken);
+            await repo.save(user);
+            await email_service_1.emailService.sendVerificationEmail(user.email, user.fullName ?? undefined, verificationToken);
             logger_1.logger.info(`Verification email resent to: ${user.email}`);
         }
         catch (error) {

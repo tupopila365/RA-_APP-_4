@@ -3,5 +3,5 @@
  *
  * Populates the database with sample data for development/testing
  */
-export {};
+import 'reflect-metadata';
 //# sourceMappingURL=seed.d.ts.map

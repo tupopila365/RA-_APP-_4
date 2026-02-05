@@ -1,16 +1,17 @@
 import { Response, NextFunction, Request } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
+import { AppAuthRequest } from '../../middlewares/appAuth';
 export declare class PotholeReportsController {
     /**
      * Create a new pothole report
      * POST /api/pothole-reports
      */
-    createReport(req: Request, res: Response, next: NextFunction): Promise<void>;
+    createReport(req: Request | AppAuthRequest, res: Response, next: NextFunction): Promise<void>;
     /**
-     * Get user's reports by device ID
+     * Get user's reports by email (if authenticated) or device ID
      * GET /api/pothole-reports/my-reports
      */
-    getMyReports(req: Request, res: Response, next: NextFunction): Promise<void>;
+    getMyReports(req: Request | AppAuthRequest, res: Response, next: NextFunction): Promise<void>;
     /**
      * Get a single report by ID
      * GET /api/pothole-reports/:id

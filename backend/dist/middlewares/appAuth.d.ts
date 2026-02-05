@@ -7,4 +7,8 @@ export interface AppAuthRequest extends Request {
     };
 }
 export declare const authenticateAppUser: (req: AppAuthRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Optional authentication middleware - doesn't fail if no token, but sets user if token is valid
+ */
+export declare const optionalAuthenticateAppUser: (req: AppAuthRequest, res: Response, next: NextFunction) => Promise<void>;
 //# sourceMappingURL=appAuth.d.ts.map

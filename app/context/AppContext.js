@@ -28,11 +28,19 @@ export function AppProvider({ children }) {
   const initializeApp = async () => {
     try {
       setIsLoading(true);
-      
-      // Skip authentication check for now to avoid timeout
-      // The chatbot works without authentication
-      console.log('Skipping authentication check - chatbot works without login');
-      setUser(null);
+
+      // Restore auth state - user stays signed in until they log out
+      try {
+        const currentUser = await authService.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+        } else {
+          setUser(null);
+        }
+      } catch (authErr) {
+        console.warn('Auth restore failed:', authErr?.message);
+        setUser(null);
+      }
 
       // Load app settings
       const storedSettings = await SecureStore.getItemAsync('appSettings');

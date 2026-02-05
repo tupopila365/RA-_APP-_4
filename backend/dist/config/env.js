@@ -6,6 +6,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.env = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
+/** Parse env string to boolean. Treats "true", "1", "yes" (case-insensitive) as true. */
+const parseBooleanEnv = (value) => {
+    if (value === undefined || value === '')
+        return false;
+    const v = String(value).toLowerCase().trim();
+    return v === 'true' || v === '1' || v === 'yes';
+};
 const getEnvVar = (key, defaultValue) => {
     const value = process.env[key] || defaultValue;
     if (!value) {
@@ -16,9 +23,13 @@ const getEnvVar = (key, defaultValue) => {
 exports.env = {
     NODE_ENV: getEnvVar('NODE_ENV', 'development'),
     PORT: parseInt(getEnvVar('PORT', '5000'), 10),
-    MONGODB_URI: process.env.NODE_ENV === 'production'
-        ? getEnvVar('MONGODB_URI') // Use Atlas URI for production
-        : 'mongodb://localhost:27017/ra_db', // Always use local MongoDB for development
+    DB_HOST: process.env.DB_HOST || 'localhost',
+    DB_PORT: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 1433,
+    DB_NAME: process.env.DB_NAME || 'ra_db',
+    DB_USER: process.env.DB_USER || 'sa',
+    DB_PASSWORD: process.env.DB_PASSWORD || '',
+    DB_TRUST_SERVER_CERTIFICATE: process.env.DB_TRUST_SERVER_CERTIFICATE === 'false' ? false : true,
+    DB_TRUSTED_CONNECTION: parseBooleanEnv(process.env.DB_TRUSTED_CONNECTION),
     REDIS_HOST: process.env.REDIS_HOST || '',
     REDIS_PORT: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 0,
     REDIS_PASSWORD: process.env.REDIS_PASSWORD,

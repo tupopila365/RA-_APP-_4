@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.usersService = exports.UsersService = void 0;
-const auth_model_1 = require("./auth.model");
+const db_1 = require("../../config/db");
+const auth_entity_1 = require("./auth.entity");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 const roles_1 = require("../../constants/roles");
@@ -11,6 +12,7 @@ class UsersService {
      */
     async createUser(data) {
         const { email, password, role, permissions } = data;
+        const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
         // Validate role
         if (!(0, roles_1.isValidRole)(role)) {
             throw {
@@ -29,7 +31,7 @@ class UsersService {
             };
         }
         // Check if user already exists
-        const existingUser = await auth_model_1.User.findOne({ email });
+        const existingUser = await repo.findOne({ where: { email: email.toLowerCase().trim() } });
         if (existingUser) {
             throw {
                 code: errors_1.ERROR_CODES.VALIDATION_ERROR,
@@ -38,18 +40,16 @@ class UsersService {
             };
         }
         // Create user
-        const user = new auth_model_1.User({
-            email,
+        const user = repo.create({
+            email: email.toLowerCase().trim(),
             password,
-            role,
-            permissions,
+            role: role,
+            permissions: permissions,
         });
-        await user.save();
+        await repo.save(user);
         logger_1.logger.info(`New user created: ${user.email} with role: ${user.role}`);
-        // Return user without password
-        const userObject = user.toObject();
-        delete userObject.password;
-        return userObject;
+        const { password: _, ...rest } = user;
+        return rest;
     }
     /**
      * List all admin users with pagination
@@ -58,36 +58,35 @@ class UsersService {
         const page = Math.max(1, query.page || 1);
         const limit = Math.min(100, Math.max(1, query.limit || 10));
         const skip = (page - 1) * limit;
-        // Build filter
-        const filter = {};
+        const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
+        const where = {};
         if (query.role && (0, roles_1.isValidRole)(query.role)) {
-            filter.role = query.role;
+            where.role = query.role;
         }
-        // Get users with pagination
         const [users, total] = await Promise.all([
-            auth_model_1.User.find(filter)
-                .select('-password')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .lean(),
-            auth_model_1.User.countDocuments(filter),
+            repo.find({
+                where,
+                order: { createdAt: 'DESC' },
+                skip,
+                take: limit,
+                select: ['id', 'email', 'role', 'permissions', 'createdAt', 'updatedAt'],
+            }),
+            repo.count({ where }),
         ]);
         const totalPages = Math.ceil(total / limit);
         logger_1.logger.debug(`Listed ${users.length} users (page ${page} of ${totalPages})`);
-        return {
-            users: users,
-            total,
-            page,
-            limit,
-            totalPages,
-        };
+        return { users, total, page, limit, totalPages };
     }
     /**
      * Get a single user by ID
      */
     async getUserById(userId) {
-        const user = await auth_model_1.User.findById(userId).select('-password').lean();
+        const id = parseInt(userId, 10);
+        const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
+        const user = await repo.findOne({
+            where: { id },
+            select: ['id', 'email', 'role', 'permissions', 'createdAt', 'updatedAt'],
+        });
         if (!user) {
             throw {
                 code: errors_1.ERROR_CODES.NOT_FOUND,
@@ -101,7 +100,8 @@ class UsersService {
      * Update user details
      */
     async updateUser(userId, data) {
-        // Validate role if provided
+        const id = parseInt(userId, 10);
+        const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
         if (data.role && !(0, roles_1.isValidRole)(data.role)) {
             throw {
                 code: errors_1.ERROR_CODES.VALIDATION_ERROR,
@@ -109,7 +109,6 @@ class UsersService {
                 statusCode: 400,
             };
         }
-        // Validate permissions if provided
         if (data.permissions) {
             const invalidPermissions = data.permissions.filter(p => !(0, roles_1.isValidPermission)(p));
             if (invalidPermissions.length > 0) {
@@ -120,13 +119,11 @@ class UsersService {
                 };
             }
         }
-        // Check if email is being changed and if it's already taken
         if (data.email) {
-            const existingUser = await auth_model_1.User.findOne({
-                email: data.email,
-                _id: { $ne: userId }
+            const existingUser = await repo.findOne({
+                where: { email: data.email.toLowerCase().trim() },
             });
-            if (existingUser) {
+            if (existingUser && existingUser.id !== id) {
                 throw {
                     code: errors_1.ERROR_CODES.VALIDATION_ERROR,
                     message: 'Email already in use by another user',
@@ -134,8 +131,7 @@ class UsersService {
                 };
             }
         }
-        // Find and update user
-        const user = await auth_model_1.User.findById(userId);
+        const user = await repo.findOne({ where: { id } });
         if (!user) {
             throw {
                 code: errors_1.ERROR_CODES.NOT_FOUND,
@@ -143,27 +139,23 @@ class UsersService {
                 statusCode: 404,
             };
         }
-        // Update fields
         if (data.email)
-            user.email = data.email;
+            user.email = data.email.toLowerCase().trim();
         if (data.password)
-            user.password = data.password; // Will be hashed by pre-save hook
+            user.password = data.password;
         if (data.role)
             user.role = data.role;
         if (data.permissions)
             user.permissions = data.permissions;
-        await user.save();
+        await repo.save(user);
         logger_1.logger.info(`User updated: ${user.email}`);
-        // Return user without password
-        const userObject = user.toObject();
-        delete userObject.password;
-        return userObject;
+        const { password: _, ...rest } = user;
+        return rest;
     }
     /**
      * Delete a user
      */
     async deleteUser(userId, requestingUserId) {
-        // Prevent self-deletion
         if (userId === requestingUserId) {
             throw {
                 code: errors_1.ERROR_CODES.VALIDATION_ERROR,
@@ -171,7 +163,9 @@ class UsersService {
                 statusCode: 400,
             };
         }
-        const user = await auth_model_1.User.findById(userId);
+        const id = parseInt(userId, 10);
+        const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
+        const user = await repo.findOne({ where: { id } });
         if (!user) {
             throw {
                 code: errors_1.ERROR_CODES.NOT_FOUND,
@@ -179,14 +173,13 @@ class UsersService {
                 statusCode: 404,
             };
         }
-        await auth_model_1.User.findByIdAndDelete(userId);
+        await repo.remove(user);
         logger_1.logger.info(`User deleted: ${user.email}`);
     }
     /**
      * Assign permissions to a user
      */
     async assignPermissions(userId, permissions) {
-        // Validate permissions
         const invalidPermissions = permissions.filter(p => !(0, roles_1.isValidPermission)(p));
         if (invalidPermissions.length > 0) {
             throw {
@@ -195,7 +188,9 @@ class UsersService {
                 statusCode: 400,
             };
         }
-        const user = await auth_model_1.User.findById(userId);
+        const id = parseInt(userId, 10);
+        const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
+        const user = await repo.findOne({ where: { id } });
         if (!user) {
             throw {
                 code: errors_1.ERROR_CODES.NOT_FOUND,
@@ -204,12 +199,10 @@ class UsersService {
             };
         }
         user.permissions = permissions;
-        await user.save();
+        await repo.save(user);
         logger_1.logger.info(`Permissions updated for user: ${user.email}`);
-        // Return user without password
-        const userObject = user.toObject();
-        delete userObject.password;
-        return userObject;
+        const { password: _, ...rest } = user;
+        return rest;
     }
 }
 exports.UsersService = UsersService;

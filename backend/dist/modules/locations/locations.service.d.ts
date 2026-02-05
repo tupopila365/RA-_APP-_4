@@ -1,4 +1,4 @@
-import { ILocation } from './locations.model';
+import { Location } from './locations.entity';
 export interface CreateLocationDTO {
     name: string;
     address: string;
@@ -10,20 +10,7 @@ export interface CreateLocationDTO {
     contactNumber?: string;
     email?: string;
     services?: string[];
-    operatingHours?: {
-        weekdays?: {
-            open: string;
-            close: string;
-        };
-        weekends?: {
-            open: string;
-            close: string;
-        };
-        publicHolidays?: {
-            open: string;
-            close: string;
-        };
-    };
+    operatingHours?: Record<string, unknown>;
     closedDays?: string[];
     specialHours?: Array<{
         date: string;
@@ -46,20 +33,7 @@ export interface UpdateLocationDTO {
     contactNumber?: string;
     email?: string;
     services?: string[];
-    operatingHours?: {
-        weekdays?: {
-            open: string;
-            close: string;
-        };
-        weekends?: {
-            open: string;
-            close: string;
-        };
-        publicHolidays?: {
-            open: string;
-            close: string;
-        };
-    };
+    operatingHours?: Record<string, unknown>;
     closedDays?: string[];
     specialHours?: Array<{
         date: string;
@@ -75,35 +49,12 @@ export interface ListLocationsQuery {
     region?: string;
 }
 declare class LocationsService {
-    /**
-     * Create a new location
-     */
-    createLocation(dto: CreateLocationDTO): Promise<ILocation>;
-    /**
-     * List locations with optional filtering by region
-     */
-    listLocations(query?: ListLocationsQuery): Promise<ILocation[]>;
-    /**
-     * Get a single location by ID
-     */
-    getLocationById(locationId: string): Promise<ILocation>;
-    /**
-     * Update a location
-     */
-    updateLocation(locationId: string, dto: UpdateLocationDTO): Promise<ILocation>;
-    /**
-     * Delete a location
-     */
+    createLocation(dto: CreateLocationDTO): Promise<Location>;
+    listLocations(query?: ListLocationsQuery): Promise<Location[]>;
+    getLocationById(locationId: string): Promise<Location>;
+    updateLocation(locationId: string, dto: UpdateLocationDTO): Promise<Location>;
     deleteLocation(locationId: string): Promise<void>;
-    /**
-     * Find nearest offices to a given location
-     *
-     * @param latitude - User's latitude
-     * @param longitude - User's longitude
-     * @param limit - Maximum number of offices to return (default: 5)
-     * @returns Array of offices with distance in kilometers, sorted by distance
-     */
-    findNearestOffices(latitude: number, longitude: number, limit?: number): Promise<Array<ILocation & {
+    findNearestOffices(latitude: number, longitude: number, limit?: number): Promise<Array<Location & {
         distance: number;
     }>>;
 }

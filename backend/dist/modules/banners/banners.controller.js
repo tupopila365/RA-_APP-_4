@@ -33,12 +33,12 @@ class BannersController {
                 order,
                 active,
             });
-            logger_1.logger.info(`Banner created successfully: ${banner._id}`);
+            logger_1.logger.info(`Banner created successfully: ${banner.id}`);
             res.status(201).json({
                 success: true,
                 data: {
                     banner: {
-                        id: banner._id,
+                        id: banner.id,
                         title: banner.title,
                         description: banner.description,
                         imageUrl: banner.imageUrl,
@@ -73,7 +73,7 @@ class BannersController {
                 success: true,
                 data: {
                     banners: banners.map((banner) => ({
-                        id: banner._id,
+                        id: banner.id,
                         title: banner.title,
                         description: banner.description,
                         imageUrl: banner.imageUrl,
@@ -104,7 +104,7 @@ class BannersController {
                 success: true,
                 data: {
                     banner: {
-                        id: banner._id,
+                        id: banner.id,
                         title: banner.title,
                         description: banner.description,
                         imageUrl: banner.imageUrl,
@@ -151,7 +151,7 @@ class BannersController {
                 success: true,
                 data: {
                     banner: {
-                        id: banner._id,
+                        id: banner.id,
                         title: banner.title,
                         description: banner.description,
                         imageUrl: banner.imageUrl,

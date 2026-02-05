@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authenticate = void 0;
+exports.requireAdmin = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = require("../config/env");
 const errors_1 = require("../constants/errors");
@@ -54,4 +54,31 @@ const authenticate = async (req, res, next) => {
     }
 };
 exports.authenticate = authenticate;
+const requireAdmin = (req, res, next) => {
+    if (!req.user) {
+        res.status(401).json({
+            success: false,
+            error: {
+                code: errors_1.ERROR_CODES.AUTH_MISSING_TOKEN,
+                message: 'Authentication required',
+            },
+            timestamp: new Date().toISOString(),
+        });
+        return;
+    }
+    // Allow both 'admin' and 'super-admin' roles
+    if (req.user.role !== 'admin' && req.user.role !== 'super-admin') {
+        res.status(403).json({
+            success: false,
+            error: {
+                code: errors_1.ERROR_CODES.AUTH_INSUFFICIENT_PERMISSIONS,
+                message: 'Admin access required',
+            },
+            timestamp: new Date().toISOString(),
+        });
+        return;
+    }
+    next();
+};
+exports.requireAdmin = requireAdmin;
 //# sourceMappingURL=auth.js.map

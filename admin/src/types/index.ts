@@ -156,6 +156,17 @@ export type Permission =
   | 'documents:upload'
   | 'banners:manage'
   | 'locations:manage'
-  | 'users:manage';
+  | 'users:manage'
+  | 'faqs:manage'
+  | 'pothole-reports:manage'
+  | 'road-status:manage'
+  | 'incidents:manage'
+  | 'pln:manage'
+  | 'vehicle-reg:manage'
+  | 'procurement:legislation:manage'
+  | 'procurement:plan:manage'
+  | 'procurement:awards:manage'
+  | 'procurement:opening-register:manage'
+  | 'ra-services:manage';
 
 export type Role = 'super-admin' | 'admin';

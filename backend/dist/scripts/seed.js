@@ -8,13 +8,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const mongoose_1 = __importDefault(require("mongoose"));
-const news_model_1 = require("../modules/news/news.model");
-const locations_model_1 = require("../modules/locations/locations.model");
+require("reflect-metadata");
 const dotenv_1 = __importDefault(require("dotenv"));
-// Load environment variables
+const db_1 = require("../config/db");
+const news_entity_1 = require("../modules/news/news.entity");
+const locations_entity_1 = require("../modules/locations/locations.entity");
 dotenv_1.default.config();
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/roads-authority';
 // Sample News Data
 const sampleNews = [
     {
@@ -66,7 +65,7 @@ const sampleLocations = [
         address: 'Independence Avenue, Windhoek',
         region: 'Khomas',
         coordinates: {
-            latitude: -22.5700,
+            latitude: -22.57,
             longitude: 17.0836,
         },
         contactNumber: '+264 61 284 7100',
@@ -89,7 +88,7 @@ const sampleLocations = [
         region: 'Oshana',
         coordinates: {
             latitude: -17.7833,
-            longitude: 15.7000,
+            longitude: 15.7,
         },
         contactNumber: '+264 65 220 000',
         email: 'oshakati@ra.org.na',
@@ -98,21 +97,24 @@ const sampleLocations = [
 async function seedDatabase() {
     try {
         console.log('🌱 Starting database seeding...');
-        // Connect to MongoDB
-        await mongoose_1.default.connect(MONGODB_URI);
-        console.log('✅ Connected to MongoDB');
+        await (0, db_1.connectDB)();
+        console.log('✅ Connected to SQL Server');
+        const newsRepo = db_1.AppDataSource.getRepository(news_entity_1.News);
+        const locationRepo = db_1.AppDataSource.getRepository(locations_entity_1.Location);
         // Clear existing data (optional - comment out if you want to keep existing data)
         console.log('🗑️  Clearing existing data...');
-        await news_model_1.NewsModel.deleteMany({});
-        await locations_model_1.LocationModel.deleteMany({});
+        await newsRepo.clear();
+        await locationRepo.clear();
         console.log('✅ Existing data cleared');
         // Insert sample news
         console.log('📰 Inserting sample news...');
-        const news = await news_model_1.NewsModel.insertMany(sampleNews);
+        const newsEntities = newsRepo.create(sampleNews);
+        const news = await newsRepo.save(newsEntities);
         console.log(`✅ Inserted ${news.length} news articles`);
         // Insert sample locations
         console.log('📍 Inserting sample locations...');
-        const locations = await locations_model_1.LocationModel.insertMany(sampleLocations);
+        const locationEntities = locationRepo.create(sampleLocations);
+        const locations = await locationRepo.save(locationEntities);
         console.log(`✅ Inserted ${locations.length} locations`);
         console.log('\n🎉 Database seeding completed successfully!');
         console.log('\n📊 Summary:');
@@ -125,11 +127,10 @@ async function seedDatabase() {
         process.exit(1);
     }
     finally {
-        await mongoose_1.default.disconnect();
-        console.log('\n👋 Disconnected from MongoDB');
+        await (0, db_1.disconnectDB)();
+        console.log('\n👋 Disconnected from SQL Server');
         process.exit(0);
     }
 }
-// Run the seed function
 seedDatabase();
 //# sourceMappingURL=seed.js.map

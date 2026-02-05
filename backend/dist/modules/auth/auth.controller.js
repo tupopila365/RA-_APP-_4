@@ -52,13 +52,13 @@ class AuthController {
             const { user, tokens } = await auth_service_1.authService.login({ email, password });
             // #region agent log
             try {
-                fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.controller.ts:30', message: 'AuthService.login succeeded', data: { userId: user?._id?.toString(), hasTokens: !!(tokens?.accessToken && tokens?.refreshToken) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) + '\n');
+                fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.controller.ts:30', message: 'AuthService.login succeeded', data: { userId: user?.id, hasTokens: !!(tokens?.accessToken && tokens?.refreshToken) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) + '\n');
             }
             catch (e) { }
             // #endregion
             // Return user data without password
             const userData = {
-                id: user._id,
+                id: user.id,
                 email: user.email,
                 role: user.role,
                 permissions: user.permissions,

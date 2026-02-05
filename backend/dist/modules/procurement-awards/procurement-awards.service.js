@@ -1,20 +1,30 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.procurementAwardService = void 0;
-const procurement_awards_model_1 = require("./procurement-awards.model");
+const db_1 = require("../../config/db");
+const procurement_awards_entity_1 = require("./procurement-awards.entity");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
+function parseId(id) {
+    const num = parseInt(id, 10);
+    if (isNaN(num)) {
+        throw {
+            statusCode: 404,
+            code: errors_1.ERROR_CODES.NOT_FOUND,
+            message: 'Procurement award not found',
+        };
+    }
+    return num;
+}
 class ProcurementAwardService {
-    /**
-     * Create a new procurement award
-     */
     async createAward(dto, createdBy) {
         try {
             logger_1.logger.info('Creating procurement award:', {
                 procurementReference: dto.procurementReference,
                 type: dto.type,
             });
-            const award = await procurement_awards_model_1.ProcurementAwardModel.create({
+            const repo = db_1.AppDataSource.getRepository(procurement_awards_entity_1.ProcurementAward);
+            const award = repo.create({
                 type: dto.type,
                 procurementReference: dto.procurementReference,
                 description: dto.description,
@@ -22,15 +32,15 @@ class ProcurementAwardService {
                 successfulBidder: dto.successfulBidder,
                 dateAwarded: dto.dateAwarded,
                 published: dto.published || false,
-                createdBy,
+                createdBy: createdBy ?? null,
             });
-            logger_1.logger.info(`Procurement award created with ID: ${award._id}`);
-            return award;
+            const saved = await repo.save(award);
+            logger_1.logger.info(`Procurement award created with ID: ${saved.id}`);
+            return saved;
         }
         catch (error) {
             logger_1.logger.error('Create procurement award error:', error);
-            if (error.code === 11000) {
-                // Duplicate key error
+            if (error.number === 2627) {
                 throw {
                     statusCode: 400,
                     code: errors_1.ERROR_CODES.VALIDATION_ERROR,
@@ -46,36 +56,28 @@ class ProcurementAwardService {
             };
         }
     }
-    /**
-     * List procurement awards with pagination, filtering, and search
-     */
     async listAwards(query) {
         try {
             const page = Math.max(1, query.page || 1);
             const limit = Math.min(100, Math.max(1, query.limit || 10));
             const skip = (page - 1) * limit;
-            // Build filter
-            const filter = {};
-            if (query.type) {
-                filter.type = query.type;
-            }
-            if (query.published !== undefined) {
-                filter.published = query.published;
-            }
+            const repo = db_1.AppDataSource.getRepository(procurement_awards_entity_1.ProcurementAward);
+            const qb = repo.createQueryBuilder('p');
+            if (query.type)
+                qb.andWhere('p.type = :type', { type: query.type });
+            if (query.published !== undefined)
+                qb.andWhere('p.published = :published', { published: query.published });
             if (query.search) {
-                filter.$text = { $search: query.search };
+                qb.andWhere('(p.procurementReference LIKE :search OR p.description LIKE :search OR p.successfulBidder LIKE :search)', { search: `%${query.search}%` });
             }
-            // Execute query with pagination
-            const [items, total] = await Promise.all([
-                procurement_awards_model_1.ProcurementAwardModel.find(filter)
-                    .sort({ dateAwarded: -1, createdAt: -1 })
-                    .skip(skip)
-                    .limit(limit)
-                    .lean(),
-                procurement_awards_model_1.ProcurementAwardModel.countDocuments(filter),
-            ]);
+            const [items, total] = await qb
+                .orderBy('p.dateAwarded', 'DESC')
+                .addOrderBy('p.createdAt', 'DESC')
+                .skip(skip)
+                .take(limit)
+                .getManyAndCount();
             return {
-                items: items,
+                items,
                 total,
                 page,
                 totalPages: Math.ceil(total / limit),
@@ -91,12 +93,12 @@ class ProcurementAwardService {
             };
         }
     }
-    /**
-     * Get a single procurement award by ID
-     */
     async getAwardById(id) {
         try {
-            const award = await procurement_awards_model_1.ProcurementAwardModel.findById(id).lean();
+            const numId = parseId(id);
+            const award = await db_1.AppDataSource.getRepository(procurement_awards_entity_1.ProcurementAward).findOne({
+                where: { id: numId },
+            });
             if (!award) {
                 throw {
                     statusCode: 404,
@@ -108,9 +110,8 @@ class ProcurementAwardService {
         }
         catch (error) {
             logger_1.logger.error('Get procurement award error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -119,40 +120,45 @@ class ProcurementAwardService {
             };
         }
     }
-    /**
-     * Update procurement award
-     */
     async updateAward(id, dto) {
         try {
             logger_1.logger.info(`Updating procurement award: ${id}`);
-            const updateData = { ...dto };
-            // If publishing for the first time, set publishedAt
-            if (dto.published === true) {
-                const existing = await procurement_awards_model_1.ProcurementAwardModel.findById(id);
-                if (existing && !existing.published && !existing.publishedAt) {
-                    updateData.publishedAt = new Date();
-                }
-            }
-            const award = await procurement_awards_model_1.ProcurementAwardModel.findByIdAndUpdate(id, updateData, {
-                new: true,
-                runValidators: true,
-            }).lean();
-            if (!award) {
+            const numId = parseId(id);
+            const repo = db_1.AppDataSource.getRepository(procurement_awards_entity_1.ProcurementAward);
+            const existing = await repo.findOne({ where: { id: numId } });
+            if (!existing) {
                 throw {
                     statusCode: 404,
                     code: errors_1.ERROR_CODES.NOT_FOUND,
                     message: 'Procurement award not found',
                 };
             }
+            if (dto.type !== undefined)
+                existing.type = dto.type;
+            if (dto.procurementReference !== undefined)
+                existing.procurementReference = dto.procurementReference;
+            if (dto.description !== undefined)
+                existing.description = dto.description;
+            if (dto.executiveSummary !== undefined)
+                existing.executiveSummary = dto.executiveSummary;
+            if (dto.successfulBidder !== undefined)
+                existing.successfulBidder = dto.successfulBidder;
+            if (dto.dateAwarded !== undefined)
+                existing.dateAwarded = dto.dateAwarded;
+            if (dto.published === true && !existing.published && !existing.publishedAt) {
+                existing.publishedAt = new Date();
+            }
+            if (dto.published !== undefined)
+                existing.published = dto.published;
+            const award = await repo.save(existing);
             logger_1.logger.info(`Procurement award ${id} updated successfully`);
             return award;
         }
         catch (error) {
             logger_1.logger.error('Update procurement award error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
-            if (error.code === 11000) {
+            if (error.number === 2627) {
                 throw {
                     statusCode: 400,
                     code: errors_1.ERROR_CODES.VALIDATION_ERROR,
@@ -168,9 +174,6 @@ class ProcurementAwardService {
             };
         }
     }
-    /**
-     * Delete procurement award
-     */
     async deleteAward(id) {
         try {
             if (!id || id === 'undefined' || id === 'null') {
@@ -182,7 +185,9 @@ class ProcurementAwardService {
                 };
             }
             logger_1.logger.info(`Deleting procurement award: ${id}`);
-            const award = await procurement_awards_model_1.ProcurementAwardModel.findByIdAndDelete(id);
+            const numId = parseId(id);
+            const repo = db_1.AppDataSource.getRepository(procurement_awards_entity_1.ProcurementAward);
+            const award = await repo.findOne({ where: { id: numId } });
             if (!award) {
                 throw {
                     statusCode: 404,
@@ -190,21 +195,13 @@ class ProcurementAwardService {
                     message: 'Procurement award not found',
                 };
             }
+            await repo.remove(award);
             logger_1.logger.info(`Procurement award ${id} deleted successfully`);
         }
         catch (error) {
             logger_1.logger.error('Delete procurement award error:', { id, error: error.message });
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
-            if (error.name === 'CastError') {
-                throw {
-                    statusCode: 400,
-                    code: errors_1.ERROR_CODES.VALIDATION_ERROR,
-                    message: 'Invalid procurement award ID format',
-                    details: error.message,
-                };
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,

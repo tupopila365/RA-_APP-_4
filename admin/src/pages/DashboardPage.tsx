@@ -200,19 +200,19 @@ const DashboardPage: React.FC = () => {
         padding: 0,
       }}>
         {/* RA Logo and App Info Section */}
-          <Box
-            sx={{
-              mb: 4,
-              p: 4,
-              borderRadius: 2,
-              background: '#FFFFFF',
-              border: '1px solid rgba(0, 0, 0, 0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 3,
-              boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
-            }}
-          >
+        <Box
+          sx={{
+            mb: 4,
+            p: 4,
+            borderRadius: 2,
+            background: '#FFFFFF',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+            boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
+          }}
+        >
           <Box
             component="img"
             src="/assets/ra-logo.png"

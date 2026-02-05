@@ -1,31 +1,16 @@
-import { IProcurementAward } from './procurement-awards.model';
+import { ProcurementAward } from './procurement-awards.entity';
 import { CreateProcurementAwardDTO, UpdateProcurementAwardDTO, ListProcurementAwardQuery } from './procurement-awards.dto';
 export interface ListProcurementAwardResult {
-    items: IProcurementAward[];
+    items: ProcurementAward[];
     total: number;
     page: number;
     totalPages: number;
 }
 declare class ProcurementAwardService {
-    /**
-     * Create a new procurement award
-     */
-    createAward(dto: CreateProcurementAwardDTO, createdBy?: string): Promise<IProcurementAward>;
-    /**
-     * List procurement awards with pagination, filtering, and search
-     */
+    createAward(dto: CreateProcurementAwardDTO, createdBy?: string): Promise<ProcurementAward>;
     listAwards(query: ListProcurementAwardQuery): Promise<ListProcurementAwardResult>;
-    /**
-     * Get a single procurement award by ID
-     */
-    getAwardById(id: string): Promise<IProcurementAward>;
-    /**
-     * Update procurement award
-     */
-    updateAward(id: string, dto: UpdateProcurementAwardDTO): Promise<IProcurementAward>;
-    /**
-     * Delete procurement award
-     */
+    getAwardById(id: string): Promise<ProcurementAward>;
+    updateAward(id: string, dto: UpdateProcurementAwardDTO): Promise<ProcurementAward>;
     deleteAward(id: string): Promise<void>;
 }
 export declare const procurementAwardService: ProcurementAwardService;

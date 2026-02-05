@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   PROCUREMENT_PLAN_MANAGE: 'procurement:plan:manage',
   PROCUREMENT_AWARDS_MANAGE: 'procurement:awards:manage',
   PROCUREMENT_OPENING_REGISTER_MANAGE: 'procurement:opening-register:manage',
+  RA_SERVICES_MANAGE: 'ra-services:manage',
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -45,6 +46,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.PROCUREMENT_PLAN_MANAGE,
     PERMISSIONS.PROCUREMENT_AWARDS_MANAGE,
     PERMISSIONS.PROCUREMENT_OPENING_REGISTER_MANAGE,
+    PERMISSIONS.RA_SERVICES_MANAGE,
   ],
   [ROLES.ADMIN]: [], // Admin permissions are assigned individually
 };

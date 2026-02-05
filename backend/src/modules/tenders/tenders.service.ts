@@ -1,4 +1,5 @@
-import { TenderModel, ITender } from './tenders.model';
+import { AppDataSource } from '../../config/db';
+import { Tender } from './tenders.entity';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -38,21 +39,26 @@ export interface ListTendersQuery {
 }
 
 export interface ListTendersResult {
-  tenders: ITender[];
+  tenders: Tender[];
   total: number;
   page: number;
   totalPages: number;
 }
 
 class TendersService {
-  /**
-   * Create a new tender
-   */
-  async createTender(dto: CreateTenderDTO): Promise<ITender> {
+  async createTender(dto: CreateTenderDTO): Promise<Tender> {
     try {
       logger.info('Creating tender:', { referenceNumber: dto.referenceNumber, title: dto.title });
-
-      const tender = await TenderModel.create({
+      const repo = AppDataSource.getRepository(Tender);
+      const existing = await repo.findOne({ where: { referenceNumber: dto.referenceNumber } });
+      if (existing) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'A tender with this reference number already exists',
+        };
+      }
+      const tender = repo.create({
         referenceNumber: dto.referenceNumber,
         title: dto.title,
         description: dto.description,
@@ -64,22 +70,12 @@ class TendersService {
         pdfUrl: dto.pdfUrl,
         published: dto.published || false,
       });
-
-      logger.info(`Tender created with ID: ${tender._id}`);
+      await repo.save(tender);
+      logger.info(`Tender created with ID: ${tender.id}`);
       return tender;
     } catch (error: any) {
       logger.error('Create tender error:', error);
-      
-      // Handle duplicate reference number
-      if (error.code === 11000) {
-        throw {
-          statusCode: 400,
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'A tender with this reference number already exists',
-          details: error.message,
-        };
-      }
-      
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -89,50 +85,30 @@ class TendersService {
     }
   }
 
-  /**
-   * List tenders with pagination, filtering, and search
-   */
   async listTenders(query: ListTendersQuery): Promise<ListTendersResult> {
     try {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
+      const repo = AppDataSource.getRepository(Tender);
 
-      // Build filter
-      const filter: any = {};
+      const buildQb = () => {
+        const qb = repo.createQueryBuilder('t');
+        if (query.status) qb.andWhere('t.status = :status', { status: query.status });
+        if (query.category) qb.andWhere('t.category = :category', { category: query.category });
+        if (query.published !== undefined) qb.andWhere('t.published = :published', { published: query.published });
+        if (query.search) {
+          qb.andWhere('(t.title LIKE :search OR t.description LIKE :search)', { search: `%${query.search}%` });
+        }
+        return qb;
+      };
 
-      if (query.status) {
-        filter.status = query.status;
-      }
-
-      if (query.category) {
-        filter.category = query.category;
-      }
-
-      if (query.published !== undefined) {
-        filter.published = query.published;
-      }
-
-      if (query.search) {
-        filter.$text = { $search: query.search };
-      }
-
-      // Execute query with pagination
       const [tenders, total] = await Promise.all([
-        TenderModel.find(filter)
-          .sort({ closingDate: -1, createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        TenderModel.countDocuments(filter),
+        buildQb().orderBy('t.closingDate', 'DESC').addOrderBy('t.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+        buildQb().getCount(),
       ]);
 
-      return {
-        tenders: tenders as unknown as ITender[],
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
-      };
+      return { tenders, total, page, totalPages: Math.ceil(total / limit) };
     } catch (error: any) {
       logger.error('List tenders error:', error);
       throw {
@@ -144,27 +120,18 @@ class TendersService {
     }
   }
 
-  /**
-   * Get a single tender by ID
-   */
-  async getTenderById(tenderId: string): Promise<ITender> {
+  async getTenderById(tenderId: string): Promise<Tender> {
     try {
-      const tender = await TenderModel.findById(tenderId).lean();
-
+      const id = parseInt(tenderId, 10);
+      const repo = AppDataSource.getRepository(Tender);
+      const tender = await repo.findOne({ where: { id } });
       if (!tender) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Tender not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Tender not found' };
       }
-
-      return tender as unknown as ITender;
+      return tender;
     } catch (error: any) {
       logger.error('Get tender error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -174,45 +141,32 @@ class TendersService {
     }
   }
 
-  /**
-   * Update a tender
-   */
-  async updateTender(tenderId: string, dto: UpdateTenderDTO): Promise<ITender> {
+  async updateTender(tenderId: string, dto: UpdateTenderDTO): Promise<Tender> {
     try {
       logger.info(`Updating tender: ${tenderId}`);
-
-      const tender = await TenderModel.findByIdAndUpdate(
-        tenderId,
-        dto,
-        { new: true, runValidators: true }
-      ).lean();
-
+      const id = parseInt(tenderId, 10);
+      const repo = AppDataSource.getRepository(Tender);
+      const tender = await repo.findOne({ where: { id } });
       if (!tender) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Tender not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Tender not found' };
       }
-
+      if (dto.referenceNumber && dto.referenceNumber !== tender.referenceNumber) {
+        const existing = await repo.findOne({ where: { referenceNumber: dto.referenceNumber } });
+        if (existing) {
+          throw {
+            statusCode: 400,
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'A tender with this reference number already exists',
+          };
+        }
+      }
+      Object.assign(tender, dto);
+      await repo.save(tender);
       logger.info(`Tender ${tenderId} updated successfully`);
-      return tender as unknown as ITender;
+      return tender;
     } catch (error: any) {
       logger.error('Update tender error:', error);
-      
-      // Handle duplicate reference number
-      if (error.code === 11000) {
-        throw {
-          statusCode: 400,
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'A tender with this reference number already exists',
-          details: error.message,
-        };
-      }
-      
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -222,29 +176,20 @@ class TendersService {
     }
   }
 
-  /**
-   * Delete a tender
-   */
   async deleteTender(tenderId: string): Promise<void> {
     try {
       logger.info(`Deleting tender: ${tenderId}`);
-
-      const tender = await TenderModel.findByIdAndDelete(tenderId);
-
+      const id = parseInt(tenderId, 10);
+      const repo = AppDataSource.getRepository(Tender);
+      const tender = await repo.findOne({ where: { id } });
       if (!tender) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Tender not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Tender not found' };
       }
-
+      await repo.remove(tender);
       logger.info(`Tender ${tenderId} deleted successfully`);
     } catch (error: any) {
       logger.error('Delete tender error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,

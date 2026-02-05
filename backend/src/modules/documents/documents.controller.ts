@@ -64,12 +64,12 @@ export class DocumentsController {
         req.file
       );
 
-      logger.info(`Document uploaded successfully: ${document._id}`);
+      logger.info(`Document uploaded successfully: ${document.id}`);
 
       res.status(201).json({
         success: true,
         data: {
-          _id: document._id,
+          id: document.id,
           title: document.title,
           description: document.description,
           fileUrl: document.fileUrl,
@@ -114,7 +114,7 @@ export class DocumentsController {
         success: true,
         data: {
           items: result.documents.map((doc) => ({
-            _id: doc._id,
+            id: doc.id,
             title: doc.title,
             description: doc.description,
             fileUrl: doc.fileUrl,
@@ -152,7 +152,7 @@ export class DocumentsController {
       res.status(200).json({
         success: true,
         data: {
-          _id: document._id,
+          id: document.id,
           title: document.title,
           description: document.description,
           fileUrl: document.fileUrl,

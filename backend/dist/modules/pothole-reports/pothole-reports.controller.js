@@ -16,9 +16,13 @@ class PotholeReportsController {
                 body: req.body,
                 hasFile: !!req.file,
                 fileInfo: req.file ? { fieldname: req.file.fieldname, mimetype: req.file.mimetype, size: req.file.size } : null,
+                hasUser: !!req.user,
             });
             // Get deviceId from header (public endpoint, no auth required)
             const deviceId = req.headers['x-device-id'];
+            // Get user email if authenticated (optional - for logged-in users)
+            const authReq = req;
+            const userEmail = authReq.user?.email || req.body.userEmail || undefined;
             if (!deviceId) {
                 logger_1.logger.warn('Create report failed: Device ID missing');
                 res.status(400).json({
@@ -91,18 +95,19 @@ class PotholeReportsController {
             // Create report
             const report = await pothole_reports_service_1.potholeReportsService.createReport({
                 deviceId,
+                userEmail: userEmail?.toLowerCase(), // Associate with user email if provided
                 location,
                 roadName: roadName?.trim(),
                 townName: townName?.trim(),
                 streetName: streetName?.trim(),
                 description: description?.trim(),
             }, req.file);
-            logger_1.logger.info(`Pothole report created successfully: ${report._id}`);
+            logger_1.logger.info(`Pothole report created successfully: ${report.id}`);
             res.status(201).json({
                 success: true,
                 data: {
                     report: {
-                        id: report._id,
+                        id: report.id,
                         referenceCode: report.referenceCode,
                         location: report.location,
                         town: report.town,
@@ -126,32 +131,44 @@ class PotholeReportsController {
         }
     }
     /**
-     * Get user's reports by device ID
+     * Get user's reports by email (if authenticated) or device ID
      * GET /api/pothole-reports/my-reports
      */
     async getMyReports(req, res, next) {
         try {
+            const authReq = req;
+            const userEmail = authReq.user?.email;
             const deviceId = req.headers['x-device-id'];
-            if (!deviceId) {
+            // If user is authenticated, use email; otherwise fall back to deviceId
+            let reports;
+            if (userEmail) {
+                const status = req.query.status;
+                reports = await pothole_reports_service_1.potholeReportsService.getReportsByUserEmail(userEmail, {
+                    status,
+                });
+            }
+            else if (deviceId) {
+                const status = req.query.status;
+                reports = await pothole_reports_service_1.potholeReportsService.getReportsByDeviceId(deviceId, {
+                    status,
+                });
+            }
+            else {
                 res.status(400).json({
                     success: false,
                     error: {
                         code: errors_1.ERROR_CODES.VALIDATION_ERROR,
-                        message: 'Device ID is required. Please include X-Device-ID header.',
+                        message: 'Either authentication or Device ID is required. Please log in or include X-Device-ID header.',
                     },
                     timestamp: new Date().toISOString(),
                 });
                 return;
             }
-            const status = req.query.status;
-            const reports = await pothole_reports_service_1.potholeReportsService.getReportsByDeviceId(deviceId, {
-                status,
-            });
             res.status(200).json({
                 success: true,
                 data: {
                     reports: reports.map((report) => ({
-                        id: report._id,
+                        id: report.id,
                         referenceCode: report.referenceCode,
                         location: report.location,
                         town: report.town,
@@ -189,7 +206,7 @@ class PotholeReportsController {
                 success: true,
                 data: {
                     report: {
-                        id: report._id,
+                        id: report.id,
                         referenceCode: report.referenceCode,
                         location: report.location,
                         town: report.town,
@@ -270,7 +287,7 @@ class PotholeReportsController {
                 success: true,
                 data: {
                     reports: result.reports.map((report) => ({
-                        id: report._id,
+                        id: report.id,
                         deviceId: report.deviceId,
                         referenceCode: report.referenceCode,
                         location: report.location,
@@ -344,7 +361,7 @@ class PotholeReportsController {
                 success: true,
                 data: {
                     report: {
-                        id: report._id,
+                        id: report.id,
                         status: report.status,
                         severity: report.severity, // Admin-set risk level
                         assignedTo: report.assignedTo,
@@ -386,7 +403,7 @@ class PotholeReportsController {
                 success: true,
                 data: {
                     report: {
-                        id: report._id,
+                        id: report.id,
                         status: report.status,
                         assignedTo: report.assignedTo,
                         updatedAt: report.updatedAt,
@@ -426,7 +443,7 @@ class PotholeReportsController {
                 success: true,
                 data: {
                     report: {
-                        id: report._id,
+                        id: report.id,
                         adminNotes: report.adminNotes,
                         updatedAt: report.updatedAt,
                     },
@@ -453,7 +470,7 @@ class PotholeReportsController {
                 success: true,
                 data: {
                     report: {
-                        id: report._id,
+                        id: report.id,
                         status: report.status,
                         repairPhotoUrl: report.repairPhotoUrl,
                         fixedAt: report.fixedAt,

@@ -1,5 +1,4 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
-export interface INews extends MongooseDocument {
+export interface INews {
     title: string;
     content: string;
     excerpt: string;
@@ -11,9 +10,4 @@ export interface INews extends MongooseDocument {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const NewsModel: mongoose.Model<INews, {}, {}, {}, mongoose.Document<unknown, {}, INews, {}, {}> & INews & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=news.model.d.ts.map

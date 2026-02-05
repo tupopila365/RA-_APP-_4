@@ -1,17 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.vacanciesService = void 0;
-const vacancies_model_1 = require("./vacancies.model");
+const db_1 = require("../../config/db");
+const vacancies_entity_1 = require("./vacancies.entity");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 class VacanciesService {
-    /**
-     * Create a new vacancy
-     */
     async createVacancy(dto) {
         try {
             logger_1.logger.info('Creating vacancy:', { title: dto.title });
-            const vacancy = await vacancies_model_1.VacancyModel.create({
+            const repo = db_1.AppDataSource.getRepository(vacancies_entity_1.Vacancy);
+            const vacancy = repo.create({
                 title: dto.title,
                 type: dto.type,
                 department: dto.department,
@@ -23,8 +22,15 @@ class VacanciesService {
                 closingDate: dto.closingDate,
                 pdfUrl: dto.pdfUrl,
                 published: dto.published || false,
+                contactName: dto.contactName,
+                contactEmail: dto.contactEmail,
+                contactTelephone: dto.contactTelephone,
+                submissionLink: dto.submissionLink,
+                submissionEmail: dto.submissionEmail,
+                submissionInstructions: dto.submissionInstructions,
             });
-            logger_1.logger.info(`Vacancy created with ID: ${vacancy._id}`);
+            await repo.save(vacancy);
+            logger_1.logger.info(`Vacancy created with ID: ${vacancy.id}`);
             return vacancy;
         }
         catch (error) {
@@ -37,42 +43,42 @@ class VacanciesService {
             };
         }
     }
-    /**
-     * List vacancies with pagination, filtering, and search
-     */
     async listVacancies(query) {
         try {
             const page = Math.max(1, query.page || 1);
             const limit = Math.min(100, Math.max(1, query.limit || 10));
             const skip = (page - 1) * limit;
-            // Build filter
-            const filter = {};
-            if (query.type) {
-                filter.type = query.type;
-            }
-            if (query.department) {
-                filter.department = query.department;
-            }
-            if (query.location) {
-                filter.location = query.location;
-            }
-            if (query.published !== undefined) {
-                filter.published = query.published;
-            }
-            if (query.search) {
-                filter.$text = { $search: query.search };
-            }
-            // Execute query with pagination
+            const repo = db_1.AppDataSource.getRepository(vacancies_entity_1.Vacancy);
+            const where = {};
+            if (query.type)
+                where.type = query.type;
+            if (query.department)
+                where.department = query.department;
+            if (query.location)
+                where.location = query.location;
+            if (query.published !== undefined)
+                where.published = query.published;
+            const buildQb = () => {
+                const qb = repo.createQueryBuilder('v');
+                if (query.type)
+                    qb.andWhere('v.type = :type', { type: query.type });
+                if (query.department)
+                    qb.andWhere('v.department = :department', { department: query.department });
+                if (query.location)
+                    qb.andWhere('v.location = :location', { location: query.location });
+                if (query.published !== undefined)
+                    qb.andWhere('v.published = :published', { published: query.published });
+                if (query.search) {
+                    qb.andWhere('(v.title LIKE :search OR v.description LIKE :search)', { search: `%${query.search}%` });
+                }
+                return qb;
+            };
             const [vacancies, total] = await Promise.all([
-                vacancies_model_1.VacancyModel.find(filter)
-                    .sort({ closingDate: 1, createdAt: -1 })
-                    .skip(skip)
-                    .limit(limit)
-                    .lean(),
-                vacancies_model_1.VacancyModel.countDocuments(filter),
+                buildQb().orderBy('v.closingDate', 'ASC').addOrderBy('v.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+                buildQb().getCount(),
             ]);
             return {
-                vacancies: vacancies,
+                vacancies,
                 total,
                 page,
                 totalPages: Math.ceil(total / limit),
@@ -88,12 +94,11 @@ class VacanciesService {
             };
         }
     }
-    /**
-     * Get a single vacancy by ID
-     */
     async getVacancyById(vacancyId) {
         try {
-            const vacancy = await vacancies_model_1.VacancyModel.findById(vacancyId).lean();
+            const id = parseInt(vacancyId, 10);
+            const repo = db_1.AppDataSource.getRepository(vacancies_entity_1.Vacancy);
+            const vacancy = await repo.findOne({ where: { id } });
             if (!vacancy) {
                 throw {
                     statusCode: 404,
@@ -116,13 +121,12 @@ class VacanciesService {
             };
         }
     }
-    /**
-     * Update a vacancy
-     */
     async updateVacancy(vacancyId, dto) {
         try {
             logger_1.logger.info(`Updating vacancy: ${vacancyId}`);
-            const vacancy = await vacancies_model_1.VacancyModel.findByIdAndUpdate(vacancyId, dto, { new: true, runValidators: true }).lean();
+            const id = parseInt(vacancyId, 10);
+            const repo = db_1.AppDataSource.getRepository(vacancies_entity_1.Vacancy);
+            const vacancy = await repo.findOne({ where: { id } });
             if (!vacancy) {
                 throw {
                     statusCode: 404,
@@ -130,6 +134,10 @@ class VacanciesService {
                     message: 'Vacancy not found',
                 };
             }
+            Object.assign(vacancy, dto);
+            if (dto.closingDate)
+                vacancy.closingDate = dto.closingDate;
+            await repo.save(vacancy);
             logger_1.logger.info(`Vacancy ${vacancyId} updated successfully`);
             return vacancy;
         }
@@ -146,13 +154,12 @@ class VacanciesService {
             };
         }
     }
-    /**
-     * Delete a vacancy
-     */
     async deleteVacancy(vacancyId) {
         try {
             logger_1.logger.info(`Deleting vacancy: ${vacancyId}`);
-            const vacancy = await vacancies_model_1.VacancyModel.findByIdAndDelete(vacancyId);
+            const id = parseInt(vacancyId, 10);
+            const repo = db_1.AppDataSource.getRepository(vacancies_entity_1.Vacancy);
+            const vacancy = await repo.findOne({ where: { id } });
             if (!vacancy) {
                 throw {
                     statusCode: 404,
@@ -160,6 +167,7 @@ class VacanciesService {
                     message: 'Vacancy not found',
                 };
             }
+            await repo.remove(vacancy);
             logger_1.logger.info(`Vacancy ${vacancyId} deleted successfully`);
         }
         catch (error) {

@@ -1,18 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.locationsService = void 0;
-const locations_model_1 = require("./locations.model");
+const db_1 = require("../../config/db");
+const locations_entity_1 = require("./locations.entity");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 const distance_1 = require("../../utils/distance");
 class LocationsService {
-    /**
-     * Create a new location
-     */
     async createLocation(dto) {
         try {
             logger_1.logger.info('Creating location:', { name: dto.name, region: dto.region });
-            const location = await locations_model_1.LocationModel.create({
+            const repo = db_1.AppDataSource.getRepository(locations_entity_1.Location);
+            const location = repo.create({
                 name: dto.name,
                 address: dto.address,
                 region: dto.region,
@@ -24,7 +23,8 @@ class LocationsService {
                 closedDays: dto.closedDays,
                 specialHours: dto.specialHours,
             });
-            logger_1.logger.info(`Location created with ID: ${location._id}`);
+            await repo.save(location);
+            logger_1.logger.info(`Location created with ID: ${location.id}`);
             return location;
         }
         catch (error) {
@@ -37,21 +37,16 @@ class LocationsService {
             };
         }
     }
-    /**
-     * List locations with optional filtering by region
-     */
     async listLocations(query = {}) {
         try {
-            // Build filter
-            const filter = {};
-            // Filter by region if provided
-            if (query.region) {
-                filter.region = query.region;
-            }
-            // Execute query ordered by region and name
-            const locations = await locations_model_1.LocationModel.find(filter)
-                .sort({ region: 1, name: 1 })
-                .lean();
+            const repo = db_1.AppDataSource.getRepository(locations_entity_1.Location);
+            const where = {};
+            if (query.region)
+                where.region = query.region;
+            const locations = await repo.find({
+                where,
+                order: { region: 'ASC', name: 'ASC' },
+            });
             return locations;
         }
         catch (error) {
@@ -64,26 +59,20 @@ class LocationsService {
             };
         }
     }
-    /**
-     * Get a single location by ID
-     */
     async getLocationById(locationId) {
         try {
-            const location = await locations_model_1.LocationModel.findById(locationId).lean();
+            const id = parseInt(locationId, 10);
+            const repo = db_1.AppDataSource.getRepository(locations_entity_1.Location);
+            const location = await repo.findOne({ where: { id } });
             if (!location) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Location not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Location not found' };
             }
             return location;
         }
         catch (error) {
             logger_1.logger.error('Get location error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -92,28 +81,24 @@ class LocationsService {
             };
         }
     }
-    /**
-     * Update a location
-     */
     async updateLocation(locationId, dto) {
         try {
             logger_1.logger.info(`Updating location: ${locationId}`);
-            const location = await locations_model_1.LocationModel.findByIdAndUpdate(locationId, dto, { new: true, runValidators: true }).lean();
+            const id = parseInt(locationId, 10);
+            const repo = db_1.AppDataSource.getRepository(locations_entity_1.Location);
+            const location = await repo.findOne({ where: { id } });
             if (!location) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Location not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Location not found' };
             }
+            Object.assign(location, dto);
+            await repo.save(location);
             logger_1.logger.info(`Location ${locationId} updated successfully`);
             return location;
         }
         catch (error) {
             logger_1.logger.error('Update location error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -122,27 +107,22 @@ class LocationsService {
             };
         }
     }
-    /**
-     * Delete a location
-     */
     async deleteLocation(locationId) {
         try {
             logger_1.logger.info(`Deleting location: ${locationId}`);
-            const location = await locations_model_1.LocationModel.findByIdAndDelete(locationId);
+            const id = parseInt(locationId, 10);
+            const repo = db_1.AppDataSource.getRepository(locations_entity_1.Location);
+            const location = await repo.findOne({ where: { id } });
             if (!location) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Location not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Location not found' };
             }
+            await repo.remove(location);
             logger_1.logger.info(`Location ${locationId} deleted successfully`);
         }
         catch (error) {
             logger_1.logger.error('Delete location error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -151,18 +131,9 @@ class LocationsService {
             };
         }
     }
-    /**
-     * Find nearest offices to a given location
-     *
-     * @param latitude - User's latitude
-     * @param longitude - User's longitude
-     * @param limit - Maximum number of offices to return (default: 5)
-     * @returns Array of offices with distance in kilometers, sorted by distance
-     */
     async findNearestOffices(latitude, longitude, limit = 5) {
         try {
             logger_1.logger.info('Finding nearest offices', { latitude, longitude, limit });
-            // Validate coordinates
             if (typeof latitude !== 'number' || typeof longitude !== 'number' || isNaN(latitude) || isNaN(longitude)) {
                 throw {
                     statusCode: 400,
@@ -177,28 +148,21 @@ class LocationsService {
                     message: 'Coordinates out of valid range',
                 };
             }
-            // Retrieve all offices from database
-            const offices = await locations_model_1.LocationModel.find({}).lean();
-            // Calculate distance for each office and add to result
+            const repo = db_1.AppDataSource.getRepository(locations_entity_1.Location);
+            const offices = await repo.find({});
             const officesWithDistance = offices.map((office) => {
                 const distance = (0, distance_1.calculateDistance)(latitude, longitude, office.coordinates.latitude, office.coordinates.longitude);
-                return {
-                    ...office,
-                    distance,
-                };
+                return { ...office, distance };
             });
-            // Sort by distance (ascending)
             officesWithDistance.sort((a, b) => a.distance - b.distance);
-            // Return top N offices
             const result = officesWithDistance.slice(0, limit);
             logger_1.logger.info(`Found ${result.length} nearest offices`);
             return result;
         }
         catch (error) {
             logger_1.logger.error('Find nearest offices error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,

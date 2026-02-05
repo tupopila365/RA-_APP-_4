@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
-import { User, IUser } from './auth.model';
+import { AppDataSource } from '../../config/db';
+import { User } from './auth.entity';
 import { getRedisClient } from '../../config/redis';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
@@ -27,7 +28,7 @@ export class AuthService {
   /**
    * Authenticate user with email and password
    */
-  async login(credentials: LoginCredentials): Promise<{ user: IUser; tokens: AuthTokens }> {
+  async login(credentials: LoginCredentials): Promise<{ user: User; tokens: AuthTokens }> {
     // #region agent log
     const fs = require('fs');
     const logPath = 'c:\\Roads Authority Application\\.cursor\\debug.log';
@@ -40,10 +41,14 @@ export class AuthService {
     // #endregion
 
     // Find user with password field included
-    const user = await User.findOne({ email }).select('+password');
+    const repo = AppDataSource.getRepository(User);
+    const user = await repo.findOne({
+      where: { email: email.toLowerCase().trim() },
+      select: ['id', 'email', 'password', 'role', 'permissions', 'createdAt', 'updatedAt'],
+    });
 
     // #region agent log
-    try { fs.appendFileSync(logPath, JSON.stringify({location:'auth.service.ts:35',message:'User lookup result',data:{userFound:!!user,userId:user?._id?.toString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})+'\n'); } catch(e){}
+    try { fs.appendFileSync(logPath, JSON.stringify({location:'auth.service.ts:35',message:'User lookup result',data:{userFound:!!user,userId:user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})+'\n'); } catch(e){}
     // #endregion
 
     if (!user) {
@@ -91,7 +96,7 @@ export class AuthService {
     // #endregion
 
     // Store refresh token in Redis
-    await this.storeRefreshToken(user._id.toString(), tokens.refreshToken);
+    await this.storeRefreshToken(String(user.id), tokens.refreshToken);
 
     logger.info(`User logged in: ${user.email}`);
 
@@ -105,9 +110,9 @@ export class AuthService {
   /**
    * Generate access and refresh tokens
    */
-  async generateTokens(user: IUser): Promise<AuthTokens> {
+  async generateTokens(user: User): Promise<AuthTokens> {
     const payload: TokenPayload = {
-      userId: user._id.toString(),
+      userId: String(user.id),
       email: user.email,
       role: user.role,
       permissions: user.permissions,
@@ -120,7 +125,7 @@ export class AuthService {
 
     // Generate refresh token (7 days)
     const refreshToken = jwt.sign(
-      { userId: user._id.toString() },
+      { userId: String(user.id) },
       env.JWT_SECRET,
       {
         expiresIn: env.JWT_REFRESH_EXPIRY as string,
@@ -183,7 +188,9 @@ export class AuthService {
       }
 
       // Get user details
-      const user = await User.findById(decoded.userId);
+      const repo = AppDataSource.getRepository(User);
+      const userId = parseInt(decoded.userId, 10);
+      const user = await repo.findOne({ where: { id: userId } });
 
       if (!user) {
         throw {
@@ -195,7 +202,7 @@ export class AuthService {
 
       // Generate new access token
       const payload: TokenPayload = {
-        userId: user._id.toString(),
+        userId: String(user.id),
         email: user.email,
         role: user.role,
         permissions: user.permissions,

@@ -1,4 +1,5 @@
-import { VacancyModel, IVacancy } from './vacancies.model';
+import { AppDataSource } from '../../config/db';
+import { Vacancy } from './vacancies.entity';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -14,7 +15,6 @@ export interface CreateVacancyDTO {
   closingDate: Date;
   pdfUrl?: string;
   published?: boolean;
-  // Contact information
   contactName?: string;
   contactEmail?: string;
   contactTelephone?: string;
@@ -48,21 +48,18 @@ export interface ListVacanciesQuery {
 }
 
 export interface ListVacanciesResult {
-  vacancies: IVacancy[];
+  vacancies: Vacancy[];
   total: number;
   page: number;
   totalPages: number;
 }
 
 class VacanciesService {
-  /**
-   * Create a new vacancy
-   */
-  async createVacancy(dto: CreateVacancyDTO): Promise<IVacancy> {
+  async createVacancy(dto: CreateVacancyDTO): Promise<Vacancy> {
     try {
       logger.info('Creating vacancy:', { title: dto.title });
-
-      const vacancy = await VacancyModel.create({
+      const repo = AppDataSource.getRepository(Vacancy);
+      const vacancy = repo.create({
         title: dto.title,
         type: dto.type,
         department: dto.department,
@@ -74,9 +71,15 @@ class VacanciesService {
         closingDate: dto.closingDate,
         pdfUrl: dto.pdfUrl,
         published: dto.published || false,
+        contactName: dto.contactName,
+        contactEmail: dto.contactEmail,
+        contactTelephone: dto.contactTelephone,
+        submissionLink: dto.submissionLink,
+        submissionEmail: dto.submissionEmail,
+        submissionInstructions: dto.submissionInstructions,
       });
-
-      logger.info(`Vacancy created with ID: ${vacancy._id}`);
+      await repo.save(vacancy);
+      logger.info(`Vacancy created with ID: ${vacancy.id}`);
       return vacancy;
     } catch (error: any) {
       logger.error('Create vacancy error:', error);
@@ -89,50 +92,38 @@ class VacanciesService {
     }
   }
 
-  /**
-   * List vacancies with pagination, filtering, and search
-   */
   async listVacancies(query: ListVacanciesQuery): Promise<ListVacanciesResult> {
     try {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
+      const repo = AppDataSource.getRepository(Vacancy);
 
-      // Build filter
-      const filter: any = {};
+      const where: any = {};
+      if (query.type) where.type = query.type;
+      if (query.department) where.department = query.department;
+      if (query.location) where.location = query.location;
+      if (query.published !== undefined) where.published = query.published;
 
-      if (query.type) {
-        filter.type = query.type;
-      }
+      const buildQb = () => {
+        const qb = repo.createQueryBuilder('v');
+        if (query.type) qb.andWhere('v.type = :type', { type: query.type });
+        if (query.department) qb.andWhere('v.department = :department', { department: query.department });
+        if (query.location) qb.andWhere('v.location = :location', { location: query.location });
+        if (query.published !== undefined) qb.andWhere('v.published = :published', { published: query.published });
+        if (query.search) {
+          qb.andWhere('(v.title LIKE :search OR v.description LIKE :search)', { search: `%${query.search}%` });
+        }
+        return qb;
+      };
 
-      if (query.department) {
-        filter.department = query.department;
-      }
-
-      if (query.location) {
-        filter.location = query.location;
-      }
-
-      if (query.published !== undefined) {
-        filter.published = query.published;
-      }
-
-      if (query.search) {
-        filter.$text = { $search: query.search };
-      }
-
-      // Execute query with pagination
       const [vacancies, total] = await Promise.all([
-        VacancyModel.find(filter)
-          .sort({ closingDate: 1, createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        VacancyModel.countDocuments(filter),
+        buildQb().orderBy('v.closingDate', 'ASC').addOrderBy('v.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+        buildQb().getCount(),
       ]);
 
       return {
-        vacancies: vacancies as unknown as IVacancy[],
+        vacancies,
         total,
         page,
         totalPages: Math.ceil(total / limit),
@@ -148,12 +139,11 @@ class VacanciesService {
     }
   }
 
-  /**
-   * Get a single vacancy by ID
-   */
-  async getVacancyById(vacancyId: string): Promise<IVacancy> {
+  async getVacancyById(vacancyId: string): Promise<Vacancy> {
     try {
-      const vacancy = await VacancyModel.findById(vacancyId).lean();
+      const id = parseInt(vacancyId, 10);
+      const repo = AppDataSource.getRepository(Vacancy);
+      const vacancy = await repo.findOne({ where: { id } });
 
       if (!vacancy) {
         throw {
@@ -163,7 +153,7 @@ class VacanciesService {
         };
       }
 
-      return vacancy as unknown as IVacancy;
+      return vacancy;
     } catch (error: any) {
       logger.error('Get vacancy error:', error);
       if (error.statusCode) {
@@ -178,18 +168,12 @@ class VacanciesService {
     }
   }
 
-  /**
-   * Update a vacancy
-   */
-  async updateVacancy(vacancyId: string, dto: UpdateVacancyDTO): Promise<IVacancy> {
+  async updateVacancy(vacancyId: string, dto: UpdateVacancyDTO): Promise<Vacancy> {
     try {
       logger.info(`Updating vacancy: ${vacancyId}`);
-
-      const vacancy = await VacancyModel.findByIdAndUpdate(
-        vacancyId,
-        dto,
-        { new: true, runValidators: true }
-      ).lean();
+      const id = parseInt(vacancyId, 10);
+      const repo = AppDataSource.getRepository(Vacancy);
+      const vacancy = await repo.findOne({ where: { id } });
 
       if (!vacancy) {
         throw {
@@ -199,8 +183,12 @@ class VacanciesService {
         };
       }
 
+      Object.assign(vacancy, dto);
+      if (dto.closingDate) vacancy.closingDate = dto.closingDate;
+      await repo.save(vacancy);
+
       logger.info(`Vacancy ${vacancyId} updated successfully`);
-      return vacancy as unknown as IVacancy;
+      return vacancy;
     } catch (error: any) {
       logger.error('Update vacancy error:', error);
       if (error.statusCode) {
@@ -215,14 +203,12 @@ class VacanciesService {
     }
   }
 
-  /**
-   * Delete a vacancy
-   */
   async deleteVacancy(vacancyId: string): Promise<void> {
     try {
       logger.info(`Deleting vacancy: ${vacancyId}`);
-
-      const vacancy = await VacancyModel.findByIdAndDelete(vacancyId);
+      const id = parseInt(vacancyId, 10);
+      const repo = AppDataSource.getRepository(Vacancy);
+      const vacancy = await repo.findOne({ where: { id } });
 
       if (!vacancy) {
         throw {
@@ -232,6 +218,7 @@ class VacanciesService {
         };
       }
 
+      await repo.remove(vacancy);
       logger.info(`Vacancy ${vacancyId} deleted successfully`);
     } catch (error: any) {
       logger.error('Delete vacancy error:', error);

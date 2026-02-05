@@ -88,16 +88,16 @@ class TendersController {
                 pdfUrl,
                 published: published === true,
             });
-            logger_1.logger.info(`Tender created successfully: ${tender._id}`);
+            logger_1.logger.info(`Tender created successfully: ${tender.id}`);
             // Send push notification if published
             if (published === true) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender._id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString());
+                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender.id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString());
                     if (notifResult.sentCount > 0) {
-                        logger_1.logger.info(`Push notification sent for tender: ${tender._id} (${notifResult.sentCount} devices notified)`);
+                        logger_1.logger.info(`Push notification sent for tender: ${tender.id} (${notifResult.sentCount} devices notified)`);
                     }
                     else {
-                        logger_1.logger.warn(`Tender ${tender._id} published but no push tokens registered. Notification not sent.`);
+                        logger_1.logger.warn(`Tender ${tender.id} published but no push tokens registered. Notification not sent.`);
                         logger_1.logger.warn(`To receive notifications, users need to open the mobile app and grant notification permissions.`);
                     }
                 }
@@ -110,7 +110,7 @@ class TendersController {
                 success: true,
                 data: {
                     tender: {
-                        id: tender._id,
+                        id: tender.id,
                         referenceNumber: tender.referenceNumber,
                         title: tender.title,
                         description: tender.description,
@@ -158,7 +158,7 @@ class TendersController {
                 success: true,
                 data: {
                     tenders: result.tenders.map((tender) => ({
-                        id: tender._id,
+                        id: tender.id,
                         referenceNumber: tender.referenceNumber,
                         title: tender.title,
                         description: tender.description,
@@ -199,7 +199,7 @@ class TendersController {
                 success: true,
                 data: {
                     tender: {
-                        id: tender._id,
+                        id: tender.id,
                         referenceNumber: tender.referenceNumber,
                         title: tender.title,
                         description: tender.description,
@@ -314,12 +314,12 @@ class TendersController {
             // Send push notification if being published for the first time
             if (published === true && !wasPublishedBefore) {
                 try {
-                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender._id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString());
+                    const notifResult = await notifications_service_1.notificationsService.sendTenderNotification(tender.id.toString(), tender.title, new Date(tender.closingDate).toLocaleDateString());
                     if (notifResult.sentCount > 0) {
-                        logger_1.logger.info(`Push notification sent for tender: ${tender._id} (${notifResult.sentCount} devices notified)`);
+                        logger_1.logger.info(`Push notification sent for tender: ${tender.id} (${notifResult.sentCount} devices notified)`);
                     }
                     else {
-                        logger_1.logger.warn(`Tender ${tender._id} published but no push tokens registered. Notification not sent.`);
+                        logger_1.logger.warn(`Tender ${tender.id} published but no push tokens registered. Notification not sent.`);
                         logger_1.logger.warn(`To receive notifications, users need to open the mobile app and grant notification permissions.`);
                     }
                 }
@@ -332,7 +332,7 @@ class TendersController {
                 success: true,
                 data: {
                     tender: {
-                        id: tender._id,
+                        id: tender.id,
                         referenceNumber: tender.referenceNumber,
                         title: tender.title,
                         description: tender.description,

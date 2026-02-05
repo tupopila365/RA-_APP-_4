@@ -3,21 +3,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const pothole_reports_controller_1 = require("./pothole-reports.controller");
 const auth_1 = require("../../middlewares/auth");
+const appAuth_1 = require("../../middlewares/appAuth");
 const roleGuard_1 = require("../../middlewares/roleGuard");
 const upload_1 = require("../../middlewares/upload");
 const router = (0, express_1.Router)();
 /**
  * @route   POST /api/pothole-reports
  * @desc    Create a new pothole report
- * @access  Public (requires X-Device-ID header)
+ * @access  Public (requires X-Device-ID header, optional auth for logged-in users)
  */
-router.post('/', upload_1.uploadImage.single('photo'), pothole_reports_controller_1.potholeReportsController.createReport.bind(pothole_reports_controller_1.potholeReportsController));
+router.post('/', appAuth_1.optionalAuthenticateAppUser, // Optional auth - sets user if token provided
+upload_1.uploadImage.single('photo'), pothole_reports_controller_1.potholeReportsController.createReport.bind(pothole_reports_controller_1.potholeReportsController));
 /**
  * @route   GET /api/pothole-reports/my-reports
- * @desc    Get user's reports by device ID
- * @access  Public (requires X-Device-ID header)
+ * @desc    Get user's reports by email (if authenticated) or device ID
+ * @access  Public (requires X-Device-ID header or authentication)
  */
-router.get('/my-reports', pothole_reports_controller_1.potholeReportsController.getMyReports.bind(pothole_reports_controller_1.potholeReportsController));
+router.get('/my-reports', appAuth_1.optionalAuthenticateAppUser, // Optional auth - sets user if token provided
+pothole_reports_controller_1.potholeReportsController.getMyReports.bind(pothole_reports_controller_1.potholeReportsController));
 /**
  * @route   GET /api/pothole-reports/:id
  * @desc    Get a single report by ID

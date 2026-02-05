@@ -1,4 +1,6 @@
-import { ChatbotInteractionModel, IChatbotInteraction, FeedbackType } from './interactions.model';
+import { AppDataSource } from '../../config/db';
+import { ChatbotInteraction } from './interactions.entity';
+import type { IChatbotInteraction, FeedbackType } from './interactions.model';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -25,7 +27,7 @@ export interface ListInteractionsQuery {
 }
 
 export interface ListInteractionsResult {
-  interactions: IChatbotInteraction[];
+  interactions: ChatbotInteraction[];
   total: number;
   page: number;
   totalPages: number;
@@ -49,14 +51,21 @@ export interface MetricsResult {
   }>;
 }
 
+function parseId(interactionId: string): number {
+  const id = parseInt(interactionId, 10);
+  if (isNaN(id)) {
+    throw {
+      statusCode: 404,
+      code: ERROR_CODES.NOT_FOUND,
+      message: 'Interaction not found',
+    };
+  }
+  return id;
+}
+
 class InteractionsService {
-  /**
-   * Auto-detect category from question text using keyword matching
-   */
   detectCategory(question: string): string {
     const lowerQuestion = question.toLowerCase();
-
-    // Category keywords mapping
     const categoryKeywords: Record<string, string[]> = {
       policy: ['policy', 'policies', 'rule', 'rules', 'regulation', 'regulations', 'guideline', 'guidelines'],
       tender: ['tender', 'tenders', 'bidding', 'bid', 'procurement', 'contract', 'contracts'],
@@ -65,26 +74,20 @@ class InteractionsService {
       contact: ['contact', 'phone', 'email', 'call', 'reach', 'how to contact', 'telephone'],
       procedure: ['procedure', 'process', 'how to', 'step', 'steps', 'application', 'apply', 'form'],
     };
-
-    // Check each category for keyword matches
     for (const [category, keywords] of Object.entries(categoryKeywords)) {
       if (keywords.some((keyword) => lowerQuestion.includes(keyword))) {
         return category;
       }
     }
-
-    // Default to general if no match
     return 'general';
   }
 
-  /**
-   * Log a new interaction after chatbot query
-   */
-  async logInteraction(dto: LogInteractionDTO): Promise<IChatbotInteraction> {
+  async logInteraction(dto: LogInteractionDTO): Promise<ChatbotInteraction> {
     try {
       const category = dto.category || this.detectCategory(dto.question);
 
-      const interaction = await ChatbotInteractionModel.create({
+      const repo = AppDataSource.getRepository(ChatbotInteraction);
+      const interaction = repo.create({
         question: dto.question,
         answer: dto.answer,
         sessionId: dto.sessionId,
@@ -92,12 +95,12 @@ class InteractionsService {
         timestamp: new Date(),
       });
 
-      logger.info(`Interaction logged with ID: ${interaction._id}`, {
+      const saved = await repo.save(interaction);
+      logger.info(`Interaction logged with ID: ${saved.id}`, {
         sessionId: dto.sessionId,
         category,
       });
-
-      return interaction;
+      return saved;
     } catch (error: any) {
       logger.error('Log interaction error:', error);
       throw {
@@ -109,24 +112,11 @@ class InteractionsService {
     }
   }
 
-  /**
-   * Update feedback for an existing interaction
-   */
-  async updateFeedback(interactionId: string, dto: UpdateFeedbackDTO): Promise<IChatbotInteraction> {
+  async updateFeedback(interactionId: string, dto: UpdateFeedbackDTO): Promise<ChatbotInteraction> {
     try {
-      const updateData: any = {
-        feedback: dto.feedback,
-      };
-
-      if (dto.comment !== undefined) {
-        updateData.comment = dto.comment || undefined; // Convert empty string to undefined
-      }
-
-      const interaction = await ChatbotInteractionModel.findByIdAndUpdate(
-        interactionId,
-        updateData,
-        { new: true, runValidators: true }
-      ).lean();
+      const id = parseId(interactionId);
+      const repo = AppDataSource.getRepository(ChatbotInteraction);
+      const interaction = await repo.findOne({ where: { id } });
 
       if (!interaction) {
         throw {
@@ -136,16 +126,15 @@ class InteractionsService {
         };
       }
 
-      logger.info(`Feedback updated for interaction ${interactionId}`, {
-        feedback: dto.feedback,
-      });
+      interaction.feedback = dto.feedback;
+      if (dto.comment !== undefined) interaction.comment = dto.comment || null;
 
-      return interaction as unknown as IChatbotInteraction;
+      const saved = await repo.save(interaction);
+      logger.info(`Feedback updated for interaction ${interactionId}`, { feedback: dto.feedback });
+      return saved;
     } catch (error: any) {
       logger.error('Update feedback error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -155,55 +144,41 @@ class InteractionsService {
     }
   }
 
-  /**
-   * Get interactions with pagination and filtering
-   */
   async getInteractions(query: ListInteractionsQuery): Promise<ListInteractionsResult> {
     try {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 20));
       const skip = (page - 1) * limit;
 
-      // Build filter
-      const filter: any = {};
+      const repo = AppDataSource.getRepository(ChatbotInteraction);
+      const qb = repo.createQueryBuilder('i');
 
       if (query.feedback !== undefined) {
-        filter.feedback = query.feedback;
+        qb.andWhere('i.feedback = :feedback', { feedback: query.feedback });
       }
-
       if (query.category) {
-        filter.category = query.category;
+        qb.andWhere('i.category = :category', { category: query.category });
       }
-
       if (query.sessionId) {
-        filter.sessionId = query.sessionId;
+        qb.andWhere('i.sessionId = :sessionId', { sessionId: query.sessionId });
+      }
+      if (query.startDate) {
+        qb.andWhere('i.timestamp >= :startDate', { startDate: query.startDate });
+      }
+      if (query.endDate) {
+        const endDate = new Date(query.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        qb.andWhere('i.timestamp <= :endDate', { endDate });
       }
 
-      if (query.startDate || query.endDate) {
-        filter.timestamp = {};
-        if (query.startDate) {
-          filter.timestamp.$gte = query.startDate;
-        }
-        if (query.endDate) {
-          // Include the entire end date
-          const endDate = new Date(query.endDate);
-          endDate.setHours(23, 59, 59, 999);
-          filter.timestamp.$lte = endDate;
-        }
-      }
-
-      // Execute query with pagination
-      const [interactions, total] = await Promise.all([
-        ChatbotInteractionModel.find(filter)
-          .sort({ timestamp: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        ChatbotInteractionModel.countDocuments(filter),
-      ]);
+      const [interactions, total] = await qb
+        .orderBy('i.timestamp', 'DESC')
+        .skip(skip)
+        .take(limit)
+        .getManyAndCount();
 
       return {
-        interactions: interactions as unknown as IChatbotInteraction[],
+        interactions,
         total,
         page,
         totalPages: Math.ceil(total / limit),
@@ -219,95 +194,84 @@ class InteractionsService {
     }
   }
 
-  /**
-   * Get metrics and statistics
-   */
   async getMetrics(startDate?: Date, endDate?: Date): Promise<MetricsResult> {
     try {
-      // Build date filter
-      const dateFilter: any = {};
-      if (startDate) {
-        dateFilter.$gte = startDate;
-      }
+      const repo = AppDataSource.getRepository(ChatbotInteraction);
+      const qbBase = repo.createQueryBuilder('i');
+      if (startDate) qbBase.andWhere('i.timestamp >= :startDate', { startDate });
       if (endDate) {
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
-        dateFilter.$lte = end;
+        qbBase.andWhere('i.timestamp <= :endDate', { endDate: end });
       }
-      const filter: any = Object.keys(dateFilter).length > 0 ? { timestamp: dateFilter } : {};
 
-      // Get total counts
-      const [totalQuestions, totalLikes, totalDislikes] = await Promise.all([
-        ChatbotInteractionModel.countDocuments(filter),
-        ChatbotInteractionModel.countDocuments({ ...filter, feedback: 'like' }),
-        ChatbotInteractionModel.countDocuments({ ...filter, feedback: 'dislike' }),
-      ]);
+      const totalQuestions = await qbBase.getCount();
 
-      // Calculate like/dislike ratio
+      const totalLikes = await repo
+        .createQueryBuilder('i')
+        .where('i.feedback = :fb', { fb: 'like' })
+        .getCount();
+      const totalDislikes = await repo
+        .createQueryBuilder('i')
+        .where('i.feedback = :fb', { fb: 'dislike' })
+        .getCount();
+
       const likeDislikeRatio =
-        totalDislikes > 0 ? Number((totalLikes / totalDislikes).toFixed(2)) : totalLikes > 0 ? totalLikes : 0;
+        totalDislikes > 0
+          ? Number((totalLikes / totalDislikes).toFixed(2))
+          : totalLikes > 0
+            ? totalLikes
+            : 0;
 
-      // Get most disliked questions
-      const mostDislikedAggregation = await ChatbotInteractionModel.aggregate([
-        { $match: { ...filter, feedback: 'dislike' } },
-        {
-          $group: {
-            _id: { question: '$question', answer: '$answer' },
-            dislikeCount: { $sum: 1 },
-            interactionId: { $first: '$_id' },
-          },
-        },
-        { $sort: { dislikeCount: -1 } },
-        { $limit: 10 },
-      ]);
+      // Most disliked: group by question+answer, count, take top 10
+      const mostDislikedRows = await repo
+        .createQueryBuilder('i')
+        .select('i.question', 'question')
+        .addSelect('i.answer', 'answer')
+        .addSelect('COUNT(*)', 'count')
+        .addSelect('MIN(i.id)', 'minId')
+        .where('i.feedback = :fb', { fb: 'dislike' })
+        .groupBy('i.question')
+        .addGroupBy('i.answer')
+        .orderBy('COUNT(*)', 'DESC')
+        .limit(10)
+        .getRawMany();
 
-      const mostDislikedQuestions = mostDislikedAggregation.map((item) => ({
-        question: item._id.question,
-        answer: item._id.answer,
-        dislikeCount: item.dislikeCount,
-        interactionId: item.interactionId.toString(),
-      }));
+      const mostDislikedQuestions = (mostDislikedRows as { question: string; answer: string; count: string; minId: number }[]).map(
+        (item) => ({
+          question: item.question,
+          answer: item.answer,
+          dislikeCount: parseInt(item.count, 10) || 0,
+          interactionId: String(item.minId),
+        })
+      );
 
-      // Get questions by category
-      const categoryAggregation = await ChatbotInteractionModel.aggregate([
-        { $match: filter },
-        {
-          $group: {
-            _id: '$category',
-            count: { $sum: 1 },
-          },
-        },
-      ]);
+      const categoryRows = await repo
+        .createQueryBuilder('i')
+        .select('i.category', 'category')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('i.category')
+        .getRawMany();
 
       const questionsByCategory: Record<string, number> = {};
-      categoryAggregation.forEach((item) => {
-        questionsByCategory[item._id || 'general'] = item.count;
+      (categoryRows as { category: string; count: string }[]).forEach((item) => {
+        questionsByCategory[item.category || 'general'] = parseInt(item.count, 10) || 0;
       });
 
-      // Get questions over time (last 30 days, grouped by day)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const timeFilter = { ...filter, timestamp: { ...dateFilter, $gte: thirtyDaysAgo } };
+      const timeRows = await repo
+        .createQueryBuilder('i')
+        .select('CONVERT(varchar(10), i.timestamp, 120)', 'date')
+        .addSelect('COUNT(*)', 'count')
+        .where('i.timestamp >= :from', { from: thirtyDaysAgo })
+        .groupBy('CONVERT(varchar(10), i.timestamp, 120)')
+        .orderBy('CONVERT(varchar(10), i.timestamp, 120)', 'ASC')
+        .getRawMany();
 
-      const timeAggregation = await ChatbotInteractionModel.aggregate([
-        { $match: timeFilter },
-        {
-          $group: {
-            _id: {
-              $dateToString: {
-                format: '%Y-%m-%d',
-                date: '$timestamp',
-              },
-            },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { _id: 1 } },
-      ]);
-
-      const questionsOverTime = timeAggregation.map((item) => ({
-        date: item._id,
-        count: item.count,
+      const questionsOverTime = (timeRows as { date: string; count: string }[]).map((item) => ({
+        date: item.date,
+        count: parseInt(item.count, 10) || 0,
       }));
 
       return {
@@ -332,31 +296,3 @@ class InteractionsService {
 }
 
 export const interactionsService = new InteractionsService();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

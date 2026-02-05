@@ -117,13 +117,13 @@ export class PotholeReportsController {
         req.file
       );
 
-      logger.info(`Pothole report created successfully: ${report._id}`);
+      logger.info(`Pothole report created successfully: ${report.id}`);
 
       res.status(201).json({
         success: true,
         data: {
           report: {
-            id: report._id,
+            id: report.id,
             referenceCode: report.referenceCode,
             location: report.location,
             town: report.town,
@@ -184,7 +184,7 @@ export class PotholeReportsController {
         success: true,
         data: {
           reports: reports.map((report) => ({
-            id: report._id,
+            id: report.id,
             referenceCode: report.referenceCode,
             location: report.location,
             town: report.town,
@@ -224,7 +224,7 @@ export class PotholeReportsController {
         success: true,
         data: {
           report: {
-            id: report._id,
+            id: report.id,
             referenceCode: report.referenceCode,
             location: report.location,
             town: report.town,
@@ -310,7 +310,7 @@ export class PotholeReportsController {
         success: true,
         data: {
           reports: result.reports.map((report) => ({
-            id: report._id,
+            id: report.id,
             deviceId: report.deviceId,
             referenceCode: report.referenceCode,
             location: report.location,
@@ -389,7 +389,7 @@ export class PotholeReportsController {
         success: true,
         data: {
           report: {
-            id: report._id,
+            id: report.id,
             status: report.status,
             severity: report.severity, // Admin-set risk level
             assignedTo: report.assignedTo,
@@ -435,7 +435,7 @@ export class PotholeReportsController {
         success: true,
         data: {
           report: {
-            id: report._id,
+            id: report.id,
             status: report.status,
             assignedTo: report.assignedTo,
             updatedAt: report.updatedAt,
@@ -479,7 +479,7 @@ export class PotholeReportsController {
         success: true,
         data: {
           report: {
-            id: report._id,
+            id: report.id,
             adminNotes: report.adminNotes,
             updatedAt: report.updatedAt,
           },
@@ -509,7 +509,7 @@ export class PotholeReportsController {
         success: true,
         data: {
           report: {
-            id: report._id,
+            id: report.id,
             status: report.status,
             repairPhotoUrl: report.repairPhotoUrl,
             fixedAt: report.fixedAt,

@@ -105,3 +105,5 @@ export interface ListApplicationsResult {
   page: number;
   totalPages: number;
 }
+
+

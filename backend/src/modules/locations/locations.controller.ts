@@ -64,13 +64,13 @@ export class LocationsController {
         specialHours,
       });
 
-      logger.info(`Location created successfully: ${location._id}`);
+      logger.info(`Location created successfully: ${location.id}`);
 
       res.status(201).json({
         success: true,
         data: {
           location: {
-            id: location._id,
+            id: location.id,
             name: location.name,
             address: location.address,
             region: location.region,
@@ -111,7 +111,7 @@ export class LocationsController {
         success: true,
         data: {
           locations: locations.map((location) => ({
-            id: location._id,
+            id: location.id,
             name: location.name,
             address: location.address,
             region: location.region,
@@ -148,7 +148,7 @@ export class LocationsController {
         success: true,
         data: {
           location: {
-            id: location._id,
+            id: location.id,
             name: location.name,
             address: location.address,
             region: location.region,
@@ -212,7 +212,7 @@ export class LocationsController {
         success: true,
         data: {
           location: {
-            id: location._id,
+            id: location.id,
             name: location.name,
             address: location.address,
             region: location.region,

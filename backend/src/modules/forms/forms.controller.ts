@@ -39,7 +39,7 @@ export class FormController {
         success: true,
         data: {
           form: {
-            id: form._id,
+            id: form.id,
             name: form.name,
             category: form.category,
             documents: form.documents,
@@ -83,7 +83,7 @@ export class FormController {
         success: true,
         data: {
           items: result.items.map((item) => ({
-            id: item._id,
+            id: item.id,
             name: item.name,
             category: item.category,
             documents: item.documents,
@@ -120,7 +120,7 @@ export class FormController {
         success: true,
         data: {
           form: {
-            id: form._id,
+            id: form.id,
             name: form.name,
             category: form.category,
             documents: form.documents,
@@ -159,7 +159,7 @@ export class FormController {
         success: true,
         data: {
           form: {
-            id: form._id,
+            id: form.id,
             name: form.name,
             category: form.category,
             documents: form.documents,

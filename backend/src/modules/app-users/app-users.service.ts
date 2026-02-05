@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { AppUser, IAppUser } from './app-users.model';
+import { AppDataSource } from '../../config/db';
+import { AppUser } from './app-users.entity';
 import { RegisterDTO, LoginDTO, UpdateProfileDTO, ChangePasswordDTO } from './app-users.dto';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
@@ -23,12 +24,12 @@ export class AppUsersService {
   /**
    * Register a new app user
    */
-  async register(dto: RegisterDTO): Promise<{ user: IAppUser; tokens: AuthTokens }> {
+  async register(dto: RegisterDTO): Promise<{ user: AppUser; tokens: AuthTokens }> {
     try {
       const { email, password, fullName, phoneNumber } = dto;
+      const repo = AppDataSource.getRepository(AppUser);
 
-      // Check if user already exists
-      const existingUser = await AppUser.findOne({ email });
+      const existingUser = await repo.findOne({ where: { email: email.toLowerCase().trim() } });
       if (existingUser) {
         throw {
           code: ERROR_CODES.VALIDATION_ERROR,
@@ -37,32 +38,23 @@ export class AppUsersService {
         };
       }
 
-      // Create user with email automatically verified (email verification disabled)
-      const user = await AppUser.create({
+      const user = repo.create({
         email: email.toLowerCase().trim(),
         password,
-        fullName: fullName?.trim(),
-        phoneNumber: phoneNumber?.trim(),
-        isEmailVerified: true, // Email verification disabled
+        fullName: fullName?.trim() ?? null,
+        phoneNumber: phoneNumber?.trim() ?? null,
+        isEmailVerified: true,
         emailVerifiedAt: new Date(),
       });
 
-      // Email verification disabled - skipping verification email
+      const saved = await repo.save(user);
+      const tokens = await this.generateTokens(saved);
+      await this.storeRefreshToken(saved.id.toString(), tokens.refreshToken);
 
-      // Generate tokens (user can still login, but email verification is required)
-      const tokens = await this.generateTokens(user);
+      logger.info(`New app user registered: ${saved.email}`);
 
-      // Store refresh token
-      await this.storeRefreshToken(user._id.toString(), tokens.refreshToken);
-
-      logger.info(`New app user registered: ${user.email}`);
-
-      // Return user without password
-      const userObject = user.toObject();
-      delete (userObject as any).password;
-      delete (userObject as any).emailVerificationToken;
-
-      return { user: userObject as IAppUser, tokens };
+      const { password: _, emailVerificationToken: __, ...rest } = saved;
+      return { user: rest as AppUser, tokens };
     } catch (error: any) {
       logger.error('Register app user error:', error);
       if (error.statusCode) {
@@ -80,12 +72,14 @@ export class AppUsersService {
   /**
    * Login app user
    */
-  async login(credentials: LoginDTO): Promise<{ user: IAppUser; tokens: AuthTokens }> {
+  async login(credentials: LoginDTO): Promise<{ user: AppUser; tokens: AuthTokens }> {
     try {
       const { email, password } = credentials;
-
-      // Find user with password field included
-      const user = await AppUser.findOne({ email: email.toLowerCase().trim() }).select('+password');
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({
+        where: { email: email.toLowerCase().trim() },
+        select: ['id', 'email', 'password', 'fullName', 'phoneNumber', 'isEmailVerified', 'lastLoginAt', 'createdAt', 'updatedAt'],
+      });
 
       if (!user) {
         throw {
@@ -95,7 +89,6 @@ export class AppUsersService {
         };
       }
 
-      // Verify password
       const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) {
         throw {
@@ -105,23 +98,16 @@ export class AppUsersService {
         };
       }
 
-      // Generate tokens
       const tokens = await this.generateTokens(user);
+      await this.storeRefreshToken(String(user.id), tokens.refreshToken);
 
-      // Store refresh token
-      await this.storeRefreshToken(user._id.toString(), tokens.refreshToken);
-
-      // Update last login
       user.lastLoginAt = new Date();
-      await user.save();
+      await repo.save(user);
 
       logger.info(`App user logged in: ${user.email}`);
 
-      // Return user without password
-      const userObject = user.toObject();
-      delete (userObject as any).password;
-
-      return { user: userObject as IAppUser, tokens };
+      const { password: _, ...rest } = user;
+      return { user: rest as AppUser, tokens };
     } catch (error: any) {
       logger.error('Login app user error:', error);
       if (error.statusCode) {
@@ -139,9 +125,17 @@ export class AppUsersService {
   /**
    * Get user by ID
    */
-  async getUserById(id: string): Promise<IAppUser> {
+  async getUserById(id: string): Promise<AppUser> {
     try {
-      const user = await AppUser.findById(id).lean();
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'User not found' };
+      }
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({
+        where: { id: idNum },
+        select: ['id', 'email', 'fullName', 'phoneNumber', 'isEmailVerified', 'emailVerifiedAt', 'lastLoginAt', 'createdAt', 'updatedAt'],
+      });
 
       if (!user) {
         throw {
@@ -151,7 +145,7 @@ export class AppUsersService {
         };
       }
 
-      return user as unknown as IAppUser;
+      return user;
     } catch (error: any) {
       logger.error('Get user by ID error:', error);
       if (error.statusCode) {
@@ -169,21 +163,11 @@ export class AppUsersService {
   /**
    * Update user profile
    */
-  async updateUser(id: string, dto: UpdateProfileDTO): Promise<IAppUser> {
+  async updateUser(id: string, dto: UpdateProfileDTO): Promise<AppUser> {
     try {
-      const updateData: any = {};
-
-      if (dto.fullName !== undefined) {
-        updateData.fullName = dto.fullName?.trim();
-      }
-      if (dto.phoneNumber !== undefined) {
-        updateData.phoneNumber = dto.phoneNumber?.trim();
-      }
-
-      const user = await AppUser.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      }).lean();
+      const idNum = parseInt(id, 10);
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({ where: { id: idNum } });
 
       if (!user) {
         throw {
@@ -193,8 +177,13 @@ export class AppUsersService {
         };
       }
 
+      if (dto.fullName !== undefined) user.fullName = dto.fullName?.trim() ?? null;
+      if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber?.trim() ?? null;
+      await repo.save(user);
+
       logger.info(`App user profile updated: ${id}`);
-      return user as unknown as IAppUser;
+      const { password: _, ...rest } = user;
+      return rest as AppUser;
     } catch (error: any) {
       logger.error('Update user error:', error);
       if (error.statusCode) {
@@ -217,7 +206,12 @@ export class AppUsersService {
       const { oldPassword, newPassword } = dto;
 
       // Get user with password
-      const user = await AppUser.findById(id).select('+password');
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'User not found' };
+      }
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({ where: { id: idNum } });
       if (!user) {
         throw {
           statusCode: 404,
@@ -238,7 +232,7 @@ export class AppUsersService {
 
       // Update password (will be hashed by pre-save hook)
       user.password = newPassword;
-      await user.save();
+      await repo.save(user);
 
       logger.info(`App user password changed: ${id}`);
     } catch (error: any) {
@@ -258,20 +252,18 @@ export class AppUsersService {
   /**
    * Generate access and refresh tokens
    */
-  async generateTokens(user: IAppUser): Promise<AuthTokens> {
+  async generateTokens(user: AppUser): Promise<AuthTokens> {
     const payload: TokenPayload = {
-      userId: user._id.toString(),
+      userId: String(user.id),
       email: user.email,
     };
 
-    // Generate access token (15 minutes)
     const accessToken = jwt.sign(payload, env.JWT_SECRET, {
       expiresIn: env.JWT_ACCESS_EXPIRY as string,
     } as jwt.SignOptions);
 
-    // Generate refresh token (7 days)
     const refreshToken = jwt.sign(
-      { userId: user._id.toString() },
+      { userId: String(user.id) },
       env.JWT_SECRET,
       {
         expiresIn: env.JWT_REFRESH_EXPIRY as string,
@@ -332,8 +324,9 @@ export class AppUsersService {
         logger.warn('Redis not configured - skipping refresh token validation');
       }
 
-      // Get user details
-      const user = await AppUser.findById(decoded.userId);
+      const userId = parseInt(decoded.userId, 10);
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({ where: { id: userId } });
 
       if (!user) {
         throw {
@@ -343,9 +336,8 @@ export class AppUsersService {
         };
       }
 
-      // Generate new access token
       const payload: TokenPayload = {
-        userId: user._id.toString(),
+        userId: String(user.id),
         email: user.email,
       };
 
@@ -404,12 +396,12 @@ export class AppUsersService {
   /**
    * Verify email using token
    */
-  async verifyEmail(token: string): Promise<IAppUser> {
+  async verifyEmail(token: string): Promise<AppUser> {
     try {
-      // Find user by verification token
-      const user = await AppUser.findOne({
-        emailVerificationToken: token,
-      }).select('+emailVerificationToken');
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({
+        where: { emailVerificationToken: token },
+      });
 
       if (!user) {
         throw {
@@ -419,7 +411,6 @@ export class AppUsersService {
         };
       }
 
-      // Check if token is expired
       if (user.emailVerificationTokenExpiry && user.emailVerificationTokenExpiry < new Date()) {
         throw {
           statusCode: 400,
@@ -428,7 +419,6 @@ export class AppUsersService {
         };
       }
 
-      // Check if already verified
       if (user.isEmailVerified) {
         throw {
           statusCode: 400,
@@ -437,29 +427,22 @@ export class AppUsersService {
         };
       }
 
-      // Verify email
       user.isEmailVerified = true;
       user.emailVerifiedAt = new Date();
-      user.emailVerificationToken = undefined;
-      user.emailVerificationTokenExpiry = undefined;
-      await user.save();
+      user.emailVerificationToken = null;
+      user.emailVerificationTokenExpiry = null;
+      await repo.save(user);
 
       logger.info(`Email verified for user: ${user.email}`);
 
-      // Send welcome email
       try {
-        await emailService.sendWelcomeEmail(user.email, user.fullName);
+        await emailService.sendWelcomeEmail(user.email, user.fullName ?? undefined);
       } catch (emailError: any) {
         logger.error('Failed to send welcome email:', emailError);
-        // Don't fail verification if welcome email fails
       }
 
-      // Return user without sensitive fields
-      const userObject = user.toObject();
-      delete (userObject as any).password;
-      delete (userObject as any).emailVerificationToken;
-
-      return userObject as IAppUser;
+      const { password: _, emailVerificationToken: __, ...rest } = user;
+      return rest as AppUser;
     } catch (error: any) {
       logger.error('Verify email error:', error);
       if (error.statusCode) {
@@ -479,7 +462,11 @@ export class AppUsersService {
    */
   async resendVerificationEmail(email: string): Promise<void> {
     try {
-      const user = await AppUser.findOne({ email: email.toLowerCase().trim() }).select('+emailVerificationToken');
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({
+        where: { email: email.toLowerCase().trim() },
+        select: ['id', 'email', 'fullName', 'isEmailVerified', 'emailVerificationToken'],
+      });
 
       if (!user) {
         throw {
@@ -489,7 +476,6 @@ export class AppUsersService {
         };
       }
 
-      // Check if already verified
       if (user.isEmailVerified) {
         throw {
           statusCode: 400,
@@ -498,20 +484,17 @@ export class AppUsersService {
         };
       }
 
-      // Generate new verification token
       const verificationToken = this.generateEmailVerificationToken();
       const tokenExpiry = new Date();
-      tokenExpiry.setHours(tokenExpiry.getHours() + 24); // 24 hours expiry
+      tokenExpiry.setHours(tokenExpiry.getHours() + 24);
 
-      // Update user with new token
       user.emailVerificationToken = verificationToken;
       user.emailVerificationTokenExpiry = tokenExpiry;
-      await user.save();
+      await repo.save(user);
 
-      // Send verification email
       await emailService.sendVerificationEmail(
         user.email,
-        user.fullName,
+        user.fullName ?? undefined,
         verificationToken
       );
 

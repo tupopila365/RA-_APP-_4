@@ -1,4 +1,4 @@
-import { IAppUser } from './app-users.model';
+import { AppUser } from './app-users.entity';
 import { RegisterDTO, LoginDTO, UpdateProfileDTO, ChangePasswordDTO } from './app-users.dto';
 interface AuthTokens {
     accessToken: string;
@@ -9,24 +9,24 @@ export declare class AppUsersService {
      * Register a new app user
      */
     register(dto: RegisterDTO): Promise<{
-        user: IAppUser;
+        user: AppUser;
         tokens: AuthTokens;
     }>;
     /**
      * Login app user
      */
     login(credentials: LoginDTO): Promise<{
-        user: IAppUser;
+        user: AppUser;
         tokens: AuthTokens;
     }>;
     /**
      * Get user by ID
      */
-    getUserById(id: string): Promise<IAppUser>;
+    getUserById(id: string): Promise<AppUser>;
     /**
      * Update user profile
      */
-    updateUser(id: string, dto: UpdateProfileDTO): Promise<IAppUser>;
+    updateUser(id: string, dto: UpdateProfileDTO): Promise<AppUser>;
     /**
      * Change user password
      */
@@ -34,7 +34,7 @@ export declare class AppUsersService {
     /**
      * Generate access and refresh tokens
      */
-    generateTokens(user: IAppUser): Promise<AuthTokens>;
+    generateTokens(user: AppUser): Promise<AuthTokens>;
     /**
      * Store refresh token in Redis with expiry
      */
@@ -56,7 +56,7 @@ export declare class AppUsersService {
     /**
      * Verify email using token
      */
-    verifyEmail(token: string): Promise<IAppUser>;
+    verifyEmail(token: string): Promise<AppUser>;
     /**
      * Resend verification email
      */

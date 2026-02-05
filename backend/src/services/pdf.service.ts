@@ -1137,6 +1137,15 @@ class PDFService {
       throw new Error(`Failed to fill PDF form: ${error.message}`);
     }
   }
+
+  /**
+   * Fill vehicle registration form PDF template with application data.
+   * Stub: returns the template file as-is; full fill can be implemented later.
+   */
+  async fillVehicleRegFormPDF(_application: unknown, templatePath: string): Promise<Buffer> {
+    const templateBytes = await fs.readFile(templatePath);
+    return Buffer.from(templateBytes);
+  }
 }
 
 export const pdfService = new PDFService();

@@ -1,9 +1,24 @@
-import { PLNModel, IPLN, PLNStatus, IStatusHistory } from './pln.model';
+import { AppDataSource } from '../../config/db';
+import { PLN } from './pln.entity';
+import type { IPLN, PLNStatus, IStatusHistory } from './pln.model';
+import { FieldEncryption } from '../../utils/encryption';
 import { uploadService } from '../upload/upload.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 import { CreateApplicationDTO, ListApplicationsQuery, ListApplicationsResult } from './pln.dto';
 import { SecureIdGenerator } from '../../utils/secureIdGenerator';
+
+function parseId(id: string): number {
+  const num = parseInt(id, 10);
+  if (isNaN(num)) {
+    throw {
+      statusCode: 404,
+      code: ERROR_CODES.NOT_FOUND,
+      message: 'Application not found',
+    };
+  }
+  return num;
+}
 
 class PLNService {
   /**
@@ -245,12 +260,12 @@ class PLNService {
         };
       }
 
+      const repo = AppDataSource.getRepository(PLN);
       // Generate unique reference ID
       let referenceId = this.generateReferenceId();
-      // Ensure uniqueness (retry if collision)
       let attempts = 0;
       while (attempts < 10) {
-        const existing = await PLNModel.findOne({ referenceId });
+        const existing = await repo.findOne({ where: { referenceId } });
         if (!existing) break;
         referenceId = this.generateReferenceId();
         attempts++;
@@ -392,11 +407,42 @@ class PLNService {
         }
       }
 
-      // Create application
-      const application = await PLNModel.create(applicationData);
+      // Set required encrypted/hash columns (entity requires surname_encrypted, initials_encrypted, surname_hash)
+      applicationData.surname_encrypted = FieldEncryption.encrypt(applicationData.surname || '');
+      applicationData.initials_encrypted = FieldEncryption.encrypt(applicationData.initials || '');
+      applicationData.surname_hash = FieldEncryption.hash(applicationData.surname || '');
+      if (applicationData.trafficRegisterNumber) {
+        applicationData.trafficRegisterNumber_encrypted = FieldEncryption.encrypt(applicationData.trafficRegisterNumber);
+        applicationData.trafficRegisterNumber_hash = FieldEncryption.hash(applicationData.trafficRegisterNumber);
+      }
+      if (applicationData.businessRegNumber) {
+        applicationData.businessRegNumber_encrypted = FieldEncryption.encrypt(applicationData.businessRegNumber);
+        applicationData.businessRegNumber_hash = FieldEncryption.hash(applicationData.businessRegNumber);
+      }
+      if (applicationData.businessName) {
+        applicationData.businessName_encrypted = FieldEncryption.encrypt(applicationData.businessName);
+      }
+      if (applicationData.email) {
+        applicationData.email_encrypted = FieldEncryption.encrypt(applicationData.email);
+        applicationData.email_hash = FieldEncryption.hash(applicationData.email);
+      }
+      if (applicationData.fullName) {
+        applicationData.fullName_encrypted = FieldEncryption.encrypt(applicationData.fullName);
+        applicationData.fullName_hash = FieldEncryption.hash(applicationData.fullName);
+      }
+      if (applicationData.idNumber) {
+        applicationData.idNumber_encrypted = FieldEncryption.encrypt(applicationData.idNumber);
+        applicationData.idNumber_hash = FieldEncryption.hash(applicationData.idNumber);
+      }
+      if (applicationData.phoneNumber) {
+        applicationData.phoneNumber_encrypted = FieldEncryption.encrypt(applicationData.phoneNumber);
+      }
 
-      logger.info(`PLN application created with ID: ${application._id}, Reference: ${referenceId}`);
-      return application;
+      const application = repo.create(applicationData as import('typeorm').DeepPartial<PLN>) as PLN;
+      const saved = await repo.save(application);
+
+      logger.info(`PLN application created with ID: ${saved.id}, Reference: ${referenceId}`);
+      return saved as unknown as IPLN;
     } catch (error: any) {
       logger.error('Create PLN application error:', error);
       if (error.statusCode) {
@@ -428,9 +474,11 @@ class PLNService {
       }
 
       // Find application by reference ID (case-insensitive)
-      const application = await PLNModel.findOne({
-        referenceId: { $regex: new RegExp(`^${referenceId.trim()}$`, 'i') },
-      }).lean();
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo
+        .createQueryBuilder('p')
+        .where('LOWER(p.referenceId) = LOWER(:ref)', { ref: referenceId.trim() })
+        .getOne();
 
       if (!application) {
         throw {
@@ -460,11 +508,10 @@ class PLNService {
    */
   async getApplicationsByEmail(userEmail: string): Promise<IPLN[]> {
     try {
-      const applications = await PLNModel.find({
-        email: userEmail.toLowerCase(),
-      })
-        .sort({ createdAt: -1 })
-        .lean();
+      const applications = await AppDataSource.getRepository(PLN).find({
+        where: { email: userEmail.toLowerCase() },
+        order: { createdAt: 'DESC' },
+      });
 
       return applications as unknown as IPLN[];
     } catch (error: any) {
@@ -483,7 +530,8 @@ class PLNService {
    */
   async getApplicationById(id: string): Promise<IPLN> {
     try {
-      const application = await PLNModel.findById(id).lean();
+      const numId = parseId(id);
+      const application = await AppDataSource.getRepository(PLN).findOne({ where: { id: numId } });
 
       if (!application) {
         throw {
@@ -517,47 +565,32 @@ class PLNService {
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
 
-      // Build filter
-      const filter: any = {};
+      const repo = AppDataSource.getRepository(PLN);
+      const qb = repo.createQueryBuilder('p');
 
       if (query.status) {
-        filter.status = query.status;
+        qb.andWhere('p.status = :status', { status: query.status });
       }
 
       if (query.search) {
-        filter.$or = [
-          { referenceId: { $regex: query.search, $options: 'i' } },
-          { fullName: { $regex: query.search, $options: 'i' } },
-          { surname: { $regex: query.search, $options: 'i' } },
-          { businessName: { $regex: query.search, $options: 'i' } },
-          { idNumber: { $regex: query.search, $options: 'i' } },
-          { trafficRegisterNumber: { $regex: query.search, $options: 'i' } },
-          { businessRegNumber: { $regex: query.search, $options: 'i' } },
-          { phoneNumber: { $regex: query.search, $options: 'i' } },
-          { email: { $regex: query.search, $options: 'i' } },
-          { 'plateChoices.text': { $regex: query.search, $options: 'i' } },
-        ];
+        qb.andWhere(
+          '(p.referenceId LIKE :search OR p.fullName LIKE :search OR p.surname LIKE :search OR p.businessName LIKE :search OR p.idNumber LIKE :search OR p.trafficRegisterNumber LIKE :search OR p.businessRegNumber LIKE :search OR p.phoneNumber LIKE :search OR p.email LIKE :search)',
+          { search: `%${query.search}%` }
+        );
       }
 
-      if (query.startDate || query.endDate) {
-        filter.createdAt = {};
-        if (query.startDate) {
-          filter.createdAt.$gte = new Date(query.startDate);
-        }
-        if (query.endDate) {
-          filter.createdAt.$lte = new Date(query.endDate);
-        }
+      if (query.startDate) {
+        qb.andWhere('p.createdAt >= :startDate', { startDate: new Date(query.startDate) });
+      }
+      if (query.endDate) {
+        qb.andWhere('p.createdAt <= :endDate', { endDate: new Date(query.endDate) });
       }
 
-      // Execute query with pagination
-      const [applications, total] = await Promise.all([
-        PLNModel.find(filter)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        PLNModel.countDocuments(filter),
-      ]);
+      const [applications, total] = await qb
+        .orderBy('p.createdAt', 'DESC')
+        .skip(skip)
+        .take(limit)
+        .getManyAndCount();
 
       return {
         applications: applications as unknown as IPLN[],
@@ -588,7 +621,9 @@ class PLNService {
     try {
       logger.info(`Updating application status: ${id} to ${status}`);
 
-      const application = await PLNModel.findById(id);
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo.findOne({ where: { id: numId } });
       if (!application) {
         throw {
           statusCode: 404,
@@ -597,32 +632,28 @@ class PLNService {
         };
       }
 
-      // Add status to history
+      let effectiveStatus = status;
+      if (status === 'APPROVED') {
+        effectiveStatus = 'PAYMENT_PENDING';
+        const deadline = new Date();
+        deadline.setDate(deadline.getDate() + 21);
+        application.paymentDeadline = deadline;
+      }
+
       const statusHistoryEntry: IStatusHistory = {
-        status,
+        status: effectiveStatus,
         changedBy: adminId,
         timestamp: new Date(),
         comment,
       };
 
-      const updateData: any = {
-        status,
-        $push: { statusHistory: statusHistoryEntry },
-      };
+      application.status = effectiveStatus;
+      application.statusHistory = [
+        ...(Array.isArray(application.statusHistory) ? application.statusHistory : []),
+        statusHistoryEntry,
+      ];
 
-      // Set payment deadline when approved (21 days from approval)
-      if (status === 'APPROVED') {
-        const deadline = new Date();
-        deadline.setDate(deadline.getDate() + 21);
-        updateData.paymentDeadline = deadline;
-        updateData.status = 'PAYMENT_PENDING';
-        statusHistoryEntry.status = 'PAYMENT_PENDING';
-      }
-
-      const updated = await PLNModel.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      }).lean();
+      const updated = await repo.save(application);
 
       logger.info(`Application ${id} status updated to ${status}`);
       return updated as unknown as IPLN;
@@ -647,7 +678,9 @@ class PLNService {
     try {
       logger.info(`Marking payment received for application: ${id}`);
 
-      const application = await PLNModel.findById(id);
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo.findOne({ where: { id: numId } });
       if (!application) {
         throw {
           statusCode: 404,
@@ -663,15 +696,14 @@ class PLNService {
         comment: 'Payment received',
       };
 
-      const updated = await PLNModel.findByIdAndUpdate(
-        id,
-        {
-          status: 'PAID',
-          paymentReceivedAt: new Date(),
-          $push: { statusHistory: statusHistoryEntry },
-        },
-        { new: true, runValidators: true }
-      ).lean();
+      application.status = 'PAID';
+      application.paymentReceivedAt = new Date();
+      application.statusHistory = [
+        ...(Array.isArray(application.statusHistory) ? application.statusHistory : []),
+        statusHistoryEntry,
+      ];
+
+      const updated = await repo.save(application);
 
       logger.info(`Payment marked as received for application ${id}`);
       return updated as unknown as IPLN;
@@ -696,6 +728,17 @@ class PLNService {
     try {
       logger.info(`Ordering plates for application: ${id}`);
 
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo.findOne({ where: { id: numId } });
+      if (!application) {
+        throw {
+          statusCode: 404,
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Application not found',
+        };
+      }
+
       const statusHistoryEntry: IStatusHistory = {
         status: 'PLATES_ORDERED',
         changedBy: adminId,
@@ -703,22 +746,13 @@ class PLNService {
         comment: 'Plates ordered for manufacturing',
       };
 
-      const updated = await PLNModel.findByIdAndUpdate(
-        id,
-        {
-          status: 'PLATES_ORDERED',
-          $push: { statusHistory: statusHistoryEntry },
-        },
-        { new: true, runValidators: true }
-      ).lean();
+      application.status = 'PLATES_ORDERED';
+      application.statusHistory = [
+        ...(Array.isArray(application.statusHistory) ? application.statusHistory : []),
+        statusHistoryEntry,
+      ];
 
-      if (!updated) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Application not found',
-        };
-      }
+      const updated = await repo.save(application);
 
       logger.info(`Plates ordered for application ${id}`);
       return updated as unknown as IPLN;
@@ -743,6 +777,17 @@ class PLNService {
     try {
       logger.info(`Marking application ready for collection: ${id}`);
 
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo.findOne({ where: { id: numId } });
+      if (!application) {
+        throw {
+          statusCode: 404,
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Application not found',
+        };
+      }
+
       const statusHistoryEntry: IStatusHistory = {
         status: 'READY_FOR_COLLECTION',
         changedBy: adminId,
@@ -750,22 +795,13 @@ class PLNService {
         comment: 'Plates ready for collection',
       };
 
-      const updated = await PLNModel.findByIdAndUpdate(
-        id,
-        {
-          status: 'READY_FOR_COLLECTION',
-          $push: { statusHistory: statusHistoryEntry },
-        },
-        { new: true, runValidators: true }
-      ).lean();
+      application.status = 'READY_FOR_COLLECTION';
+      application.statusHistory = [
+        ...(Array.isArray(application.statusHistory) ? application.statusHistory : []),
+        statusHistoryEntry,
+      ];
 
-      if (!updated) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Application not found',
-        };
-      }
+      const updated = await repo.save(application);
 
       logger.info(`Application ${id} marked as ready for collection`);
       return updated as unknown as IPLN;
@@ -794,46 +830,16 @@ class PLNService {
     monthlyStats: { month: string; count: number }[];
   }> {
     try {
-      const [total, statusCounts, recentApplications, paymentOverdue, monthlyStats] = await Promise.all([
-        PLNModel.countDocuments(),
-        PLNModel.aggregate([
-          {
-            $group: {
-              _id: '$status',
-              count: { $sum: 1 },
-            },
-          },
-        ]),
-        PLNModel.find()
-          .sort({ createdAt: -1 })
-          .limit(5)
-          .lean(),
-        PLNModel.countDocuments({
-          status: 'PAYMENT_PENDING',
-          paymentDeadline: { $lt: new Date() },
-        }),
-        PLNModel.aggregate([
-          {
-            $match: {
-              createdAt: {
-                $gte: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1),
-              },
-            },
-          },
-          {
-            $group: {
-              _id: {
-                year: { $year: '$createdAt' },
-                month: { $month: '$createdAt' },
-              },
-              count: { $sum: 1 },
-            },
-          },
-          {
-            $sort: { '_id.year': 1, '_id.month': 1 },
-          },
-        ]),
-      ]);
+      const repo = AppDataSource.getRepository(PLN);
+
+      const total = await repo.count();
+
+      const statusRows = await repo
+        .createQueryBuilder('p')
+        .select('p.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('p.status')
+        .getRawMany();
 
       const byStatus: Record<PLNStatus, number> = {
         SUBMITTED: 0,
@@ -846,15 +852,44 @@ class PLNService {
         READY_FOR_COLLECTION: 0,
         EXPIRED: 0,
       };
-
-      statusCounts.forEach((item) => {
-        byStatus[item._id as PLNStatus] = item.count;
+      (statusRows as { status: string; count: string }[]).forEach((item) => {
+        byStatus[item.status as PLNStatus] = parseInt(item.count, 10) || 0;
       });
 
-      const monthlyStatsFormatted = monthlyStats.map((item) => ({
-        month: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
-        count: item.count,
-      }));
+      const recentApplications = await repo.find({
+        order: { createdAt: 'DESC' },
+        take: 5,
+      });
+
+      const paymentOverdue = await repo
+        .createQueryBuilder('p')
+        .where('p.status = :status', { status: 'PAYMENT_PENDING' })
+        .andWhere('p.paymentDeadline < :now', { now: new Date() })
+        .getCount();
+
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+      twelveMonthsAgo.setDate(1);
+      twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+      const monthlyRows = await repo
+        .createQueryBuilder('p')
+        .select('YEAR(p.createdAt)', 'year')
+        .addSelect('MONTH(p.createdAt)', 'month')
+        .addSelect('COUNT(*)', 'count')
+        .where('p.createdAt >= :from', { from: twelveMonthsAgo })
+        .groupBy('YEAR(p.createdAt)')
+        .addGroupBy('MONTH(p.createdAt)')
+        .orderBy('YEAR(p.createdAt)', 'ASC')
+        .addOrderBy('MONTH(p.createdAt)', 'ASC')
+        .getRawMany();
+
+      const monthlyStatsFormatted = (monthlyRows as { year: number; month: number; count: string }[]).map(
+        (item) => ({
+          month: `${item.year}-${item.month.toString().padStart(2, '0')}`,
+          count: parseInt(item.count, 10) || 0,
+        })
+      );
 
       return {
         total,
@@ -879,29 +914,30 @@ class PLNService {
    */
   async updateAdminComments(id: string, comments: string, adminId: string): Promise<IPLN> {
     try {
-      const updated = await PLNModel.findByIdAndUpdate(
-        id,
-        {
-          adminComments: comments,
-          $push: {
-            statusHistory: {
-              status: 'UNDER_REVIEW',
-              changedBy: adminId,
-              timestamp: new Date(),
-              comment: 'Admin comments updated',
-            },
-          },
-        },
-        { new: true, runValidators: true }
-      ).lean();
-
-      if (!updated) {
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo.findOne({ where: { id: numId } });
+      if (!application) {
         throw {
           statusCode: 404,
           code: ERROR_CODES.NOT_FOUND,
           message: 'Application not found',
         };
       }
+
+      application.adminComments = comments ?? null;
+      const statusHistoryEntry: IStatusHistory = {
+        status: 'UNDER_REVIEW',
+        changedBy: adminId,
+        timestamp: new Date(),
+        comment: 'Admin comments updated',
+      };
+      application.statusHistory = [
+        ...(Array.isArray(application.statusHistory) ? application.statusHistory : []),
+        statusHistoryEntry,
+      ];
+
+      const updated = await repo.save(application);
 
       return updated as unknown as IPLN;
     } catch (error: any) {
@@ -923,23 +959,10 @@ class PLNService {
    */
   async assignToAdmin(id: string, assignedTo: string, adminId: string): Promise<IPLN> {
     try {
-      const updated = await PLNModel.findByIdAndUpdate(
-        id,
-        {
-          assignedTo,
-          $push: {
-            statusHistory: {
-              status: 'UNDER_REVIEW',
-              changedBy: adminId,
-              timestamp: new Date(),
-              comment: `Application assigned to ${assignedTo}`,
-            },
-          },
-        },
-        { new: true, runValidators: true }
-      ).lean();
-
-      if (!updated) {
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo.findOne({ where: { id: numId } });
+      if (!application) {
         throw {
           statusCode: 404,
           code: ERROR_CODES.NOT_FOUND,
@@ -947,6 +970,18 @@ class PLNService {
         };
       }
 
+      application.assignedTo = assignedTo;
+      application.statusHistory = [
+        ...(Array.isArray(application.statusHistory) ? application.statusHistory : []),
+        {
+          status: 'UNDER_REVIEW',
+          changedBy: adminId,
+          timestamp: new Date(),
+          comment: `Application assigned to ${assignedTo}`,
+        },
+      ];
+
+      const updated = await repo.save(application);
       return updated as unknown as IPLN;
     } catch (error: any) {
       logger.error('Assign to admin error:', error);
@@ -967,23 +1002,10 @@ class PLNService {
    */
   async setPriority(id: string, priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT', adminId: string): Promise<IPLN> {
     try {
-      const updated = await PLNModel.findByIdAndUpdate(
-        id,
-        {
-          priority,
-          $push: {
-            statusHistory: {
-              status: 'UNDER_REVIEW',
-              changedBy: adminId,
-              timestamp: new Date(),
-              comment: `Priority set to ${priority}`,
-            },
-          },
-        },
-        { new: true, runValidators: true }
-      ).lean();
-
-      if (!updated) {
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo.findOne({ where: { id: numId } });
+      if (!application) {
         throw {
           statusCode: 404,
           code: ERROR_CODES.NOT_FOUND,
@@ -991,6 +1013,18 @@ class PLNService {
         };
       }
 
+      application.priority = priority;
+      application.statusHistory = [
+        ...(Array.isArray(application.statusHistory) ? application.statusHistory : []),
+        {
+          status: 'UNDER_REVIEW',
+          changedBy: adminId,
+          timestamp: new Date(),
+          comment: `Priority set to ${priority}`,
+        },
+      ];
+
+      const updated = await repo.save(application);
       return updated as unknown as IPLN;
     } catch (error: any) {
       logger.error('Set priority error:', error);

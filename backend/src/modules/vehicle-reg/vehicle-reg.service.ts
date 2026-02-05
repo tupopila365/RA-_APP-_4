@@ -1,9 +1,13 @@
-import { VehicleRegModel, IVehicleReg, VehicleRegStatus, IStatusHistory } from './vehicle-reg.model';
+import { AppDataSource } from '../../config/db';
+import { VehicleReg } from './vehicle-reg.entity';
 import { uploadService } from '../upload/upload.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 import { CreateVehicleRegDTO, ListApplicationsQuery, ListApplicationsResult } from './vehicle-reg.dto';
 import { SecureIdGenerator } from '../../utils/secureIdGenerator';
+import { VehicleRegStatus } from './vehicle-reg.model';
+import type { IStatusHistory } from './vehicle-reg.model';
+import { ILike, LessThan } from 'typeorm';
 
 class VehicleRegService {
   /**
@@ -24,7 +28,7 @@ class VehicleRegService {
   /**
    * Create a new vehicle registration application
    */
-  async createApplication(dto: CreateVehicleRegDTO, file: Express.Multer.File): Promise<IVehicleReg> {
+  async createApplication(dto: CreateVehicleRegDTO, file: Express.Multer.File): Promise<VehicleReg> {
     try {
       logger.info('Creating vehicle registration application:', {
         make: dto.make,
@@ -211,8 +215,9 @@ class VehicleRegService {
       let referenceId = this.generateReferenceId();
       // Ensure uniqueness (retry if collision)
       let attempts = 0;
+      const repo = AppDataSource.getRepository(VehicleReg);
       while (attempts < 10) {
-        const existing = await VehicleRegModel.findOne({ referenceId });
+        const existing = await repo.findOne({ where: { referenceId } });
         if (!existing) break;
         referenceId = this.generateReferenceId();
         attempts++;
@@ -353,11 +358,12 @@ class VehicleRegService {
         };
       }
 
-      // Create application
-      const application = await VehicleRegModel.create(applicationData);
+      // Create application (single entity)
+      const application = repo.create(applicationData as import('typeorm').DeepPartial<VehicleReg>) as VehicleReg;
+      const saved = await repo.save(application);
 
-      logger.info(`Vehicle registration application created with ID: ${application._id}, Reference: ${referenceId}`);
-      return application;
+      logger.info(`Vehicle registration application created with ID: ${saved.id}, Reference: ${referenceId}`);
+      return saved;
     } catch (error: any) {
       logger.error('Create vehicle registration application error:', error);
       if (error.statusCode) {
@@ -375,7 +381,7 @@ class VehicleRegService {
   /**
    * Get application by reference ID and PIN (public tracking)
    */
-  async getApplicationByReference(referenceId: string, pin: string): Promise<IVehicleReg> {
+  async getApplicationByReference(referenceId: string, pin: string): Promise<VehicleReg> {
     try {
       const UNIVERSAL_PIN = '12345';
       if (pin.trim() !== UNIVERSAL_PIN) {
@@ -386,9 +392,10 @@ class VehicleRegService {
         };
       }
 
-      const application = await VehicleRegModel.findOne({
-        referenceId: { $regex: new RegExp(`^${referenceId.trim()}$`, 'i') },
-      }).lean();
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const application = await repo.findOne({
+        where: { referenceId: ILike(referenceId.trim()) },
+      });
 
       if (!application) {
         throw {
@@ -398,7 +405,7 @@ class VehicleRegService {
         };
       }
 
-      return application as unknown as IVehicleReg;
+      return application;
     } catch (error: any) {
       logger.error('Get application by reference error:', error);
       if (error.statusCode) {
@@ -416,16 +423,14 @@ class VehicleRegService {
   /**
    * Get applications by user email
    */
-  async getApplicationsByEmail(userEmail: string): Promise<IVehicleReg[]> {
+  async getApplicationsByEmail(userEmail: string): Promise<VehicleReg[]> {
     try {
-      // Note: Vehicle registration doesn't have email field in the model yet
-      // This is a placeholder for future enhancement
-      const applications = await VehicleRegModel.find({})
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .lean();
-
-      return applications as unknown as IVehicleReg[];
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const applications = await repo.find({
+        order: { createdAt: 'DESC' },
+        take: 100,
+      });
+      return applications;
     } catch (error: any) {
       logger.error('Get applications by email error:', error);
       throw {
@@ -440,9 +445,11 @@ class VehicleRegService {
   /**
    * Get application by ID (admin)
    */
-  async getApplicationById(id: string): Promise<IVehicleReg> {
+  async getApplicationById(id: string): Promise<VehicleReg> {
     try {
-      const application = await VehicleRegModel.findById(id).lean();
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const idNum = parseInt(id, 10);
+      const application = await repo.findOne({ where: { id: idNum } });
 
       if (!application) {
         throw {
@@ -452,7 +459,7 @@ class VehicleRegService {
         };
       }
 
-      return application as unknown as IVehicleReg;
+      return application;
     } catch (error: any) {
       logger.error('Get application by ID error:', error);
       if (error.statusCode) {
@@ -475,48 +482,29 @@ class VehicleRegService {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
+      const repo = AppDataSource.getRepository(VehicleReg);
 
-      // Build filter
-      const filter: any = {};
-
-      if (query.status) {
-        filter.status = query.status;
-      }
-
-      if (query.search) {
-        filter.$or = [
-          { referenceId: { $regex: query.search, $options: 'i' } },
-          { surname: { $regex: query.search, $options: 'i' } },
-          { businessName: { $regex: query.search, $options: 'i' } },
-          { identificationNumber: { $regex: query.search, $options: 'i' } },
-          { make: { $regex: query.search, $options: 'i' } },
-          { seriesName: { $regex: query.search, $options: 'i' } },
-          { chassisNumber: { $regex: query.search, $options: 'i' } },
-        ];
-      }
-
-      if (query.startDate || query.endDate) {
-        filter.createdAt = {};
-        if (query.startDate) {
-          filter.createdAt.$gte = new Date(query.startDate);
+      const buildQb = () => {
+        const qb = repo.createQueryBuilder('v');
+        if (query.status) qb.andWhere('v.status = :status', { status: query.status });
+        if (query.startDate) qb.andWhere('v.createdAt >= :startDate', { startDate: new Date(query.startDate) });
+        if (query.endDate) qb.andWhere('v.createdAt <= :endDate', { endDate: new Date(query.endDate) });
+        if (query.search) {
+          qb.andWhere(
+            '(v.referenceId LIKE :search OR v.surname LIKE :search OR v.businessName LIKE :search OR v.identificationNumber LIKE :search OR v.make LIKE :search OR v.seriesName LIKE :search OR v.chassisNumber LIKE :search)',
+            { search: `%${query.search}%` }
+          );
         }
-        if (query.endDate) {
-          filter.createdAt.$lte = new Date(query.endDate);
-        }
-      }
+        return qb;
+      };
 
-      // Execute query with pagination
       const [applications, total] = await Promise.all([
-        VehicleRegModel.find(filter)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        VehicleRegModel.countDocuments(filter),
+        buildQb().orderBy('v.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+        buildQb().getCount(),
       ]);
 
       return {
-        applications: applications as unknown as IVehicleReg[],
+        applications,
         total,
         page,
         totalPages: Math.ceil(total / limit),
@@ -540,11 +528,13 @@ class VehicleRegService {
     status: VehicleRegStatus,
     adminId: string,
     comment?: string
-  ): Promise<IVehicleReg> {
+  ): Promise<VehicleReg> {
     try {
       logger.info(`Updating application status: ${id} to ${status}`);
 
-      const application = await VehicleRegModel.findById(id);
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const idNum = parseInt(id, 10);
+      const application = await repo.findOne({ where: { id: idNum } });
       if (!application) {
         throw {
           statusCode: 404,
@@ -553,34 +543,27 @@ class VehicleRegService {
         };
       }
 
+      let newStatus = status;
+      if (status === 'APPROVED') {
+        newStatus = 'PAYMENT_PENDING' as VehicleRegStatus;
+        const deadline = new Date();
+        deadline.setDate(deadline.getDate() + 21);
+        application.paymentDeadline = deadline;
+      }
+
       const statusHistoryEntry: IStatusHistory = {
-        status,
+        status: newStatus,
         changedBy: adminId,
         timestamp: new Date(),
         comment,
       };
 
-      const updateData: any = {
-        status,
-        $push: { statusHistory: statusHistoryEntry },
-      };
-
-      // Set payment deadline when approved (21 days from approval)
-      if (status === 'APPROVED') {
-        const deadline = new Date();
-        deadline.setDate(deadline.getDate() + 21);
-        updateData.paymentDeadline = deadline;
-        updateData.status = 'PAYMENT_PENDING';
-        statusHistoryEntry.status = 'PAYMENT_PENDING';
-      }
-
-      const updated = await VehicleRegModel.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      }).lean();
+      application.status = newStatus;
+      application.statusHistory = [...(application.statusHistory || []), statusHistoryEntry];
+      await repo.save(application);
 
       logger.info(`Application ${id} status updated to ${status}`);
-      return updated as unknown as IVehicleReg;
+      return application;
     } catch (error: any) {
       logger.error('Update status error:', error);
       if (error.statusCode) {
@@ -598,11 +581,13 @@ class VehicleRegService {
   /**
    * Mark payment as received
    */
-  async markPaymentReceived(id: string, adminId: string): Promise<IVehicleReg> {
+  async markPaymentReceived(id: string, adminId: string): Promise<VehicleReg> {
     try {
       logger.info(`Marking payment received for application: ${id}`);
 
-      const application = await VehicleRegModel.findById(id);
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const idNum = parseInt(id, 10);
+      const application = await repo.findOne({ where: { id: idNum } });
       if (!application) {
         throw {
           statusCode: 404,
@@ -618,18 +603,13 @@ class VehicleRegService {
         comment: 'Payment received',
       };
 
-      const updated = await VehicleRegModel.findByIdAndUpdate(
-        id,
-        {
-          status: 'PAID',
-          paymentReceivedAt: new Date(),
-          $push: { statusHistory: statusHistoryEntry },
-        },
-        { new: true, runValidators: true }
-      ).lean();
+      application.status = 'PAID';
+      application.paymentReceivedAt = new Date();
+      application.statusHistory = [...(application.statusHistory || []), statusHistoryEntry];
+      await repo.save(application);
 
       logger.info(`Payment marked as received for application ${id}`);
-      return updated as unknown as IVehicleReg;
+      return application;
     } catch (error: any) {
       logger.error('Mark payment received error:', error);
       if (error.statusCode) {
@@ -647,9 +627,20 @@ class VehicleRegService {
   /**
    * Mark as registered
    */
-  async markRegistered(id: string, adminId: string, registrationNumber?: string): Promise<IVehicleReg> {
+  async markRegistered(id: string, adminId: string, registrationNumber?: string): Promise<VehicleReg> {
     try {
       logger.info(`Marking application as registered: ${id}`);
+
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const idNum = parseInt(id, 10);
+      const application = await repo.findOne({ where: { id: idNum } });
+      if (!application) {
+        throw {
+          statusCode: 404,
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Application not found',
+        };
+      }
 
       const statusHistoryEntry: IStatusHistory = {
         status: 'REGISTERED',
@@ -658,31 +649,14 @@ class VehicleRegService {
         comment: 'Vehicle registered',
       };
 
-      const updateData: any = {
-        status: 'REGISTERED',
-        registrationDate: new Date(),
-        $push: { statusHistory: statusHistoryEntry },
-      };
-
-      if (registrationNumber) {
-        updateData.registrationNumberAssigned = registrationNumber;
-      }
-
-      const updated = await VehicleRegModel.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      }).lean();
-
-      if (!updated) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Application not found',
-        };
-      }
+      application.status = 'REGISTERED';
+      application.registrationDate = new Date();
+      if (registrationNumber) application.registrationNumberAssigned = registrationNumber;
+      application.statusHistory = [...(application.statusHistory || []), statusHistoryEntry];
+      await repo.save(application);
 
       logger.info(`Application ${id} marked as registered`);
-      return updated as unknown as IVehicleReg;
+      return application;
     } catch (error: any) {
       logger.error('Mark registered error:', error);
       if (error.statusCode) {
@@ -703,51 +677,12 @@ class VehicleRegService {
   async getDashboardStats(): Promise<{
     total: number;
     byStatus: Record<VehicleRegStatus, number>;
-    recentApplications: IVehicleReg[];
+    recentApplications: VehicleReg[];
     paymentOverdue: number;
     monthlyStats: { month: string; count: number }[];
   }> {
     try {
-      const [total, statusCounts, recentApplications, paymentOverdue, monthlyStats] = await Promise.all([
-        VehicleRegModel.countDocuments(),
-        VehicleRegModel.aggregate([
-          {
-            $group: {
-              _id: '$status',
-              count: { $sum: 1 },
-            },
-          },
-        ]),
-        VehicleRegModel.find()
-          .sort({ createdAt: -1 })
-          .limit(5)
-          .lean(),
-        VehicleRegModel.countDocuments({
-          status: 'PAYMENT_PENDING',
-          paymentDeadline: { $lt: new Date() },
-        }),
-        VehicleRegModel.aggregate([
-          {
-            $match: {
-              createdAt: {
-                $gte: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1),
-              },
-            },
-          },
-          {
-            $group: {
-              _id: {
-                year: { $year: '$createdAt' },
-                month: { $month: '$createdAt' },
-              },
-              count: { $sum: 1 },
-            },
-          },
-          {
-            $sort: { '_id.year': 1, '_id.month': 1 },
-          },
-        ]),
-      ]);
+      const repo = AppDataSource.getRepository(VehicleReg);
 
       const byStatus: Record<VehicleRegStatus, number> = {
         SUBMITTED: 0,
@@ -760,19 +695,37 @@ class VehicleRegService {
         EXPIRED: 0,
       };
 
-      statusCounts.forEach((item) => {
-        byStatus[item._id as VehicleRegStatus] = item.count;
+      const [total, statusRows, recentApplications, paymentOverdue, monthlyRows] = await Promise.all([
+        repo.count(),
+        repo.createQueryBuilder('v').select('v.status', 'status').addSelect('COUNT(*)', 'count').groupBy('v.status').getRawMany(),
+        repo.find({ order: { createdAt: 'DESC' }, take: 5 }),
+        repo.count({ where: { status: 'PAYMENT_PENDING', paymentDeadline: LessThan(new Date()) } }),
+        repo
+          .createQueryBuilder('v')
+          .select('YEAR(v.createdAt)', 'year')
+          .addSelect('MONTH(v.createdAt)', 'month')
+          .addSelect('COUNT(*)', 'count')
+          .where('v.createdAt >= :cutoff', { cutoff: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1) })
+          .groupBy('YEAR(v.createdAt)')
+          .addGroupBy('MONTH(v.createdAt)')
+          .orderBy('year', 'ASC')
+          .addOrderBy('month', 'ASC')
+          .getRawMany(),
+      ]);
+
+      statusRows.forEach((row: any) => {
+        byStatus[row.status as VehicleRegStatus] = parseInt(row.count, 10);
       });
 
-      const monthlyStatsFormatted = monthlyStats.map((item) => ({
-        month: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
-        count: item.count,
+      const monthlyStatsFormatted = monthlyRows.map((row: any) => ({
+        month: `${row.year}-${String(row.month).padStart(2, '0')}`,
+        count: parseInt(row.count, 10),
       }));
 
       return {
         total,
         byStatus,
-        recentApplications: recentApplications as unknown as IVehicleReg[],
+        recentApplications,
         paymentOverdue,
         monthlyStats: monthlyStatsFormatted,
       };
@@ -790,25 +743,12 @@ class VehicleRegService {
   /**
    * Update admin comments
    */
-  async updateAdminComments(id: string, comments: string, adminId: string): Promise<IVehicleReg> {
+  async updateAdminComments(id: string, comments: string, adminId: string): Promise<VehicleReg> {
     try {
-      const updated = await VehicleRegModel.findByIdAndUpdate(
-        id,
-        {
-          adminComments: comments,
-          $push: {
-            statusHistory: {
-              status: 'UNDER_REVIEW',
-              changedBy: adminId,
-              timestamp: new Date(),
-              comment: 'Admin comments updated',
-            },
-          },
-        },
-        { new: true, runValidators: true }
-      ).lean();
-
-      if (!updated) {
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const idNum = parseInt(id, 10);
+      const application = await repo.findOne({ where: { id: idNum } });
+      if (!application) {
         throw {
           statusCode: 404,
           code: ERROR_CODES.NOT_FOUND,
@@ -816,7 +756,13 @@ class VehicleRegService {
         };
       }
 
-      return updated as unknown as IVehicleReg;
+      application.adminComments = comments;
+      application.statusHistory = [
+        ...(application.statusHistory || []),
+        { status: 'UNDER_REVIEW', changedBy: adminId, timestamp: new Date(), comment: 'Admin comments updated' },
+      ];
+      await repo.save(application);
+      return application;
     } catch (error: any) {
       logger.error('Update admin comments error:', error);
       if (error.statusCode) {
@@ -834,23 +780,21 @@ class VehicleRegService {
   /**
    * Assign application to admin
    */
-  async assignToAdmin(id: string, adminName: string): Promise<IVehicleReg> {
+  async assignToAdmin(id: string, adminName: string): Promise<VehicleReg> {
     try {
-      const updated = await VehicleRegModel.findByIdAndUpdate(
-        id,
-        { assignedTo: adminName },
-        { new: true, runValidators: true }
-      ).lean();
-
-      if (!updated) {
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const idNum = parseInt(id, 10);
+      const application = await repo.findOne({ where: { id: idNum } });
+      if (!application) {
         throw {
           statusCode: 404,
           code: ERROR_CODES.NOT_FOUND,
           message: 'Application not found',
         };
       }
-
-      return updated as unknown as IVehicleReg;
+      application.assignedTo = adminName;
+      await repo.save(application);
+      return application;
     } catch (error: any) {
       logger.error('Assign to admin error:', error);
       if (error.statusCode) {
@@ -868,23 +812,21 @@ class VehicleRegService {
   /**
    * Set application priority
    */
-  async setPriority(id: string, priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'): Promise<IVehicleReg> {
+  async setPriority(id: string, priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'): Promise<VehicleReg> {
     try {
-      const updated = await VehicleRegModel.findByIdAndUpdate(
-        id,
-        { priority },
-        { new: true, runValidators: true }
-      ).lean();
-
-      if (!updated) {
+      const repo = AppDataSource.getRepository(VehicleReg);
+      const idNum = parseInt(id, 10);
+      const application = await repo.findOne({ where: { id: idNum } });
+      if (!application) {
         throw {
           statusCode: 404,
           code: ERROR_CODES.NOT_FOUND,
           message: 'Application not found',
         };
       }
-
-      return updated as unknown as IVehicleReg;
+      application.priority = priority;
+      await repo.save(application);
+      return application;
     } catch (error: any) {
       logger.error('Set priority error:', error);
       if (error.statusCode) {

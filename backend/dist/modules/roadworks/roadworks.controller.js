@@ -144,8 +144,9 @@ class RoadworksController {
                 return;
             }
             // Update the specific route's approval status
-            roadwork.alternateRoutes[routeIdx].approved = true;
-            const updatedRoadwork = await roadworks_service_1.roadworksService.updateRoadwork(id, { alternateRoutes: roadwork.alternateRoutes }, req.user?.userId, req.user?.email);
+            const alternateRoutes = (roadwork.alternateRoutes || []);
+            alternateRoutes[routeIdx].approved = true;
+            const updatedRoadwork = await roadworks_service_1.roadworksService.updateRoadwork(id, { alternateRoutes }, req.user?.userId, req.user?.email);
             res.status(200).json({ success: true, data: updatedRoadwork, timestamp: new Date().toISOString() });
         }
         catch (error) {

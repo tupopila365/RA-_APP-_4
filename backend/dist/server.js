@@ -33,6 +33,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv/config");
+require("reflect-metadata");
 const app_1 = require("./app");
 const db_1 = require("./config/db");
 const redis_1 = require("./config/redis");
@@ -60,9 +62,9 @@ const getNetworkIP = () => {
 const startServer = async () => {
     let server = null;
     try {
-        // Connect to MongoDB
+        // Connect to SQL Server
         await (0, db_1.connectDB)();
-        logger_1.logger.info('MongoDB connected successfully');
+        logger_1.logger.info('SQL Server connected successfully');
         // Connect to Redis (optional)
         const redisClient = await (0, redis_1.connectRedis)();
         if (redisClient) {
@@ -94,11 +96,7 @@ const startServer = async () => {
                     logger_1.logger.info('HTTP server closed');
                     try {
                         // Close database connections
-                        const mongoose = await Promise.resolve().then(() => __importStar(require('mongoose')));
-                        if (mongoose.connection && mongoose.connection.readyState !== 0) {
-                            await mongoose.connection.close();
-                            logger_1.logger.info('MongoDB connection closed');
-                        }
+                        await (0, db_1.disconnectDB)();
                         // Close Redis connection safely
                         try {
                             const { getRedisClient } = await Promise.resolve().then(() => __importStar(require('./config/redis')));
@@ -128,11 +126,7 @@ const startServer = async () => {
                 // Server not initialized, just close connections
                 logger_1.logger.warn('Server not initialized, closing connections directly');
                 try {
-                    const mongoose = await Promise.resolve().then(() => __importStar(require('mongoose')));
-                    if (mongoose.connection && mongoose.connection.readyState !== 0) {
-                        await mongoose.connection.close();
-                        logger_1.logger.info('MongoDB connection closed');
-                    }
+                    await (0, db_1.disconnectDB)();
                     process.exit(0);
                 }
                 catch (error) {

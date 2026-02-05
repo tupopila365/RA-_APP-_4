@@ -1,11 +1,17 @@
 import { Response, NextFunction, Request } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
+import { AppAuthRequest } from '../../middlewares/appAuth';
 export declare class PLNController {
     /**
      * Create a new PLN application
      * POST /api/pln/applications
      */
-    createApplication(req: Request, res: Response, next: NextFunction): Promise<void>;
+    createApplication(req: Request | AppAuthRequest, res: Response, next: NextFunction): Promise<void>;
+    /**
+     * Get user's PLN applications by email (if authenticated)
+     * GET /api/pln/my-applications
+     */
+    getMyApplications(req: Request | AppAuthRequest, res: Response, next: NextFunction): Promise<void>;
     /**
      * Track application by reference ID and PIN (public)
      * GET /api/pln/track/:referenceId/:pin

@@ -1,4 +1,4 @@
-import { IPushToken } from './notifications.model';
+import { PushToken } from './notifications.entity';
 export interface SendNotificationDTO {
     title: string;
     body: string;
@@ -10,37 +10,13 @@ export interface SendNotificationDTO {
 declare class NotificationsService {
     private expo;
     constructor();
-    /**
-     * Register a push token
-     */
-    registerPushToken(pushToken: string, platform: 'ios' | 'android', deviceInfo: any, userId?: string): Promise<IPushToken>;
-    /**
-     * Send push notification to specific tokens
-     */
+    registerPushToken(pushToken: string, platform: 'ios' | 'android', deviceInfo: any, userId?: string): Promise<PushToken>;
     sendPushNotification(dto: SendNotificationDTO, pushTokens?: string[]): Promise<any>;
-    /**
-     * Send notification for new news article
-     */
     sendNewsNotification(newsId: string, title: string, excerpt: string): Promise<any>;
-    /**
-     * Send notification for new tender
-     */
     sendTenderNotification(tenderId: string, title: string, closingDate: string): Promise<any>;
-    /**
-     * Send notification for new vacancy
-     */
     sendVacancyNotification(vacancyId: string, title: string, closingDate: string): Promise<any>;
-    /**
-     * Get notification logs
-     */
     getNotificationLogs(page?: number, limit?: number): Promise<any>;
-    /**
-     * Get active push tokens count
-     */
     getActivePushTokensCount(): Promise<number>;
-    /**
-     * Deactivate a push token
-     */
     deactivatePushToken(pushToken: string): Promise<void>;
 }
 export declare const notificationsService: NotificationsService;

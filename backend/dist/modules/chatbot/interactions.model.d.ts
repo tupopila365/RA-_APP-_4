@@ -1,6 +1,5 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
 export type FeedbackType = 'like' | 'dislike' | null;
-export interface IChatbotInteraction extends MongooseDocument {
+export interface IChatbotInteraction {
     question: string;
     answer: string;
     feedback?: FeedbackType;
@@ -11,9 +10,4 @@ export interface IChatbotInteraction extends MongooseDocument {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const ChatbotInteractionModel: mongoose.Model<IChatbotInteraction, {}, {}, {}, mongoose.Document<unknown, {}, IChatbotInteraction, {}, {}> & IChatbotInteraction & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=interactions.model.d.ts.map

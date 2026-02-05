@@ -22,6 +22,7 @@ const faqs_routes_1 = __importDefault(require("./modules/faqs/faqs.routes"));
 const pothole_reports_routes_1 = __importDefault(require("./modules/pothole-reports/pothole-reports.routes"));
 const notifications_routes_1 = __importDefault(require("./modules/notifications/notifications.routes"));
 const pln_routes_1 = __importDefault(require("./modules/pln/pln.routes"));
+const vehicle_reg_routes_1 = __importDefault(require("./modules/vehicle-reg/vehicle-reg.routes"));
 const app_users_routes_1 = __importDefault(require("./modules/app-users/app-users.routes"));
 const traffic_routes_1 = __importDefault(require("./modules/traffic/traffic.routes"));
 const incidents_routes_1 = __importDefault(require("./modules/incidents/incidents.routes"));
@@ -32,6 +33,7 @@ const procurement_plan_routes_1 = __importDefault(require("./modules/procurement
 const procurement_awards_routes_1 = __importDefault(require("./modules/procurement-awards/procurement-awards.routes"));
 const procurement_opening_register_routes_1 = __importDefault(require("./modules/procurement-opening-register/procurement-opening-register.routes"));
 const analytics_routes_1 = __importDefault(require("./modules/analytics/analytics.routes"));
+const forms_routes_1 = __importDefault(require("./modules/forms/forms.routes"));
 const createApp = () => {
     const app = (0, express_1.default)();
     // Middleware
@@ -64,6 +66,7 @@ const createApp = () => {
     app.use('/api/pothole-reports', pothole_reports_routes_1.default);
     app.use('/api/notifications', notifications_routes_1.default);
     app.use('/api/pln', pln_routes_1.default);
+    app.use('/api/vehicle-reg', vehicle_reg_routes_1.default);
     app.use('/api/app-users', app_users_routes_1.default);
     app.use('/api/traffic', traffic_routes_1.default);
     app.use('/api/incidents', incidents_routes_1.default);
@@ -74,6 +77,7 @@ const createApp = () => {
     app.use('/api/procurement-awards', procurement_awards_routes_1.default);
     app.use('/api/procurement-opening-register', procurement_opening_register_routes_1.default);
     app.use('/api/analytics', analytics_routes_1.default);
+    app.use('/api/forms', forms_routes_1.default);
     // Error handling middleware (must be last)
     app.use(errorHandler_1.errorHandler);
     return app;

@@ -8,6 +8,10 @@ export declare function validateCoordinatesInNamibia(latitude: number, longitude
 };
 /**
  * Validate that coordinates belong to the selected region
+ * Note: This is a soft validation (warning only) because:
+ * - Roads can cross region boundaries
+ * - Coordinates might be at the edge of a region
+ * - The region might be selected based on the main area, not the exact coordinate
  */
 export declare function validateCoordinatesInRegion(latitude: number, longitude: number, region: string): {
     valid: boolean;

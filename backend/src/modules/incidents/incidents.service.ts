@@ -1,45 +1,40 @@
-import { IncidentModel, IIncident, IncidentStatus, IncidentType, IncidentSeverity } from './incidents.model';
+import { AppDataSource } from '../../config/db';
+import { Incident } from './incidents.entity';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 import { cacheService } from '../../utils/cache';
 
 export interface CreateIncidentDTO {
   title: string;
-  type: IncidentType;
+  type: string;
   road: string;
   locationDescription: string;
   area?: string;
-  status?: IncidentStatus;
-  severity?: IncidentSeverity;
+  status?: string;
+  severity?: string;
   reportedAt?: Date;
   expectedClearance?: Date;
-  coordinates?: {
-    latitude: number;
-    longitude: number;
-  };
+  coordinates?: { latitude: number; longitude: number };
 }
 
 export interface UpdateIncidentDTO {
   title?: string;
-  type?: IncidentType;
+  type?: string;
   road?: string;
   locationDescription?: string;
   area?: string;
-  status?: IncidentStatus;
-  severity?: IncidentSeverity;
+  status?: string;
+  severity?: string;
   reportedAt?: Date;
   expectedClearance?: Date;
-  coordinates?: {
-    latitude: number;
-    longitude: number;
-  };
+  coordinates?: { latitude: number; longitude: number };
 }
 
 export interface ListIncidentsQuery {
-  status?: IncidentStatus | IncidentStatus[];
+  status?: string | string[];
   road?: string;
   area?: string;
-  type?: IncidentType;
+  type?: string;
   fromDate?: Date;
   toDate?: Date;
   limit?: number;
@@ -52,16 +47,24 @@ export class IncidentsService {
     await cacheService.deleteAll(this.cachePrefix);
   }
 
-  async createIncident(dto: CreateIncidentDTO, userId?: string): Promise<IIncident> {
+  async createIncident(dto: CreateIncidentDTO, userId?: string): Promise<Incident> {
     try {
-      const incident = await IncidentModel.create({
-        ...dto,
-        status: dto.status || 'Active',
-        severity: dto.severity || 'Medium',
+      const repo = AppDataSource.getRepository(Incident);
+      const incident = repo.create({
+        title: dto.title,
+        type: dto.type as Incident['type'],
+        road: dto.road,
+        locationDescription: dto.locationDescription,
+        area: dto.area,
+        status: (dto.status as Incident['status']) || 'Active',
+        severity: (dto.severity as Incident['severity']) || 'Medium',
         reportedAt: dto.reportedAt || new Date(),
-        createdBy: userId,
-        updatedBy: userId,
+        expectedClearance: dto.expectedClearance,
+        coordinates: dto.coordinates,
+        createdBy: userId ?? null,
+        updatedBy: userId ?? null,
       });
+      await repo.save(incident);
       await this.invalidateCache();
       return incident;
     } catch (error: any) {
@@ -75,29 +78,21 @@ export class IncidentsService {
     }
   }
 
-  async updateIncident(incidentId: string, dto: UpdateIncidentDTO, userId?: string): Promise<IIncident> {
+  async updateIncident(incidentId: string, dto: UpdateIncidentDTO, userId?: string): Promise<Incident> {
     try {
-      const incident = await IncidentModel.findByIdAndUpdate(
-        incidentId,
-        { ...dto, updatedBy: userId },
-        { new: true, runValidators: true }
-      ).lean();
-
+      const id = parseInt(incidentId, 10);
+      const repo = AppDataSource.getRepository(Incident);
+      const incident = await repo.findOne({ where: { id } });
       if (!incident) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Incident not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Incident not found' };
       }
-
+      Object.assign(incident, dto, { updatedBy: userId });
+      await repo.save(incident);
       await this.invalidateCache();
-      return incident as unknown as IIncident;
+      return incident;
     } catch (error: any) {
       logger.error('Update incident error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -109,20 +104,17 @@ export class IncidentsService {
 
   async deleteIncident(incidentId: string): Promise<void> {
     try {
-      const incident = await IncidentModel.findByIdAndDelete(incidentId);
+      const id = parseInt(incidentId, 10);
+      const repo = AppDataSource.getRepository(Incident);
+      const incident = await repo.findOne({ where: { id } });
       if (!incident) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Incident not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Incident not found' };
       }
+      await repo.remove(incident);
       await this.invalidateCache();
     } catch (error: any) {
       logger.error('Delete incident error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -132,22 +124,18 @@ export class IncidentsService {
     }
   }
 
-  async getIncidentById(incidentId: string): Promise<IIncident> {
+  async getIncidentById(incidentId: string): Promise<Incident> {
     try {
-      const incident = await IncidentModel.findById(incidentId).lean();
+      const id = parseInt(incidentId, 10);
+      const repo = AppDataSource.getRepository(Incident);
+      const incident = await repo.findOne({ where: { id } });
       if (!incident) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'Incident not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Incident not found' };
       }
-      return incident as unknown as IIncident;
+      return incident;
     } catch (error: any) {
       logger.error('Get incident error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -157,40 +145,26 @@ export class IncidentsService {
     }
   }
 
-  async listIncidents(query: ListIncidentsQuery = {}): Promise<IIncident[]> {
+  async listIncidents(query: ListIncidentsQuery = {}): Promise<Incident[]> {
     try {
-      const filter: any = {};
-
-      if (query.status) {
-        filter.status = Array.isArray(query.status) ? { $in: query.status } : query.status;
-      }
-      if (query.road) {
-        filter.road = new RegExp(query.road.trim(), 'i');
-      }
-      if (query.area) {
-        filter.area = new RegExp(query.area.trim(), 'i');
-      }
-      if (query.type) {
-        filter.type = query.type;
-      }
-      if (query.fromDate || query.toDate) {
-        filter.reportedAt = {};
-        if (query.fromDate) {
-          filter.reportedAt.$gte = query.fromDate;
-        }
-        if (query.toDate) {
-          filter.reportedAt.$lte = query.toDate;
-        }
-      }
-
       const limit = Math.min(200, Math.max(1, query.limit || 50));
-
-      const incidents = await IncidentModel.find(filter)
-        .sort({ reportedAt: -1, createdAt: -1 })
-        .limit(limit)
-        .lean();
-
-      return incidents as unknown as IIncident[];
+      const repo = AppDataSource.getRepository(Incident);
+      const qb = repo.createQueryBuilder('i');
+      if (query.status) {
+        const statuses = Array.isArray(query.status) ? query.status : [query.status];
+        qb.andWhere('i.status IN (:...statuses)', { statuses });
+      }
+      if (query.road) qb.andWhere('i.road LIKE :road', { road: `%${query.road.trim()}%` });
+      if (query.area) qb.andWhere('i.area LIKE :area', { area: `%${query.area.trim()}%` });
+      if (query.type) qb.andWhere('i.type = :type', { type: query.type });
+      if (query.fromDate) qb.andWhere('i.reportedAt >= :fromDate', { fromDate: query.fromDate });
+      if (query.toDate) qb.andWhere('i.reportedAt <= :toDate', { toDate: query.toDate });
+      const incidents = await qb
+        .orderBy('i.reportedAt', 'DESC')
+        .addOrderBy('i.createdAt', 'DESC')
+        .take(limit)
+        .getMany();
+      return incidents;
     } catch (error: any) {
       logger.error('List incidents error:', error);
       throw {
@@ -202,41 +176,22 @@ export class IncidentsService {
     }
   }
 
-  /**
-   * Public-facing helper: find recent active incidents by road/area keywords for chatbot
-   */
-  async findActiveForQuery(term: string, limit: number = 3): Promise<IIncident[]> {
-    const filter: any = { status: 'Active' };
+  async findActiveForQuery(term: string, limit: number = 3): Promise<Incident[]> {
+    const repo = AppDataSource.getRepository(Incident);
+    const qb = repo
+      .createQueryBuilder('i')
+      .where('i.status = :status', { status: 'Active' })
+      .orderBy('i.reportedAt', 'DESC')
+      .addOrderBy('i.createdAt', 'DESC')
+      .take(limit);
     if (term && term.trim()) {
-      const regex = new RegExp(term.trim(), 'i');
-      filter.$or = [{ road: regex }, { area: regex }, { locationDescription: regex }, { title: regex }];
+      qb.andWhere(
+        '(i.road LIKE :term OR i.area LIKE :term OR i.locationDescription LIKE :term OR i.title LIKE :term)',
+        { term: `%${term.trim()}%` }
+      );
     }
-
-    const incidents = await IncidentModel.find(filter)
-      .sort({ reportedAt: -1, createdAt: -1 })
-      .limit(limit)
-      .lean();
-
-    return incidents as unknown as IIncident[];
+    return qb.getMany();
   }
 }
 
 export const incidentsService = new IncidentsService();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

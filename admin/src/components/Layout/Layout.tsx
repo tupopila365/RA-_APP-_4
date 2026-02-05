@@ -28,31 +28,41 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         mobileOpen={mobileOpen}
         onDrawerToggle={handleDrawerToggle}
       />
-      <Box
-        component="main"
+      <Toolbar
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3, md: 4 },
+          flexDirection: 'column',
+          minHeight: 0,
+          p: 0,
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
-          maxWidth: '100%',
-          minHeight: '100vh',
-          backgroundColor: '#F8FAFC', // Clean light gray background - banking style
-          position: 'relative',
-          overflow: 'auto',
         }}
       >
-        <Toolbar />
-        <Box sx={{ 
-          position: 'relative', 
-          zIndex: 1, 
-          width: '100%', 
-          maxWidth: '100%',
-          margin: 0,
-          padding: 0,
-        }}>
-          {children}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: { xs: 2, sm: 3, md: 4 },
+            width: '100%',
+            maxWidth: '100%',
+            minHeight: '100vh',
+            backgroundColor: '#F8FAFC', // Clean light gray background - banking style
+            position: 'relative',
+            overflow: 'auto',
+          }}
+        >
+          <Toolbar />
+          <Box sx={{ 
+            position: 'relative', 
+            zIndex: 1, 
+            width: '100%', 
+            maxWidth: '100%',
+            margin: 0,
+            padding: 0,
+          }}>
+            {children}
+          </Box>
         </Box>
-      </Box>
+      </Toolbar>
     </Box>
   );
 };

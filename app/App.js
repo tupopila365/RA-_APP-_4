@@ -45,6 +45,7 @@ import PLNConfirmationScreen from './screens/PLNConfirmationScreen';
 import PLNTrackingScreen from './screens/PLNTrackingScreen';
 import VehicleRegistrationInfoScreen from './screens/VehicleRegistrationInfoScreen';
 import VehicleRegistrationWizardScreen from './screens/VehicleRegistrationWizardScreen';
+import RAServicesScreen from './screens/RAServicesScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import EmailVerificationScreen from './screens/EmailVerificationScreen';
@@ -420,6 +421,11 @@ function AppNavigator() {
         name="Forms" 
         component={FormsScreen}
         options={{ title: 'Forms & Documents' }}
+      />
+      <Stack.Screen 
+        name="RAServices" 
+        component={RAServicesScreen}
+        options={{ title: 'RA Services' }}
       />
       <Stack.Screen
         name="Auth"

@@ -48,7 +48,7 @@ class InteractionsController {
                 success: true,
                 data: {
                     interaction: {
-                        id: interaction._id,
+                        id: interaction.id,
                         question: interaction.question,
                         answer: interaction.answer,
                         feedback: interaction.feedback,
@@ -125,7 +125,7 @@ class InteractionsController {
                 success: true,
                 data: {
                     interactions: result.interactions.map((interaction) => ({
-                        id: interaction._id,
+                        id: interaction.id,
                         question: interaction.question,
                         answer: interaction.answer,
                         feedback: interaction.feedback,

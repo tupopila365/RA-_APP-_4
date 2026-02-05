@@ -1,5 +1,4 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
-export interface IProcurementOpeningRegister extends MongooseDocument {
+export interface IProcurementOpeningRegister {
     type: 'opportunities' | 'rfq';
     reference: string;
     description: string;
@@ -14,9 +13,4 @@ export interface IProcurementOpeningRegister extends MongooseDocument {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const ProcurementOpeningRegisterModel: mongoose.Model<IProcurementOpeningRegister, {}, {}, {}, mongoose.Document<unknown, {}, IProcurementOpeningRegister, {}, {}> & IProcurementOpeningRegister & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=procurement-opening-register.model.d.ts.map

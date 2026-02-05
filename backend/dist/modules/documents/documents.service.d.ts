@@ -1,4 +1,4 @@
-import { IDocument } from './documents.model';
+import { Document } from './documents.entity';
 export interface CreateDocumentDTO {
     title: string;
     description: string;
@@ -13,7 +13,7 @@ export interface ListDocumentsQuery {
     search?: string;
 }
 export interface ListDocumentsResult {
-    documents: IDocument[];
+    documents: Document[];
     total: number;
     page: number;
     totalPages: number;
@@ -30,7 +30,7 @@ declare class DocumentsService {
     /**
      * Create a new document with file upload and RAG indexing
      */
-    createDocument(dto: CreateDocumentDTO, file: Express.Multer.File): Promise<IDocument>;
+    createDocument(dto: CreateDocumentDTO, file: Express.Multer.File): Promise<Document>;
     /**
      * Index document in RAG service and update indexed status
      */
@@ -42,7 +42,7 @@ declare class DocumentsService {
     /**
      * Get a single document by ID
      */
-    getDocumentById(documentId: string): Promise<IDocument>;
+    getDocumentById(documentId: string): Promise<Document>;
     /**
      * Delete a document
      */

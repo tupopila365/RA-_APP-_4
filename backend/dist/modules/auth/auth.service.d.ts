@@ -1,4 +1,4 @@
-import { IUser } from './auth.model';
+import { User } from './auth.entity';
 interface LoginCredentials {
     email: string;
     password: string;
@@ -12,13 +12,13 @@ export declare class AuthService {
      * Authenticate user with email and password
      */
     login(credentials: LoginCredentials): Promise<{
-        user: IUser;
+        user: User;
         tokens: AuthTokens;
     }>;
     /**
      * Generate access and refresh tokens
      */
-    generateTokens(user: IUser): Promise<AuthTokens>;
+    generateTokens(user: User): Promise<AuthTokens>;
     /**
      * Store refresh token in Redis with expiry
      */

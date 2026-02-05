@@ -1,5 +1,6 @@
-import { IRoadwork, RoadworkStatus } from './roadworks.model';
-import { Coordinate } from '../../utils/routeCalculator';
+import { Roadwork } from './roadworks.entity';
+import type { RoadworkStatus } from './roadworks.model';
+import { type Coordinate } from '../../utils/routeCalculator';
 export interface CreateRoadworkDTO {
     title: string;
     road: string;
@@ -64,12 +65,12 @@ export interface ListRoadworksQuery {
 declare class RoadworksService {
     private cachePrefix;
     private invalidateCache;
-    createRoadwork(dto: CreateRoadworkDTO, userId?: string, userEmail?: string): Promise<IRoadwork>;
-    updateRoadwork(roadworkId: string, dto: UpdateRoadworkDTO, userId?: string, userEmail?: string): Promise<IRoadwork>;
+    createRoadwork(dto: CreateRoadworkDTO, userId?: string, userEmail?: string): Promise<Roadwork>;
+    updateRoadwork(roadworkId: string, dto: UpdateRoadworkDTO, userId?: string, userEmail?: string): Promise<Roadwork>;
     deleteRoadwork(roadworkId: string): Promise<void>;
-    getRoadworkById(roadworkId: string): Promise<IRoadwork>;
+    getRoadworkById(roadworkId: string): Promise<Roadwork>;
     listRoadworks(query?: ListRoadworksQuery): Promise<{
-        roadworks: IRoadwork[];
+        roadworks: Roadwork[];
         pagination: {
             total: number;
             page: number;
@@ -77,10 +78,7 @@ declare class RoadworksService {
             limit: number;
         };
     }>;
-    findPublicForQuery(term: string, limit?: number): Promise<IRoadwork[]>;
-    /**
-     * Process and validate alternate routes
-     */
+    findPublicForQuery(term: string, limit?: number): Promise<Roadwork[]>;
     private processAlternateRoutes;
 }
 export declare const roadworksService: RoadworksService;

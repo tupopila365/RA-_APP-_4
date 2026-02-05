@@ -84,11 +84,11 @@ class ChatbotController {
                     .then((interaction) => {
                     const interactionData = {
                         type: 'interactionId',
-                        interactionId: interaction._id.toString(),
+                        interactionId: interaction.id.toString(),
                     };
                     res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
                     logger_1.logger.info('Traffic query interaction logged in stream', {
-                        interactionId: interaction._id,
+                        interactionId: interaction.id,
                     });
                 })
                     .catch((error) => {
@@ -127,11 +127,11 @@ class ChatbotController {
                     .then((interaction) => {
                     const interactionData = {
                         type: 'interactionId',
-                        interactionId: interaction._id.toString(),
+                        interactionId: interaction.id.toString(),
                     };
                     res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
                     logger_1.logger.info('Incident query interaction logged in stream', {
-                        interactionId: interaction._id,
+                        interactionId: interaction.id,
                     });
                 })
                     .catch((error) => {
@@ -170,11 +170,11 @@ class ChatbotController {
                     .then((interaction) => {
                     const interactionData = {
                         type: 'interactionId',
-                        interactionId: interaction._id.toString(),
+                        interactionId: interaction.id.toString(),
                     };
                     res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
                     logger_1.logger.info('Roadwork query interaction logged in stream', {
-                        interactionId: interaction._id,
+                        interactionId: interaction.id,
                     });
                 })
                     .catch((error) => {
@@ -219,11 +219,11 @@ class ChatbotController {
                     .then((interaction) => {
                     const interactionData = {
                         type: 'interactionId',
-                        interactionId: interaction._id.toString(),
+                        interactionId: interaction.id.toString(),
                     };
                     res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
                     logger_1.logger.info('Location query interaction logged in stream', {
-                        interactionId: interaction._id,
+                        interactionId: interaction.id,
                     });
                 })
                     .catch((error) => {
@@ -277,11 +277,11 @@ class ChatbotController {
                                     // Send interactionId after logging
                                     const interactionData = {
                                         type: 'interactionId',
-                                        interactionId: interaction._id.toString(),
+                                        interactionId: interaction.id.toString(),
                                     };
                                     res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
                                     logger_1.logger.info('Interaction logged in stream', {
-                                        interactionId: interaction._id,
+                                        interactionId: interaction.id,
                                     });
                                 })
                                     .catch((error) => {
@@ -312,11 +312,11 @@ class ChatbotController {
                         .then((interaction) => {
                         const interactionData = {
                             type: 'interactionId',
-                            interactionId: interaction._id.toString(),
+                            interactionId: interaction.id.toString(),
                         };
                         res.write(`data: ${JSON.stringify(interactionData)}\n\n`);
                         logger_1.logger.info('Interaction logged in stream (end event)', {
-                            interactionId: interaction._id,
+                            interactionId: interaction.id,
                         });
                     })
                         .catch((error) => {
@@ -435,9 +435,9 @@ class ChatbotController {
                     answer: response.answer,
                     sessionId: finalSessionId,
                 });
-                response.interactionId = interaction._id.toString();
+                response.interactionId = interaction.id.toString();
                 logger_1.logger.info('Interaction logged successfully', {
-                    interactionId: interaction._id,
+                    interactionId: interaction.id,
                     fromCache,
                 });
             }

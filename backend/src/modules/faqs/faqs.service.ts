@@ -1,4 +1,5 @@
-import { FAQModel, IFAQ } from './faqs.model';
+import { AppDataSource } from '../../config/db';
+import { FAQ } from './faqs.entity';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -24,28 +25,25 @@ export interface ListFAQsQuery {
 }
 
 export interface ListFAQsResult {
-  faqs: IFAQ[];
+  faqs: FAQ[];
   total: number;
   page: number;
   totalPages: number;
 }
 
 class FAQService {
-  /**
-   * Create a new FAQ
-   */
-  async createFAQ(dto: CreateFAQDTO): Promise<IFAQ> {
+  async createFAQ(dto: CreateFAQDTO): Promise<FAQ> {
     try {
       logger.info('Creating FAQ:', { question: dto.question });
-
-      const faq = await FAQModel.create({
+      const repo = AppDataSource.getRepository(FAQ);
+      const faq = repo.create({
         question: dto.question,
         answer: dto.answer,
         category: dto.category,
         order: dto.order || 0,
       });
-
-      logger.info(`FAQ created with ID: ${faq._id}`);
+      await repo.save(faq);
+      logger.info(`FAQ created with ID: ${faq.id}`);
       return faq;
     } catch (error: any) {
       logger.error('Create FAQ error:', error);
@@ -58,42 +56,28 @@ class FAQService {
     }
   }
 
-  /**
-   * List FAQs with pagination, filtering, and search
-   */
   async listFAQs(query: ListFAQsQuery): Promise<ListFAQsResult> {
     try {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
+      const repo = AppDataSource.getRepository(FAQ);
 
-      // Build filter
-      const filter: any = {};
+      const buildQb = () => {
+        const qb = repo.createQueryBuilder('f');
+        if (query.category) qb.andWhere('f.category = :category', { category: query.category });
+        if (query.search) {
+          qb.andWhere('(f.question LIKE :search OR f.answer LIKE :search)', { search: `%${query.search}%` });
+        }
+        return qb;
+      };
 
-      if (query.category) {
-        filter.category = query.category;
-      }
-
-      if (query.search) {
-        filter.$text = { $search: query.search };
-      }
-
-      // Execute query with pagination
       const [faqs, total] = await Promise.all([
-        FAQModel.find(filter)
-          .sort({ order: 1, createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        FAQModel.countDocuments(filter),
+        buildQb().orderBy('f.order', 'ASC').addOrderBy('f.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+        buildQb().getCount(),
       ]);
 
-      return {
-        faqs: faqs as unknown as IFAQ[],
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
-      };
+      return { faqs, total, page, totalPages: Math.ceil(total / limit) };
     } catch (error: any) {
       logger.error('List FAQs error:', error);
       throw {
@@ -105,27 +89,18 @@ class FAQService {
     }
   }
 
-  /**
-   * Get a single FAQ by ID
-   */
-  async getFAQById(faqId: string): Promise<IFAQ> {
+  async getFAQById(faqId: string): Promise<FAQ> {
     try {
-      const faq = await FAQModel.findById(faqId).lean();
-
+      const id = parseInt(faqId, 10);
+      const repo = AppDataSource.getRepository(FAQ);
+      const faq = await repo.findOne({ where: { id } });
       if (!faq) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'FAQ not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'FAQ not found' };
       }
-
-      return faq as unknown as IFAQ;
+      return faq;
     } catch (error: any) {
       logger.error('Get FAQ error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -135,34 +110,22 @@ class FAQService {
     }
   }
 
-  /**
-   * Update a FAQ
-   */
-  async updateFAQ(faqId: string, dto: UpdateFAQDTO): Promise<IFAQ> {
+  async updateFAQ(faqId: string, dto: UpdateFAQDTO): Promise<FAQ> {
     try {
       logger.info(`Updating FAQ: ${faqId}`);
-
-      const faq = await FAQModel.findByIdAndUpdate(
-        faqId,
-        dto,
-        { new: true, runValidators: true }
-      ).lean();
-
+      const id = parseInt(faqId, 10);
+      const repo = AppDataSource.getRepository(FAQ);
+      const faq = await repo.findOne({ where: { id } });
       if (!faq) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'FAQ not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'FAQ not found' };
       }
-
+      Object.assign(faq, dto);
+      await repo.save(faq);
       logger.info(`FAQ ${faqId} updated successfully`);
-      return faq as unknown as IFAQ;
+      return faq;
     } catch (error: any) {
       logger.error('Update FAQ error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -172,50 +135,34 @@ class FAQService {
     }
   }
 
-  /**
-   * Delete a FAQ
-   */
   async deleteFAQ(faqId: string): Promise<void> {
     try {
-      // Validate ID is provided
       if (!faqId || faqId === 'undefined' || faqId === 'null') {
-        logger.error('Delete called with invalid ID:', faqId);
         throw {
           statusCode: 400,
           code: ERROR_CODES.VALIDATION_ERROR,
           message: 'FAQ ID is required',
         };
       }
-
       logger.info(`Deleting FAQ: ${faqId}`);
-
-      const faq = await FAQModel.findByIdAndDelete(faqId);
-
-      if (!faq) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'FAQ not found',
-        };
-      }
-
-      logger.info(`FAQ ${faqId} deleted successfully`);
-    } catch (error: any) {
-      logger.error('Delete FAQ error:', { faqId, error: error.message });
-      if (error.statusCode) {
-        throw error;
-      }
-      
-      // Handle Mongoose CastError (invalid ObjectId format)
-      if (error.name === 'CastError') {
+      const id = parseInt(faqId, 10);
+      if (isNaN(id)) {
         throw {
           statusCode: 400,
           code: ERROR_CODES.VALIDATION_ERROR,
           message: 'Invalid FAQ ID format',
-          details: error.message,
         };
       }
-      
+      const repo = AppDataSource.getRepository(FAQ);
+      const faq = await repo.findOne({ where: { id } });
+      if (!faq) {
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'FAQ not found' };
+      }
+      await repo.remove(faq);
+      logger.info(`FAQ ${faqId} deleted successfully`);
+    } catch (error: any) {
+      logger.error('Delete FAQ error:', { faqId, error: (error as Error).message });
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -227,4 +174,3 @@ class FAQService {
 }
 
 export const faqsService = new FAQService();
-

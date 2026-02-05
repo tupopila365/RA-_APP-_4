@@ -1,15 +1,12 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.documentsService = void 0;
-const documents_model_1 = require("./documents.model");
+const db_1 = require("../../config/db");
+const documents_entity_1 = require("./documents.entity");
 const cloudinary_1 = require("../../config/cloudinary");
 const httpClient_1 = require("../../utils/httpClient");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
-const mongoose_1 = __importDefault(require("mongoose"));
 class DocumentsService {
     /**
      * Upload file to Cloudinary
@@ -58,11 +55,12 @@ class DocumentsService {
      */
     async createDocument(dto, file) {
         try {
+            const repo = db_1.AppDataSource.getRepository(documents_entity_1.Document);
             // Upload file to Cloudinary
             logger_1.logger.info(`Uploading file: ${file.originalname}`);
             const uploadResult = await this.uploadFileToCloudinary(file.buffer, file.originalname);
-            // Create document in database
-            const document = await documents_model_1.DocumentModel.create({
+            const uploadedById = parseInt(dto.uploadedBy, 10);
+            const document = repo.create({
                 title: dto.title,
                 description: dto.description,
                 fileUrl: uploadResult.url,
@@ -70,12 +68,13 @@ class DocumentsService {
                 fileSize: uploadResult.size,
                 category: dto.category,
                 indexed: false,
-                uploadedBy: new mongoose_1.default.Types.ObjectId(dto.uploadedBy),
+                uploadedById,
             });
-            logger_1.logger.info(`Document created with ID: ${document._id}`);
+            await repo.save(document);
+            logger_1.logger.info(`Document created with ID: ${document.id}`);
             // Trigger RAG indexing asynchronously (don't wait for completion)
-            this.indexDocumentInRAG(document._id.toString(), uploadResult.url, dto.title).catch((error) => {
-                logger_1.logger.error(`RAG indexing failed for document ${document._id}:`, error);
+            this.indexDocumentInRAG(String(document.id), uploadResult.url, dto.title).catch((error) => {
+                logger_1.logger.error(`RAG indexing failed for document ${document.id}:`, error);
             });
             return document;
         }
@@ -102,7 +101,9 @@ class DocumentsService {
             const result = await httpClient_1.ragService.indexDocument(fileUrl, documentId, title);
             logger_1.logger.info(`RAG indexing successful for document ${documentId}:`, result);
             // Update document indexed status
-            await documents_model_1.DocumentModel.findByIdAndUpdate(documentId, { indexed: true });
+            const repo = db_1.AppDataSource.getRepository(documents_entity_1.Document);
+            const id = parseInt(documentId, 10);
+            await repo.update({ id }, { indexed: true });
             logger_1.logger.info(`Document ${documentId} marked as indexed`);
         }
         catch (error) {
@@ -143,29 +144,24 @@ class DocumentsService {
             const page = Math.max(1, query.page || 1);
             const limit = Math.min(100, Math.max(1, query.limit || 10));
             const skip = (page - 1) * limit;
-            // Build filter
-            const filter = {};
-            if (query.category) {
-                filter.category = query.category;
-            }
-            if (query.indexed !== undefined) {
-                filter.indexed = query.indexed;
-            }
-            if (query.search) {
-                filter.$text = { $search: query.search };
-            }
-            // Execute query with pagination
+            const repo = db_1.AppDataSource.getRepository(documents_entity_1.Document);
+            const where = {};
+            if (query.category)
+                where.category = query.category;
+            if (query.indexed !== undefined)
+                where.indexed = query.indexed;
             const [documents, total] = await Promise.all([
-                documents_model_1.DocumentModel.find(filter)
-                    .populate('uploadedBy', 'email')
-                    .sort({ createdAt: -1 })
-                    .skip(skip)
-                    .limit(limit)
-                    .lean(),
-                documents_model_1.DocumentModel.countDocuments(filter),
+                repo.find({
+                    where,
+                    relations: ['uploadedBy'],
+                    order: { createdAt: 'DESC' },
+                    skip,
+                    take: limit,
+                }),
+                repo.count({ where }),
             ]);
             return {
-                documents: documents,
+                documents,
                 total,
                 page,
                 totalPages: Math.ceil(total / limit),
@@ -186,9 +182,12 @@ class DocumentsService {
      */
     async getDocumentById(documentId) {
         try {
-            const document = await documents_model_1.DocumentModel.findById(documentId)
-                .populate('uploadedBy', 'email')
-                .lean();
+            const id = parseInt(documentId, 10);
+            const repo = db_1.AppDataSource.getRepository(documents_entity_1.Document);
+            const document = await repo.findOne({
+                where: { id },
+                relations: ['uploadedBy'],
+            });
             if (!document) {
                 throw {
                     statusCode: 404,
@@ -216,7 +215,9 @@ class DocumentsService {
      */
     async deleteDocument(documentId) {
         try {
-            const document = await documents_model_1.DocumentModel.findById(documentId);
+            const id = parseInt(documentId, 10);
+            const repo = db_1.AppDataSource.getRepository(documents_entity_1.Document);
+            const document = await repo.findOne({ where: { id } });
             if (!document) {
                 throw {
                     statusCode: 404,
@@ -227,7 +228,6 @@ class DocumentsService {
             // Delete from Cloudinary if it has a public_id
             if (document.fileUrl.includes('cloudinary.com')) {
                 try {
-                    // Extract public_id from URL
                     const urlParts = document.fileUrl.split('/');
                     const fileNameWithExt = urlParts[urlParts.length - 1];
                     const publicId = `documents/${fileNameWithExt.split('.')[0]}`;
@@ -236,11 +236,9 @@ class DocumentsService {
                 }
                 catch (cloudinaryError) {
                     logger_1.logger.error('Cloudinary deletion error:', cloudinaryError);
-                    // Continue with database deletion even if Cloudinary deletion fails
                 }
             }
-            // Delete from database
-            await documents_model_1.DocumentModel.findByIdAndDelete(documentId);
+            await repo.remove(document);
             logger_1.logger.info(`Document ${documentId} deleted successfully`);
             // TODO: In the future, we should also remove the document from RAG service
             // This would require implementing a DELETE endpoint in the RAG service

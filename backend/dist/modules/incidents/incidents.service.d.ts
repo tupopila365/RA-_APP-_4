@@ -1,12 +1,12 @@
-import { IIncident, IncidentStatus, IncidentType, IncidentSeverity } from './incidents.model';
+import { Incident } from './incidents.entity';
 export interface CreateIncidentDTO {
     title: string;
-    type: IncidentType;
+    type: string;
     road: string;
     locationDescription: string;
     area?: string;
-    status?: IncidentStatus;
-    severity?: IncidentSeverity;
+    status?: string;
+    severity?: string;
     reportedAt?: Date;
     expectedClearance?: Date;
     coordinates?: {
@@ -16,12 +16,12 @@ export interface CreateIncidentDTO {
 }
 export interface UpdateIncidentDTO {
     title?: string;
-    type?: IncidentType;
+    type?: string;
     road?: string;
     locationDescription?: string;
     area?: string;
-    status?: IncidentStatus;
-    severity?: IncidentSeverity;
+    status?: string;
+    severity?: string;
     reportedAt?: Date;
     expectedClearance?: Date;
     coordinates?: {
@@ -30,10 +30,10 @@ export interface UpdateIncidentDTO {
     };
 }
 export interface ListIncidentsQuery {
-    status?: IncidentStatus | IncidentStatus[];
+    status?: string | string[];
     road?: string;
     area?: string;
-    type?: IncidentType;
+    type?: string;
     fromDate?: Date;
     toDate?: Date;
     limit?: number;
@@ -41,15 +41,12 @@ export interface ListIncidentsQuery {
 export declare class IncidentsService {
     private cachePrefix;
     private invalidateCache;
-    createIncident(dto: CreateIncidentDTO, userId?: string): Promise<IIncident>;
-    updateIncident(incidentId: string, dto: UpdateIncidentDTO, userId?: string): Promise<IIncident>;
+    createIncident(dto: CreateIncidentDTO, userId?: string): Promise<Incident>;
+    updateIncident(incidentId: string, dto: UpdateIncidentDTO, userId?: string): Promise<Incident>;
     deleteIncident(incidentId: string): Promise<void>;
-    getIncidentById(incidentId: string): Promise<IIncident>;
-    listIncidents(query?: ListIncidentsQuery): Promise<IIncident[]>;
-    /**
-     * Public-facing helper: find recent active incidents by road/area keywords for chatbot
-     */
-    findActiveForQuery(term: string, limit?: number): Promise<IIncident[]>;
+    getIncidentById(incidentId: string): Promise<Incident>;
+    listIncidents(query?: ListIncidentsQuery): Promise<Incident[]>;
+    findActiveForQuery(term: string, limit?: number): Promise<Incident[]>;
 }
 export declare const incidentsService: IncidentsService;
 //# sourceMappingURL=incidents.service.d.ts.map

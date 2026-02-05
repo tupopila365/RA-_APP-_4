@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.incidentsService = exports.IncidentsService = void 0;
-const incidents_model_1 = require("./incidents.model");
+const db_1 = require("../../config/db");
+const incidents_entity_1 = require("./incidents.entity");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 const cache_1 = require("../../utils/cache");
@@ -14,14 +15,22 @@ class IncidentsService {
     }
     async createIncident(dto, userId) {
         try {
-            const incident = await incidents_model_1.IncidentModel.create({
-                ...dto,
+            const repo = db_1.AppDataSource.getRepository(incidents_entity_1.Incident);
+            const incident = repo.create({
+                title: dto.title,
+                type: dto.type,
+                road: dto.road,
+                locationDescription: dto.locationDescription,
+                area: dto.area,
                 status: dto.status || 'Active',
                 severity: dto.severity || 'Medium',
                 reportedAt: dto.reportedAt || new Date(),
-                createdBy: userId,
-                updatedBy: userId,
+                expectedClearance: dto.expectedClearance,
+                coordinates: dto.coordinates,
+                createdBy: userId ?? null,
+                updatedBy: userId ?? null,
             });
+            await repo.save(incident);
             await this.invalidateCache();
             return incident;
         }
@@ -37,22 +46,21 @@ class IncidentsService {
     }
     async updateIncident(incidentId, dto, userId) {
         try {
-            const incident = await incidents_model_1.IncidentModel.findByIdAndUpdate(incidentId, { ...dto, updatedBy: userId }, { new: true, runValidators: true }).lean();
+            const id = parseInt(incidentId, 10);
+            const repo = db_1.AppDataSource.getRepository(incidents_entity_1.Incident);
+            const incident = await repo.findOne({ where: { id } });
             if (!incident) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Incident not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Incident not found' };
             }
+            Object.assign(incident, dto, { updatedBy: userId });
+            await repo.save(incident);
             await this.invalidateCache();
             return incident;
         }
         catch (error) {
             logger_1.logger.error('Update incident error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -63,21 +71,19 @@ class IncidentsService {
     }
     async deleteIncident(incidentId) {
         try {
-            const incident = await incidents_model_1.IncidentModel.findByIdAndDelete(incidentId);
+            const id = parseInt(incidentId, 10);
+            const repo = db_1.AppDataSource.getRepository(incidents_entity_1.Incident);
+            const incident = await repo.findOne({ where: { id } });
             if (!incident) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Incident not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Incident not found' };
             }
+            await repo.remove(incident);
             await this.invalidateCache();
         }
         catch (error) {
             logger_1.logger.error('Delete incident error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -88,21 +94,18 @@ class IncidentsService {
     }
     async getIncidentById(incidentId) {
         try {
-            const incident = await incidents_model_1.IncidentModel.findById(incidentId).lean();
+            const id = parseInt(incidentId, 10);
+            const repo = db_1.AppDataSource.getRepository(incidents_entity_1.Incident);
+            const incident = await repo.findOne({ where: { id } });
             if (!incident) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Incident not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Incident not found' };
             }
             return incident;
         }
         catch (error) {
             logger_1.logger.error('Get incident error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -113,33 +116,28 @@ class IncidentsService {
     }
     async listIncidents(query = {}) {
         try {
-            const filter = {};
-            if (query.status) {
-                filter.status = Array.isArray(query.status) ? { $in: query.status } : query.status;
-            }
-            if (query.road) {
-                filter.road = new RegExp(query.road.trim(), 'i');
-            }
-            if (query.area) {
-                filter.area = new RegExp(query.area.trim(), 'i');
-            }
-            if (query.type) {
-                filter.type = query.type;
-            }
-            if (query.fromDate || query.toDate) {
-                filter.reportedAt = {};
-                if (query.fromDate) {
-                    filter.reportedAt.$gte = query.fromDate;
-                }
-                if (query.toDate) {
-                    filter.reportedAt.$lte = query.toDate;
-                }
-            }
             const limit = Math.min(200, Math.max(1, query.limit || 50));
-            const incidents = await incidents_model_1.IncidentModel.find(filter)
-                .sort({ reportedAt: -1, createdAt: -1 })
-                .limit(limit)
-                .lean();
+            const repo = db_1.AppDataSource.getRepository(incidents_entity_1.Incident);
+            const qb = repo.createQueryBuilder('i');
+            if (query.status) {
+                const statuses = Array.isArray(query.status) ? query.status : [query.status];
+                qb.andWhere('i.status IN (:...statuses)', { statuses });
+            }
+            if (query.road)
+                qb.andWhere('i.road LIKE :road', { road: `%${query.road.trim()}%` });
+            if (query.area)
+                qb.andWhere('i.area LIKE :area', { area: `%${query.area.trim()}%` });
+            if (query.type)
+                qb.andWhere('i.type = :type', { type: query.type });
+            if (query.fromDate)
+                qb.andWhere('i.reportedAt >= :fromDate', { fromDate: query.fromDate });
+            if (query.toDate)
+                qb.andWhere('i.reportedAt <= :toDate', { toDate: query.toDate });
+            const incidents = await qb
+                .orderBy('i.reportedAt', 'DESC')
+                .addOrderBy('i.createdAt', 'DESC')
+                .take(limit)
+                .getMany();
             return incidents;
         }
         catch (error) {
@@ -152,20 +150,18 @@ class IncidentsService {
             };
         }
     }
-    /**
-     * Public-facing helper: find recent active incidents by road/area keywords for chatbot
-     */
     async findActiveForQuery(term, limit = 3) {
-        const filter = { status: 'Active' };
+        const repo = db_1.AppDataSource.getRepository(incidents_entity_1.Incident);
+        const qb = repo
+            .createQueryBuilder('i')
+            .where('i.status = :status', { status: 'Active' })
+            .orderBy('i.reportedAt', 'DESC')
+            .addOrderBy('i.createdAt', 'DESC')
+            .take(limit);
         if (term && term.trim()) {
-            const regex = new RegExp(term.trim(), 'i');
-            filter.$or = [{ road: regex }, { area: regex }, { locationDescription: regex }, { title: regex }];
+            qb.andWhere('(i.road LIKE :term OR i.area LIKE :term OR i.locationDescription LIKE :term OR i.title LIKE :term)', { term: `%${term.trim()}%` });
         }
-        const incidents = await incidents_model_1.IncidentModel.find(filter)
-            .sort({ reportedAt: -1, createdAt: -1 })
-            .limit(limit)
-            .lean();
-        return incidents;
+        return qb.getMany();
     }
 }
 exports.IncidentsService = IncidentsService;

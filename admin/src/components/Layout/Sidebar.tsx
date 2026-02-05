@@ -27,6 +27,7 @@ import {
   DirectionsCar as VehicleIcon,
   Description as ProcurementIcon,
   ListAlt as RegisterIcon,
+  MiscellaneousServices as RAServicesIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -154,6 +155,12 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         path: '/forms',
         icon: <ProcurementIcon />,
         permission: 'procurement:awards:manage',
+      },
+      {
+        label: 'RA Services',
+        path: '/ra-services',
+        icon: <RAServicesIcon />,
+        permission: 'ra-services:manage',
       },
       {
         label: 'Opening Register',
@@ -364,7 +371,12 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
   return (
     <Box
       component="nav"
-      sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+      sx={{
+        width: { sm: drawerWidth },
+        flexShrink: { sm: 0 },
+        alignSelf: 'flex-start',
+        height: '100vh',
+      }}
       aria-label="navigation menu"
     >
       {/* Mobile drawer */}
@@ -384,7 +396,9 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
             boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
             display: 'flex',
             flexDirection: 'column',
-            height: '100%',
+            height: '100vh',
+            maxHeight: '100vh',
+            overflow: 'hidden',
           },
         }}
       >
@@ -403,7 +417,9 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
             boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
             display: 'flex',
             flexDirection: 'column',
-            height: '100%',
+            height: '100vh',
+            maxHeight: '100vh',
+            overflow: 'hidden',
           },
         }}
         open

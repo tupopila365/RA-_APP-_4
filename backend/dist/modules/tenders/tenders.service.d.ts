@@ -1,4 +1,4 @@
-import { ITender } from './tenders.model';
+import { Tender } from './tenders.entity';
 export interface CreateTenderDTO {
     referenceNumber: string;
     title: string;
@@ -32,31 +32,16 @@ export interface ListTendersQuery {
     search?: string;
 }
 export interface ListTendersResult {
-    tenders: ITender[];
+    tenders: Tender[];
     total: number;
     page: number;
     totalPages: number;
 }
 declare class TendersService {
-    /**
-     * Create a new tender
-     */
-    createTender(dto: CreateTenderDTO): Promise<ITender>;
-    /**
-     * List tenders with pagination, filtering, and search
-     */
+    createTender(dto: CreateTenderDTO): Promise<Tender>;
     listTenders(query: ListTendersQuery): Promise<ListTendersResult>;
-    /**
-     * Get a single tender by ID
-     */
-    getTenderById(tenderId: string): Promise<ITender>;
-    /**
-     * Update a tender
-     */
-    updateTender(tenderId: string, dto: UpdateTenderDTO): Promise<ITender>;
-    /**
-     * Delete a tender
-     */
+    getTenderById(tenderId: string): Promise<Tender>;
+    updateTender(tenderId: string, dto: UpdateTenderDTO): Promise<Tender>;
     deleteTender(tenderId: string): Promise<void>;
 }
 export declare const tendersService: TendersService;

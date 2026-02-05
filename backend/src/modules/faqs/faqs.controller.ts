@@ -34,13 +34,13 @@ export class FAQsController {
         order,
       });
 
-      logger.info(`FAQ created successfully: ${faq._id}`);
+      logger.info(`FAQ created successfully: ${faq.id}`);
 
       res.status(201).json({
         success: true,
         data: {
           faq: {
-            id: faq._id,
+            id: faq.id,
             question: faq.question,
             answer: faq.answer,
             category: faq.category,
@@ -80,7 +80,7 @@ export class FAQsController {
         success: true,
         data: {
           faqs: result.faqs.map((faq) => ({
-            id: faq._id,
+            id: faq.id,
             question: faq.question,
             answer: faq.answer,
             category: faq.category,
@@ -117,7 +117,7 @@ export class FAQsController {
         success: true,
         data: {
           faq: {
-            id: faq._id,
+            id: faq.id,
             question: faq.question,
             answer: faq.answer,
             category: faq.category,
@@ -158,7 +158,7 @@ export class FAQsController {
         success: true,
         data: {
           faq: {
-            id: faq._id,
+            id: faq.id,
             question: faq.question,
             answer: faq.answer,
             category: faq.category,

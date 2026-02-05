@@ -56,11 +56,11 @@ class DocumentsController {
                 category,
                 uploadedBy: req.user.userId,
             }, req.file);
-            logger_1.logger.info(`Document uploaded successfully: ${document._id}`);
+            logger_1.logger.info(`Document uploaded successfully: ${document.id}`);
             res.status(201).json({
                 success: true,
                 data: {
-                    _id: document._id,
+                    id: document.id,
                     title: document.title,
                     description: document.description,
                     fileUrl: document.fileUrl,
@@ -103,7 +103,7 @@ class DocumentsController {
                 success: true,
                 data: {
                     items: result.documents.map((doc) => ({
-                        _id: doc._id,
+                        id: doc.id,
                         title: doc.title,
                         description: doc.description,
                         fileUrl: doc.fileUrl,
@@ -139,7 +139,7 @@ class DocumentsController {
             res.status(200).json({
                 success: true,
                 data: {
-                    _id: document._id,
+                    id: document.id,
                     title: document.title,
                     description: document.description,
                     fileUrl: document.fileUrl,

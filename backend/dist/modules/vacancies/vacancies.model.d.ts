@@ -1,5 +1,4 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
-export interface IVacancy extends MongooseDocument {
+export interface IVacancy {
     title: string;
     type: 'full-time' | 'part-time' | 'bursary' | 'internship';
     department: string;
@@ -20,9 +19,4 @@ export interface IVacancy extends MongooseDocument {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const VacancyModel: mongoose.Model<IVacancy, {}, {}, {}, mongoose.Document<unknown, {}, IVacancy, {}, {}> & IVacancy & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=vacancies.model.d.ts.map

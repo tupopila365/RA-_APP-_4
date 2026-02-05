@@ -1,4 +1,3 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
 export type PLNStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'DECLINED' | 'PAYMENT_PENDING' | 'PAID' | 'PLATES_ORDERED' | 'READY_FOR_COLLECTION' | 'EXPIRED';
 export interface IStatusHistory {
     status: PLNStatus;
@@ -21,7 +20,8 @@ export interface IPhoneNumber {
     code: string;
     number: string;
 }
-export interface IPLN extends MongooseDocument {
+export interface IPLN {
+    id?: number;
     referenceId: string;
     trackingPin: string;
     transactionType: string;
@@ -99,9 +99,4 @@ export interface IPLN extends MongooseDocument {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const PLNModel: mongoose.Model<IPLN, {}, {}, {}, mongoose.Document<unknown, {}, IPLN, {}, {}> & IPLN & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=pln.model.d.ts.map

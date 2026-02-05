@@ -23,6 +23,11 @@ declare class PDFService {
      * @returns Buffer containing the filled PDF
      */
     fillPLNFormPDF(application: IPLN, templatePath: string): Promise<Buffer>;
+    /**
+     * Fill vehicle registration form PDF template with application data.
+     * Stub: returns the template file as-is; full fill can be implemented later.
+     */
+    fillVehicleRegFormPDF(_application: unknown, templatePath: string): Promise<Buffer>;
 }
 export declare const pdfService: PDFService;
 export {};

@@ -34,7 +34,7 @@ class ProcurementPlanController {
                 success: true,
                 data: {
                     plan: {
-                        id: plan._id,
+                        id: plan.id,
                         fiscalYear: plan.fiscalYear,
                         documentUrl: plan.documentUrl,
                         documentFileName: plan.documentFileName,
@@ -75,7 +75,7 @@ class ProcurementPlanController {
                 success: true,
                 data: {
                     items: result.items.map((item) => ({
-                        id: item._id,
+                        id: item.id,
                         fiscalYear: item.fiscalYear,
                         documentUrl: item.documentUrl,
                         documentFileName: item.documentFileName,
@@ -111,7 +111,7 @@ class ProcurementPlanController {
                 success: true,
                 data: {
                     plan: {
-                        id: plan._id,
+                        id: plan.id,
                         fiscalYear: plan.fiscalYear,
                         documentUrl: plan.documentUrl,
                         documentFileName: plan.documentFileName,
@@ -151,7 +151,7 @@ class ProcurementPlanController {
                 success: true,
                 data: {
                     plan: {
-                        id: plan._id,
+                        id: plan.id,
                         fiscalYear: plan.fiscalYear,
                         documentUrl: plan.documentUrl,
                         documentFileName: plan.documentFileName,
@@ -257,7 +257,7 @@ class ProcurementPlanController {
                         published: published === 'true',
                     }, req.user?.userId);
                     createdItems.push({
-                        id: plan._id,
+                        id: plan.id,
                         fiscalYear: plan.fiscalYear,
                         documentFileName: plan.documentFileName,
                     });

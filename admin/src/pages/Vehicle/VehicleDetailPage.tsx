@@ -308,3 +308,5 @@ const VehicleDetailPage = () => {
 };
 
 export default VehicleDetailPage;
+
+

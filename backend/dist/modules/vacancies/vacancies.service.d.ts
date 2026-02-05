@@ -1,4 +1,4 @@
-import { IVacancy } from './vacancies.model';
+import { Vacancy } from './vacancies.entity';
 export interface CreateVacancyDTO {
     title: string;
     type: 'full-time' | 'part-time' | 'bursary' | 'internship';
@@ -41,31 +41,16 @@ export interface ListVacanciesQuery {
     search?: string;
 }
 export interface ListVacanciesResult {
-    vacancies: IVacancy[];
+    vacancies: Vacancy[];
     total: number;
     page: number;
     totalPages: number;
 }
 declare class VacanciesService {
-    /**
-     * Create a new vacancy
-     */
-    createVacancy(dto: CreateVacancyDTO): Promise<IVacancy>;
-    /**
-     * List vacancies with pagination, filtering, and search
-     */
+    createVacancy(dto: CreateVacancyDTO): Promise<Vacancy>;
     listVacancies(query: ListVacanciesQuery): Promise<ListVacanciesResult>;
-    /**
-     * Get a single vacancy by ID
-     */
-    getVacancyById(vacancyId: string): Promise<IVacancy>;
-    /**
-     * Update a vacancy
-     */
-    updateVacancy(vacancyId: string, dto: UpdateVacancyDTO): Promise<IVacancy>;
-    /**
-     * Delete a vacancy
-     */
+    getVacancyById(vacancyId: string): Promise<Vacancy>;
+    updateVacancy(vacancyId: string, dto: UpdateVacancyDTO): Promise<Vacancy>;
     deleteVacancy(vacancyId: string): Promise<void>;
 }
 export declare const vacanciesService: VacanciesService;

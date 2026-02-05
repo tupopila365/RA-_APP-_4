@@ -5,7 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authService = exports.AuthService = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const auth_model_1 = require("./auth.model");
+const db_1 = require("../../config/db");
+const auth_entity_1 = require("./auth.entity");
 const redis_1 = require("../../config/redis");
 const env_1 = require("../../config/env");
 const logger_1 = require("../../utils/logger");
@@ -32,10 +33,14 @@ class AuthService {
         catch (e) { }
         // #endregion
         // Find user with password field included
-        const user = await auth_model_1.User.findOne({ email }).select('+password');
+        const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
+        const user = await repo.findOne({
+            where: { email: email.toLowerCase().trim() },
+            select: ['id', 'email', 'password', 'role', 'permissions', 'createdAt', 'updatedAt'],
+        });
         // #region agent log
         try {
-            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:35', message: 'User lookup result', data: { userFound: !!user, userId: user?._id?.toString() }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
+            fs.appendFileSync(logPath, JSON.stringify({ location: 'auth.service.ts:35', message: 'User lookup result', data: { userFound: !!user, userId: user?.id }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) + '\n');
         }
         catch (e) { }
         // #endregion
@@ -94,7 +99,7 @@ class AuthService {
         catch (e) { }
         // #endregion
         // Store refresh token in Redis
-        await this.storeRefreshToken(user._id.toString(), tokens.refreshToken);
+        await this.storeRefreshToken(String(user.id), tokens.refreshToken);
         logger_1.logger.info(`User logged in: ${user.email}`);
         // #region agent log
         try {
@@ -109,7 +114,7 @@ class AuthService {
      */
     async generateTokens(user) {
         const payload = {
-            userId: user._id.toString(),
+            userId: String(user.id),
             email: user.email,
             role: user.role,
             permissions: user.permissions,
@@ -119,7 +124,7 @@ class AuthService {
             expiresIn: env_1.env.JWT_ACCESS_EXPIRY,
         });
         // Generate refresh token (7 days)
-        const refreshToken = jsonwebtoken_1.default.sign({ userId: user._id.toString() }, env_1.env.JWT_SECRET, {
+        const refreshToken = jsonwebtoken_1.default.sign({ userId: String(user.id) }, env_1.env.JWT_SECRET, {
             expiresIn: env_1.env.JWT_REFRESH_EXPIRY,
         });
         return { accessToken, refreshToken };
@@ -170,7 +175,9 @@ class AuthService {
                 logger_1.logger.warn('Redis not configured - skipping refresh token validation');
             }
             // Get user details
-            const user = await auth_model_1.User.findById(decoded.userId);
+            const repo = db_1.AppDataSource.getRepository(auth_entity_1.User);
+            const userId = parseInt(decoded.userId, 10);
+            const user = await repo.findOne({ where: { id: userId } });
             if (!user) {
                 throw {
                     code: errors_1.ERROR_CODES.AUTH_INVALID_TOKEN,
@@ -180,7 +187,7 @@ class AuthService {
             }
             // Generate new access token
             const payload = {
-                userId: user._id.toString(),
+                userId: String(user.id),
                 email: user.email,
                 role: user.role,
                 permissions: user.permissions,

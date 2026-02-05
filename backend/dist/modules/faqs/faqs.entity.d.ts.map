@@ -1,0 +1,1 @@
+{"version":3,"file":"faqs.entity.d.ts","sourceRoot":"","sources":["../../../src/modules/faqs/faqs.entity.ts"],"names":[],"mappings":"AASA,qBAIa,GAAG;IAEd,EAAE,EAAE,MAAM,CAAC;IAGX,QAAQ,EAAE,MAAM,CAAC;IAGjB,MAAM,EAAE,MAAM,CAAC;IAGf,QAAQ,EAAE,MAAM,GAAG,IAAI,CAAC;IAGxB,KAAK,EAAE,MAAM,CAAC;IAGd,SAAS,EAAE,IAAI,CAAC;IAGhB,SAAS,EAAE,IAAI,CAAC;CACjB"}

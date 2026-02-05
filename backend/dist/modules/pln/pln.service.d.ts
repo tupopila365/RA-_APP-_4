@@ -1,4 +1,4 @@
-import { IPLN, PLNStatus } from './pln.model';
+import type { IPLN, PLNStatus } from './pln.model';
 import { CreateApplicationDTO, ListApplicationsQuery, ListApplicationsResult } from './pln.dto';
 declare class PLNService {
     /**
@@ -19,6 +19,10 @@ declare class PLNService {
      * Universal PIN: 12345 for all users
      */
     getApplicationByReference(referenceId: string, pin: string): Promise<IPLN>;
+    /**
+     * Get applications by user email
+     */
+    getApplicationsByEmail(userEmail: string): Promise<IPLN[]>;
     /**
      * Get application by ID (admin)
      */

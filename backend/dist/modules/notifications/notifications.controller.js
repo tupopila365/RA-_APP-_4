@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.notificationsController = exports.NotificationsController = void 0;
+const db_1 = require("../../config/db");
+const notifications_entity_1 = require("./notifications.entity");
 const notifications_service_1 = require("./notifications.service");
-const notifications_model_1 = require("./notifications.model");
 const logger_1 = require("../../utils/logger");
 class NotificationsController {
     /**
@@ -27,7 +28,7 @@ class NotificationsController {
             logger_1.logger.info(`Push token registered: ${pushToken.substring(0, 20)}...`);
             res.status(200).json({
                 success: true,
-                data: { tokenId: token._id },
+                data: { tokenId: token.id },
                 timestamp: new Date().toISOString(),
             });
         }
@@ -117,14 +118,16 @@ class NotificationsController {
      */
     async getTokens(req, res, next) {
         try {
-            const tokens = await notifications_model_1.PushTokenModel.find({ active: true })
-                .select('pushToken platform deviceInfo createdAt lastUsed')
-                .lean();
+            const repo = db_1.AppDataSource.getRepository(notifications_entity_1.PushToken);
+            const tokens = await repo.find({
+                where: { active: true },
+                select: ['pushToken', 'platform', 'deviceInfo', 'createdAt', 'lastUsed'],
+            });
             res.status(200).json({
                 success: true,
                 data: {
                     count: tokens.length,
-                    tokens: tokens.map(t => ({
+                    tokens: tokens.map((t) => ({
                         token: t.pushToken.substring(0, 30) + '...',
                         platform: t.platform,
                         deviceInfo: t.deviceInfo,

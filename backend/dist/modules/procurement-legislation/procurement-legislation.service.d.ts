@@ -1,31 +1,16 @@
-import { IProcurementLegislation } from './procurement-legislation.model';
+import { ProcurementLegislation } from './procurement-legislation.entity';
 import { CreateProcurementLegislationDTO, UpdateProcurementLegislationDTO, ListProcurementLegislationQuery } from './procurement-legislation.dto';
 export interface ListProcurementLegislationResult {
-    items: IProcurementLegislation[];
+    items: ProcurementLegislation[];
     total: number;
     page: number;
     totalPages: number;
 }
 declare class ProcurementLegislationService {
-    /**
-     * Create a new procurement legislation document
-     */
-    createLegislation(dto: CreateProcurementLegislationDTO, createdBy?: string): Promise<IProcurementLegislation>;
-    /**
-     * List procurement legislation with pagination, filtering, and search
-     */
+    createLegislation(dto: CreateProcurementLegislationDTO, createdBy?: string): Promise<ProcurementLegislation>;
     listLegislation(query: ListProcurementLegislationQuery): Promise<ListProcurementLegislationResult>;
-    /**
-     * Get a single procurement legislation by ID
-     */
-    getLegislationById(id: string): Promise<IProcurementLegislation>;
-    /**
-     * Update procurement legislation
-     */
-    updateLegislation(id: string, dto: UpdateProcurementLegislationDTO): Promise<IProcurementLegislation>;
-    /**
-     * Delete procurement legislation
-     */
+    getLegislationById(id: string): Promise<ProcurementLegislation>;
+    updateLegislation(id: string, dto: UpdateProcurementLegislationDTO): Promise<ProcurementLegislation>;
     deleteLegislation(id: string): Promise<void>;
 }
 export declare const procurementLegislationService: ProcurementLegislationService;

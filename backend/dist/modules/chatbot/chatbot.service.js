@@ -374,7 +374,7 @@ class ChatbotService {
                 metadata = {
                     type: 'location_query',
                     offices: offices.map((office) => ({
-                        id: office._id?.toString() || '',
+                        id: office.id?.toString() || '',
                         name: office.name,
                         address: office.address,
                         region: office.region,

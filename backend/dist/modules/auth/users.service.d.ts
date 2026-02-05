@@ -1,4 +1,4 @@
-import { IUser } from './auth.model';
+import { User } from './auth.entity';
 interface CreateUserDto {
     email: string;
     password: string;
@@ -20,12 +20,12 @@ export declare class UsersService {
     /**
      * Create a new admin user
      */
-    createUser(data: CreateUserDto): Promise<IUser>;
+    createUser(data: CreateUserDto): Promise<User>;
     /**
      * List all admin users with pagination
      */
     listUsers(query: ListUsersQuery): Promise<{
-        users: IUser[];
+        users: User[];
         total: number;
         page: number;
         limit: number;
@@ -34,11 +34,11 @@ export declare class UsersService {
     /**
      * Get a single user by ID
      */
-    getUserById(userId: string): Promise<IUser>;
+    getUserById(userId: string): Promise<User>;
     /**
      * Update user details
      */
-    updateUser(userId: string, data: UpdateUserDto): Promise<IUser>;
+    updateUser(userId: string, data: UpdateUserDto): Promise<User>;
     /**
      * Delete a user
      */
@@ -46,7 +46,7 @@ export declare class UsersService {
     /**
      * Assign permissions to a user
      */
-    assignPermissions(userId: string, permissions: string[]): Promise<IUser>;
+    assignPermissions(userId: string, permissions: string[]): Promise<User>;
 }
 export declare const usersService: UsersService;
 export {};

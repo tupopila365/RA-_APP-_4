@@ -107,21 +107,21 @@ export class TendersController {
         published: published === true,
       });
 
-      logger.info(`Tender created successfully: ${tender._id}`);
+      logger.info(`Tender created successfully: ${tender.id}`);
 
       // Send push notification if published
       if (published === true) {
         try {
           const notifResult = await notificationsService.sendTenderNotification(
-            tender._id.toString(),
+            tender.id.toString(),
             tender.title,
             new Date(tender.closingDate).toLocaleDateString()
           );
           
           if (notifResult.sentCount > 0) {
-            logger.info(`Push notification sent for tender: ${tender._id} (${notifResult.sentCount} devices notified)`);
+            logger.info(`Push notification sent for tender: ${tender.id} (${notifResult.sentCount} devices notified)`);
           } else {
-            logger.warn(`Tender ${tender._id} published but no push tokens registered. Notification not sent.`);
+            logger.warn(`Tender ${tender.id} published but no push tokens registered. Notification not sent.`);
             logger.warn(`To receive notifications, users need to open the mobile app and grant notification permissions.`);
           }
         } catch (notifError: any) {
@@ -134,7 +134,7 @@ export class TendersController {
         success: true,
         data: {
           tender: {
-            id: tender._id,
+            id: tender.id,
             referenceNumber: tender.referenceNumber,
             title: tender.title,
             description: tender.description,
@@ -184,7 +184,7 @@ export class TendersController {
         success: true,
         data: {
           tenders: result.tenders.map((tender) => ({
-            id: tender._id,
+            id: tender.id,
             referenceNumber: tender.referenceNumber,
             title: tender.title,
             description: tender.description,
@@ -227,7 +227,7 @@ export class TendersController {
         success: true,
         data: {
           tender: {
-            id: tender._id,
+            id: tender.id,
             referenceNumber: tender.referenceNumber,
             title: tender.title,
             description: tender.description,
@@ -353,15 +353,15 @@ export class TendersController {
       if (published === true && !wasPublishedBefore) {
         try {
           const notifResult = await notificationsService.sendTenderNotification(
-            tender._id.toString(),
+            tender.id.toString(),
             tender.title,
             new Date(tender.closingDate).toLocaleDateString()
           );
           
           if (notifResult.sentCount > 0) {
-            logger.info(`Push notification sent for tender: ${tender._id} (${notifResult.sentCount} devices notified)`);
+            logger.info(`Push notification sent for tender: ${tender.id} (${notifResult.sentCount} devices notified)`);
           } else {
-            logger.warn(`Tender ${tender._id} published but no push tokens registered. Notification not sent.`);
+            logger.warn(`Tender ${tender.id} published but no push tokens registered. Notification not sent.`);
             logger.warn(`To receive notifications, users need to open the mobile app and grant notification permissions.`);
           }
         } catch (notifError: any) {
@@ -374,7 +374,7 @@ export class TendersController {
         success: true,
         data: {
           tender: {
-            id: tender._id,
+            id: tender.id,
             referenceNumber: tender.referenceNumber,
             title: tender.title,
             description: tender.description,

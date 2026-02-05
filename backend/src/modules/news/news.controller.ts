@@ -38,17 +38,17 @@ export class NewsController {
         published: published === true,
       });
 
-      logger.info(`News article created successfully: ${news._id}`);
+      logger.info(`News article created successfully: ${news.id}`);
 
       // Send push notification if published
       if (news.published === true) {
         try {
           const notifResult = await notificationsService.sendNewsNotification(
-            news._id.toString(),
+            news.id.toString(),
             news.title,
             news.excerpt
           );
-          logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+          logger.info(`Push notification sent for news ${news.id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
         } catch (notifError: any) {
           logger.error('Failed to send notification for news:', notifError);
         }
@@ -58,7 +58,7 @@ export class NewsController {
         success: true,
         data: {
           news: {
-            id: news._id,
+            id: news.id,
             title: news.title,
             content: news.content,
             excerpt: news.excerpt,
@@ -104,7 +104,7 @@ export class NewsController {
         success: true,
         data: {
           news: result.news.map((article) => ({
-            id: article._id,
+            id: article.id,
             title: article.title,
             content: article.content,
             excerpt: article.excerpt,
@@ -145,7 +145,7 @@ export class NewsController {
         success: true,
         data: {
           news: {
-            id: news._id,
+            id: news.id,
             title: news.title,
             content: news.content,
             excerpt: news.excerpt,
@@ -200,11 +200,11 @@ export class NewsController {
       if (published === true && !wasPublishedBefore) {
         try {
           const notifResult = await notificationsService.sendNewsNotification(
-            news._id.toString(),
+            news.id.toString(),
             news.title,
             news.excerpt
           );
-          logger.info(`Push notification sent for news ${news._id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
+          logger.info(`Push notification sent for news ${news.id}: sent=${notifResult.sentCount ?? 0}, failed=${notifResult.failedCount ?? 0}`);
         } catch (notifError: any) {
           logger.error('Failed to send notification for news:', notifError);
         }
@@ -214,7 +214,7 @@ export class NewsController {
         success: true,
         data: {
           news: {
-            id: news._id,
+            id: news.id,
             title: news.title,
             content: news.content,
             excerpt: news.excerpt,

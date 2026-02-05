@@ -1,4 +1,5 @@
-import { NewsModel, INews } from './news.model';
+import { AppDataSource } from '../../config/db';
+import { News } from './news.entity';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
@@ -31,21 +32,18 @@ export interface ListNewsQuery {
 }
 
 export interface ListNewsResult {
-  news: INews[];
+  news: News[];
   total: number;
   page: number;
   totalPages: number;
 }
 
 class NewsService {
-  /**
-   * Create a new news article
-   */
-  async createNews(dto: CreateNewsDTO): Promise<INews> {
+  async createNews(dto: CreateNewsDTO): Promise<News> {
     try {
       logger.info('Creating news article:', { title: dto.title });
-
-      const news = await NewsModel.create({
+      const repo = AppDataSource.getRepository(News);
+      const news = repo.create({
         title: dto.title,
         content: dto.content,
         excerpt: dto.excerpt,
@@ -54,8 +52,8 @@ class NewsService {
         imageUrl: dto.imageUrl,
         published: dto.published || false,
       });
-
-      logger.info(`News article created with ID: ${news._id}`);
+      await repo.save(news);
+      logger.info(`News article created with ID: ${news.id}`);
       return news;
     } catch (error: any) {
       logger.error('Create news error:', error);
@@ -68,46 +66,31 @@ class NewsService {
     }
   }
 
-  /**
-   * List news articles with pagination, filtering, and search
-   */
   async listNews(query: ListNewsQuery): Promise<ListNewsResult> {
     try {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
+      const repo = AppDataSource.getRepository(News);
 
-      // Build filter
-      const filter: any = {};
+      const buildQb = () => {
+        const qb = repo.createQueryBuilder('n');
+        if (query.category) qb.andWhere('n.category = :category', { category: query.category });
+        if (query.published !== undefined) qb.andWhere('n.published = :published', { published: query.published });
+        if (query.search) {
+          qb.andWhere('(n.title LIKE :search OR n.content LIKE :search OR n.excerpt LIKE :search)', {
+            search: `%${query.search}%`,
+          });
+        }
+        return qb;
+      };
 
-      if (query.category) {
-        filter.category = query.category;
-      }
-
-      if (query.published !== undefined) {
-        filter.published = query.published;
-      }
-
-      if (query.search) {
-        filter.$text = { $search: query.search };
-      }
-
-      // Execute query with pagination
       const [news, total] = await Promise.all([
-        NewsModel.find(filter)
-          .sort({ publishedAt: -1, createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        NewsModel.countDocuments(filter),
+        buildQb().orderBy('n.publishedAt', 'DESC').addOrderBy('n.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+        buildQb().getCount(),
       ]);
 
-      return {
-        news: news as unknown as INews[],
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
-      };
+      return { news, total, page, totalPages: Math.ceil(total / limit) };
     } catch (error: any) {
       logger.error('List news error:', error);
       throw {
@@ -119,27 +102,18 @@ class NewsService {
     }
   }
 
-  /**
-   * Get a single news article by ID
-   */
-  async getNewsById(newsId: string): Promise<INews> {
+  async getNewsById(newsId: string): Promise<News> {
     try {
-      const news = await NewsModel.findById(newsId).lean();
-
+      const id = parseInt(newsId, 10);
+      const repo = AppDataSource.getRepository(News);
+      const news = await repo.findOne({ where: { id } });
       if (!news) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'News article not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'News article not found' };
       }
-
-      return news as unknown as INews;
+      return news;
     } catch (error: any) {
       logger.error('Get news error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -149,44 +123,25 @@ class NewsService {
     }
   }
 
-  /**
-   * Update a news article
-   */
-  async updateNews(newsId: string, dto: UpdateNewsDTO): Promise<INews> {
+  async updateNews(newsId: string, dto: UpdateNewsDTO): Promise<News> {
     try {
       logger.info(`Updating news article: ${newsId}`);
-
-      const updateData: any = { ...dto };
-
-      // If publishing for the first time, set publishedAt
-      if (dto.published === true) {
-        const existingNews = await NewsModel.findById(newsId);
-        if (existingNews && !existingNews.published && !existingNews.publishedAt) {
-          updateData.publishedAt = new Date();
-        }
-      }
-
-      const news = await NewsModel.findByIdAndUpdate(
-        newsId,
-        updateData,
-        { new: true, runValidators: true }
-      ).lean();
-
+      const id = parseInt(newsId, 10);
+      const repo = AppDataSource.getRepository(News);
+      const news = await repo.findOne({ where: { id } });
       if (!news) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'News article not found',
-        };
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'News article not found' };
       }
-
+      if (dto.published === true && !news.publishedAt) {
+        news.publishedAt = new Date();
+      }
+      Object.assign(news, dto);
+      await repo.save(news);
       logger.info(`News article ${newsId} updated successfully`);
-      return news as unknown as INews;
+      return news;
     } catch (error: any) {
       logger.error('Update news error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -196,50 +151,34 @@ class NewsService {
     }
   }
 
-  /**
-   * Delete a news article
-   */
   async deleteNews(newsId: string): Promise<void> {
     try {
-      // Validate ID is provided
       if (!newsId || newsId === 'undefined' || newsId === 'null') {
-        logger.error('Delete called with invalid ID:', newsId);
         throw {
           statusCode: 400,
           code: ERROR_CODES.VALIDATION_ERROR,
           message: 'News ID is required',
         };
       }
-
       logger.info(`Deleting news article: ${newsId}`);
-
-      const news = await NewsModel.findByIdAndDelete(newsId);
-
-      if (!news) {
-        throw {
-          statusCode: 404,
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'News article not found',
-        };
-      }
-
-      logger.info(`News article ${newsId} deleted successfully`);
-    } catch (error: any) {
-      logger.error('Delete news error:', { newsId, error: error.message });
-      if (error.statusCode) {
-        throw error;
-      }
-      
-      // Handle Mongoose CastError (invalid ObjectId format)
-      if (error.name === 'CastError') {
+      const id = parseInt(newsId, 10);
+      if (isNaN(id)) {
         throw {
           statusCode: 400,
           code: ERROR_CODES.VALIDATION_ERROR,
           message: 'Invalid news ID format',
-          details: error.message,
         };
       }
-      
+      const repo = AppDataSource.getRepository(News);
+      const news = await repo.findOne({ where: { id } });
+      if (!news) {
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'News article not found' };
+      }
+      await repo.remove(news);
+      logger.info(`News article ${newsId} deleted successfully`);
+    } catch (error: any) {
+      logger.error('Delete news error:', { newsId, error: (error as Error).message });
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,

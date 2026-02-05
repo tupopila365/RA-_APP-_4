@@ -1,31 +1,16 @@
-import { IProcurementOpeningRegister } from './procurement-opening-register.model';
+import { ProcurementOpeningRegister } from './procurement-opening-register.entity';
 import { CreateProcurementOpeningRegisterDTO, UpdateProcurementOpeningRegisterDTO, ListProcurementOpeningRegisterQuery } from './procurement-opening-register.dto';
 export interface ListProcurementOpeningRegisterResult {
-    items: IProcurementOpeningRegister[];
+    items: ProcurementOpeningRegister[];
     total: number;
     page: number;
     totalPages: number;
 }
 declare class ProcurementOpeningRegisterService {
-    /**
-     * Create a new procurement opening register item
-     */
-    createItem(dto: CreateProcurementOpeningRegisterDTO, createdBy?: string): Promise<IProcurementOpeningRegister>;
-    /**
-     * List procurement opening register items with pagination, filtering, and search
-     */
+    createItem(dto: CreateProcurementOpeningRegisterDTO, createdBy?: string): Promise<ProcurementOpeningRegister>;
     listItems(query: ListProcurementOpeningRegisterQuery): Promise<ListProcurementOpeningRegisterResult>;
-    /**
-     * Get a single procurement opening register item by ID
-     */
-    getItemById(id: string): Promise<IProcurementOpeningRegister>;
-    /**
-     * Update procurement opening register item
-     */
-    updateItem(id: string, dto: UpdateProcurementOpeningRegisterDTO): Promise<IProcurementOpeningRegister>;
-    /**
-     * Delete procurement opening register item
-     */
+    getItemById(id: string): Promise<ProcurementOpeningRegister>;
+    updateItem(id: string, dto: UpdateProcurementOpeningRegisterDTO): Promise<ProcurementOpeningRegister>;
     deleteItem(id: string): Promise<void>;
 }
 export declare const procurementOpeningRegisterService: ProcurementOpeningRegisterService;

@@ -1,4 +1,3 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
 export type RoadworkStatus = 'Open' | 'Ongoing' | 'Ongoing Maintenance' | 'Planned' | 'Planned Works' | 'Closed' | 'Restricted' | 'Completed';
 export interface IWaypoint {
     name: string;
@@ -45,12 +44,12 @@ export interface IChangeHistoryEntry {
     action: 'created' | 'updated' | 'published' | 'unpublished' | 'status_changed';
     changes: {
         field: string;
-        oldValue?: any;
-        newValue?: any;
+        oldValue?: unknown;
+        newValue?: unknown;
     }[];
     comment?: string;
 }
-export interface IRoadwork extends MongooseDocument {
+export interface IRoadwork {
     title: string;
     road: string;
     section: string;
@@ -84,9 +83,4 @@ export interface IRoadwork extends MongooseDocument {
     alternateRoutes: IAlternateRoute[];
     changeHistory: IChangeHistoryEntry[];
 }
-export declare const RoadworkModel: mongoose.Model<IRoadwork, {}, {}, {}, mongoose.Document<unknown, {}, IRoadwork, {}, {}> & IRoadwork & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=roadworks.model.d.ts.map

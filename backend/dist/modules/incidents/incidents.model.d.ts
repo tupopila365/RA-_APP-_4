@@ -1,8 +1,7 @@
-import mongoose, { Document as MongooseDocument } from 'mongoose';
 export type IncidentStatus = 'Active' | 'Cleared';
 export type IncidentType = 'Accident' | 'Road closure' | 'Hazard' | 'Debris' | 'Flooding';
 export type IncidentSeverity = 'Low' | 'Medium' | 'High';
-export interface IIncident extends MongooseDocument {
+export interface IIncident {
     title: string;
     type: IncidentType;
     road: string;
@@ -22,9 +21,4 @@ export interface IIncident extends MongooseDocument {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const IncidentModel: mongoose.Model<IIncident, {}, {}, {}, mongoose.Document<unknown, {}, IIncident, {}, {}> & IIncident & Required<{
-    _id: mongoose.Types.ObjectId;
-}> & {
-    __v: number;
-}, any>;
 //# sourceMappingURL=incidents.model.d.ts.map

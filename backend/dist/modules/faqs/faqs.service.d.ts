@@ -1,4 +1,4 @@
-import { IFAQ } from './faqs.model';
+import { FAQ } from './faqs.entity';
 export interface CreateFAQDTO {
     question: string;
     answer: string;
@@ -18,31 +18,16 @@ export interface ListFAQsQuery {
     search?: string;
 }
 export interface ListFAQsResult {
-    faqs: IFAQ[];
+    faqs: FAQ[];
     total: number;
     page: number;
     totalPages: number;
 }
 declare class FAQService {
-    /**
-     * Create a new FAQ
-     */
-    createFAQ(dto: CreateFAQDTO): Promise<IFAQ>;
-    /**
-     * List FAQs with pagination, filtering, and search
-     */
+    createFAQ(dto: CreateFAQDTO): Promise<FAQ>;
     listFAQs(query: ListFAQsQuery): Promise<ListFAQsResult>;
-    /**
-     * Get a single FAQ by ID
-     */
-    getFAQById(faqId: string): Promise<IFAQ>;
-    /**
-     * Update a FAQ
-     */
-    updateFAQ(faqId: string, dto: UpdateFAQDTO): Promise<IFAQ>;
-    /**
-     * Delete a FAQ
-     */
+    getFAQById(faqId: string): Promise<FAQ>;
+    updateFAQ(faqId: string, dto: UpdateFAQDTO): Promise<FAQ>;
     deleteFAQ(faqId: string): Promise<void>;
 }
 export declare const faqsService: FAQService;

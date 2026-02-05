@@ -56,6 +56,11 @@ const AVAILABLE_PERMISSIONS: { value: Permission; label: string; description: st
     label: 'Locations Manager',
     description: 'Create, edit, and delete office locations',
   },
+  {
+    value: 'ra-services:manage',
+    label: 'RA Services Manager',
+    description: 'Create, edit, and delete RA services',
+  },
 ];
 
 const UserForm = () => {

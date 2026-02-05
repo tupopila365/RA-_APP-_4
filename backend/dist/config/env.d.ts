@@ -1,7 +1,13 @@
 interface EnvConfig {
     NODE_ENV: string;
     PORT: number;
-    MONGODB_URI: string;
+    DB_HOST: string;
+    DB_PORT: number;
+    DB_NAME: string;
+    DB_USER: string;
+    DB_PASSWORD: string;
+    DB_TRUST_SERVER_CERTIFICATE?: boolean;
+    DB_TRUSTED_CONNECTION?: boolean;
     REDIS_HOST: string;
     REDIS_PORT: number;
     REDIS_PASSWORD?: string;

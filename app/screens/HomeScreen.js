@@ -303,6 +303,15 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
       onPress: () => navigation?.navigate('Procurement'),
     },
     {
+      id: 5,
+      title: 'RA Services',
+      icon: 'construct-outline',
+      color: colors.primary,
+      backgroundColor: '#F5F5F7',
+      isPrimary: false,
+      onPress: () => navigation?.navigate('RAServices'),
+    },
+    {
       id: 6,
       title: 'FAQs',
       icon: 'help-circle-outline',
@@ -421,19 +430,24 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#00B4E6', '#0090C0', '#0078A3']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.header}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <ImageBackground
-          source={headerBackgroundSource}
-          style={styles.headerBackground}
-          imageStyle={styles.headerBackgroundImage}
+        <LinearGradient
+          colors={['#00B4E6', '#0090C0', '#0078A3']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.header}
         >
-          <SafeAreaView edges={['top']}>
-          <View style={styles.headerContent}>
+          <ImageBackground
+            source={headerBackgroundSource}
+            style={styles.headerBackground}
+            imageStyle={styles.headerBackgroundImage}
+          >
+            <SafeAreaView edges={['top']}>
+            <View style={styles.headerContent}>
             <View style={styles.brandContainer}>
               <View style={styles.brandLogoWrapper}>
                 <Image 
@@ -448,7 +462,13 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
                 />
               </View>
               <View style={styles.brandTextContainer}>
-                <Text style={styles.welcomeLabel} maxFontSizeMultiplier={1.3}>WELCOME TO</Text>
+                {user?.fullName ? (
+                  <Text style={[styles.welcomeLabel, { color: colors.secondary }]} maxFontSizeMultiplier={1.3}>
+                    Welcome, {user.fullName}
+                  </Text>
+                ) : (
+                  <Text style={styles.welcomeLabel} maxFontSizeMultiplier={1.3}>WELCOME TO</Text>
+                )}
                 <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority Namibia</Text>
                 <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Safe Roads to Prosperity</Text>
                 <Text style={styles.taglineText} maxFontSizeMultiplier={1.3}>
@@ -499,11 +519,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
         </ImageBackground>
       </LinearGradient>
 
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.content}
-      >
-
+        <View style={styles.content}>
         {/* Recent Alerts Section */}
         {!searchQuery.trim() && 
          !loadingNotifications && 
@@ -640,6 +656,7 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
           ).length === 0 && (
             <Text style={styles.noResultsText} maxFontSizeMultiplier={1.3}>No results found for "{searchQuery}"</Text>
           )}
+        </View>
         </View>
       </ScrollView>
     </View>
@@ -816,6 +833,9 @@ function getStyles(colors, config) {
 
     scrollView: {
       flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: isPhone ? 80 : 100,
     },
     content: {
       padding: horizontalPadding,

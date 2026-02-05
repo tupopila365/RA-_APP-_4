@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth';
+import { AppDataSource } from '../../config/db';
+import { PushToken } from './notifications.entity';
 import { notificationsService } from './notifications.service';
-import { PushTokenModel } from './notifications.model';
 import { logger } from '../../utils/logger';
 
 export class NotificationsController {
@@ -35,7 +36,7 @@ export class NotificationsController {
 
       res.status(200).json({
         success: true,
-        data: { tokenId: token._id },
+        data: { tokenId: token.id },
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
@@ -131,15 +132,17 @@ export class NotificationsController {
    */
   async getTokens(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const tokens = await PushTokenModel.find({ active: true })
-        .select('pushToken platform deviceInfo createdAt lastUsed')
-        .lean();
+      const repo = AppDataSource.getRepository(PushToken);
+      const tokens = await repo.find({
+        where: { active: true },
+        select: ['pushToken', 'platform', 'deviceInfo', 'createdAt', 'lastUsed'],
+      });
 
       res.status(200).json({
         success: true,
         data: {
           count: tokens.length,
-          tokens: tokens.map(t => ({
+          tokens: tokens.map((t: PushToken) => ({
             token: t.pushToken.substring(0, 30) + '...',
             platform: t.platform,
             deviceInfo: t.deviceInfo,

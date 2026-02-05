@@ -1,7 +1,8 @@
+import 'dotenv/config';
+import 'reflect-metadata';
 import { createApp } from './app';
-import { connectDB } from './config/db';
+import { connectDB, disconnectDB } from './config/db';
 import { connectRedis } from './config/redis';
-import { configureCloudinary } from './config/cloudinary';
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import { networkInterfaces } from 'os';
@@ -28,18 +29,15 @@ const startServer = async () => {
   let server: any = null;
   
   try {
-    // Connect to MongoDB
+    // Connect to SQL Server
     await connectDB();
-    logger.info('MongoDB connected successfully');
+    logger.info('SQL Server connected successfully');
 
     // Connect to Redis (optional)
     const redisClient = await connectRedis();
     if (redisClient) {
       logger.info('Redis connected successfully');
     }
-
-    // Configure Cloudinary
-    configureCloudinary();
 
     // Create Express app
     const app = createApp();
@@ -70,11 +68,7 @@ const startServer = async () => {
           
           try {
             // Close database connections
-            const mongoose = await import('mongoose');
-            if (mongoose.connection && mongoose.connection.readyState !== 0) {
-              await mongoose.connection.close();
-              logger.info('MongoDB connection closed');
-            }
+            await disconnectDB();
             
             // Close Redis connection safely
             try {
@@ -104,11 +98,7 @@ const startServer = async () => {
         // Server not initialized, just close connections
         logger.warn('Server not initialized, closing connections directly');
         try {
-          const mongoose = await import('mongoose');
-          if (mongoose.connection && mongoose.connection.readyState !== 0) {
-            await mongoose.connection.close();
-            logger.info('MongoDB connection closed');
-          }
+          await disconnectDB();
           process.exit(0);
         } catch (error) {
           logger.error('Error closing connections:', error);

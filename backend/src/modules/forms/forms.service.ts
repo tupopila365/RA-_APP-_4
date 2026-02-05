@@ -1,12 +1,10 @@
-import { FormModel, IForm } from './forms.model';
+import { AppDataSource } from '../../config/db';
+import { Form } from './forms.entity';
 import { logger } from '../../utils/logger';
 import { AppError } from '../../middlewares/errorHandler';
 import { ERROR_CODES } from '../../constants/errors';
 
 export class FormService {
-  /**
-   * Create a new form
-   */
   async createForm(
     data: {
       name: string;
@@ -15,142 +13,115 @@ export class FormService {
       published?: boolean;
     },
     userId?: string
-  ): Promise<IForm> {
+  ): Promise<Form> {
     try {
-      const form = new FormModel({
+      const repo = AppDataSource.getRepository(Form);
+      const form = repo.create({
         ...data,
-        createdBy: userId,
+        category: data.category as Form['category'],
+        createdBy: userId ?? null,
       });
-
-      await form.save();
-      logger.info(`Form created: ${form._id}`);
+      await repo.save(form);
+      logger.info(`Form created: ${form.id}`);
       return form;
     } catch (error: any) {
       logger.error('Create form error:', error);
-      if (error.code === 11000) {
-        throw new AppError('Form with this name already exists', 409, ERROR_CODES.DUPLICATE_ENTRY);
+      if (error.number === 2627) {
+        throw { message: 'Form with this name already exists', statusCode: 409, code: ERROR_CODES.DUPLICATE_ERROR };
       }
       throw error;
     }
   }
 
-  /**
-   * List forms with pagination and filtering
-   */
   async listForms(options: {
     page?: number;
     limit?: number;
     category?: string;
     published?: boolean;
     search?: string;
-  }): Promise<{
-    items: IForm[];
-    total: number;
-    page: number;
-    totalPages: number;
-  }> {
+  }): Promise<{ items: Form[]; total: number; page: number; totalPages: number }> {
     try {
       const page = options.page || 1;
       const limit = options.limit || 10;
       const skip = (page - 1) * limit;
+      const repo = AppDataSource.getRepository(Form);
 
-      const query: any = {};
-
-      if (options.category) {
-        query.category = options.category;
-      }
-
-      if (options.published !== undefined) {
-        query.published = options.published;
-      }
-
-      if (options.search) {
-        query.$text = { $search: options.search };
-      }
+      const buildQb = () => {
+        const qb = repo.createQueryBuilder('f');
+        if (options.category) qb.andWhere('f.category = :category', { category: options.category });
+        if (options.published !== undefined) qb.andWhere('f.published = :published', { published: options.published });
+        if (options.search) qb.andWhere('f.name LIKE :search', { search: `%${options.search}%` });
+        return qb;
+      };
 
       const [items, total] = await Promise.all([
-        FormModel.find(query)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        FormModel.countDocuments(query),
+        buildQb().orderBy('f.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+        buildQb().getCount(),
       ]);
 
-      return {
-        items: items as IForm[],
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
-      };
+      return { items, total, page, totalPages: Math.ceil(total / limit) };
     } catch (error: any) {
       logger.error('List forms error:', error);
       throw error;
     }
   }
 
-  /**
-   * Get form by ID
-   */
-  async getFormById(id: string): Promise<IForm> {
+  async getFormById(id: string): Promise<Form> {
     try {
-      const form = await FormModel.findById(id);
+      const idNum = parseInt(id, 10);
+      const repo = AppDataSource.getRepository(Form);
+      const form = await repo.findOne({ where: { id: idNum } });
       if (!form) {
-        throw new AppError('Form not found', 404, ERROR_CODES.NOT_FOUND);
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Form not found' };
       }
       return form;
     } catch (error: any) {
       logger.error('Get form error:', error);
-      if (error.name === 'CastError') {
-        throw new AppError('Invalid form ID', 400, ERROR_CODES.VALIDATION_ERROR);
+      if (error.statusCode) throw error;
+      if (isNaN(parseInt(id, 10))) {
+        throw { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR, message: 'Invalid form ID' };
       }
       throw error;
     }
   }
 
-  /**
-   * Update form
-   */
-  async updateForm(id: string, data: Partial<IForm>): Promise<IForm> {
+  async updateForm(id: string, data: Partial<Form>): Promise<Form> {
     try {
-      const form = await FormModel.findByIdAndUpdate(
-        id,
-        { $set: data },
-        { new: true, runValidators: true }
-      );
-
+      const idNum = parseInt(id, 10);
+      const repo = AppDataSource.getRepository(Form);
+      const form = await repo.findOne({ where: { id: idNum } });
       if (!form) {
-        throw new AppError('Form not found', 404, ERROR_CODES.NOT_FOUND);
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Form not found' };
       }
-
+      Object.assign(form, data);
+      await repo.save(form);
       logger.info(`Form updated: ${id}`);
       return form;
     } catch (error: any) {
       logger.error('Update form error:', error);
-      if (error.name === 'CastError') {
-        throw new AppError('Invalid form ID', 400, ERROR_CODES.VALIDATION_ERROR);
-      }
-      if (error.code === 11000) {
-        throw new AppError('Form with this name already exists', 409, ERROR_CODES.DUPLICATE_ENTRY);
+      if (error.statusCode) throw error;
+      if (isNaN(parseInt(id, 10))) {
+        throw { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR, message: 'Invalid form ID' };
       }
       throw error;
     }
   }
 
-  /**
-   * Delete form
-   */
   async deleteForm(id: string): Promise<void> {
     try {
-      const form = await FormModel.findByIdAndDelete(id);
+      const idNum = parseInt(id, 10);
+      const repo = AppDataSource.getRepository(Form);
+      const form = await repo.findOne({ where: { id: idNum } });
       if (!form) {
-        throw new AppError('Form not found', 404, ERROR_CODES.NOT_FOUND);
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'Form not found' };
       }
+      await repo.remove(form);
       logger.info(`Form deleted: ${id}`);
     } catch (error: any) {
       logger.error('Delete form error:', error);
-      if (error.name === 'CastError') {
-        throw new AppError('Invalid form ID', 400, ERROR_CODES.VALIDATION_ERROR);
+      if (error.statusCode) throw error;
+      if (isNaN(parseInt(id, 10))) {
+        throw { statusCode: 400, code: ERROR_CODES.VALIDATION_ERROR, message: 'Invalid form ID' };
       }
       throw error;
     }

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "mongoose": "^9.1.3",
+    "msnodesqlv8": "^5.1.3",
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {

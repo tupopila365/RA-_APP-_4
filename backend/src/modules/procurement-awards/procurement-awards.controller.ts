@@ -59,7 +59,7 @@ export class ProcurementAwardController {
         success: true,
         data: {
           award: {
-            id: award._id,
+            id: award.id,
             type: award.type,
             procurementReference: award.procurementReference,
             description: award.description,
@@ -106,7 +106,7 @@ export class ProcurementAwardController {
         success: true,
         data: {
           items: result.items.map((item) => ({
-            id: item._id,
+            id: item.id,
             type: item.type,
             procurementReference: item.procurementReference,
             description: item.description,
@@ -146,7 +146,7 @@ export class ProcurementAwardController {
         success: true,
         data: {
           award: {
-            id: award._id,
+            id: award.id,
             type: award.type,
             procurementReference: award.procurementReference,
             description: award.description,
@@ -199,7 +199,7 @@ export class ProcurementAwardController {
         success: true,
         data: {
           award: {
-            id: award._id,
+            id: award.id,
             type: award.type,
             procurementReference: award.procurementReference,
             description: award.description,

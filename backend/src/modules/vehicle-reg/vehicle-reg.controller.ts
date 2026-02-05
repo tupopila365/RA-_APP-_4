@@ -18,7 +18,7 @@ const buildApplicationResponse = (application: IVehicleReg) => {
     '';
 
   return {
-    id: application._id,
+    id: application.id,
     referenceId: application.referenceId,
     
     // Section A - Owner
@@ -237,13 +237,13 @@ export class VehicleRegController {
       // Create application
       const application = await vehicleRegService.createApplication(dto, req.file);
 
-      logger.info(`Vehicle registration application created successfully: ${application._id}`);
+      logger.info(`Vehicle registration application created successfully: ${application.id}`);
 
       res.status(201).json({
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             referenceId: application.referenceId,
             trackingPin: application.trackingPin,
             fullName: application.businessName || 
@@ -288,7 +288,7 @@ export class VehicleRegController {
         success: true,
         data: {
           applications: applications.map((app) => ({
-            id: app._id,
+            id: app.id,
             referenceId: app.referenceId,
             trackingPin: app.trackingPin,
             fullName: app.businessName || 
@@ -338,7 +338,7 @@ export class VehicleRegController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             referenceId: application.referenceId,
             fullName: application.businessName || 
               [application.surname, application.initials].filter(Boolean).join(' '),
@@ -455,7 +455,7 @@ export class VehicleRegController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             status: application.status,
             paymentDeadline: application.paymentDeadline,
             statusHistory: application.statusHistory,
@@ -488,7 +488,7 @@ export class VehicleRegController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             status: application.status,
             paymentReceivedAt: application.paymentReceivedAt,
             statusHistory: application.statusHistory,
@@ -522,7 +522,7 @@ export class VehicleRegController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             status: application.status,
             registrationNumberAssigned: application.registrationNumberAssigned,
             registrationDate: application.registrationDate,
@@ -647,7 +647,7 @@ export class VehicleRegController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             adminComments: application.adminComments,
             statusHistory: application.statusHistory,
             updatedAt: application.updatedAt,
@@ -691,7 +691,7 @@ export class VehicleRegController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             assignedTo: application.assignedTo,
             updatedAt: application.updatedAt,
           },
@@ -734,7 +734,7 @@ export class VehicleRegController {
         success: true,
         data: {
           application: {
-            id: application._id,
+            id: application.id,
             priority: application.priority,
             updatedAt: application.updatedAt,
           },
@@ -792,3 +792,5 @@ export class VehicleRegController {
 }
 
 export const vehicleRegController = new VehicleRegController();
+
+

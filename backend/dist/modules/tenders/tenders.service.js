@@ -1,17 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tendersService = void 0;
-const tenders_model_1 = require("./tenders.model");
+const db_1 = require("../../config/db");
+const tenders_entity_1 = require("./tenders.entity");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../constants/errors");
 class TendersService {
-    /**
-     * Create a new tender
-     */
     async createTender(dto) {
         try {
             logger_1.logger.info('Creating tender:', { referenceNumber: dto.referenceNumber, title: dto.title });
-            const tender = await tenders_model_1.TenderModel.create({
+            const repo = db_1.AppDataSource.getRepository(tenders_entity_1.Tender);
+            const existing = await repo.findOne({ where: { referenceNumber: dto.referenceNumber } });
+            if (existing) {
+                throw {
+                    statusCode: 400,
+                    code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                    message: 'A tender with this reference number already exists',
+                };
+            }
+            const tender = repo.create({
                 referenceNumber: dto.referenceNumber,
                 title: dto.title,
                 description: dto.description,
@@ -23,20 +30,14 @@ class TendersService {
                 pdfUrl: dto.pdfUrl,
                 published: dto.published || false,
             });
-            logger_1.logger.info(`Tender created with ID: ${tender._id}`);
+            await repo.save(tender);
+            logger_1.logger.info(`Tender created with ID: ${tender.id}`);
             return tender;
         }
         catch (error) {
             logger_1.logger.error('Create tender error:', error);
-            // Handle duplicate reference number
-            if (error.code === 11000) {
-                throw {
-                    statusCode: 400,
-                    code: errors_1.ERROR_CODES.VALIDATION_ERROR,
-                    message: 'A tender with this reference number already exists',
-                    details: error.message,
-                };
-            }
+            if (error.statusCode)
+                throw error;
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -45,43 +46,30 @@ class TendersService {
             };
         }
     }
-    /**
-     * List tenders with pagination, filtering, and search
-     */
     async listTenders(query) {
         try {
             const page = Math.max(1, query.page || 1);
             const limit = Math.min(100, Math.max(1, query.limit || 10));
             const skip = (page - 1) * limit;
-            // Build filter
-            const filter = {};
-            if (query.status) {
-                filter.status = query.status;
-            }
-            if (query.category) {
-                filter.category = query.category;
-            }
-            if (query.published !== undefined) {
-                filter.published = query.published;
-            }
-            if (query.search) {
-                filter.$text = { $search: query.search };
-            }
-            // Execute query with pagination
-            const [tenders, total] = await Promise.all([
-                tenders_model_1.TenderModel.find(filter)
-                    .sort({ closingDate: -1, createdAt: -1 })
-                    .skip(skip)
-                    .limit(limit)
-                    .lean(),
-                tenders_model_1.TenderModel.countDocuments(filter),
-            ]);
-            return {
-                tenders: tenders,
-                total,
-                page,
-                totalPages: Math.ceil(total / limit),
+            const repo = db_1.AppDataSource.getRepository(tenders_entity_1.Tender);
+            const buildQb = () => {
+                const qb = repo.createQueryBuilder('t');
+                if (query.status)
+                    qb.andWhere('t.status = :status', { status: query.status });
+                if (query.category)
+                    qb.andWhere('t.category = :category', { category: query.category });
+                if (query.published !== undefined)
+                    qb.andWhere('t.published = :published', { published: query.published });
+                if (query.search) {
+                    qb.andWhere('(t.title LIKE :search OR t.description LIKE :search)', { search: `%${query.search}%` });
+                }
+                return qb;
             };
+            const [tenders, total] = await Promise.all([
+                buildQb().orderBy('t.closingDate', 'DESC').addOrderBy('t.createdAt', 'DESC').skip(skip).take(limit).getMany(),
+                buildQb().getCount(),
+            ]);
+            return { tenders, total, page, totalPages: Math.ceil(total / limit) };
         }
         catch (error) {
             logger_1.logger.error('List tenders error:', error);
@@ -93,26 +81,20 @@ class TendersService {
             };
         }
     }
-    /**
-     * Get a single tender by ID
-     */
     async getTenderById(tenderId) {
         try {
-            const tender = await tenders_model_1.TenderModel.findById(tenderId).lean();
+            const id = parseInt(tenderId, 10);
+            const repo = db_1.AppDataSource.getRepository(tenders_entity_1.Tender);
+            const tender = await repo.findOne({ where: { id } });
             if (!tender) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Tender not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Tender not found' };
             }
             return tender;
         }
         catch (error) {
             logger_1.logger.error('Get tender error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -121,37 +103,34 @@ class TendersService {
             };
         }
     }
-    /**
-     * Update a tender
-     */
     async updateTender(tenderId, dto) {
         try {
             logger_1.logger.info(`Updating tender: ${tenderId}`);
-            const tender = await tenders_model_1.TenderModel.findByIdAndUpdate(tenderId, dto, { new: true, runValidators: true }).lean();
+            const id = parseInt(tenderId, 10);
+            const repo = db_1.AppDataSource.getRepository(tenders_entity_1.Tender);
+            const tender = await repo.findOne({ where: { id } });
             if (!tender) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Tender not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Tender not found' };
             }
+            if (dto.referenceNumber && dto.referenceNumber !== tender.referenceNumber) {
+                const existing = await repo.findOne({ where: { referenceNumber: dto.referenceNumber } });
+                if (existing) {
+                    throw {
+                        statusCode: 400,
+                        code: errors_1.ERROR_CODES.VALIDATION_ERROR,
+                        message: 'A tender with this reference number already exists',
+                    };
+                }
+            }
+            Object.assign(tender, dto);
+            await repo.save(tender);
             logger_1.logger.info(`Tender ${tenderId} updated successfully`);
             return tender;
         }
         catch (error) {
             logger_1.logger.error('Update tender error:', error);
-            // Handle duplicate reference number
-            if (error.code === 11000) {
-                throw {
-                    statusCode: 400,
-                    code: errors_1.ERROR_CODES.VALIDATION_ERROR,
-                    message: 'A tender with this reference number already exists',
-                    details: error.message,
-                };
-            }
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,
@@ -160,27 +139,22 @@ class TendersService {
             };
         }
     }
-    /**
-     * Delete a tender
-     */
     async deleteTender(tenderId) {
         try {
             logger_1.logger.info(`Deleting tender: ${tenderId}`);
-            const tender = await tenders_model_1.TenderModel.findByIdAndDelete(tenderId);
+            const id = parseInt(tenderId, 10);
+            const repo = db_1.AppDataSource.getRepository(tenders_entity_1.Tender);
+            const tender = await repo.findOne({ where: { id } });
             if (!tender) {
-                throw {
-                    statusCode: 404,
-                    code: errors_1.ERROR_CODES.NOT_FOUND,
-                    message: 'Tender not found',
-                };
+                throw { statusCode: 404, code: errors_1.ERROR_CODES.NOT_FOUND, message: 'Tender not found' };
             }
+            await repo.remove(tender);
             logger_1.logger.info(`Tender ${tenderId} deleted successfully`);
         }
         catch (error) {
             logger_1.logger.error('Delete tender error:', error);
-            if (error.statusCode) {
+            if (error.statusCode)
                 throw error;
-            }
             throw {
                 statusCode: 500,
                 code: errors_1.ERROR_CODES.DB_OPERATION_FAILED,

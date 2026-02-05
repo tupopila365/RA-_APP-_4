@@ -1,12 +1,16 @@
-import { PotholeReportModel, IPotholeReport, Severity, ReportStatus } from './pothole-reports.model';
+import { AppDataSource } from '../../config/db';
+import { PotholeReport } from './pothole-reports.entity';
 import { uploadService } from '../upload/upload.service';
+import { fileStorageService } from '../file-storage/file-storage.service';
 import { reverseGeocode } from '../../utils/geocoding';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
+import type { Severity, ReportStatus } from './pothole-reports.model';
+import type { FindOptionsWhere } from 'typeorm';
 
 export interface CreateReportDTO {
   deviceId: string;
-  userEmail?: string; // User's email if logged in
+  userEmail?: string;
   location: {
     latitude: number;
     longitude: number;
@@ -15,7 +19,6 @@ export interface CreateReportDTO {
   townName?: string;
   streetName?: string;
   description?: string;
-  // Note: severity is NOT included here - it's admin-only
 }
 
 export interface ListReportsQuery {
@@ -32,40 +35,42 @@ export interface ListReportsQuery {
 }
 
 export interface ListReportsResult {
-  reports: IPotholeReport[];
+  reports: PotholeReport[];
   total: number;
   page: number;
   totalPages: number;
 }
 
+function parseId(reportId: string): number {
+  const id = parseInt(reportId, 10);
+  if (isNaN(id)) {
+    throw {
+      statusCode: 404,
+      code: ERROR_CODES.NOT_FOUND,
+      message: 'Pothole report not found',
+    };
+  }
+  return id;
+}
+
 class PotholeReportsService {
-  /**
-   * Generate unique reference code
-   * Format: RA-PT-{YYYYMMDD}-{6digitRandom}
-   */
   generateReferenceCode(): string {
     const date = new Date();
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, '');
-    const random = Math.floor(100000 + Math.random() * 900000); // 6-digit random
+    const random = Math.floor(100000 + Math.random() * 900000);
     return `RA-PT-${dateStr}-${random}`;
   }
 
-  /**
-   * Create a new pothole report
-   */
-  async createReport(dto: CreateReportDTO, photoFile: Express.Multer.File): Promise<IPotholeReport> {
+  async createReport(dto: CreateReportDTO, photoFile: Express.Multer.File): Promise<PotholeReport> {
     try {
       logger.info('Creating pothole report:', { deviceId: dto.deviceId, roadName: dto.roadName });
 
-      // Upload photo to Cloudinary
       const photoUpload = await uploadService.uploadImage(photoFile);
 
-      // Use provided town/region or reverse geocode location to get them
       let town = dto.townName || '';
       let region = '';
-      
+
       if (!town) {
-        // Reverse geocode location to get town and region
         const geocodeResult = await reverseGeocode(
           dto.location.latitude,
           dto.location.longitude
@@ -73,7 +78,6 @@ class PotholeReportsService {
         town = geocodeResult.town;
         region = geocodeResult.region;
       } else {
-        // If town is provided, try to get region from reverse geocoding
         try {
           const geocodeResult = await reverseGeocode(
             dto.location.latitude,
@@ -86,39 +90,37 @@ class PotholeReportsService {
         }
       }
 
-      // Generate unique reference code
+      const repo = AppDataSource.getRepository(PotholeReport);
       let referenceCode = this.generateReferenceCode();
-      // Ensure uniqueness (retry if collision)
       let attempts = 0;
       while (attempts < 10) {
-        const existing = await PotholeReportModel.findOne({ referenceCode });
+        const existing = await repo.findOne({ where: { referenceCode } });
         if (!existing) break;
         referenceCode = this.generateReferenceCode();
         attempts++;
       }
 
-      // Determine road name - use streetName if provided, otherwise roadName, otherwise 'Unknown Road'
       const finalRoadName = dto.streetName || dto.roadName || 'Unknown Road';
 
-      // Create report (severity is NOT set - admin will set it later)
-      const report = await PotholeReportModel.create({
+      const report = repo.create({
         deviceId: dto.deviceId,
-        userEmail: dto.userEmail, // Associate with user email if provided
+        userEmail: dto.userEmail ?? null,
         referenceCode,
         location: dto.location,
         town: town || 'Unknown',
         region: region || 'Unknown',
         roadName: finalRoadName,
         photoUrl: photoUpload.url,
-        description: dto.description,
+        description: dto.description ?? null,
         status: 'pending',
-        // severity is intentionally omitted - admin-only field
       });
 
-      logger.info(`Pothole report created with ID: ${report._id}, Reference: ${referenceCode}`);
-      return report;
+      const saved = await repo.save(report);
+      logger.info(`Pothole report created with ID: ${saved.id}, Reference: ${referenceCode}`);
+      return saved;
     } catch (error: any) {
       logger.error('Create pothole report error:', error);
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -128,21 +130,16 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Get reports by device ID
-   */
-  async getReportsByDeviceId(deviceId: string, filters?: { status?: ReportStatus }): Promise<IPotholeReport[]> {
+  async getReportsByDeviceId(deviceId: string, filters?: { status?: ReportStatus }): Promise<PotholeReport[]> {
     try {
-      const filter: any = { deviceId };
-      if (filters?.status) {
-        filter.status = filters.status;
-      }
+      const where: FindOptionsWhere<PotholeReport> = { deviceId };
+      if (filters?.status) where.status = filters.status;
 
-      const reports = await PotholeReportModel.find(filter)
-        .sort({ createdAt: -1 })
-        .lean();
-
-      return reports as unknown as IPotholeReport[];
+      const reports = await AppDataSource.getRepository(PotholeReport).find({
+        where,
+        order: { createdAt: 'DESC' },
+      });
+      return reports;
     } catch (error: any) {
       logger.error('Get reports by device ID error:', error);
       throw {
@@ -154,21 +151,16 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Get reports by user email
-   */
-  async getReportsByUserEmail(userEmail: string, filters?: { status?: ReportStatus }): Promise<IPotholeReport[]> {
+  async getReportsByUserEmail(userEmail: string, filters?: { status?: ReportStatus }): Promise<PotholeReport[]> {
     try {
-      const filter: any = { userEmail: userEmail.toLowerCase() };
-      if (filters?.status) {
-        filter.status = filters.status;
-      }
+      const where: FindOptionsWhere<PotholeReport> = { userEmail: userEmail.toLowerCase() };
+      if (filters?.status) where.status = filters.status;
 
-      const reports = await PotholeReportModel.find(filter)
-        .sort({ createdAt: -1 })
-        .lean();
-
-      return reports as unknown as IPotholeReport[];
+      const reports = await AppDataSource.getRepository(PotholeReport).find({
+        where,
+        order: { createdAt: 'DESC' },
+      });
+      return reports;
     } catch (error: any) {
       logger.error('Get reports by user email error:', error);
       throw {
@@ -180,12 +172,10 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Get a single report by ID
-   */
-  async getReportById(reportId: string): Promise<IPotholeReport> {
+  async getReportById(reportId: string): Promise<PotholeReport> {
     try {
-      const report = await PotholeReportModel.findById(reportId).lean();
+      const id = parseId(reportId);
+      const report = await AppDataSource.getRepository(PotholeReport).findOne({ where: { id } });
 
       if (!report) {
         throw {
@@ -195,12 +185,10 @@ class PotholeReportsService {
         };
       }
 
-      return report as unknown as IPotholeReport;
+      return report;
     } catch (error: any) {
       logger.error('Get report error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -210,69 +198,43 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * List reports with pagination and filtering (admin)
-   */
   async listReports(query: ListReportsQuery): Promise<ListReportsResult> {
     try {
       const page = Math.max(1, query.page || 1);
       const limit = Math.min(100, Math.max(1, query.limit || 10));
       const skip = (page - 1) * limit;
 
-      // Build filter
-      const filter: any = {};
+      const repo = AppDataSource.getRepository(PotholeReport);
+      const qb = repo.createQueryBuilder('r');
 
-      if (query.deviceId) {
-        filter.deviceId = query.deviceId;
-      }
-
-      if (query.region) {
-        filter.region = query.region;
-      }
-
-      if (query.town) {
-        filter.town = query.town;
-      }
-
-      if (query.severity) {
-        filter.severity = query.severity;
-      }
-
-      if (query.status) {
-        filter.status = query.status;
-      }
+      if (query.deviceId) qb.andWhere('r.deviceId = :deviceId', { deviceId: query.deviceId });
+      if (query.region) qb.andWhere('r.region = :region', { region: query.region });
+      if (query.town) qb.andWhere('r.town = :town', { town: query.town });
+      if (query.severity) qb.andWhere('r.severity = :severity', { severity: query.severity });
+      if (query.status) qb.andWhere('r.status = :status', { status: query.status });
 
       if (query.search) {
-        filter.$or = [
-          { referenceCode: { $regex: query.search, $options: 'i' } },
-          { roadName: { $regex: query.search, $options: 'i' } },
-          { town: { $regex: query.search, $options: 'i' } },
-          { region: { $regex: query.search, $options: 'i' } },
-        ];
+        qb.andWhere(
+          '(r.referenceCode LIKE :search OR r.roadName LIKE :search OR r.town LIKE :search OR r.region LIKE :search)',
+          { search: `%${query.search}%` }
+        );
       }
 
-      if (query.startDate || query.endDate) {
-        filter.createdAt = {};
-        if (query.startDate) {
-          filter.createdAt.$gte = new Date(query.startDate);
-        }
-        if (query.endDate) {
-          filter.createdAt.$lte = new Date(query.endDate);
-        }
+      if (query.startDate) {
+        qb.andWhere('r.createdAt >= :startDate', { startDate: new Date(query.startDate) });
+      }
+      if (query.endDate) {
+        qb.andWhere('r.createdAt <= :endDate', { endDate: new Date(query.endDate) });
       }
 
-      // Execute query with pagination
-      const [reports, total] = await Promise.all([
-        PotholeReportModel.find(filter)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        PotholeReportModel.countDocuments(filter),
-      ]);
+      const [reports, total] = await qb
+        .orderBy('r.createdAt', 'DESC')
+        .skip(skip)
+        .take(limit)
+        .getManyAndCount();
 
       return {
-        reports: reports as unknown as IPotholeReport[],
+        reports,
         total,
         page,
         totalPages: Math.ceil(total / limit),
@@ -288,37 +250,17 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Update report status (admin-only)
-   */
   async updateReportStatus(
     reportId: string,
     status: ReportStatus,
     updates?: { assignedTo?: string; adminNotes?: string; severity?: Severity }
-  ): Promise<IPotholeReport> {
+  ): Promise<PotholeReport> {
     try {
       logger.info(`Updating report status: ${reportId} to ${status}`);
 
-      const updateData: any = { status };
-
-      if (updates?.assignedTo !== undefined) {
-        updateData.assignedTo = updates.assignedTo;
-      }
-
-      if (updates?.adminNotes !== undefined) {
-        updateData.adminNotes = updates.adminNotes;
-      }
-
-      // Admin can set severity when updating status
-      if (updates?.severity !== undefined) {
-        updateData.severity = updates.severity;
-      }
-
-      const report = await PotholeReportModel.findByIdAndUpdate(
-        reportId,
-        updateData,
-        { new: true, runValidators: true }
-      ).lean();
+      const id = parseId(reportId);
+      const repo = AppDataSource.getRepository(PotholeReport);
+      const report = await repo.findOne({ where: { id } });
 
       if (!report) {
         throw {
@@ -328,13 +270,18 @@ class PotholeReportsService {
         };
       }
 
+      report.status = status;
+      if (updates?.assignedTo !== undefined) report.assignedTo = updates.assignedTo;
+      if (updates?.adminNotes !== undefined) report.adminNotes = updates.adminNotes;
+      if (updates?.severity !== undefined) report.severity = updates.severity;
+      if (status === 'fixed' && !report.fixedAt) report.fixedAt = new Date();
+
+      const saved = await repo.save(report);
       logger.info(`Report ${reportId} status updated to ${status}`);
-      return report as unknown as IPotholeReport;
+      return saved;
     } catch (error: any) {
       logger.error('Update report status error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -344,21 +291,13 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Assign report to maintenance team
-   */
-  async assignReport(reportId: string, assignedTo: string): Promise<IPotholeReport> {
+  async assignReport(reportId: string, assignedTo: string): Promise<PotholeReport> {
     try {
       logger.info(`Assigning report ${reportId} to ${assignedTo}`);
 
-      const report = await PotholeReportModel.findByIdAndUpdate(
-        reportId,
-        {
-          assignedTo,
-          status: 'assigned',
-        },
-        { new: true, runValidators: true }
-      ).lean();
+      const id = parseId(reportId);
+      const repo = AppDataSource.getRepository(PotholeReport);
+      const report = await repo.findOne({ where: { id } });
 
       if (!report) {
         throw {
@@ -368,13 +307,12 @@ class PotholeReportsService {
         };
       }
 
-      logger.info(`Report ${reportId} assigned to ${assignedTo}`);
-      return report as unknown as IPotholeReport;
+      report.assignedTo = assignedTo;
+      report.status = 'assigned';
+      return repo.save(report);
     } catch (error: any) {
       logger.error('Assign report error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -384,18 +322,13 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Add admin notes to report
-   */
-  async addAdminNotes(reportId: string, adminNotes: string): Promise<IPotholeReport> {
+  async addAdminNotes(reportId: string, adminNotes: string): Promise<PotholeReport> {
     try {
       logger.info(`Adding admin notes to report ${reportId}`);
 
-      const report = await PotholeReportModel.findByIdAndUpdate(
-        reportId,
-        { adminNotes },
-        { new: true, runValidators: true }
-      ).lean();
+      const id = parseId(reportId);
+      const repo = AppDataSource.getRepository(PotholeReport);
+      const report = await repo.findOne({ where: { id } });
 
       if (!report) {
         throw {
@@ -405,13 +338,11 @@ class PotholeReportsService {
         };
       }
 
-      logger.info(`Admin notes added to report ${reportId}`);
-      return report as unknown as IPotholeReport;
+      report.adminNotes = adminNotes;
+      return repo.save(report);
     } catch (error: any) {
       logger.error('Add admin notes error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -421,28 +352,13 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Mark report as fixed
-   */
-  async markAsFixed(reportId: string, repairPhotoFile?: Express.Multer.File): Promise<IPotholeReport> {
+  async markAsFixed(reportId: string, repairPhotoFile?: Express.Multer.File): Promise<PotholeReport> {
     try {
       logger.info(`Marking report ${reportId} as fixed`);
 
-      const updateData: any = {
-        status: 'fixed',
-      };
-
-      // Upload repair photo if provided
-      if (repairPhotoFile) {
-        const photoUpload = await uploadService.uploadImage(repairPhotoFile);
-        updateData.repairPhotoUrl = photoUpload.url;
-      }
-
-      const report = await PotholeReportModel.findByIdAndUpdate(
-        reportId,
-        updateData,
-        { new: true, runValidators: true }
-      ).lean();
+      const id = parseId(reportId);
+      const repo = AppDataSource.getRepository(PotholeReport);
+      const report = await repo.findOne({ where: { id } });
 
       if (!report) {
         throw {
@@ -452,13 +368,17 @@ class PotholeReportsService {
         };
       }
 
-      logger.info(`Report ${reportId} marked as fixed`);
-      return report as unknown as IPotholeReport;
+      report.status = 'fixed';
+      report.fixedAt = new Date();
+      if (repairPhotoFile) {
+        const photoUpload = await uploadService.uploadImage(repairPhotoFile);
+        report.repairPhotoUrl = photoUpload.url;
+      }
+
+      return repo.save(report);
     } catch (error: any) {
       logger.error('Mark as fixed error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -468,14 +388,14 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Delete a report
-   */
   async deleteReport(reportId: string): Promise<void> {
     try {
       logger.info(`Deleting report: ${reportId}`);
 
-      const report = await PotholeReportModel.findById(reportId);
+      const id = parseId(reportId);
+      const repo = AppDataSource.getRepository(PotholeReport);
+      const report = await repo.findOne({ where: { id } });
+
       if (!report) {
         throw {
           statusCode: 404,
@@ -484,38 +404,35 @@ class PotholeReportsService {
         };
       }
 
-      // Delete photos from Cloudinary if they exist
-      if (report.photoUrl) {
+      if (report.photoUrl && fileStorageService.isBackendFileUrl(report.photoUrl)) {
         try {
-          // Extract public ID from Cloudinary URL
-          const urlParts = report.photoUrl.split('/');
-          const publicIdWithExt = urlParts.slice(-2).join('/').split('.')[0];
-          const publicId = publicIdWithExt.replace('roads-authority/', '');
-          await uploadService.deleteImage(`roads-authority/${publicId}`);
+          const fileId = fileStorageService.extractIdFromUrl(report.photoUrl);
+          if (fileId) {
+            await fileStorageService.deleteFile(fileId);
+            logger.info(`Deleted photo from storage: id=${fileId}`);
+          }
         } catch (error) {
-          logger.warn(`Failed to delete photo from Cloudinary: ${error}`);
+          logger.warn(`Failed to delete photo from storage: ${error}`);
         }
       }
 
-      if (report.repairPhotoUrl) {
+      if (report.repairPhotoUrl && fileStorageService.isBackendFileUrl(report.repairPhotoUrl)) {
         try {
-          const urlParts = report.repairPhotoUrl.split('/');
-          const publicIdWithExt = urlParts.slice(-2).join('/').split('.')[0];
-          const publicId = publicIdWithExt.replace('roads-authority/', '');
-          await uploadService.deleteImage(`roads-authority/${publicId}`);
+          const fileId = fileStorageService.extractIdFromUrl(report.repairPhotoUrl);
+          if (fileId) {
+            await fileStorageService.deleteFile(fileId);
+            logger.info(`Deleted repair photo from storage: id=${fileId}`);
+          }
         } catch (error) {
-          logger.warn(`Failed to delete repair photo from Cloudinary: ${error}`);
+          logger.warn(`Failed to delete repair photo from storage: ${error}`);
         }
       }
 
-      await PotholeReportModel.findByIdAndDelete(reportId);
-
+      await repo.remove(report);
       logger.info(`Report ${reportId} deleted successfully`);
     } catch (error: any) {
       logger.error('Delete report error:', error);
-      if (error.statusCode) {
-        throw error;
-      }
+      if (error.statusCode) throw error;
       throw {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
@@ -525,20 +442,23 @@ class PotholeReportsService {
     }
   }
 
-  /**
-   * Get unique regions and towns for filtering
-   */
   async getRegionsAndTowns(): Promise<{ regions: string[]; towns: string[] }> {
     try {
-      const [regions, towns] = await Promise.all([
-        PotholeReportModel.distinct('region'),
-        PotholeReportModel.distinct('town'),
-      ]);
+      const repo = AppDataSource.getRepository(PotholeReport);
+      const regionsRows = await repo
+        .createQueryBuilder('r')
+        .select('DISTINCT r.region', 'region')
+        .where("r.region IS NOT NULL AND r.region != '' AND r.region != 'Unknown'")
+        .getRawMany();
+      const townsRows = await repo
+        .createQueryBuilder('r')
+        .select('DISTINCT r.town', 'town')
+        .where("r.town IS NOT NULL AND r.town != '' AND r.town != 'Unknown'")
+        .getRawMany();
 
-      return {
-        regions: regions.filter((r) => r && r !== 'Unknown').sort(),
-        towns: towns.filter((t) => t && t !== 'Unknown').sort(),
-      };
+      const regions = (regionsRows as { region: string }[]).map((r) => r.region).filter(Boolean).sort();
+      const towns = (townsRows as { town: string }[]).map((t) => t.town).filter(Boolean).sort();
+      return { regions, towns };
     } catch (error: any) {
       logger.error('Get regions and towns error:', error);
       throw {
@@ -552,4 +472,3 @@ class PotholeReportsService {
 }
 
 export const potholeReportsService = new PotholeReportsService();
-

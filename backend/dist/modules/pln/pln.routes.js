@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const pln_controller_1 = require("./pln.controller");
 const auth_1 = require("../../middlewares/auth");
+const appAuth_1 = require("../../middlewares/appAuth");
 const roleGuard_1 = require("../../middlewares/roleGuard");
 const upload_1 = require("../../middlewares/upload");
 // import { InputSanitizer } from '../../middlewares/inputSanitization';
@@ -20,7 +21,7 @@ const router = (0, express_1.Router)();
 /**
  * @route   POST /api/pln/applications
  * @desc    Create a new PLN application
- * @access  Public (with comprehensive security protection)
+ * @access  Public (with comprehensive security protection, optional auth for logged-in users)
  */
 router.post('/applications', 
 // rateLimiters.plnSubmission,
@@ -30,6 +31,7 @@ router.post('/applications',
 // SecureFileUpload.validateUploadedFile,
 // InputSanitizer.sanitizePLNData,
 // AuditLogger.logPLNSubmission,
+appAuth_1.optionalAuthenticateAppUser, // Optional auth - sets user if token provided
 upload_1.uploadDocument.single('document'), pln_controller_1.plnController.createApplication.bind(pln_controller_1.plnController));
 /**
  * @route   GET /api/pln/csrf-token
@@ -45,6 +47,13 @@ upload_1.uploadDocument.single('document'), pln_controller_1.plnController.creat
 router.get('/track/:referenceId/:pin', 
 // rateLimiters.tracking,
 pln_controller_1.plnController.trackApplication.bind(pln_controller_1.plnController));
+/**
+ * @route   GET /api/pln/my-applications
+ * @desc    Get user's PLN applications by email (if authenticated)
+ * @access  Private (requires authentication)
+ */
+router.get('/my-applications', appAuth_1.authenticateAppUser, // Required auth for this endpoint
+pln_controller_1.plnController.getMyApplications.bind(pln_controller_1.plnController));
 /**
  * @route   GET /api/pln/applications
  * @desc    List all applications (admin)
