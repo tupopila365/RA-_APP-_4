@@ -48,7 +48,15 @@ class RoadworksController {
     try {
       const term = (req.query.q as string) || (req.query.query as string) || '';
       const roadworks = await roadworksService.findPublicForQuery(term || '');
-      res.status(200).json({ success: true, data: roadworks, timestamp: new Date().toISOString() });
+      
+      // Transform roadworks to include _id for compatibility with admin panel and mobile app
+      const transformedRoadworks = roadworks.map((rw: any) => ({
+        ...rw,
+        _id: rw.id?.toString() || rw._id,
+        id: rw.id,
+      }));
+      
+      res.status(200).json({ success: true, data: transformedRoadworks, timestamp: new Date().toISOString() });
     } catch (error) {
       next(error);
     }

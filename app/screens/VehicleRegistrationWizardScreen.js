@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +16,7 @@ import { useTheme } from '../hooks/useTheme';
 import { vehicleService } from '../services/vehicleService';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { LoadingOverlay } from '../components';
 import * as DocumentPicker from 'expo-document-picker';
 
 export default function VehicleRegistrationWizardScreen({ navigation, route }) {
@@ -1171,11 +1171,7 @@ export default function VehicleRegistrationWizardScreen({ navigation, route }) {
         />
       </View>
 
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      )}
+      <LoadingOverlay loading={loading} message="Processing..." />
     </KeyboardAvoidingView>
   );
 }
@@ -1392,16 +1388,6 @@ function createStyles(colors, isDark, insets) {
     },
     footerButton: {
       flex: 1,
-    },
-    loadingOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
     },
   });
 }

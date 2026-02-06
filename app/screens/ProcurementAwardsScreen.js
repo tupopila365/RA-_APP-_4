@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
 import useDocumentDownload from '../hooks/useDocumentDownload';
-import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
+import { LoadingOverlay, ErrorState, EmptyState, SearchInput } from '../components';
 import { procurementAwardsService } from '../services/procurementService';
 import { spacing } from '../theme/spacing';
 
@@ -185,14 +185,6 @@ export default function ProcurementAwardsScreen() {
       return dateString;
     }
   };
-
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.container}>
-        <UnifiedSkeletonLoader type="list-item" count={5} />
-      </View>
-    );
-  }
 
   if (error && !refreshing) {
     return (
@@ -415,6 +407,7 @@ export default function ProcurementAwardsScreen() {
           </View>
         )}
       </ScrollView>
+      <LoadingOverlay loading={loading && !refreshing} message="Loading awards..." />
     </SafeAreaView>
   );
 }

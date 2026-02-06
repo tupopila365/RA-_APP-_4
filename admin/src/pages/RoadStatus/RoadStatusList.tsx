@@ -119,7 +119,20 @@ const RoadStatusList = () => {
       const response = await getRoadStatusList(params);
       
       if (response.data && response.data.roadworks) {
-        setRoadworks(response.data.roadworks);
+        // Filter out any roadworks without IDs (data integrity check)
+        const validRoadworks = response.data.roadworks.filter((rw: RoadStatus) => {
+          const hasId = rw._id || rw.id;
+          if (!hasId) {
+            console.warn('Roadwork missing ID:', rw);
+          }
+          return !!hasId;
+        });
+        
+        if (validRoadworks.length !== response.data.roadworks.length) {
+          console.warn(`Filtered out ${response.data.roadworks.length - validRoadworks.length} roadworks without IDs`);
+        }
+        
+        setRoadworks(validRoadworks);
         setTotal(response.data.pagination?.total || 0);
       } else {
         setError('Unexpected response format from server');
@@ -159,16 +172,29 @@ const RoadStatusList = () => {
     navigate('/road-status/new');
   };
 
-  const handleEdit = (id: string) => {
+  const handleEdit = (id: string | undefined) => {
+    if (!id) {
+      setError('Roadwork ID is missing. Cannot edit.');
+      console.error('Roadwork ID is undefined');
+      return;
+    }
     navigate(`/road-status/edit/${id}`);
   };
 
   const handleTogglePublish = async (roadwork: RoadStatus) => {
+    const roadworkId = roadwork._id || roadwork.id;
+    
+    if (!roadworkId) {
+      setError('Roadwork ID is missing. Cannot update publish status.');
+      console.error('Roadwork missing ID:', roadwork);
+      return;
+    }
+
     try {
       if (roadwork.published) {
-        await unpublishRoadStatus(roadwork._id);
+        await unpublishRoadStatus(roadworkId);
       } else {
-        await publishRoadStatus(roadwork._id);
+        await publishRoadStatus(roadworkId);
       }
       fetchRoadworks();
     } catch (err: any) {
@@ -185,8 +211,15 @@ const RoadStatusList = () => {
   const handleDeleteConfirm = async () => {
     if (!roadworkToDelete) return;
 
+    const roadworkId = roadworkToDelete._id || roadworkToDelete.id;
+    if (!roadworkId) {
+      setError('Roadwork ID is missing. Cannot delete.');
+      console.error('Roadwork missing ID:', roadworkToDelete);
+      return;
+    }
+
     try {
-      await deleteRoadStatus(roadworkToDelete._id);
+      await deleteRoadStatus(roadworkId);
       setDeleteDialogOpen(false);
       setRoadworkToDelete(null);
       fetchRoadworks();
@@ -357,8 +390,10 @@ const RoadStatusList = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              roadworks.map((roadwork) => (
-                <TableRow key={roadwork._id} hover>
+              roadworks.map((roadwork) => {
+                const roadworkId = roadwork._id || roadwork.id;
+                return (
+                <TableRow key={roadworkId || `roadwork-${roadwork.road}`} hover>
                   <TableCell>
                     <Box>
                       <Typography variant="body2" fontWeight="bold">
@@ -434,7 +469,7 @@ const RoadStatusList = () => {
                         <MapIcon />
                       </IconButton>
                     )}
-                    <IconButton size="small" onClick={() => handleEdit(roadwork._id)}>
+                    <IconButton size="small" onClick={() => handleEdit(roadwork._id || roadwork.id)}>
                       <EditIcon />
                     </IconButton>
                     <IconButton
@@ -446,7 +481,8 @@ const RoadStatusList = () => {
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
           </Table>

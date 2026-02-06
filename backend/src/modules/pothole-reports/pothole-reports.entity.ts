@@ -9,6 +9,7 @@ import {
 
 @Entity('pothole_reports')
 @Index(['deviceId', 'createdAt'])
+@Index(['userId', 'createdAt'])
 @Index(['userEmail', 'createdAt'])
 @Index(['status', 'createdAt'])
 @Index(['region', 'town'])
@@ -21,6 +22,17 @@ export class PotholeReport {
   @Column({ type: 'varchar', length: 255 })
   deviceId: string;
 
+  /**
+   * SECURITY FIX: userId is the primary ownership identifier
+   * Links report to authenticated user via JWT userId
+   */
+  @Column({ type: 'int', nullable: true })
+  userId: number | null;
+
+  /**
+   * Keep userEmail for backward compatibility and device-based fallback
+   * But userId is the authoritative ownership field
+   */
   @Column({ type: 'varchar', length: 255, nullable: true })
   userEmail: string | null;
 

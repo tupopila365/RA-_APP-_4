@@ -9,7 +9,6 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const [onboardingShownThisSession, setOnboardingShownThisSession] = useState(false);
   const [permissions, setPermissions] = useState({
     notifications: { granted: false, status: 'undetermined' },
     location: { granted: false, status: 'undetermined' },
@@ -51,12 +50,6 @@ export function AppProvider({ children }) {
       // Check onboarding status
       const onboardingCompleted = await checkOnboardingCompleted();
       setHasCompletedOnboarding(onboardingCompleted);
-      
-      // In development mode, mark that we've checked onboarding for this session
-      // This prevents re-showing onboarding if AppNavigator re-renders during the session
-      if (__DEV__ && !onboardingCompleted) {
-        setOnboardingShownThisSession(true);
-      }
 
       // Check permissions
       const permissionsStatus = await checkAllPermissions();
@@ -128,15 +121,6 @@ export function AppProvider({ children }) {
   const refreshOnboardingStatus = useCallback(async () => {
     try {
       const completed = await checkOnboardingCompleted();
-      // In dev mode, if onboarding was already shown this session, don't show it again
-      if (__DEV__ && onboardingShownThisSession && !completed) {
-        // Mark as completed for this session only
-        setHasCompletedOnboarding(true);
-        return true;
-      }
-      // In production, if we just marked onboarding as completed, 
-      // we should set it to true even if SecureStore hasn't updated yet
-      // But we'll still check SecureStore to be safe
       setHasCompletedOnboarding(completed);
       return completed;
     } catch (err) {
@@ -146,7 +130,7 @@ export function AppProvider({ children }) {
       setHasCompletedOnboarding(true);
       return true;
     }
-  }, [onboardingShownThisSession]);
+  }, []);
 
   const value = {
     user,

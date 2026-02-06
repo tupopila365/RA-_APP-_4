@@ -41,6 +41,7 @@ export const ERROR_CODES = {
   NOT_FOUND: 'NOT_FOUND',
   SERVER_ERROR: 'SERVER_ERROR',
   BAD_REQUEST: 'BAD_REQUEST',
+  FORBIDDEN: 'FORBIDDEN',
 } as const;
 
 export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
@@ -73,4 +74,5 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ERROR_CODES.NOT_FOUND]: 'Resource not found',
   [ERROR_CODES.SERVER_ERROR]: 'Internal server error',
   [ERROR_CODES.BAD_REQUEST]: 'Bad request',
+  [ERROR_CODES.FORBIDDEN]: 'Access denied. You do not have permission to access this resource',
 };

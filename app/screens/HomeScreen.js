@@ -25,6 +25,7 @@ import RAIcon from '../assets/icon.png';
 import Poster1 from '../assets/poster-1.png';
 import Poster2 from '../assets/poster-2.png';
 import Poster3 from '../assets/poster-3.png';
+import HomepageBanner from '../assets/banner_images/homepage.png';
 
 // Responsive breakpoints (in dp)
 const BREAKPOINTS = {
@@ -376,10 +377,9 @@ export default function HomeScreen({ navigation, showMenuOnly = false }) {
     [colors, responsiveConfig]
   );
   const headerBackgroundSource = useMemo(() => {
-    if (banners.length === 0) return null;
-    const first = banners[0];
-    return first.isLocal ? first.source : { uri: first.imageUrl };
-  }, [banners]);
+    // Use the homepage banner image as the header background
+    return HomepageBanner;
+  }, []);
 
   const handleNotificationPress = (notification) => {
     // Navigate based on notification type
@@ -699,8 +699,8 @@ function getStyles(colors, config) {
   const sectionFontSize = isPhone ? 20 : isTablet ? 22 : 24;
   
   // Banner height responsive to screen size
-  // Slightly shorter hero height to reduce header space
-  const bannerHeight = isPhone ? (isLandscape ? 120 : 160) : isTablet ? (isLandscape ? 180 : 200) : 220;
+  // Shorter hero height to reduce header space
+  const bannerHeight = isPhone ? (isLandscape ? 100 : 130) : isTablet ? (isLandscape ? 150 : 170) : 180;
   
   return StyleSheet.create({
     container: {
@@ -726,7 +726,7 @@ function getStyles(colors, config) {
     headerContent: {
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 16,
+      marginBottom: isPhone ? 12 : 14,
       position: 'relative',
       paddingHorizontal: horizontalPadding,
     },
@@ -737,18 +737,18 @@ function getStyles(colors, config) {
       width: '100%',
     },
     brandTextContainer: {
-      marginTop: 4,
+      marginTop: isPhone ? 2 : 4,
       width: '100%',
       alignItems: 'center',
     },
     brandLogoWrapper: {
-      width: isPhone ? 96 : isTablet ? 104 : 112,
-      height: isPhone ? 96 : isTablet ? 104 : 112,
+      width: isPhone ? 80 : isTablet ? 88 : 96,
+      height: isPhone ? 80 : isTablet ? 88 : 96,
       borderRadius: 999,
       backgroundColor: '#FFFFFF',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 12,
+      padding: isPhone ? 10 : 12,
       overflow: 'hidden',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
@@ -791,11 +791,11 @@ function getStyles(colors, config) {
     },
     taglineText: {
       color: '#FFFFFF',
-      fontSize: isPhone ? 13 : 14,
+      fontSize: isPhone ? 12 : 13,
       opacity: 0.9,
-      marginTop: 8,
+      marginTop: isPhone ? 6 : 8,
       textAlign: 'center',
-      lineHeight: isPhone ? 18 : 20,
+      lineHeight: isPhone ? 16 : 18,
       paddingHorizontal: 0,
     },
     alertButton: {
@@ -852,13 +852,13 @@ function getStyles(colors, config) {
       borderBottomLeftRadius: isPhone ? 24 : 32,
       borderBottomRightRadius: isPhone ? 24 : 32,
       overflow: 'hidden',
-      minHeight: bannerHeight + verticalPadding * 1.5,
-      paddingTop: isPhone ? 18 : 24,
-      paddingBottom: isPhone ? 14 : 20,
+      minHeight: bannerHeight + verticalPadding * 1.2,
+      paddingTop: isPhone ? 14 : 18,
+      paddingBottom: isPhone ? 12 : 16,
       paddingHorizontal: horizontalPadding,
     },
     headerBackgroundImage: {
-      opacity: 0.35,
+      opacity: 0.5,
       resizeMode: 'cover',
     },
     menuSection: {

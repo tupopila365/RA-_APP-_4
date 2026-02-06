@@ -13,13 +13,6 @@ const LOCATION_ENABLED_KEY = 'ra_location_enabled';
  */
 export async function checkOnboardingCompleted() {
   try {
-    // In development mode, always return false to show permission screens on app start
-    // But we'll skip the onboarding slides in the screen itself
-    if (__DEV__) {
-      console.log('Development mode: Permission screens will show on app start');
-      return false;
-    }
-    
     const completed = await SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
     return completed === 'true';
   } catch (error) {
@@ -34,14 +27,8 @@ export async function checkOnboardingCompleted() {
  */
 export async function markOnboardingCompleted() {
   try {
-    // In development mode, don't actually save completion status
-    // This ensures permission screens show every time the app starts in dev mode
-    if (__DEV__) {
-      console.log('Development mode: Onboarding completion not saved (permission screens will show on next app start)');
-      return;
-    }
-    
     await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
+    console.log('Onboarding marked as completed');
   } catch (error) {
     console.error('Error marking onboarding as completed:', error);
     throw error;

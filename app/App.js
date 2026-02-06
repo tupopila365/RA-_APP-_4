@@ -260,9 +260,7 @@ function AppNavigator() {
     return null;
   }
 
-  // Show onboarding if not completed
-  // In development mode, checkOnboardingCompleted always returns false,
-  // so onboarding will always show on app start
+  // Show onboarding if not completed (only on first launch)
   const shouldShowOnboarding = !hasCompletedOnboarding;
 
   if (shouldShowOnboarding) {

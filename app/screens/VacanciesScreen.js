@@ -26,11 +26,11 @@ import {
   UnifiedFormInput,
   UnifiedCard,
   UnifiedButton,
-  UnifiedSkeletonLoader,
   RATheme,
   typography,
   spacing,
 } from '../components/UnifiedDesignSystem';
+import { LoadingOverlay } from '../components';
 
 export default function VacanciesScreen() {
   const { colors, isDark } = useTheme();
@@ -301,14 +301,6 @@ export default function VacanciesScreen() {
 
   // Professional styles using design system
   const styles = createStyles(colors, isDark, insets);
-
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.container}>
-        <UnifiedSkeletonLoader type="list-item" count={5} />
-      </View>
-    );
-  }
 
   if (error && !refreshing) {
     return (
@@ -647,6 +639,7 @@ export default function VacanciesScreen() {
           </View>
         )}
       </ScrollView>
+      <LoadingOverlay loading={loading && !refreshing} message="Loading vacancies..." />
     </View>
   );
 }

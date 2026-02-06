@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
-import { SkeletonLoader } from '../components';
+import { LoadingOverlay } from '../components';
 
 const STATUS_LABELS = {
   pending: 'Pending',
@@ -83,7 +83,10 @@ export default function ReportDetailScreen({ navigation, route }) {
   };
 
   const openMap = () => {
-    if (!report || !report.location) return;
+    if (!report || !report.location || !report.location.latitude || !report.location.longitude) {
+      console.warn('Cannot open map: location data missing');
+      return;
+    }
     const { latitude, longitude } = report.location;
     const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
     Linking.openURL(url).catch((err) => {
@@ -92,16 +95,6 @@ export default function ReportDetailScreen({ navigation, route }) {
   };
 
   const styles = getStyles(colors);
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <SkeletonLoader type="profile" />
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   if (error || !report) {
     return (
@@ -133,9 +126,11 @@ export default function ReportDetailScreen({ navigation, route }) {
         )}
 
         {/* Photo */}
-        <View style={styles.section}>
-          <Image source={{ uri: report.photoUrl }} style={styles.photo} resizeMode="cover" />
-        </View>
+        {report.photoUrl && (
+          <View style={styles.section}>
+            <Image source={{ uri: report.photoUrl }} style={styles.photo} resizeMode="cover" />
+          </View>
+        )}
 
         {/* Status and Severity */}
         <View style={styles.row}>
@@ -153,59 +148,67 @@ export default function ReportDetailScreen({ navigation, route }) {
                 ]}
               />
               <Text style={[styles.statusText, { color: getStatusColor(report.status, colors) }]}>
-                {STATUS_LABELS[report.status]}
+                {STATUS_LABELS[report.status] || report.status || 'Unknown'}
               </Text>
             </View>
           </View>
 
-          <View style={styles.severityContainer}>
-            <View
-              style={[
-                styles.severityBadge,
-                { backgroundColor: getSeverityColor(report.severity, colors) + '15' },
-              ]}
-            >
+          {report.severity && (
+            <View style={styles.severityContainer}>
               <View
                 style={[
-                  styles.severityDot,
-                  { backgroundColor: getSeverityColor(report.severity, colors) },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.severityText,
-                  { color: getSeverityColor(report.severity, colors) },
+                  styles.severityBadge,
+                  { backgroundColor: getSeverityColor(report.severity, colors) + '15' },
                 ]}
               >
-                {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
-              </Text>
+                <View
+                  style={[
+                    styles.severityDot,
+                    { backgroundColor: getSeverityColor(report.severity, colors) },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.severityText,
+                    { color: getSeverityColor(report.severity, colors) },
+                  ]}
+                >
+                  {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         {/* Road Name */}
         <View style={styles.section}>
-          <Text style={styles.value}>{report.roadName}</Text>
+          <Text style={styles.value}>{report.roadName || 'Unknown Road'}</Text>
         </View>
 
         {/* Location */}
-        <View style={styles.section}>
-          <View style={styles.locationInfo}>
-            <Ionicons name="location" size={20} color={colors.primary} />
-            <View style={styles.locationTextContainer}>
-              <Text style={styles.value}>
-                {report.town}, {report.region}
-              </Text>
-              <Text style={styles.coordinates}>
-                {report.location.latitude.toFixed(6)}, {report.location.longitude.toFixed(6)}
-              </Text>
+        {report.location && (
+          <View style={styles.section}>
+            <View style={styles.locationInfo}>
+              <Ionicons name="location" size={20} color={colors.primary} />
+              <View style={styles.locationTextContainer}>
+                <Text style={styles.value}>
+                  {report.town || 'Unknown'}, {report.region || 'Unknown'}
+                </Text>
+                {report.location.latitude && report.location.longitude && (
+                  <Text style={styles.coordinates}>
+                    {report.location.latitude.toFixed(6)}, {report.location.longitude.toFixed(6)}
+                  </Text>
+                )}
+              </View>
             </View>
+            {report.location.latitude && report.location.longitude && (
+              <TouchableOpacity style={styles.mapButton} onPress={openMap}>
+                <Ionicons name="map-outline" size={20} color={colors.primary} />
+                <Text style={styles.mapButtonText}>Open in Maps</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          <TouchableOpacity style={styles.mapButton} onPress={openMap}>
-            <Ionicons name="map-outline" size={20} color={colors.primary} />
-            <Text style={styles.mapButtonText}>Open in Maps</Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* Description */}
         {report.description && (
@@ -261,6 +264,7 @@ export default function ReportDetailScreen({ navigation, route }) {
           </View>
         </View>
       </ScrollView>
+      <LoadingOverlay loading={loading} message="Loading report..." />
     </SafeAreaView>
   );
 }

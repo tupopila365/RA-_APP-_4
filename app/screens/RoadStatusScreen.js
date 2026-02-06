@@ -24,8 +24,9 @@ import { RATheme } from '../theme/colors';
 import { radii, spacing, sizes, shadows } from '../theme/designTokens';
 import { getSharedMapOptions } from '../theme/mapStyles';
 import RoadsMap, { MAP_MODES, MARKER_TYPES } from '../components/RoadsMap';
-import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
+import { LoadingOverlay, ErrorState, EmptyState, SearchInput } from '../components';
 import { roadStatusService } from '../services/roadStatusService';
+import { trafficService, getCongestionColor } from '../services/trafficService';
 
 // Conditionally import MapView
 let MapView = null;
@@ -748,6 +749,8 @@ export default function RoadStatusScreen() {
   const [modalMapRegion, setModalMapRegion] = useState(null);
   const [mapType, setMapType] = useState('standard'); // 'standard', 'satellite', 'hybrid'
   const [showTraffic, setShowTraffic] = useState(true);
+  const [trafficData, setTrafficData] = useState([]); // Array of traffic status objects
+  const [loadingTraffic, setLoadingTraffic] = useState(false);
   const mapModalRef = useRef(null);
   const [sortBy, setSortBy] = useState('relevance'); // 'relevance', 'distance', 'date', 'status'
   const [savedRoadworks, setSavedRoadworks] = useState([]);
@@ -925,6 +928,45 @@ export default function RoadStatusScreen() {
       }
     }
   }, [viewMode, userLocation, filteredRoadworks]);
+
+  // Fetch traffic data for visible roads when map region changes or showTraffic is enabled
+  useEffect(() => {
+    if (viewMode !== 'map' || !showTraffic || !mapRegion) {
+      if (!showTraffic) {
+        setTrafficData([]);
+      }
+      return;
+    }
+
+    // Extract unique road names from visible roadworks
+    const uniqueRoads = [...new Set(
+      filteredRoadworks
+        .map(rw => rw.road)
+        .filter(Boolean)
+        .map(road => road.trim())
+    )];
+
+    if (uniqueRoads.length === 0) {
+      setTrafficData([]);
+      return;
+    }
+
+    // Debounce traffic fetching to avoid excessive API calls
+    const timeoutId = setTimeout(async () => {
+      setLoadingTraffic(true);
+      try {
+        const trafficResults = await trafficService.getMultipleTrafficStatuses(uniqueRoads);
+        setTrafficData(trafficResults);
+      } catch (error) {
+        console.warn('Failed to fetch traffic data:', error);
+        // Don't show error to user, just log it
+      } finally {
+        setLoadingTraffic(false);
+      }
+    }, 1000); // 1 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [viewMode, showTraffic, mapRegion, filteredRoadworks]);
 
   // Request location permission and get current location
   const requestLocationPermission = async (showAlert = false) => {
@@ -1607,9 +1649,14 @@ export default function RoadStatusScreen() {
               mode={routePlannerMode ? MAP_MODES.NAVIGATE : MAP_MODES.VIEW}
               initialRegion={mapRegion}
               onSelectLocation={routePlannerMode ? handleRouteMapPress : undefined}
+              onRegionChange={(region) => {
+                // Update map region and trigger traffic data refresh
+                setMapRegion(region);
+              }}
               showsUserLocation={true}
-              polylines={
-                routePlannerMode && routePolyline.length > 0
+              polylines={[
+                // Route planner polyline
+                ...(routePlannerMode && routePolyline.length > 0
                   ? [
                       {
                         id: 'route-planned',
@@ -1619,8 +1666,20 @@ export default function RoadStatusScreen() {
                         zIndex: 100,
                       },
                     ]
-                  : []
-              }
+                  : []),
+                // Traffic polylines (real-time traffic data)
+                ...(showTraffic && trafficData.length > 0
+                  ? trafficData
+                      .filter(traffic => traffic.routeSummary?.decodedPolyline?.length > 0)
+                      .map((traffic, index) => ({
+                        id: `traffic-${traffic.query?.normalized || index}`,
+                        coordinates: traffic.routeSummary.decodedPolyline,
+                        color: getCongestionColor(traffic.congestionLevel),
+                        width: 5,
+                        zIndex: 50, // Below route planner but above road closures
+                      }))
+                  : []),
+              ]}
               style={styles.mapFullScreen}
             >
               {/* Route Planner: Start and End Point Markers */}
@@ -1806,7 +1865,41 @@ export default function RoadStatusScreen() {
               </View>
               <Text style={styles.mapLegendText}>Ongoing Work</Text>
             </View>
+            {showTraffic && (
+              <>
+                <View style={styles.mapLegendDivider} />
+                <Text style={styles.mapLegendTitle}>Traffic Status</Text>
+                <View style={styles.mapLegendItem}>
+                  <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#10B981' }]} />
+                  <Text style={styles.mapLegendText}>Clear</Text>
+                </View>
+                <View style={styles.mapLegendItem}>
+                  <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#F59E0B' }]} />
+                  <Text style={styles.mapLegendText}>Moderate</Text>
+                </View>
+                <View style={styles.mapLegendItem}>
+                  <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#EF4444' }]} />
+                  <Text style={styles.mapLegendText}>Heavy</Text>
+                </View>
+              </>
+            )}
           </View>
+
+          {/* Traffic Toggle Button */}
+          <TouchableOpacity
+            style={[styles.trafficToggleButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => setShowTraffic(!showTraffic)}
+            accessibilityLabel={showTraffic ? 'Hide traffic' : 'Show traffic'}
+          >
+            <Ionicons 
+              name={showTraffic ? 'speedometer' : 'speedometer-outline'} 
+              size={20} 
+              color={showTraffic ? colors.primary : colors.textSecondary} 
+            />
+            <Text style={[styles.trafficToggleText, { color: showTraffic ? colors.primary : colors.textSecondary }]}>
+              {showTraffic ? 'Traffic On' : 'Traffic Off'}
+            </Text>
+          </TouchableOpacity>
 
           {/* Results Count on Map */}
           {!routePlannerMode && (
@@ -2118,13 +2211,7 @@ export default function RoadStatusScreen() {
         <View style={styles.content}>
 
         {/* List View */}
-        {viewMode === 'list' && isInitialLoading ? (
-          <UnifiedSkeletonLoader 
-            type="list-item"
-            count={5}
-            animated={true}
-          />
-        ) : viewMode === 'list' && showEmptyState ? (
+        {viewMode === 'list' && showEmptyState ? (
           <EmptyState
             icon={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'search-outline' : 'map-outline'}
             title={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'No Results Found' : 'No Roadworks in This Area'}
@@ -2734,6 +2821,7 @@ export default function RoadStatusScreen() {
           </SafeAreaView>
         </Modal>
       )}
+      <LoadingOverlay loading={isInitialLoading} message="Loading road status..." />
     </SafeAreaView>
   );
 }
@@ -3487,6 +3575,10 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       right: spacing.md,
       padding: spacing.sm,
       backgroundColor: colors.cardBackground,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...shadows.sm,
       borderRadius: radii.md,
       borderWidth: 1,
       borderColor: colors.border,
@@ -3504,6 +3596,45 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       borderRadius: sizes.markerSm / 2,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    mapLegendText: {
+      fontSize: 12,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    mapLegendTitle: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '700',
+      marginTop: spacing.xs,
+      marginBottom: spacing.xs / 2,
+    },
+    mapLegendDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: spacing.xs,
+    },
+    mapLegendTrafficLine: {
+      width: 24,
+      height: 3,
+      borderRadius: 2,
+    },
+    trafficToggleButton: {
+      position: 'absolute',
+      bottom: spacing.lg,
+      left: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      ...shadows.sm,
+    },
+    trafficToggleText: {
+      fontSize: 13,
+      fontWeight: '600',
     },
     /* ========================
        Waypoint Markers

@@ -1,13 +1,28 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet, useColorScheme, Text } from 'react-native';
 import { RATheme } from '../theme/colors';
+import { LoadingOverlay } from './LoadingOverlay';
 
 export function LoadingSpinner({ 
   size = 'large', 
   message,
   fullScreen = false,
+  overlay = false,
+  loading = true,
   testID,
 }) {
+  // If overlay prop is true, use LoadingOverlay component
+  if (overlay) {
+    return (
+      <LoadingOverlay
+        loading={loading}
+        message={message}
+        size={size}
+        testID={testID}
+      />
+    );
+  }
+
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
   const styles = getStyles(colors);

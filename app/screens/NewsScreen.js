@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import PropTypes from 'prop-types';
 import { useTheme } from '../hooks/useTheme';
 import { UnifiedCard } from '../components/UnifiedCard';
-import { UnifiedSkeletonLoader, NewsScreenSkeleton } from '../components';
+import { LoadingOverlay, NewsScreenSkeleton } from '../components';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
 import { SearchInput } from '../components/SearchInput';
@@ -158,13 +158,7 @@ export default function NewsScreen({ navigation }) {
         )}
 
         {/* News List */}
-        {isInitialLoading ? (
-          <UnifiedSkeletonLoader 
-            type="list-item"
-            count={5}
-            animated={true}
-          />
-        ) : news.length > 0 ? (
+        {news.length > 0 ? (
           <View style={styles.content}>
             {news.map((item) => (
               <UnifiedCard
@@ -213,6 +207,7 @@ export default function NewsScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
+      <LoadingOverlay loading={isInitialLoading} message="Loading news..." />
     </SafeAreaView>
   );
 }

@@ -268,10 +268,14 @@ class PotholeReportsService {
         throw new Error(response.error?.message || 'Failed to fetch reports');
       }
 
-      return response.data.reports;
+      // CRITICAL FIX: Ensure we always return an array, even if response.data.reports is undefined/null
+      const reports = response.data?.reports;
+      return Array.isArray(reports) ? reports : [];
     } catch (error) {
       console.error('Error fetching my reports:', error);
-      throw error;
+      // CRITICAL FIX: Return empty array instead of throwing to prevent app crash
+      console.warn('Returning empty array due to error:', error.message);
+      return [];
     }
   }
 

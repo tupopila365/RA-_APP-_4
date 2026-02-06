@@ -482,6 +482,7 @@ class RoadworksService {
         .where('r.published = :published', { published: true })
         .andWhere('r.status IN (:...statuses)', {
           statuses: [
+            'Open',
             'Planned',
             'Planned Works',
             'Ongoing',

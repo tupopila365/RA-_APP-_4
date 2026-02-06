@@ -22,7 +22,6 @@ import {
   UnifiedFormInput,
   UnifiedCard,
   UnifiedButton,
-  UnifiedSkeletonLoader,
   RATheme,
   typography,
   spacing,
@@ -31,6 +30,7 @@ import {
 // Import SearchInput and EmptyState components
 import { SearchInput } from '../components/SearchInput';
 import { EmptyState } from '../components/EmptyState';
+import { LoadingOverlay } from '../components';
 
 const STATUS_LABELS = {
   pending: 'Pending',
@@ -82,10 +82,13 @@ export default function MyReportsScreen({ navigation }) {
     try {
       setError(null);
       const data = await potholeReportsService.getMyReports();
-      setReports(data);
+      // CRITICAL FIX: Ensure data is always an array to prevent crashes
+      setReports(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error loading reports:', err);
       setError(err.message || 'Failed to load reports');
+      // CRITICAL FIX: Set empty array on error to prevent crash
+      setReports([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -115,6 +118,10 @@ export default function MyReportsScreen({ navigation }) {
 
   // Filter, search, and sort reports
   const filteredReports = useMemo(() => {
+    // CRITICAL FIX: Ensure reports is always an array to prevent crashes
+    if (!Array.isArray(reports)) {
+      return [];
+    }
     let filtered = [...reports];
 
     // Apply status filter
@@ -156,16 +163,6 @@ export default function MyReportsScreen({ navigation }) {
   }, [reports, searchQuery, selectedFilter, sortOrder]);
 
   const styles = getStyles(colors, insets);
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <UnifiedSkeletonLoader type="list-item" count={5} />
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   if (error) {
     return (
@@ -303,43 +300,51 @@ export default function MyReportsScreen({ navigation }) {
               onPress={() => handleReportPress(report)}
               activeOpacity={0.7}
             >
-              <Image
-                source={{ uri: report.photoUrl }}
-                style={styles.photo}
-                resizeMode="cover"
-              />
+              {report.photoUrl ? (
+                <Image
+                  source={{ uri: report.photoUrl }}
+                  style={styles.photo}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.photo, { backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="image-outline" size={32} color={colors.textSecondary} />
+                </View>
+              )}
               <View style={styles.reportContent}>
                 <View style={styles.reportHeader}>
                   <Text style={styles.roadName} numberOfLines={1}>
-                    {report.roadName}
+                    {report.roadName || 'Unknown Road'}
                   </Text>
-                  <View
-                    style={[
-                      styles.severityBadge,
-                      { backgroundColor: getSeverityColor(report.severity, colors) + '15' },
-                    ]}
-                  >
+                  {report.severity && (
                     <View
                       style={[
-                        styles.severityDot,
-                        { backgroundColor: getSeverityColor(report.severity, colors) },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.severityText,
-                        { color: getSeverityColor(report.severity, colors) },
+                        styles.severityBadge,
+                        { backgroundColor: getSeverityColor(report.severity, colors) + '15' },
                       ]}
                     >
-                      {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
-                    </Text>
-                  </View>
+                      <View
+                        style={[
+                          styles.severityDot,
+                          { backgroundColor: getSeverityColor(report.severity, colors) },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.severityText,
+                          { color: getSeverityColor(report.severity, colors) },
+                        ]}
+                      >
+                        {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.locationRow}>
                   <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
                   <Text style={styles.locationText} numberOfLines={1}>
-                    {report.town}, {report.region}
+                    {report.town || 'Unknown'}, {report.region || 'Unknown'}
                   </Text>
                 </View>
 
@@ -362,10 +367,12 @@ export default function MyReportsScreen({ navigation }) {
                         { color: getStatusColor(report.status, colors) },
                       ]}
                     >
-                      {STATUS_LABELS[report.status]}
+                      {STATUS_LABELS[report.status] || report.status || 'Unknown'}
                     </Text>
                   </View>
-                  <Text style={styles.dateText}>{formatDate(report.createdAt)}</Text>
+                  <Text style={styles.dateText}>
+                    {report.createdAt ? formatDate(report.createdAt) : 'Unknown date'}
+                  </Text>
                 </View>
 
                 {report.referenceCode && (
@@ -380,6 +387,7 @@ export default function MyReportsScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
+      <LoadingOverlay loading={loading} message="Loading reports..." />
     </SafeAreaView>
   );
 }

@@ -17,7 +17,7 @@ import RAIcon from '../assets/icon.png';
 
 import {
   DetailCard,
-  UnifiedSkeletonLoader,
+  LoadingOverlay,
   ErrorState,
   EmptyState,
 } from '../components';
@@ -107,14 +107,6 @@ export default function ProcurementPlanScreen() {
 
   /* -------------------- STATES -------------------- */
 
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.container}>
-        <UnifiedSkeletonLoader type="list-item" count={5} />
-      </View>
-    );
-  }
-
   if (error && !refreshing) {
     return (
       <View style={styles.container}>
@@ -194,6 +186,7 @@ export default function ProcurementPlanScreen() {
           )}
         </View>
       </ScrollView>
+      <LoadingOverlay loading={loading && !refreshing} message="Loading procurement plans..." />
     </SafeAreaView>
   );
 }

@@ -29,6 +29,7 @@ export {
 // Legacy Loading Components (deprecated - use SkeletonLoader instead)
 export { LoadingSpinner } from './LoadingSpinner';
 export { LoadingIndicator } from './LoadingIndicator';
+export { LoadingOverlay } from './LoadingOverlay';
 export { NewsCardSkeleton, NewsCardSkeletonList } from './NewsCardSkeleton';
 export { LoadingStates, SmartLoadingState } from './LoadingStates';
 export { ErrorState } from './ErrorState';

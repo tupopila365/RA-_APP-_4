@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { RATheme } from '../theme/colors';
-import { UnifiedSkeletonLoader, EmptyState, SearchInput } from '../components';
+import { LoadingOverlay, EmptyState, SearchInput } from '../components';
 import { procurementOpeningRegisterService } from '../services/procurementService';
 import useDocumentDownload from '../hooks/useDocumentDownload';
 import { spacing } from '../theme/spacing';
@@ -306,11 +306,7 @@ export default function OpeningRegisterScreen() {
         )}
 
         {/* Items List */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <UnifiedSkeletonLoader type="list-item" count={5} />
-          </View>
-        ) : filteredData.length === 0 ? (
+        {filteredData.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <EmptyState
               icon="document-text-outline"
@@ -403,6 +399,7 @@ export default function OpeningRegisterScreen() {
           </View>
         )}
       </ScrollView>
+      <LoadingOverlay loading={loading} message="Loading opening register..." />
     </SafeAreaView>
   );
 }

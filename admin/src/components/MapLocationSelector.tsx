@@ -194,6 +194,20 @@ const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({
     }
   }, [isLoaded, initialCoordinates]);
 
+  // Update map center when initialCoordinates changes
+  useEffect(() => {
+    if (!mapInstanceRef.current || !initialCoordinates) return;
+    
+    mapInstanceRef.current.setCenter({
+      lat: initialCoordinates.latitude,
+      lng: initialCoordinates.longitude,
+    });
+    mapInstanceRef.current.setZoom(13); // Zoom to street level
+    
+    // Add/update marker
+    addMarker(initialCoordinates.latitude, initialCoordinates.longitude);
+  }, [initialCoordinates]);
+
   const handleMapClick = useCallback((event: any) => {
     const lat = event.latLng.lat();
     const lng = event.latLng.lng();

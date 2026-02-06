@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   Alert,
   RefreshControl,
   Platform,
@@ -15,18 +14,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
 import useDocumentDownload from '../hooks/useDocumentDownload';
-import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
+import { LoadingOverlay, ErrorState, EmptyState, SearchInput } from '../components';
 import { raServicesService } from '../services/raServicesService';
-import { spacing } from '../theme/spacing';
+
+// Import Unified Design System Components
+import {
+  UnifiedCard,
+  UnifiedButton,
+  typography,
+  spacing,
+} from '../components/UnifiedDesignSystem';
 
 const FILTERS = ['All', 'Licensing', 'Vehicle Registration', 'Permits & Authorisations', 'Other'];
 
 export default function RAServicesScreen() {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const styles = getStyles(colors);
+  const { colors, isDark } = useTheme();
+  const styles = getStyles(colors, isDark);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -128,14 +133,6 @@ export default function RAServicesScreen() {
     await fetchServices(true);
   };
 
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.container}>
-        <UnifiedSkeletonLoader type="list-item" count={5} />
-      </View>
-    );
-  }
-
   if (error && !refreshing) {
     return (
       <View style={styles.container}>
@@ -221,180 +218,149 @@ export default function RAServicesScreen() {
             {filteredData.map((item, index) => {
               const isExpanded = expandedService === item.id;
               return (
-                <TouchableOpacity
+                <UnifiedCard 
                   key={item.id || `service-${index}`}
+                  variant="elevated"
+                  padding="large"
                   style={styles.serviceCard}
-                  activeOpacity={0.7}
-                  onPress={() => toggleExpand(item.id)}
                 >
-                  <View style={styles.serviceHeader}>
-                    <View style={[styles.categoryBadge, { backgroundColor: colors.secondary }]}>
-                      <Text style={[styles.categoryText, { color: '#fff' }]} maxFontSizeMultiplier={1.3}>
-                        {item.category}
-                      </Text>
-                    </View>
-                    {item.fee ? (
-                      <Text style={styles.feeBadge} maxFontSizeMultiplier={1.3}>
-                        {item.fee}
-                      </Text>
-                    ) : null}
-                    <Ionicons
-                      name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                      size={24}
-                      color={colors.primary}
-                    />
-                  </View>
-                  <Text
-                    style={styles.serviceTitle}
-                    numberOfLines={2}
-                    ellipsizeMode="tail"
-                    maxFontSizeMultiplier={1.3}
+                  <TouchableOpacity 
+                    activeOpacity={0.7}
+                    onPress={() => toggleExpand(item.id)}
                   >
-                    {item.name}
-                  </Text>
+                    <View style={styles.serviceHeader}>
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryText} maxFontSizeMultiplier={1.3}>
+                          {item.category}
+                        </Text>
+                      </View>
+                      <Ionicons 
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                        size={24} 
+                        color={colors.primary} 
+                      />
+                    </View>
+                    
+                    <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]} maxFontSizeMultiplier={1.3}>
+                      {item.name}
+                    </Text>
+                    
+                    {item.fee && (
+                      <View style={styles.feeContainer}>
+                        <Ionicons name="cash-outline" size={16} color={colors.primary} />
+                        <Text style={[typography.bodySmall, { color: colors.primary, marginLeft: spacing.xs }]} maxFontSizeMultiplier={1.3}>
+                          {item.fee}
+                        </Text>
+                      </View>
+                    )}
+
+                  </TouchableOpacity>
 
                   {isExpanded && (
                     <View style={styles.expandedContent}>
-                      <View style={styles.divider} />
-
-                      {item.description ? (
+                      {item.description && (
                         <View style={styles.section}>
-                          <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]} maxFontSizeMultiplier={1.3}>
                             Description
                           </Text>
-                          <Text style={styles.sectionText} maxFontSizeMultiplier={1.3}>
+                          <Text style={[typography.body, { color: colors.textSecondary, lineHeight: 22 }]} maxFontSizeMultiplier={1.3}>
                             {item.description}
                           </Text>
                         </View>
-                      ) : null}
+                      )}
 
-                      {item.requirements && item.requirements.length > 0 ? (
+                      {item.requirements && item.requirements.length > 0 && (
                         <View style={styles.section}>
-                          <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]} maxFontSizeMultiplier={1.3}>
                             Required Documents
                           </Text>
                           {item.requirements.map((req, reqIndex) => (
                             <View key={reqIndex} style={styles.requirementItem}>
-                              <Ionicons name="checkmark-circle-outline" size={16} color={colors.primary} />
-                              <Text style={styles.requirementText} maxFontSizeMultiplier={1.3}>
+                              <Text style={[typography.body, { color: colors.primary }]}>•</Text>
+                              <Text style={[typography.body, { color: colors.textSecondary, marginLeft: spacing.sm, flex: 1 }]} maxFontSizeMultiplier={1.3}>
                                 {req}
                               </Text>
                             </View>
                           ))}
                         </View>
-                      ) : null}
+                      )}
 
-                      {item.fee ? (
+                      {item.fee && (
                         <View style={styles.section}>
-                          <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]} maxFontSizeMultiplier={1.3}>
                             Fee
                           </Text>
-                          <Text style={styles.sectionText} maxFontSizeMultiplier={1.3}>
+                          <Text style={[typography.body, { color: colors.textSecondary }]} maxFontSizeMultiplier={1.3}>
                             {item.fee}
                           </Text>
                         </View>
-                      ) : null}
+                      )}
 
-                      {item.ageRestriction ? (
+                      {item.ageRestriction && (
                         <View style={styles.section}>
-                          <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.xs }]} maxFontSizeMultiplier={1.3}>
                             Age / Eligibility
                           </Text>
-                          <Text style={styles.sectionText} maxFontSizeMultiplier={1.3}>
+                          <Text style={[typography.body, { color: colors.textSecondary }]} maxFontSizeMultiplier={1.3}>
                             {item.ageRestriction}
                           </Text>
                         </View>
-                      ) : null}
+                      )}
 
-                      {item.pdfs && item.pdfs.length > 0 ? (
+                      {item.pdfs && item.pdfs.length > 0 && (
                         <View style={styles.section}>
-                          <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>
+                          <Text style={[typography.bodyLarge, { color: colors.text, fontWeight: '600', marginBottom: spacing.sm }]} maxFontSizeMultiplier={1.3}>
                             Application Forms
                           </Text>
                           {item.pdfs.map((doc, docIndex) => {
                             const isDocDownloading = isDownloading && currentDownloadId === doc.url;
                             return (
-                              <TouchableOpacity
+                              <UnifiedButton
                                 key={docIndex}
-                                style={[
-                                  styles.downloadButton,
-                                  { backgroundColor: colors.primary },
-                                  isDocDownloading && styles.downloadButtonDisabled,
-                                ]}
+                                label={isDocDownloading ? `Downloading ${progress}%` : (doc.title || doc.fileName || `Application Form ${docIndex + 1}`)}
                                 onPress={() => handleDownload(doc, item.name)}
+                                variant="primary"
+                                size="small"
+                                iconName={isDocDownloading ? "hourglass-outline" : "download-outline"}
+                                iconPosition="left"
+                                loading={isDocDownloading}
                                 disabled={isDocDownloading}
-                              >
-                                {isDocDownloading ? (
-                                  <>
-                                    <UnifiedSkeletonLoader type="circle" width={16} height={16} />
-                                    <Text
-                                      style={styles.downloadButtonText}
-                                      numberOfLines={1}
-                                      ellipsizeMode="tail"
-                                      maxFontSizeMultiplier={1.3}
-                                    >
-                                      Downloading {progress}%
-                                    </Text>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Ionicons name="download-outline" size={20} color="#FFFFFF" />
-                                    <Text
-                                      style={styles.downloadButtonText}
-                                      numberOfLines={1}
-                                      ellipsizeMode="tail"
-                                      maxFontSizeMultiplier={1.3}
-                                    >
-                                      {doc.title || doc.fileName || `Application Form ${docIndex + 1}`}
-                                    </Text>
-                                  </>
-                                )}
-                              </TouchableOpacity>
+                                fullWidth
+                                style={{ marginBottom: spacing.sm }}
+                              />
                             );
                           })}
                         </View>
-                      ) : null}
+                      )}
 
-                      {item.contactInfo ? (
+                      {item.contactInfo && (
                         <View style={styles.section}>
-                          <TouchableOpacity
-                            style={[styles.contactButton, { borderColor: colors.primary }]}
+                          <UnifiedButton
+                            label="Contact / Book Appointment"
                             onPress={() => handleContactPress(item.contactInfo)}
-                          >
-                            <Ionicons name="call-outline" size={20} color={colors.primary} />
-                            <Text
-                              style={[styles.contactButtonText, { color: colors.primary }]}
-                              maxFontSizeMultiplier={1.3}
-                            >
-                              Contact / Book Appointment
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      ) : null}
-
-                      {isDownloading && currentDownloadId && (
-                        <View style={styles.progressBarContainer}>
-                          <View
-                            style={[
-                              styles.progressBar,
-                              { width: `${progress}%`, backgroundColor: colors.primary },
-                            ]}
+                            variant="outline"
+                            size="small"
+                            iconName="call-outline"
+                            iconPosition="left"
+                            fullWidth
                           />
                         </View>
                       )}
+
                     </View>
                   )}
-                </TouchableOpacity>
+                </UnifiedCard>
               );
             })}
           </View>
         )}
       </ScrollView>
+      <LoadingOverlay loading={loading && !refreshing} message="Loading services..." />
     </SafeAreaView>
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, isDark) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -478,133 +444,45 @@ function getStyles(colors) {
       padding: 0,
     },
     serviceCard: {
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: spacing.xl,
       marginBottom: spacing.md,
-      shadowColor: '#fff',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
     serviceHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: spacing.md,
-      flexWrap: 'wrap',
-      gap: spacing.sm,
+      marginBottom: spacing.sm,
     },
     categoryBadge: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.secondary,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: 12,
+      backgroundColor: colors.primary + '20',
     },
     categoryText: {
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    feeBadge: {
-      fontSize: 14,
-      fontWeight: '600',
+      ...typography.caption,
       color: colors.primary,
-    },
-    serviceTitle: {
-      fontSize: 16,
       fontWeight: '600',
-      color: colors.text,
-      lineHeight: 24,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      textTransform: 'uppercase',
+    },
+    feeContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
     },
     expandedContent: {
       marginTop: spacing.lg,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginBottom: spacing.lg,
+      paddingTop: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: spacing.lg,
     },
     section: {
-      marginBottom: spacing.lg,
-    },
-    sectionTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: spacing.sm,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    sectionText: {
-      fontSize: 14,
-      color: colors.text,
-      lineHeight: 22,
+      gap: spacing.sm,
     },
     requirementItem: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       marginBottom: spacing.xs,
-      gap: spacing.sm,
-    },
-    requirementText: {
-      fontSize: 14,
-      color: colors.text,
-      flex: 1,
-      lineHeight: 20,
-    },
-    downloadButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xl,
-      borderRadius: 8,
-      marginTop: spacing.sm,
-      gap: spacing.sm,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-    },
-    downloadButtonDisabled: {
-      opacity: 0.7,
-    },
-    downloadButtonText: {
-      color: '#FFFFFF',
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    contactButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xl,
-      borderRadius: 8,
-      borderWidth: 2,
-      gap: spacing.sm,
-    },
-    contactButtonText: {
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    progressBarContainer: {
-      height: 4,
-      backgroundColor: colors.border,
-      borderRadius: 2,
-      marginTop: spacing.sm,
-      overflow: 'hidden',
-    },
-    progressBar: {
-      height: '100%',
-      borderRadius: 2,
     },
   });
 }
