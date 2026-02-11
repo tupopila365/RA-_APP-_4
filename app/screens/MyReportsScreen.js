@@ -5,32 +5,28 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Pressable,
   RefreshControl,
-  Image,
   Platform,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { potholeReportsService } from '../services/potholeReportsService';
 
-// Import Unified Design System Components
 import {
-  GlobalHeader,
-  UnifiedFormInput,
   UnifiedCard,
   UnifiedButton,
-  RATheme,
   typography,
   spacing,
 } from '../components/UnifiedDesignSystem';
 
-// Import SearchInput and EmptyState components
 import { SearchInput } from '../components/SearchInput';
-import { EmptyState } from '../components/EmptyState';
+import { NoDataDisplay } from '../components/NoDataDisplay';
 import { LoadingOverlay } from '../components';
+import { CachedImage } from '../components/CachedImage';
+
+const CARD_IMAGE_HEIGHT = 140;
 
 const STATUS_LABELS = {
   pending: 'Pending',
@@ -41,7 +37,6 @@ const STATUS_LABELS = {
   invalid: 'Invalid',
 };
 
-// Helper functions to get theme-based colors
 const getStatusColor = (status, colors) => {
   const colorMap = {
     pending: colors.secondary,
@@ -65,14 +60,13 @@ const getSeverityColor = (severity, colors) => {
 
 export default function MyReportsScreen({ navigation }) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
-  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
+  const [sortOrder, setSortOrder] = useState('newest');
 
   useEffect(() => {
     loadReports();
@@ -82,12 +76,10 @@ export default function MyReportsScreen({ navigation }) {
     try {
       setError(null);
       const data = await potholeReportsService.getMyReports();
-      // CRITICAL FIX: Ensure data is always an array to prevent crashes
       setReports(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error loading reports:', err);
       setError(err.message || 'Failed to load reports');
-      // CRITICAL FIX: Set empty array on error to prevent crash
       setReports([]);
     } finally {
       setLoading(false);
@@ -113,18 +105,12 @@ export default function MyReportsScreen({ navigation }) {
     });
   };
 
-  // Status filter options
   const statusFilters = ['All', 'Pending', 'Assigned', 'In Progress', 'Fixed', 'Duplicate', 'Invalid'];
 
-  // Filter, search, and sort reports
   const filteredReports = useMemo(() => {
-    // CRITICAL FIX: Ensure reports is always an array to prevent crashes
-    if (!Array.isArray(reports)) {
-      return [];
-    }
+    if (!Array.isArray(reports)) return [];
     let filtered = [...reports];
 
-    // Apply status filter
     if (selectedFilter !== 'All') {
       const filterMap = {
         'Pending': 'pending',
@@ -136,23 +122,22 @@ export default function MyReportsScreen({ navigation }) {
       };
       const statusValue = filterMap[selectedFilter];
       if (statusValue) {
-        filtered = filtered.filter(report => report.status === statusValue);
+        filtered = filtered.filter((report) => report.status === statusValue);
       }
     }
 
-    // Apply search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(report => 
-        report.roadName?.toLowerCase().includes(query) ||
-        report.town?.toLowerCase().includes(query) ||
-        report.region?.toLowerCase().includes(query) ||
-        report.referenceCode?.toLowerCase().includes(query) ||
-        report.description?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (report) =>
+          report.roadName?.toLowerCase().includes(query) ||
+          report.town?.toLowerCase().includes(query) ||
+          report.region?.toLowerCase().includes(query) ||
+          report.referenceCode?.toLowerCase().includes(query) ||
+          report.description?.toLowerCase().includes(query)
       );
     }
 
-    // Sort by date
     filtered.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
@@ -162,42 +147,44 @@ export default function MyReportsScreen({ navigation }) {
     return filtered;
   }, [reports, searchQuery, selectedFilter, sortOrder]);
 
-  const styles = getStyles(colors, insets);
+  const styles = getStyles(colors);
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadReports}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.errorWrapper}>
+          <UnifiedCard variant="elevated" padding="large" style={styles.errorCard}>
+            <View style={styles.errorContent}>
+              <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+              <Text style={styles.errorText}>{error}</Text>
+              <UnifiedButton
+                label="Retry"
+                onPress={loadReports}
+                variant="primary"
+                size="medium"
+              />
+            </View>
+          </UnifiedCard>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar style="dark" />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         showsVerticalScrollIndicator={true}
       >
-        {/* Search Input */}
         {reports.length > 0 && (
           <View style={styles.searchInputContainer}>
             <SearchInput
-              placeholder="Search reports..."
+              placeholder="Search by road, location, or reference code..."
               onSearch={setSearchQuery}
               onClear={() => setSearchQuery('')}
               style={styles.searchInput}
@@ -207,183 +194,195 @@ export default function MyReportsScreen({ navigation }) {
           </View>
         )}
 
-        {/* Status Filter Chips - matching Road Status design */}
         {reports.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterContainer}
-          >
-            <TouchableOpacity
-              style={[
-                styles.filterChip,
-                selectedFilter === 'All' && styles.filterChipActive,
-              ]}
-              onPress={() => setSelectedFilter('All')}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selectedFilter === 'All' && styles.filterChipTextActive,
-                ]}
+          <>
+            <View style={styles.toolbarRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterContainer}
               >
-                All
-              </Text>
-            </TouchableOpacity>
-            {statusFilters.filter(f => f !== 'All').map((filter) => {
-              const statusValue = filter.toLowerCase().replace(' ', '-');
-              const statusColor = getStatusColor(statusValue, colors);
-              return (
                 <TouchableOpacity
-                  key={filter}
-                  style={[
-                    styles.filterChip,
-                    selectedFilter === filter && styles.filterChipActive,
-                    selectedFilter === filter && {
-                      backgroundColor: statusColor + '20',
-                      borderColor: statusColor,
-                    },
-                  ]}
-                  onPress={() => setSelectedFilter(selectedFilter === filter ? 'All' : filter)}
+                  style={[styles.filterChip, selectedFilter === 'All' && styles.filterChipActive]}
+                  onPress={() => setSelectedFilter('All')}
                 >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedFilter === filter && styles.filterChipTextActive,
-                      selectedFilter === filter && {
-                        color: statusColor,
-                      },
-                    ]}
-                  >
-                    {filter}
+                  <Text style={[styles.filterChipText, selectedFilter === 'All' && styles.filterChipTextActive]}>
+                    All
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                {statusFilters
+                  .filter((f) => f !== 'All')
+                  .map((filter) => {
+                    const statusValue = filter.toLowerCase().replace(' ', '-');
+                    const statusColor = getStatusColor(statusValue, colors);
+                    return (
+                      <TouchableOpacity
+                        key={filter}
+                        style={[
+                          styles.filterChip,
+                          selectedFilter === filter && styles.filterChipActive,
+                          selectedFilter === filter && {
+                            backgroundColor: statusColor + '20',
+                            borderColor: statusColor,
+                          },
+                        ]}
+                        onPress={() => setSelectedFilter(selectedFilter === filter ? 'All' : filter)}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            selectedFilter === filter && styles.filterChipTextActive,
+                            selectedFilter === filter && { color: statusColor },
+                          ]}
+                        >
+                          {filter}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.sortButton}
+                onPress={() => setSortOrder((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+              >
+                <Ionicons
+                  name={sortOrder === 'newest' ? 'arrow-down' : 'arrow-up'}
+                  size={18}
+                  color={colors.primary}
+                />
+                <Text style={styles.sortLabel}>{sortOrder === 'newest' ? 'Newest' : 'Oldest'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {(searchQuery.trim() || selectedFilter !== 'All') && filteredReports.length > 0 && (
+              <View style={styles.resultsCountContainer}>
+                <Text style={styles.resultsCount}>
+                  {filteredReports.length} {filteredReports.length === 1 ? 'report' : 'reports'} found
+                </Text>
+              </View>
+            )}
+          </>
         )}
 
-        {/* Results Count */}
-        {filteredReports.length > 0 && (searchQuery.trim() || selectedFilter !== 'All') && (
-          <View style={styles.resultsCountContainer}>
-            <Text style={styles.resultsCount}>
-              {filteredReports.length} {filteredReports.length === 1 ? 'report' : 'reports'} found
-            </Text>
-          </View>
-        )}
-
-        {/* Reports List */}
         {reports.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
-            <EmptyState
-              icon="document-outline"
-              message="You haven't submitted any reports yet. Tap 'Report Road Damage' to get started."
-            />
-          </View>
+          <NoDataDisplay
+            preset="reports"
+            actionLabel="Report Road Damage"
+            onAction={() => navigation.navigate('ReportPothole')}
+            style={styles.emptyStateContainer}
+          />
         ) : filteredReports.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
-            <EmptyState
-              icon="search-outline"
-              message={
-                searchQuery.trim() || selectedFilter !== 'All'
-                  ? `No reports match your ${searchQuery.trim() ? 'search' : 'filter'} criteria.`
-                  : 'No reports found.'
-              }
-            />
-          </View>
+          <NoDataDisplay
+            preset="search"
+            message={
+              searchQuery.trim() || selectedFilter !== 'All'
+                ? `No reports match your ${searchQuery.trim() ? 'search' : 'filter'} criteria.`
+                : 'No reports found.'
+            }
+            style={styles.emptyStateContainer}
+          />
         ) : (
           <View style={styles.content}>
             {filteredReports.map((report) => (
-            <TouchableOpacity
-              key={report.id}
-              style={styles.reportCard}
-              onPress={() => handleReportPress(report)}
-              activeOpacity={0.7}
-            >
-              {report.photoUrl ? (
-                <Image
-                  source={{ uri: report.photoUrl }}
-                  style={styles.photo}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.photo, { backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center' }]}>
-                  <Ionicons name="image-outline" size={32} color={colors.textSecondary} />
-                </View>
-              )}
-              <View style={styles.reportContent}>
-                <View style={styles.reportHeader}>
-                  <Text style={styles.roadName} numberOfLines={1}>
-                    {report.roadName || 'Unknown Road'}
-                  </Text>
-                  {report.severity && (
+              <UnifiedCard
+                key={report.id}
+                onPress={() => handleReportPress(report)}
+                variant="elevated"
+                padding="none"
+                style={styles.reportCard}
+                accessible={true}
+                accessibilityLabel={`${report.roadName || 'Unknown Road'}, ${STATUS_LABELS[report.status] || report.status}`}
+                accessibilityHint="Double tap to view report details"
+              >
+                {report.photoUrl ? (
+                  <CachedImage
+                    uri={report.photoUrl}
+                    style={styles.photo}
+                    resizeMode="cover"
+                    accessibilityLabel={`Photo of road damage at ${report.roadName || 'location'}`}
+                  />
+                ) : (
+                  <View style={[styles.photoPlaceholder, { backgroundColor: colors.card }]}>
+                    <Ionicons name="image-outline" size={40} color={colors.textSecondary} />
+                  </View>
+                )}
+                <View style={styles.reportContent}>
+                  <View style={styles.reportHeader}>
+                    <Text style={styles.roadName} numberOfLines={1}>
+                      {report.roadName || 'Unknown Road'}
+                    </Text>
+                    {report.severity && (
+                      <View
+                        style={[
+                          styles.badge,
+                          { backgroundColor: getSeverityColor(report.severity, colors) + '18' },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.badgeDot,
+                            { backgroundColor: getSeverityColor(report.severity, colors) },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.badgeText,
+                            { color: getSeverityColor(report.severity, colors) },
+                          ]}
+                        >
+                          {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                    <Text style={styles.locationText} numberOfLines={1}>
+                      {report.town || 'Unknown'}, {report.region || 'Unknown'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.footerRow}>
                     <View
                       style={[
-                        styles.severityBadge,
-                        { backgroundColor: getSeverityColor(report.severity, colors) + '15' },
+                        styles.badge,
+                        { backgroundColor: getStatusColor(report.status, colors) + '18' },
                       ]}
                     >
                       <View
                         style={[
-                          styles.severityDot,
-                          { backgroundColor: getSeverityColor(report.severity, colors) },
+                          styles.badgeDot,
+                          { backgroundColor: getStatusColor(report.status, colors) },
                         ]}
                       />
                       <Text
                         style={[
-                          styles.severityText,
-                          { color: getSeverityColor(report.severity, colors) },
+                          styles.badgeText,
+                          { color: getStatusColor(report.status, colors) },
                         ]}
                       >
-                        {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)}
+                        {STATUS_LABELS[report.status] || report.status || 'Unknown'}
                       </Text>
                     </View>
-                  )}
-                </View>
-
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-                  <Text style={styles.locationText} numberOfLines={1}>
-                    {report.town || 'Unknown'}, {report.region || 'Unknown'}
-                  </Text>
-                </View>
-
-                <View style={styles.statusRow}>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(report.status, colors) + '15' },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: getStatusColor(report.status, colors) },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: getStatusColor(report.status, colors) },
-                      ]}
-                    >
-                      {STATUS_LABELS[report.status] || report.status || 'Unknown'}
+                    <Text style={styles.dateText}>
+                      {report.createdAt ? formatDate(report.createdAt) : '—'}
                     </Text>
                   </View>
-                  <Text style={styles.dateText}>
-                    {report.createdAt ? formatDate(report.createdAt) : 'Unknown date'}
-                  </Text>
-                </View>
 
-                {report.referenceCode && (
-                  <Text style={styles.referenceCode} numberOfLines={1}>
-                    Ref: {report.referenceCode}
-                  </Text>
-                )}
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          ))}
+                  {report.referenceCode && (
+                    <Text style={styles.referenceCode} numberOfLines={1}>
+                      Ref: {report.referenceCode}
+                    </Text>
+                  )}
+
+                  <View style={styles.viewDetailsRow}>
+                    <Text style={[styles.viewDetailsText, { color: colors.primary }]}>View details</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+                  </View>
+                </View>
+              </UnifiedCard>
+            ))}
           </View>
         )}
       </ScrollView>
@@ -392,7 +391,7 @@ export default function MyReportsScreen({ navigation }) {
   );
 }
 
-function getStyles(colors, insets) {
+function getStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -403,31 +402,36 @@ function getStyles(colors, insets) {
     },
     scrollContent: {
       flexGrow: 1,
-      padding: 20,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xxl,
     },
     searchInputContainer: {
-      paddingHorizontal: 0,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.sm,
     },
     searchInput: {
       margin: 0,
     },
+    toolbarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
     filterContainer: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      gap: 10,
+      flex: 1,
+      paddingVertical: spacing.sm,
       flexDirection: 'row',
       flexWrap: 'nowrap',
+      gap: spacing.sm,
     },
     filterChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: colors.card,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+      backgroundColor: colors.cardBackground,
       borderWidth: 1,
       borderColor: colors.border,
-      marginRight: 8,
+      marginRight: spacing.sm,
       minWidth: 70,
       height: 36,
       alignItems: 'center',
@@ -439,175 +443,148 @@ function getStyles(colors, insets) {
       borderColor: colors.primary,
     },
     filterChipText: {
-      fontSize: 14,
+      ...typography.bodySmall,
       fontWeight: '500',
       color: colors.textSecondary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-      textAlign: 'center',
     },
     filterChipTextActive: {
       color: colors.textInverse || '#FFFFFF',
       fontWeight: '600',
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    sortButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      gap: 4,
+      marginLeft: spacing.sm,
+    },
+    sortLabel: {
+      ...typography.caption,
+      fontWeight: '600',
+      color: colors.primary,
     },
     resultsCountContainer: {
-      paddingHorizontal: 0,
-      paddingTop: 8,
-      paddingBottom: 8,
+      paddingBottom: spacing.sm,
     },
     resultsCount: {
-      fontSize: 14,
+      ...typography.bodySmall,
       color: colors.textSecondary,
-      marginBottom: 8,
     },
-    loadingContainer: {
+    errorWrapper: {
       flex: 1,
+      padding: spacing.lg,
       justifyContent: 'center',
-      alignItems: 'center',
     },
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center',
+    errorCard: {
+      marginBottom: 0,
+    },
+    errorContent: {
       alignItems: 'center',
-      padding: 20,
+      paddingVertical: spacing.xl,
     },
     errorText: {
-      marginTop: 16,
-      marginBottom: 24,
+      ...typography.body,
       color: colors.textSecondary,
       textAlign: 'center',
-      fontSize: 16,
-    },
-    retryButton: {
-      backgroundColor: colors.primary,
-      paddingVertical: 12,
-      paddingHorizontal: 24,
-      borderRadius: 8,
-    },
-    retryButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      marginTop: spacing.md,
+      marginBottom: spacing.lg,
     },
     emptyStateContainer: {
       flex: 1,
+      minHeight: 280,
       justifyContent: 'center',
-      alignItems: 'center',
-      padding: 20,
+      paddingVertical: spacing.xxxl,
     },
     content: {
-      padding: 0,
+      paddingTop: spacing.sm,
     },
     reportCard: {
-      flexDirection: 'row',
-      backgroundColor: '#FFFFFF', // Solid white background
-      borderRadius: 12, // Professional radius
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
-      // Remove overflow: 'hidden' to prevent Android clipping issues
-      // Android-safe elevation
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-        },
-        android: {
-          elevation: 1, // Keep at 1 for Android safety
-        },
-      }),
+      marginBottom: spacing.lg,
+      overflow: 'hidden',
     },
     photo: {
-      width: 100,
-      height: 100,
+      width: '100%',
+      height: CARD_IMAGE_HEIGHT,
+      backgroundColor: colors.card,
+    },
+    photoPlaceholder: {
+      width: '100%',
+      height: CARD_IMAGE_HEIGHT,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     reportContent: {
-      flex: 1,
-      padding: 12,
-      justifyContent: 'space-between',
+      padding: spacing.lg,
     },
     reportHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 8,
+      marginBottom: spacing.sm,
+      gap: spacing.sm,
     },
     roadName: {
       flex: 1,
-      fontSize: 16,
-      fontWeight: '600',
+      ...typography.h5,
       color: colors.text,
-      marginRight: 8,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    severityBadge: {
+    badge: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 8,
+      paddingHorizontal: spacing.sm,
       paddingVertical: 4,
       borderRadius: 8,
       gap: 4,
     },
-    severityDot: {
+    badgeDot: {
       width: 6,
       height: 6,
       borderRadius: 3,
     },
-    severityText: {
-      fontSize: 11,
-      fontWeight: '600',
-      textTransform: 'uppercase',
+    badgeText: {
+      ...typography.label,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     locationRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 8,
+      marginBottom: spacing.sm,
       gap: 4,
     },
     locationText: {
-      fontSize: 13,
+      ...typography.bodySmall,
       color: colors.textSecondary,
       flex: 1,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    statusRow: {
+    footerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 4,
-    },
-    statusBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-      gap: 4,
-    },
-    statusDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-    },
-    statusText: {
-      fontSize: 11,
-      fontWeight: '600',
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      marginBottom: spacing.xs,
     },
     dateText: {
-      fontSize: 12,
+      ...typography.caption,
       color: colors.textSecondary,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     referenceCode: {
-      fontSize: 11,
+      ...typography.caption,
       color: colors.textSecondary,
       fontFamily: 'monospace',
+      marginBottom: spacing.sm,
+    },
+    viewDetailsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+      gap: 4,
+    },
+    viewDetailsText: {
+      ...typography.bodySmall,
+      fontWeight: '600',
     },
   });
 }
-

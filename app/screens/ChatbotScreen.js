@@ -6,15 +6,11 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
-  useColorScheme,
   Alert,
   Pressable,
   Keyboard,
-  StatusBar as RNStatusBar,
   Animated,
-  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,8 +35,10 @@ try {
   console.warn('Clipboard module not available:', error.message);
 }
 
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
 import { chatbotService } from '../services/chatbotService';
+import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
 
 // Conditionally import Location - fallback if not available
 let Location = null;
@@ -50,8 +48,9 @@ try {
   console.warn('Location module not available:', error.message);
 }
 
-import { SkeletonLoader } from '../components/SkeletonLoader';
+import { SpinnerCore } from '../components/SpinnerCore';
 import { OfficeMessage } from '../components';
+import { UnifiedCard } from '../components/UnifiedCard';
 
 const CHAT_HISTORY_KEY = 'chatbot_history';
 const SESSION_ID_KEY = 'chatbot_session_id';
@@ -489,8 +488,7 @@ function MessageItem({ message, colors, styles, feedbackStates, handleFeedback, 
 }
 
 export default function ChatbotScreen() {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -600,33 +598,6 @@ export default function ChatbotScreen() {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, [messages]);
-
-  // FIX 1: Remove the problematic StatusBar settings that cause blurriness
-  useEffect(() => {
-    // Remove these lines that might cause visual issues
-    // if (Platform.OS === 'android') {
-    //   RNStatusBar.setBackgroundColor(colors.primary);
-    //   RNStatusBar.setTranslucent(false);
-    // }
-    // RNStatusBar.setBarStyle('light-content');
-    // RNStatusBar.setHidden(false);
-  }, [colors.primary]);
-
-  useFocusEffect(React.useCallback(() => {
-    // Remove these lines as well
-    // if (Platform.OS === 'android') {
-    //   RNStatusBar.setBackgroundColor(colors.primary);
-    //   RNStatusBar.setTranslucent(false);
-    // }
-    // RNStatusBar.setBarStyle('light-content');
-    // RNStatusBar.setHidden(false);
-    
-    // Instead, just ensure clean status bar
-    if (Platform.OS === 'android') {
-      RNStatusBar.setBackgroundColor('transparent');
-      RNStatusBar.setTranslucent(true);
-    }
-  }, [colors.primary]));
 
   // Enhanced keyboard handling with Reanimated for smooth animations
   const keyboardShowListener = useRef(null);
@@ -1033,7 +1004,7 @@ export default function ChatbotScreen() {
     }
   }, [messages]);
 
-  const styles = getStyles(colors, screenWidth, colorScheme, insets);
+  const styles = useMemo(() => getStyles(colors, screenWidth, insets), [colors, screenWidth, insets]);
 
   // Animated style for input area that moves with keyboard
   const inputAreaAnimatedStyle = useAnimatedStyle(() => {
@@ -1059,31 +1030,22 @@ export default function ChatbotScreen() {
     };
   });
 
-  // Set status bar style when component mounts and when screen is focused
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      RNStatusBar.setBackgroundColor(colors.primary);
-      RNStatusBar.setTranslucent(false);
-    }
-    RNStatusBar.setBarStyle('light-content');
-    RNStatusBar.setHidden(false);
-  }, [colors.primary]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      if (Platform.OS === 'android') {
-        RNStatusBar.setBackgroundColor(colors.primary);
-        RNStatusBar.setTranslucent(false);
-      }
-      RNStatusBar.setBarStyle('light-content');
-      RNStatusBar.setHidden(false);
-    }, [colors.primary])
-  );
+  const showWelcome = messages.length === 1 && messages[0].id === 'welcome';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]} edges={['top']}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary || colors.surface }]} edges={['top']}>
+      <StatusBar style="dark" />
       
+      {/* Welcome Header - shown when on welcome screen */}
+      {showWelcome && (
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeTitle}>RA Assistant</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Ask me anything about Roads Authority services, permits, or road regulations.
+          </Text>
+        </View>
+      )}
+
       {/* Messages Area */}
       <View style={styles.messagesArea}>
         <ScrollView
@@ -1154,9 +1116,11 @@ export default function ChatbotScreen() {
             })}
 
             {/* Quick Actions for first time users */}
-            {messages.length === 1 && messages[0].id === 'welcome' && (
+            {showWelcome && (
               <View style={styles.quickActionsContainer}>
-                <Text style={styles.quickActionsTitle} maxFontSizeMultiplier={1.3}>Quick Actions</Text>
+                <Text style={[styles.quickActionsTitle, { color: colors.textSecondary }]} maxFontSizeMultiplier={1.3}>
+                  Quick Actions
+                </Text>
                 <View style={styles.quickActionsGrid}>
                   {[
                     { icon: 'car-outline', title: 'Vehicle Registration', query: 'How do I register my vehicle?' },
@@ -1164,21 +1128,25 @@ export default function ChatbotScreen() {
                     { icon: 'map-outline', title: 'Road Status', query: 'How do I check road conditions?' },
                     { icon: 'location-outline', title: 'Find Offices', query: 'Where are your offices located?' },
                   ].map((action, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.quickActionCard}
-                      onPress={() => {
-                        setInputText(action.query);
-                        inputRef.current?.focus();
-                      }}
-                    >
-                      <View style={styles.quickActionIcon}>
-                        <Ionicons name={action.icon} size={20} color="#FFFFFF" />
-                      </View>
-                      <Text style={styles.quickActionTitle} numberOfLines={2} maxFontSizeMultiplier={1.3}>
-                        {action.title}
-                      </Text>
-                    </TouchableOpacity>
+                    <View key={index} style={styles.quickActionCardWrap}>
+                      <UnifiedCard
+                        onPress={() => {
+                          setInputText(action.query);
+                          inputRef.current?.focus();
+                        }}
+                        padding="medium"
+                        variant="default"
+                      >
+                        <View style={styles.quickActionContent}>
+                          <View style={[styles.quickActionIcon, { backgroundColor: colors.primary }]}>
+                            <Ionicons name={action.icon} size={20} color="#FFFFFF" />
+                          </View>
+                          <Text style={[styles.quickActionTitle, { color: colors.text }]} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+                            {action.title}
+                          </Text>
+                        </View>
+                      </UnifiedCard>
+                    </View>
                   ))}
                 </View>
               </View>
@@ -1242,7 +1210,7 @@ export default function ChatbotScreen() {
               accessibilityRole="button"
             >
               {isLoading ? (
-                <SkeletonLoader type="circle" width={16} height={16} />
+                <SpinnerCore size="small" color="#FFFFFF" />
               ) : (
                 <Ionicons 
                   name="send" 
@@ -1257,26 +1225,41 @@ export default function ChatbotScreen() {
   );
 }
 
-function getStyles(colors, screenWidth, colorScheme, insets) {
+function getStyles(colors, screenWidth, insets) {
   const isTablet = screenWidth > 600;
   const safeBottomPadding = Math.max((insets && insets.bottom) || 0, 8);
-  
+  const bg = colors.backgroundSecondary || colors.surface;
+
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.surface, // Use RA surface color
+      backgroundColor: bg,
     },
-    
-    // Messages Area - Fixed
+    welcomeSection: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+    },
+    welcomeTitle: {
+      ...typography.h3,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    welcomeSubtitle: {
+      ...typography.body,
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
     messagesArea: {
       flex: 1,
       position: 'relative',
-      backgroundColor: colors.surface, // Ensure consistent background
+      backgroundColor: bg,
     },
     messagesContainer: {
-      padding: 16,
-      paddingTop: 8,
-      minHeight: '100%', // Ensure it takes full height
+      padding: spacing.lg,
+      paddingTop: spacing.md,
+      minHeight: '100%',
     },
 
     // Message Items
@@ -1373,11 +1356,10 @@ function getStyles(colors, screenWidth, colorScheme, insets) {
     },
 
     messageText: {
-      fontSize: 16,
-      lineHeight: 20,
-      fontWeight: '400',
-      letterSpacing: 0.1,
-      color: colors.text, // Ensure proper color for dark mode
+      ...typography.body,
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.text,
     },
     listItem: {
       marginLeft: 8,
@@ -1522,56 +1504,45 @@ function getStyles(colors, screenWidth, colorScheme, insets) {
 
     // Quick Actions
     quickActionsContainer: {
-      marginTop: 16,
-      padding: 16,
-      backgroundColor: 'transparent',
-      borderRadius: 0,
+      marginTop: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
     },
     quickActionsTitle: {
+      ...typography.caption,
       fontSize: 14,
-      fontWeight: '400',
-      color: colors.textSecondary,
-      marginBottom: 12,
+      fontWeight: '500',
+      marginBottom: spacing.md,
       textAlign: 'center',
     },
     quickActionsGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
+      gap: spacing.md,
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
     },
-    quickActionCard: {
-      width: '48%', // Use percentage for better responsiveness
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: 12,
+    quickActionCardWrap: {
+      width: '48%',
+    },
+    quickActionContent: {
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-      shadowColor: colors.text,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-      marginBottom: 8, // Add margin between rows
-      minHeight: 80, // Ensure consistent height
+      minWidth: '45%',
+      flex: 1,
     },
     quickActionIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.primary, // RA sky blue
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 6,
+      marginBottom: spacing.sm,
     },
     quickActionTitle: {
-      fontSize: 11,
+      ...typography.caption,
+      fontSize: 12,
       fontWeight: '500',
-      color: colors.text,
       textAlign: 'center',
-      lineHeight: 14,
-      numberOfLines: 2, // Allow text wrapping
+      lineHeight: 16,
     },
 
     // Quick Replies

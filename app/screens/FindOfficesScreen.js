@@ -1,38 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   Linking,
   Platform,
   RefreshControl,
   Alert,
-  Modal,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { RATheme } from '../theme/colors';
-import { UnifiedSkeletonLoader, ErrorState, EmptyState, SearchInput } from '../components';
+import { useTheme } from '../hooks/useTheme';
+import { ErrorState, SearchInput, UnifiedCard, FilterDropdownBox, LocationFilterBadge } from '../components';
+import { NoDataDisplay } from '../components/NoDataDisplay';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 import { useOfficesViewModel } from '../src/presentation/viewModels/useOfficesViewModel';
 import { useOfficeUseCases } from '../src/presentation/di/DependencyContext';
 
 export default function FindOfficesScreen() {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   
   // Location state
   const [userLocation, setUserLocation] = useState(null);
   const [locationPermission, setLocationPermission] = useState(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [sortBy, setSortBy] = useState('region'); // 'region', 'distance', 'name'
-  const [showSortModal, setShowSortModal] = useState(false);
   
   // Get use cases from dependency injection
   const { getOfficesUseCase, searchOfficesUseCase } = useOfficeUseCases();
@@ -238,87 +236,33 @@ export default function FindOfficesScreen() {
     return `${distance.toFixed(1)}km`;
   };
 
-  const renderSortModal = () => (
-    <Modal
-      visible={showSortModal}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowSortModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]} maxFontSizeMultiplier={1.3}>Sort Offices</Text>
-            <TouchableOpacity onPress={() => setShowSortModal(false)}>
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <TouchableOpacity
-            style={[styles.sortOption, sortBy === 'region' && { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}
-            onPress={() => {
-              setSortBy('region');
-              setShowSortModal(false);
-            }}
-          >
-            <Ionicons name="location-outline" size={20} color={colors.text} />
-            <Text style={[styles.sortOptionText, { color: colors.text }]} maxFontSizeMultiplier={1.3}>By Region</Text>
-            {sortBy === 'region' && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.sortOption, sortBy === 'name' && { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}
-            onPress={() => {
-              setSortBy('name');
-              setShowSortModal(false);
-            }}
-          >
-            <Ionicons name="text-outline" size={20} color={colors.text} />
-            <Text style={[styles.sortOptionText, { color: colors.text }]} maxFontSizeMultiplier={1.3}>By Name</Text>
-            {sortBy === 'name' && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-          </TouchableOpacity>
-          
-          {userLocation && (
-            <TouchableOpacity
-              style={[styles.sortOption, sortBy === 'distance' && { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}
-              onPress={() => {
-                setSortBy('distance');
-                setShowSortModal(false);
-              }}
-            >
-              <Ionicons name="navigate-outline" size={20} color={colors.text} />
-              <Text style={[styles.sortOptionText, { color: colors.text }]} maxFontSizeMultiplier={1.3}>By Distance</Text>
-              {sortBy === 'distance' && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const bg = colors.backgroundSecondary || colors.background;
 
-  const styles = getStyles(colors);
-
-  if (loading) {
+  if (loading && offices.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <UnifiedSkeletonLoader type="list-item" count={5} />
+      <SafeAreaView style={[styles.container, { backgroundColor: bg }]} edges={['top', 'bottom']}>
+        <StatusBar style="dark" />
+        <LoadingSpinner fullScreen message="Loading offices..." />
       </SafeAreaView>
     );
   }
 
   if (hasError && isEmpty) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: bg }]} edges={['top', 'bottom']}>
+        <StatusBar style="dark" />
         <ErrorState
           message={error?.message || 'Failed to load offices'}
           onRetry={retry}
+          fullScreen
         />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: bg }]} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
       <ScrollView
         style={styles.scrollView}
@@ -331,8 +275,16 @@ export default function FindOfficesScreen() {
             tintColor={colors.primary}
           />
         }
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
       >
+        {/* Welcome Section */}
+        <View style={styles.welcomeRow}>
+          <Text style={styles.welcomeTitle}>Find Offices</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Locate Roads Authority offices across Namibia
+          </Text>
+        </View>
+
         {/* Search Input */}
         <View style={styles.searchInputContainer}>
           <SearchInput
@@ -345,84 +297,43 @@ export default function FindOfficesScreen() {
           />
         </View>
 
-        {/* Controls Row */}
-        <View style={styles.controlsRow}>
-          {/* Location Status */}
-          <View style={styles.locationStatus}>
-            {loadingLocation ? (
-              <View style={styles.locationIndicator}>
-                <UnifiedSkeletonLoader type="text-line" style={{ width: 120, height: 16 }} />
-                <Text style={[styles.locationText, { color: colors.textSecondary }]} maxFontSizeMultiplier={1.3}>Getting location...</Text>
-              </View>
-            ) : userLocation ? (
-              <View style={styles.locationIndicator}>
-                <Ionicons name="location" size={16} color={colors.success} />
-                <Text style={[styles.locationText, { color: colors.success }]} maxFontSizeMultiplier={1.3}>Location enabled</Text>
-              </View>
-            ) : locationPermission === 'denied' ? (
-              <TouchableOpacity style={styles.locationIndicator} onPress={requestLocationPermission}>
-                <Ionicons name="location-outline" size={16} color={colors.warning} />
-                <Text style={[styles.locationText, { color: colors.warning }]} maxFontSizeMultiplier={1.3}>Enable location</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {/* Sort Button */}
-          <TouchableOpacity
-            style={[styles.sortButton, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}
-            onPress={() => setShowSortModal(true)}
-          >
-            <Ionicons name="funnel-outline" size={16} color={colors.primary} />
-            <Text style={[styles.sortButtonText, { color: colors.primary }]} maxFontSizeMultiplier={1.3}>
-              {sortBy === 'distance' ? 'Distance' : sortBy === 'name' ? 'Name' : 'Region'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Region Filter Chips */}
-        {sortBy !== 'distance' && regions.length > 0 && (
-          <View style={styles.filterSectionContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterContainer}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  selectedRegion === null && styles.filterChipActive,
-                ]}
-                onPress={() => setSelectedRegion(null)}
-              >
-                <Text style={[
-                  styles.filterChipText,
-                  selectedRegion === null && styles.filterChipTextActive,
-                ]}
-                numberOfLines={1}
-                maxFontSizeMultiplier={1.3}>
-                  All
-                </Text>
-              </TouchableOpacity>
-              {regions.map((region) => (
-                <TouchableOpacity
-                  key={region}
-                  style={[
-                    styles.filterChip,
-                    selectedRegion === region && styles.filterChipActive,
-                  ]}
-                  onPress={() => setSelectedRegion(selectedRegion === region ? null : region)}
-                >
-                  <Text style={[
-                    styles.filterChipText,
-                    selectedRegion === region && styles.filterChipTextActive,
-                  ]}
-                  numberOfLines={1}
-                  maxFontSizeMultiplier={1.3}>
-                    {region}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+        {/* Filter by Region & Sort (same design as Road Status page) */}
+        {!loading && offices.length > 0 && (
+          <View style={styles.filterBySection}>
+            <View style={styles.regionFilterHeader}>
+              <LocationFilterBadge
+                isDetectingLocation={loadingLocation}
+                isFilteredByLocation={!!userLocation && sortBy === 'distance'}
+                onUseLocation={requestLocationPermission}
+                testID="location-filter-badge"
+              />
+            </View>
+            <View style={styles.filterDropdownRow}>
+              <FilterDropdownBox
+                label="Sort by"
+                placeholder="Sort by"
+                value={sortBy === 'region' ? 'Region' : sortBy === 'name' ? 'Name' : sortBy === 'distance' ? 'Distance' : 'Region'}
+                options={userLocation ? ['Region', 'Name', 'Distance'] : ['Region', 'Name']}
+                nullMapsToOption="Region"
+                onSelect={(item) => setSortBy(item.toLowerCase())}
+                onClear={() => setSortBy('region')}
+                accessibilityLabel="Sort offices"
+                testID="filter-sort"
+              />
+              {sortBy !== 'distance' && (
+                <FilterDropdownBox
+                  label="Region"
+                  placeholder="Region"
+                  value={selectedRegion}
+                  options={['All Regions', ...regions]}
+                  nullMapsToOption="All Regions"
+                  onSelect={(item) => setSelectedRegion(item === 'All Regions' ? null : item)}
+                  onClear={() => setSelectedRegion(null)}
+                  accessibilityLabel="Region filter"
+                  testID="filter-region"
+                />
+              )}
+            </View>
           </View>
         )}
         {/* Results Count */}
@@ -436,13 +347,12 @@ export default function FindOfficesScreen() {
 
         {/* Offices List */}
         {isEmpty ? (
-          <View style={styles.emptyStateContainer}>
-            <EmptyState
-              icon="location-outline"
-              message={searchQuery ? 'No offices found matching your search' : 'No offices available'}
-              accessibilityLabel="No offices found"
-            />
-          </View>
+          <NoDataDisplay
+            icon="location-outline"
+            title={searchQuery || selectedRegion ? 'No offices found' : 'No offices available'}
+            message={searchQuery || selectedRegion ? 'No offices match your search or filters.' : 'Office locations will appear here when available.'}
+            accessibilityLabel="No offices found"
+          />
         ) : (
           <View style={styles.content}>
             {Object.keys(groupedSortedOffices).sort().map((region) => (
@@ -451,7 +361,7 @@ export default function FindOfficesScreen() {
                 <Text style={styles.regionHeader} maxFontSizeMultiplier={1.3}>{region}</Text>
               )}
               {groupedSortedOffices[region].map((office) => (
-                <View key={office.id} style={styles.locationCard}>
+                <UnifiedCard key={office.id} variant="default" padding="none" style={styles.locationCard}>
                   <View style={styles.locationHeader}>
                     <View style={styles.locationHeaderLeft}>
                       {office.region && (
@@ -655,16 +565,13 @@ export default function FindOfficesScreen() {
                       </TouchableOpacity>
                     )}
                   </View>
-                </View>
+                </UnifiedCard>
               ))}
             </View>
             ))}
           </View>
         )}
       </ScrollView>
-
-      {/* Sort Modal */}
-      {renderSortModal()}
     </SafeAreaView>
   );
 }
@@ -673,97 +580,56 @@ function getStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary || colors.background,
     },
     scrollView: {
       flex: 1,
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: spacing.xl,
-      padding: spacing.lg,
+      paddingBottom: spacing.xxl,
+      paddingHorizontal: spacing.lg,
+    },
+    welcomeRow: {
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+    },
+    welcomeTitle: {
+      ...typography.h3,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    welcomeSubtitle: {
+      ...typography.body,
+      fontSize: 14,
+      color: colors.textSecondary,
     },
     searchInputContainer: {
       paddingHorizontal: 0,
-      paddingTop: spacing.md,
+      paddingTop: spacing.sm,
       paddingBottom: spacing.sm,
     },
     searchInput: {
       margin: 0,
     },
-    controlsRow: {
+    filterBySection: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    regionFilterHeader: {
       flexDirection: 'row',
+      alignItems: 'center',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      marginBottom: spacing.md,
       paddingHorizontal: 0,
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.sm,
-    },
-    locationStatus: {
-      flex: 1,
-    },
-    locationIndicator: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    locationText: {
-      fontSize: 12,
-      fontWeight: '500',
-    },
-    sortButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-      gap: 6,
-    },
-    sortButtonText: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    filterSectionContainer: {
-      paddingHorizontal: 0,
-      paddingVertical: spacing.sm,
-    },
-    filterContainer: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      flexWrap: 'wrap',
       gap: spacing.sm,
+    },
+    filterDropdownRow: {
       flexDirection: 'row',
-      flexWrap: 'nowrap',
-    },
-    filterChip: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: 8,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginRight: spacing.sm,
-      minWidth: 60,
-      maxWidth: 180,
-      height: 36,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    filterChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    filterChipText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textSecondary,
-      textAlign: 'center',
-      numberOfLines: 1,
-      flexShrink: 1,
-    },
-    filterChipTextActive: {
-      color: '#FFFFFF',
-      fontWeight: '600',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
     },
     resultsCountContainer: {
       paddingHorizontal: 0,
@@ -771,6 +637,7 @@ function getStyles(colors) {
       paddingBottom: spacing.sm,
     },
     resultsCount: {
+      ...typography.caption,
       fontSize: 14,
       color: colors.textSecondary,
       marginBottom: spacing.sm,
@@ -788,25 +655,15 @@ function getStyles(colors) {
       marginBottom: spacing.xl,
     },
     regionHeader: {
-      fontSize: 18,
+      ...typography.h4,
       fontWeight: '600',
       color: colors.text,
       marginBottom: spacing.md,
       paddingHorizontal: spacing.xs,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     locationCard: {
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: spacing.xl,
+      padding: spacing.lg,
       marginBottom: spacing.md,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
     locationHeader: {
       flexDirection: 'row',
@@ -844,12 +701,12 @@ function getStyles(colors) {
       fontWeight: '600',
     },
     locationName: {
+      ...typography.body,
       fontSize: 16,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 14,
+      marginBottom: spacing.md,
       lineHeight: 24,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     locationDetail: {
       flexDirection: 'row',
@@ -989,42 +846,6 @@ function getStyles(colors) {
       fontStyle: 'italic',
       textAlign: 'center',
       marginTop: 4,
-    },
-    // Modal styles
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'flex-end',
-    },
-    modalContent: {
-      borderTopLeftRadius: 12,
-      borderTopRightRadius: 12,
-      paddingBottom: 30,
-      maxHeight: '50%',
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    modalTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    sortOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 16,
-      gap: 12,
-    },
-    sortOptionText: {
-      flex: 1,
-      fontSize: 16,
-      fontWeight: '500',
     },
   });
 }

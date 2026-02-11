@@ -1,38 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  useColorScheme,
   Alert,
   BackHandler,
   Platform,
   TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { CommonActions } from '@react-navigation/native';
-import { RATheme } from '../theme/colors';
-import { SectionTitle, ListItem, Button } from '../components';
+import { useTheme } from '../hooks/useTheme';
 import { spacing } from '../theme/spacing';
-import { useAppContext } from '../context/AppContext';
-import { authService } from '../services/authService';
 import { typography } from '../theme/typography';
+import { UnifiedCard } from '../components';
+import { useAppContext } from '../context/AppContext';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const { user, logout } = useAppContext();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(colorScheme === 'dark');
+  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
   useEffect(() => {
     // Check notification permissions
@@ -128,15 +123,23 @@ export default function SettingsScreen() {
     );
   };
 
-  const styles = getStyles(colors, screenWidth);
+  const styles = useMemo(() => getStyles(colors, screenWidth), [colors, screenWidth]);
+  const bg = colors.backgroundSecondary || colors.background;
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: bg }]} edges={['bottom']}>
+      <StatusBar style="dark" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        {/* Welcome Section */}
+        <View style={styles.welcomeRow}>
+          <Text style={styles.welcomeTitle}>Settings</Text>
+          <Text style={styles.welcomeSubtitle}>Manage your app preferences</Text>
+        </View>
+
         {/* User Profile Section */}
         {user && (
           <View style={styles.profileSection}>
-            <View style={styles.profileCard}>
+            <UnifiedCard variant="default" padding="none" style={styles.profileCard}>
               <View style={styles.profileIconContainer}>
                 <Ionicons name="person" size={32} color={colors.primary} />
               </View>
@@ -148,13 +151,14 @@ export default function SettingsScreen() {
               <TouchableOpacity style={styles.profileEditButton}>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
-            </View>
+            </UnifiedCard>
           </View>
         )}
 
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <UnifiedCard variant="default" padding="medium" style={styles.quickActionsCard}>
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity 
               style={styles.quickActionItem}
@@ -187,42 +191,29 @@ export default function SettingsScreen() {
               <Text style={styles.quickActionText}>Support</Text>
             </TouchableOpacity>
           </View>
+          </UnifiedCard>
         </View>
 
-        {/* Account & Security */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account & Security</Text>
-          <View style={styles.settingsCard}>
-            <SettingsItem
-              icon="shield-checkmark-outline"
-              title="Security Settings"
-              subtitle="Manage your account security"
-              onPress={() => Alert.alert('Security', 'Security settings coming soon')}
-              colors={colors}
-            />
-            <SettingsItem
-              icon="key-outline"
-              title="Change Password"
-              subtitle="Update your account password"
-              onPress={() => navigation.navigate('ChangePassword')}
-              colors={colors}
-              showDivider
-            />
-            <SettingsItem
-              icon="finger-print-outline"
-              title="Biometric Login"
-              subtitle="Use fingerprint or face ID"
-              onPress={() => Alert.alert('Biometric', 'Biometric login coming soon')}
-              colors={colors}
-              showDivider
-            />
+        {/* Account */}
+        {user && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <UnifiedCard variant="default" padding="none" style={styles.settingsCard}>
+              <SettingsItem
+                icon="key-outline"
+                title="Change Password"
+                subtitle="Update your account password"
+                onPress={() => navigation.navigate('ChangePassword')}
+                colors={colors}
+              />
+            </UnifiedCard>
           </View>
-        </View>
+        )}
 
         {/* Preferences */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
-          <View style={styles.settingsCard}>
+          <UnifiedCard variant="default" padding="none" style={styles.settingsCard}>
             <SettingsItem
               icon="notifications-outline"
               title="Push Notifications"
@@ -250,13 +241,13 @@ export default function SettingsScreen() {
               colors={colors}
               showDivider
             />
-          </View>
+          </UnifiedCard>
         </View>
 
         {/* Support & Legal */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support & Legal</Text>
-          <View style={styles.settingsCard}>
+          <UnifiedCard variant="default" padding="none" style={styles.settingsCard}>
             <SettingsItem
               icon="help-circle-outline"
               title="Help Center"
@@ -285,9 +276,8 @@ export default function SettingsScreen() {
               title="App Version"
               subtitle="1.0.0"
               colors={colors}
-              showDivider
             />
-          </View>
+          </UnifiedCard>
         </View>
 
         {/* Authentication Section */}
@@ -295,7 +285,7 @@ export default function SettingsScreen() {
           // Show Sign Out button when user is logged in
           <View style={styles.section}>
             <TouchableOpacity style={styles.signOutButton} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
+              <Ionicons name="log-out-outline" size={20} color={colors.error} />
               <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
           </View>
@@ -382,65 +372,63 @@ function SettingsItem({ icon, title, subtitle, type, value, onToggle, onPress, c
 
 function getStyles(colors, screenWidth) {
   const isTablet = screenWidth > 600;
-  
+  const bg = colors.backgroundSecondary || colors.background;
+
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: bg,
     },
     scrollView: {
       flex: 1,
     },
     content: {
-      padding: 20,
+      padding: spacing.lg,
       paddingBottom: 100,
     },
-    
-    // Profile Section
+    welcomeRow: {
+      paddingTop: spacing.md,
+      paddingBottom: spacing.md,
+    },
+    welcomeTitle: {
+      ...typography.h3,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    welcomeSubtitle: {
+      ...typography.body,
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
     profileSection: {
-      marginBottom: 24,
-      marginTop: 20, // Normal top margin instead of overlap
+      marginBottom: spacing.xl,
     },
     profileCard: {
-      backgroundColor: '#FFFFFF', // Solid white background
-      borderRadius: 16, // Professional radius
-      padding: 20,
+      padding: spacing.lg,
       flexDirection: 'row',
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-      // Android-safe elevation
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 1, // Reduced from 8 to 1 for Android safety
-        },
-      }),
     },
     profileIconContainer: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      backgroundColor: colors.primary,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary + '20',
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 16,
+      marginRight: spacing.md,
     },
     profileInfo: {
       flex: 1,
     },
     profileName: {
-      fontSize: 18,
-      fontWeight: '700',
+      ...typography.h4,
+      fontWeight: '600',
       color: colors.text,
       marginBottom: 4,
     },
     profileEmail: {
+      ...typography.body,
       fontSize: 14,
       color: colors.textSecondary,
       marginBottom: 4,
@@ -454,7 +442,9 @@ function getStyles(colors, screenWidth) {
       padding: 8,
     },
     
-    // Quick Actions
+    quickActionsCard: {
+      marginBottom: 0,
+    },
     quickActionsGrid: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -474,41 +464,24 @@ function getStyles(colors, screenWidth) {
       marginBottom: 8,
     },
     quickActionText: {
+      ...typography.caption,
       fontSize: 12,
       fontWeight: '600',
       color: colors.text,
       textAlign: 'center',
     },
-    
-    // Sections
     section: {
-      marginBottom: 24,
+      marginBottom: spacing.xl,
     },
     sectionTitle: {
-      fontSize: 18,
-      fontWeight: '700',
+      ...typography.h4,
+      fontWeight: '600',
       color: colors.text,
-      marginBottom: 12,
-      letterSpacing: -0.3,
+      marginBottom: spacing.md,
     },
     settingsCard: {
-      backgroundColor: '#FFFFFF', // Solid white background
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
-      // Remove overflow: 'hidden' to prevent Android clipping
-      // Android-safe elevation
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 1, // Reduced from 4 to 1 for Android safety
-        },
-      }),
+      marginBottom: 0,
+      overflow: 'hidden',
     },
     
     // Settings Items
@@ -516,7 +489,7 @@ function getStyles(colors, screenWidth) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: 16,
+      padding: spacing.lg,
       minHeight: 64,
     },
     settingsItemLeft: {
@@ -530,17 +503,19 @@ function getStyles(colors, screenWidth) {
       borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 12,
+      marginRight: spacing.md,
     },
     settingsItemText: {
       flex: 1,
     },
     settingsItemTitle: {
+      ...typography.body,
       fontSize: 16,
       fontWeight: '600',
       marginBottom: 2,
     },
     settingsItemSubtitle: {
+      ...typography.caption,
       fontSize: 13,
       lineHeight: 18,
     },
@@ -588,21 +563,17 @@ function getStyles(colors, screenWidth) {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.card,
-      borderRadius: 16,
-      padding: 16,
+      borderRadius: 12,
+      padding: spacing.lg,
       borderWidth: 1,
-      borderColor: '#FF3B30' + '20',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
+      borderColor: colors.error + '30',
     },
     signOutText: {
+      ...typography.body,
       fontSize: 16,
       fontWeight: '600',
-      color: '#FF3B30',
-      marginLeft: 8,
+      color: colors.error,
+      marginLeft: spacing.sm,
     },
     
     // Authentication Buttons Container
@@ -613,14 +584,9 @@ function getStyles(colors, screenWidth) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 16,
-      padding: 16,
+      borderRadius: 12,
+      padding: spacing.lg,
       borderWidth: 1,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
     },
     loginButton: {
       backgroundColor: colors.primary,
@@ -640,19 +606,19 @@ function getStyles(colors, screenWidth) {
     // Footer
     footer: {
       alignItems: 'center',
-      marginTop: 32,
-      paddingTop: 24,
+      marginTop: spacing.xxl,
+      paddingTop: spacing.xl,
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
     footerText: {
-      fontSize: 16,
-      fontWeight: '700',
+      ...typography.body,
+      fontWeight: '600',
       color: colors.text,
       marginBottom: 4,
     },
     footerSubtext: {
-      fontSize: 12,
+      ...typography.caption,
       color: colors.textSecondary,
     },
   });

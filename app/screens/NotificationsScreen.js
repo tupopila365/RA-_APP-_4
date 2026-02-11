@@ -8,86 +8,59 @@ import {
   RefreshControl,
   Modal,
   Alert,
-  StatusBar as RNStatusBar,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { useColorScheme } from 'react-native';
 import { notificationsService } from '../services/notificationsService';
 
-// Import Unified Design System Components
 import {
-  UnifiedFormInput,
   UnifiedCard,
   UnifiedButton,
-  UnifiedSkeletonLoader,
-  RATheme,
   typography,
   spacing,
 } from '../components/UnifiedDesignSystem';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorState } from '../components/ErrorState';
+import { NoDataDisplay } from '../components/NoDataDisplay';
 
-/**
- * Format timestamp to relative time (e.g., "2 hours ago", "Yesterday", "Dec 15, 2024")
- */
+const TYPE_FILTERS = ['All', 'News', 'Tenders', 'Vacancies', 'General'];
+const TYPE_MAP = { All: null, News: 'news', Tenders: 'tender', Vacancies: 'vacancy', General: 'general' };
+
 const formatTimeAgo = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();
-  const diffInSeconds = Math.floor((now - date) / 1000);
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffInSeconds < 60) {
-    return 'Just now';
-  }
-
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) {
-    return `${diffInMinutes}m ago`;
-  }
-
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) {
-    return `${diffInHours}h ago`;
-  }
-
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays === 1) {
-    return 'Yesterday';
-  }
-  if (diffInDays < 7) {
-    return `${diffInDays}d ago`;
-  }
-
-  // For older dates, show formatted date
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
 };
 
-/**
- * Get icon name for notification type
- */
 const getNotificationIcon = (type) => {
-  const iconMap = {
-    news: 'newspaper',
-    tender: 'document-text',
-    vacancy: 'briefcase',
-    general: 'information-circle',
-  };
-  return iconMap[type] || 'notifications';
+  const map = { news: 'newspaper', tender: 'document-text', vacancy: 'briefcase', general: 'information-circle' };
+  return map[type] || 'notifications';
 };
 
-/**
- * Get color for notification type - all use primary color
- */
-const getNotificationColor = (type, colors) => {
-  return colors.primary;
+const getTypeColor = (type, colors) => {
+  const map = {
+    news: colors.primary,
+    tender: colors.secondary,
+    vacancy: colors.success,
+    general: colors.textSecondary,
+  };
+  return map[type] || colors.primary;
 };
 
 export default function NotificationsScreen({ navigation }) {
-  const { colors, colorScheme } = useTheme();
+  const { colors } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -95,31 +68,15 @@ export default function NotificationsScreen({ navigation }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('All');
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  useEffect(() => {
-    loadNotifications(1, true);
-  }, []);
-
-  // Configure status bar
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      RNStatusBar.setBackgroundColor('transparent');
-      RNStatusBar.setTranslucent(true);
-    }
-    RNStatusBar.setBarStyle('light-content');
-    RNStatusBar.setHidden(false);
-  }, []);
-
-  const loadNotifications = async (pageNum = 1, reset = false) => {
+  const loadNotifications = useCallback(async (pageNum = 1, reset = false) => {
     try {
       setError(null);
-      if (reset) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+      if (reset) setLoading(true);
+      else setLoadingMore(true);
 
       const result = await notificationsService.getUserNotifications(pageNum, 20);
 
@@ -128,7 +85,6 @@ export default function NotificationsScreen({ navigation }) {
       } else {
         setNotifications((prev) => [...prev, ...(result.notifications || [])]);
       }
-
       setHasMore(pageNum < result.totalPages);
       setPage(pageNum);
     } catch (err) {
@@ -139,36 +95,40 @@ export default function NotificationsScreen({ navigation }) {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadNotifications(1, true);
+  }, [loadNotifications]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadNotifications(1, true);
-  }, []);
+  }, [loadNotifications]);
 
-  const loadMore = () => {
-    if (!loadingMore && hasMore) {
-      loadNotifications(page + 1, false);
-    }
-  };
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) loadNotifications(page + 1, false);
+  }, [loadingMore, hasMore, page, loadNotifications]);
 
+  const filteredNotifications = useMemo(() => {
+    const type = TYPE_MAP[selectedFilter];
+    if (!type) return notifications;
+    return notifications.filter((n) => n.type === type);
+  }, [notifications, selectedFilter]);
 
   const handleNotificationPress = (notification) => {
     setSelectedNotification(notification);
     setShowDetailModal(true);
   };
 
-  const handleDeleteAll = () => {
+  const handleClearAll = () => {
     Alert.alert(
-      'Delete All Alerts',
-      'Are you sure you want to delete all alerts?',
+      'Clear All Alerts',
+      'Remove all alerts from this list?',
       [
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete All',
+          text: 'Clear All',
           style: 'destructive',
           onPress: () => {
             setNotifications([]);
@@ -180,272 +140,256 @@ export default function NotificationsScreen({ navigation }) {
     );
   };
 
-  // Check if notification has a related page to navigate to
   const hasRelatedContent = (notification) => {
     if (!notification) return false;
     const { type, relatedId, data } = notification;
-    
-    if (type === 'general') {
-      return false;
-    }
-    
-    return (
-      (type === 'news' && relatedId) ||
-      type === 'tender' ||
-      type === 'vacancy' ||
-      !!data?.screen
-    );
+    if (type === 'general') return false;
+    return (type === 'news' && relatedId) || type === 'tender' || type === 'vacancy' || !!data?.screen;
   };
 
-  const handleViewRelatedContent = () => {
+  const handleViewRelated = () => {
     if (!selectedNotification) return;
-
     const { type, relatedId, data } = selectedNotification;
     setShowDetailModal(false);
 
-    if (type === 'general') {
-      return;
-    }
-
     if (type === 'news' && relatedId) {
-      navigation.navigate('News', {
-        screen: 'NewsDetail',
-        params: { id: relatedId },
-      });
+      navigation.navigate('News', { screen: 'NewsDetail', params: { id: relatedId } });
     } else if (type === 'tender') {
-      navigation.navigate('Procurement', {
-        screen: 'ProcurementMain',
-      });
+      navigation.navigate('Procurement', { screen: 'ProcurementMain' });
     } else if (type === 'vacancy') {
       navigation.navigate('Vacancies');
     } else if (data?.screen) {
-      if (data.params) {
-        navigation.navigate(data.screen, data.params);
-      } else {
-        navigation.navigate(data.screen);
-      }
+      navigation.navigate(data.screen, data.params || {});
     }
   };
 
+  const getActionLabel = (type) => {
+    const map = { news: 'View Article', tender: 'View Tender', vacancy: 'View Vacancy' };
+    return map[type] || 'View Details';
+  };
 
   const styles = getStyles(colors);
 
-  // Show loading state on initial load
   if (loading && notifications.length === 0) {
     return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <UnifiedSkeletonLoader type="list-item" count={5} />
-        </View>
-      </View>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <LoadingSpinner fullScreen message="Loading alerts..." />
+      </SafeAreaView>
     );
   }
 
-  // Show error state if initial load fails
   if (error && notifications.length === 0) {
     return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <View style={styles.errorIconContainer}>
-            <Ionicons name="alert-circle-outline" size={64} color={colors.textSecondary} />
-          </View>
-          <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
-            Something went wrong
-          </Text>
-          <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl }]}>
-            {error}
-          </Text>
-          <UnifiedButton
-            label="Try Again"
-            onPress={() => loadNotifications(1, true)}
-            variant="primary"
-            size="medium"
-            iconName="refresh-outline"
-            iconPosition="left"
-          />
-        </View>
-      </View>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ErrorState
+          message={error}
+          onRetry={() => loadNotifications(1, true)}
+          fullScreen
+        />
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         onScroll={({ nativeEvent }) => {
           const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-          const paddingToBottom = 20;
-          if (
-            layoutMeasurement.height + contentOffset.y >=
-            contentSize.height - paddingToBottom
-          ) {
-            loadMore();
-          }
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 60) loadMore();
         }}
         scrollEventThrottle={400}
         showsVerticalScrollIndicator={false}
       >
-        {notifications.length > 0 ? (
+        <View style={styles.welcomeRow}>
+          <Text style={styles.welcomeTitle}>Alerts</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Notifications and updates from Roads Authority
+          </Text>
+        </View>
+
+        {notifications.length > 0 && (
           <>
-            <View style={styles.notificationsContainer}>
-              {notifications.map((notification, index) => (
-                <UnifiedCard
-                  key={notification.id}
-                  variant="default"
-                  padding="medium"
-                  onPress={() => handleNotificationPress(notification)}
-                  style={styles.notificationCard}
-                >
-                  <View style={styles.notificationRow}>
-                    <View
+            <View style={styles.toolbarRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterContainer}
+              >
+                {TYPE_FILTERS.map((filter) => (
+                  <TouchableOpacity
+                    key={filter}
+                    style={[styles.filterChip, selectedFilter === filter && styles.filterChipActive]}
+                    onPress={() => setSelectedFilter(filter)}
+                  >
+                    <Text
                       style={[
-                        styles.notificationIconContainer,
-                        { backgroundColor: getNotificationColor(notification.type, colors) + '15' },
+                        styles.filterChipText,
+                        selectedFilter === filter && styles.filterChipTextActive,
                       ]}
+                      numberOfLines={1}
                     >
-                      <Ionicons
-                        name={getNotificationIcon(notification.type)}
-                        size={22}
-                        color={getNotificationColor(notification.type, colors)}
-                      />
-                    </View>
-                    <View style={styles.notificationContent}>
-                      <View style={styles.notificationHeader}>
-                        <Text style={[typography.bodyLarge, { color: colors.text, flex: 1, marginRight: spacing.sm }]} numberOfLines={2}>
-                          {notification.title}
-                        </Text>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                          {formatTimeAgo(notification.sentAt)}
-                        </Text>
-                      </View>
-                      <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.xs }]} numberOfLines={2}>
-                        {notification.body}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-                  </View>
-                </UnifiedCard>
-              ))}
+                      {filter}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={handleClearAll}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.error} />
+                <Text style={styles.clearButtonText}>Clear</Text>
+              </TouchableOpacity>
             </View>
 
-            {loadingMore && (
-              <View style={styles.loadingMore}>
-                <UnifiedSkeletonLoader type="circle" width={20} height={20} />
-              </View>
-            )}
-
-            {!hasMore && notifications.length > 0 && (
-              <View style={styles.endMessage}>
-                <Text style={[typography.body, { color: colors.textSecondary }]}>
-                  You're all caught up
+            {selectedFilter !== 'All' && (
+              <View style={styles.resultsRow}>
+                <Text style={styles.resultsCount}>
+                  {filteredNotifications.length} {filteredNotifications.length === 1 ? 'alert' : 'alerts'}
                 </Text>
               </View>
             )}
           </>
-        ) : (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <Ionicons name="notifications-outline" size={64} color={colors.textSecondary} />
-            </View>
-            <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
-              No alerts yet
-            </Text>
-            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-              You'll see notifications and alerts here when they arrive
-            </Text>
+        )}
+
+        {filteredNotifications.length > 0 ? (
+          <View style={styles.content}>
+            {filteredNotifications.map((notification) => {
+              const typeColor = getTypeColor(notification.type, colors);
+              return (
+                <UnifiedCard
+                  key={notification.id}
+                  variant="elevated"
+                  padding="large"
+                  onPress={() => handleNotificationPress(notification)}
+                  style={styles.alertCard}
+                  accessible
+                  accessibilityLabel={`${notification.title}, ${formatTimeAgo(notification.sentAt)}`}
+                  accessibilityHint="Double tap to view details"
+                >
+                  <View style={styles.alertRow}>
+                    <View style={[styles.iconWrap, { backgroundColor: typeColor + '18' }]}>
+                      <Ionicons
+                        name={getNotificationIcon(notification.type)}
+                        size={24}
+                        color={typeColor}
+                      />
+                    </View>
+                    <View style={styles.alertBody}>
+                      <View style={styles.alertHeader}>
+                        <Text style={styles.alertTitle} numberOfLines={2}>
+                          {notification.title}
+                        </Text>
+                        <Text style={styles.alertTime}>
+                          {formatTimeAgo(notification.sentAt)}
+                        </Text>
+                      </View>
+                      <Text style={styles.alertPreview} numberOfLines={2}>
+                        {notification.body}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                  </View>
+                </UnifiedCard>
+              );
+            })}
+
+            {loadingMore && (
+              <View style={styles.loadingMore}>
+                <LoadingSpinner size="small" message="Loading more..." />
+              </View>
+            )}
+
+            {!hasMore && (
+              <View style={styles.endRow}>
+                <Text style={styles.endText}>You're all caught up</Text>
+              </View>
+            )}
           </View>
+        ) : (
+          <NoDataDisplay
+            preset="notifications"
+            message={
+              notifications.length === 0
+                ? 'You will see alerts here when they arrive.'
+                : `No ${selectedFilter.toLowerCase()} alerts.`
+            }
+            style={styles.emptyState}
+          />
         )}
       </ScrollView>
 
-      {/* Notification Detail Modal */}
       <Modal
         visible={showDetailModal}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setShowDetailModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <UnifiedCard variant="elevated" padding="large" style={styles.modalContent}>
-              {selectedNotification && (
-                <>
-                  <View style={styles.modalHeader}>
-                    <View
-                      style={[
-                        styles.modalIconContainer,
-                        { backgroundColor: getNotificationColor(selectedNotification.type, colors) + '15' },
-                      ]}
-                    >
-                      <Ionicons
-                        name={getNotificationIcon(selectedNotification.type)}
-                        size={28}
-                        color={getNotificationColor(selectedNotification.type, colors)}
-                      />
-                    </View>
-                    <TouchableOpacity
-                      style={styles.modalCloseButton}
-                      onPress={() => setShowDetailModal(false)}
-                    >
-                      <Ionicons name="close-circle" size={28} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <ScrollView 
-                    style={styles.modalScrollView} 
-                    contentContainerStyle={styles.modalScrollContent}
-                    showsVerticalScrollIndicator={false}
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            {selectedNotification && (
+              <ScrollView
+                style={styles.modalScroll}
+                contentContainerStyle={styles.modalInner}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.modalHeader}>
+                  <View
+                    style={[
+                      styles.modalIconWrap,
+                      {
+                        backgroundColor:
+                          getTypeColor(selectedNotification.type, colors) + '18',
+                      },
+                    ]}
                   >
-                    <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.sm }]}>
-                      {selectedNotification.title}
-                    </Text>
+                    <Ionicons
+                      name={getNotificationIcon(selectedNotification.type)}
+                      size={28}
+                      color={getTypeColor(selectedNotification.type, colors)}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={styles.modalCloseBtn}
+                    onPress={() => setShowDetailModal(false)}
+                  >
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
 
-                    <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
-                      {formatTimeAgo(selectedNotification.sentAt)}
-                    </Text>
+                <Text style={styles.modalTitle}>{selectedNotification.title}</Text>
+                <Text style={styles.modalTime}>
+                  {formatTimeAgo(selectedNotification.sentAt)}
+                </Text>
 
-                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                <View style={styles.modalDivider} />
 
-                    <Text style={[typography.body, { color: colors.text, lineHeight: 24, marginBottom: spacing.xl }]}>
-                      {selectedNotification.body}
-                    </Text>
+                <Text style={styles.modalBody}>{selectedNotification.body}</Text>
 
-                    {hasRelatedContent(selectedNotification) && (
-                      <UnifiedButton
-                        label={
-                          selectedNotification.type === 'news'
-                            ? 'View Article'
-                            : selectedNotification.type === 'tender'
-                            ? 'View Tender'
-                            : selectedNotification.type === 'vacancy'
-                            ? 'View Vacancy'
-                            : 'View Details'
-                        }
-                        onPress={handleViewRelatedContent}
-                        variant="primary"
-                        size="large"
-                        iconName="arrow-forward"
-                        iconPosition="right"
-                        fullWidth
-                      />
-                    )}
-                  </ScrollView>
-                </>
-              )}
-            </UnifiedCard>
+                {hasRelatedContent(selectedNotification) && (
+                  <UnifiedButton
+                    label={getActionLabel(selectedNotification.type)}
+                    onPress={handleViewRelated}
+                    variant="primary"
+                    size="large"
+                    iconName="arrow-forward"
+                    iconPosition="right"
+                    fullWidth
+                    style={styles.modalButton}
+                  />
+                )}
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -453,90 +397,176 @@ function getStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary,
     },
     scrollView: {
       flex: 1,
     },
     scrollContent: {
-      padding: spacing.xl,
+      flexGrow: 1,
+      paddingHorizontal: spacing.lg,
       paddingBottom: spacing.xxxl,
     },
-    loadingContainer: {
-      flex: 1,
-      padding: spacing.xl,
+    welcomeRow: {
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.md,
     },
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center',
+    welcomeTitle: {
+      ...typography.h4,
+      color: colors.text,
+      marginBottom: spacing.xs,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    welcomeSubtitle: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    toolbarRow: {
+      flexDirection: 'row',
       alignItems: 'center',
-      padding: spacing.xl,
-    },
-    errorIconContainer: {
-      marginBottom: spacing.lg,
-    },
-    notificationsContainer: {
-      gap: spacing.md,
-    },
-    notificationCard: {
       marginBottom: spacing.sm,
     },
-    notificationRow: {
+    filterContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      paddingVertical: spacing.sm,
+      gap: spacing.sm,
+    },
+    filterChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+      backgroundColor: colors.cardBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: spacing.sm,
+      minWidth: 72,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    filterChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    filterChipText: {
+      ...typography.bodySmall,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    filterChipTextActive: {
+      color: colors.textInverse || '#FFFFFF',
+      fontWeight: '600',
+    },
+    clearButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.sm,
+      gap: 4,
+      marginLeft: spacing.sm,
+    },
+    clearButtonText: {
+      ...typography.caption,
+      fontWeight: '600',
+      color: colors.error,
+    },
+    resultsRow: {
+      paddingBottom: spacing.sm,
+    },
+    resultsCount: {
+      ...typography.caption,
+      color: colors.textSecondary,
+    },
+    content: {
+      paddingTop: spacing.xs,
+    },
+    alertCard: {
+      marginBottom: spacing.lg,
+    },
+    alertRow: {
       flexDirection: 'row',
       alignItems: 'center',
     },
-    notificationIconContainer: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+    iconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: spacing.md,
     },
-    notificationContent: {
+    alertBody: {
       flex: 1,
       marginRight: spacing.sm,
     },
-    notificationHeader: {
+    alertHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
+      marginBottom: spacing.xs,
+      gap: spacing.sm,
+    },
+    alertTitle: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    alertTime: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    alertPreview: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     loadingMore: {
       paddingVertical: spacing.xl,
       alignItems: 'center',
     },
-    endMessage: {
+    endRow: {
       alignItems: 'center',
       paddingVertical: spacing.xl,
     },
-    emptyState: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: spacing.xxxl,
+    endText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
     },
-    emptyIconContainer: {
-      marginBottom: spacing.lg,
+    emptyState: {
+      minHeight: 280,
+      paddingVertical: spacing.xxxl,
     },
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'flex-end',
     },
-    modalContainer: {
-      maxHeight: '85%',
-      paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    modalSheet: {
+      backgroundColor: colors.backgroundSecondary,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '90%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : spacing.xl,
     },
-    modalContent: {
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      minHeight: 400,
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.border,
+      alignSelf: 'center',
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
     },
-    modalScrollView: {
-      flexGrow: 0,
+    modalScroll: {
+      flex: 1,
     },
-    modalScrollContent: {
+    modalInner: {
+      paddingHorizontal: spacing.lg,
       paddingBottom: spacing.xl,
     },
     modalHeader: {
@@ -545,19 +575,45 @@ function getStyles(colors) {
       justifyContent: 'space-between',
       marginBottom: spacing.lg,
     },
-    modalIconContainer: {
+    modalIconWrap: {
       width: 56,
       height: 56,
-      borderRadius: 28,
+      borderRadius: 14,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    modalCloseButton: {
-      padding: spacing.xs,
+    modalCloseBtn: {
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-    divider: {
-      height: 1,
+    modalTitle: {
+      ...typography.h4,
+      color: colors.text,
+      marginBottom: spacing.sm,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    modalTime: {
+      ...typography.caption,
+      color: colors.textSecondary,
       marginBottom: spacing.lg,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    modalDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginBottom: spacing.lg,
+    },
+    modalBody: {
+      ...typography.body,
+      color: colors.text,
+      lineHeight: 24,
+      marginBottom: spacing.xl,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    modalButton: {
+      marginTop: spacing.md,
     },
   });
 }

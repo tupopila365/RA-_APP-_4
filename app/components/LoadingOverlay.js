@@ -1,12 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Modal,
-  View,
-  ActivityIndicator,
-  Text,
-  StyleSheet,
-  Animated,
-} from 'react-native';
+import { Modal, View, Text, StyleSheet, Animated } from 'react-native';
+import { SpinnerCore } from './SpinnerCore';
 import { useTheme } from '../hooks/useTheme';
 import { typography } from '../theme/typography';
 
@@ -85,14 +79,7 @@ export function LoadingOverlay({
       >
         <View style={styles.container}>
           <View style={styles.spinnerContainer} pointerEvents="none">
-            <ActivityIndicator
-              size={size}
-              color={spinnerColor}
-              testID={testID}
-              accessible={true}
-              accessibilityLabel="Loading content"
-              accessibilityRole="progressbar"
-            />
+            <SpinnerCore size={size} color={spinnerColor} testID={testID} />
             {message && (
               <Text
                 style={styles.message}

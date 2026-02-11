@@ -1,80 +1,153 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import { UnifiedCard } from '../components/UnifiedCard';
+import { UnifiedButton } from '../components/UnifiedButton';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 
 export default function ReportConfirmationScreen({ route }) {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const { referenceCode } = route.params || {};
+  const [copied, setCopied] = useState(false);
 
   const styles = getStyles(colors);
+
+  const handleCopyReference = async () => {
+    if (!referenceCode) return;
+    try {
+      await Clipboard.setStringAsync(referenceCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // Clipboard not available
+    }
+  };
 
   const handleViewReports = () => {
     navigation.navigate('MyReports');
   };
 
   const handleDone = () => {
-    // Navigate to Home tab through MainTabs navigator
     navigation.dispatch(
       CommonActions.navigate({
         name: 'MainTabs',
-        params: {
-          screen: 'Home',
-        },
+        params: { screen: 'Home' },
       })
     );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.content}>
-        {/* Success Icon */}
-        <View style={styles.iconContainer}>
-          <View style={[styles.iconCircle, { backgroundColor: colors.card, borderWidth: 2, borderColor: colors.success }]}>
-            <Ionicons name="checkmark-circle" size={80} color={colors.success} />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Success Header */}
+        <View style={styles.header}>
+          <View style={[styles.iconCircle, { backgroundColor: colors.success + '18' }]}>
+            <Ionicons name="checkmark-circle" size={56} color={colors.success} />
           </View>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Report Submitted
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Thank you for helping improve road safety in Namibia.
+          </Text>
         </View>
 
-        {/* Success Message */}
-        <Text style={styles.title}>Report Submitted Successfully!</Text>
-        <Text style={styles.message}>
-          Thank you for helping improve road safety. Your report has been received and will be reviewed by our team.
-        </Text>
-
-        {/* Reference Code */}
-        {referenceCode && (
-          <View style={styles.referenceContainer}>
-            <Text style={styles.referenceLabel}>Reference Code</Text>
-            <View style={styles.referenceCodeBox}>
-              <Text style={styles.referenceCode}>{referenceCode}</Text>
-            </View>
-            <Text style={styles.referenceNote}>
-              Save this code to track your report status
+        {/* Reference Code Card */}
+        {referenceCode ? (
+          <UnifiedCard variant="elevated" padding="large" style={styles.referenceCard}>
+            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+              YOUR REFERENCE CODE
             </Text>
-          </View>
+            <View style={[styles.referenceBox, { backgroundColor: colors.primary }]}>
+              <Text
+                style={styles.referenceCode}
+                selectable
+                selectionColor={colors.primaryLight}
+              >
+                {referenceCode}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleCopyReference}
+              style={styles.copyRow}
+              activeOpacity={0.7}
+              accessibilityLabel={copied ? 'Copied' : 'Copy reference code'}
+            >
+              <Ionicons
+                name={copied ? 'checkmark' : 'copy-outline'}
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={[styles.copyText, { color: colors.primary }]}>
+                {copied ? 'Copied to clipboard' : 'Copy code'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.referenceHint, { color: colors.textSecondary }]}>
+              Save this code to track your report in My Reports.
+            </Text>
+          </UnifiedCard>
+        ) : (
+          <UnifiedCard variant="elevated" padding="large" style={styles.referenceCard}>
+            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+              REFERENCE CODE
+            </Text>
+            <Text style={[styles.referenceHint, { color: colors.textSecondary }]}>
+              View your reference code in My Reports.
+            </Text>
+          </UnifiedCard>
         )}
 
-        {/* Action Buttons */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={handleViewReports}
-          >
-            <Ionicons name="list-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>View My Reports</Text>
-          </TouchableOpacity>
+        {/* What happens next */}
+        <UnifiedCard variant="outlined" padding="medium" style={styles.nextStepsCard}>
+          <View style={styles.nextStepsHeader}>
+            <Ionicons name="time-outline" size={20} color={colors.primary} />
+            <Text style={[styles.nextStepsTitle, { color: colors.text }]}>
+              What happens next
+            </Text>
+          </View>
+          <Text style={[styles.nextStepsBody, { color: colors.textSecondary }]}>
+            Your report has been received and will be reviewed by our team. You can track its status at any time in My Reports.
+          </Text>
+        </UnifiedCard>
 
-          <TouchableOpacity
-            style={[styles.button, styles.secondaryButton]}
+        {/* Actions */}
+        <View style={styles.actions}>
+          <UnifiedButton
+            label="View My Reports"
+            onPress={handleViewReports}
+            variant="primary"
+            size="large"
+            fullWidth
+            iconName="document-text-outline"
+            style={styles.actionButton}
+          />
+          <UnifiedButton
+            label="Done"
             onPress={handleDone}
-          >
-            <Text style={styles.secondaryButtonText}>Done</Text>
-          </TouchableOpacity>
+            variant="outline"
+            size="large"
+            fullWidth
+            style={styles.actionButton}
+          />
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -85,107 +158,93 @@ function getStyles(colors) {
       flex: 1,
       backgroundColor: colors.background,
     },
-    content: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 20,
+    scrollContent: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xxl,
+      paddingBottom: spacing.xxxl,
     },
-    iconContainer: {
-      marginBottom: 32,
+    header: {
+      alignItems: 'center',
+      marginBottom: spacing.xxl,
     },
     iconCircle: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      width: 96,
+      height: 96,
+      borderRadius: 48,
       justifyContent: 'center',
       alignItems: 'center',
+      marginBottom: spacing.lg,
     },
     title: {
-      fontSize: 26,
-      fontWeight: '700',
-      color: colors.text,
+      ...typography.h3,
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: spacing.sm,
     },
-    message: {
-      fontSize: 16,
-      color: colors.textSecondary,
+    subtitle: {
+      ...typography.body,
       textAlign: 'center',
-      marginBottom: 32,
       lineHeight: 24,
+      paddingHorizontal: spacing.md,
     },
-    referenceContainer: {
-      width: '100%',
-      alignItems: 'center',
-      marginBottom: 32,
+    referenceCard: {
+      marginBottom: spacing.lg,
     },
-    referenceLabel: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginBottom: 8,
+    cardLabel: {
+      ...typography.label,
+      letterSpacing: 0.5,
+      marginBottom: spacing.md,
     },
-    referenceCodeBox: {
-      backgroundColor: colors.primary,
-      paddingVertical: 18,
-      paddingHorizontal: 24,
+    referenceBox: {
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.xl,
       borderRadius: 12,
-      borderWidth: 2,
-      borderColor: colors.primary,
-      marginBottom: 10,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      alignItems: 'center',
+      marginBottom: spacing.md,
     },
     referenceCode: {
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: '700',
-      color: colors.primary,
+      color: '#FFFFFF',
       letterSpacing: 2,
-      fontFamily: 'monospace',
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
-    referenceNote: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    buttonContainer: {
-      width: '100%',
-      gap: 12,
-    },
-    button: {
+    copyRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 16,
-      borderRadius: 8,
-      gap: 8,
+      gap: spacing.sm,
+      marginBottom: spacing.md,
     },
-    primaryButton: {
-      backgroundColor: colors.primary,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    primaryButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
+    copyText: {
+      fontSize: 14,
       fontWeight: '600',
     },
-    secondaryButton: {
-      backgroundColor: colors.card,
-      borderWidth: 1.5,
-      borderColor: colors.border || '#E0E0E0',
+    referenceHint: {
+      ...typography.caption,
+      textAlign: 'center',
+      lineHeight: 18,
     },
-    secondaryButtonText: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
+    nextStepsCard: {
+      marginBottom: spacing.xxl,
+    },
+    nextStepsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    nextStepsTitle: {
+      ...typography.h5,
+    },
+    nextStepsBody: {
+      ...typography.bodyMedium,
+      lineHeight: 22,
+    },
+    actions: {
+      gap: spacing.md,
+    },
+    actionButton: {
+      minHeight: 48,
     },
   });
 }
-

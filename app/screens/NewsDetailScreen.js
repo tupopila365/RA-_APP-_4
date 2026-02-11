@@ -1,99 +1,145 @@
+import { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  useColorScheme,
-  Dimensions,
-  useWindowDimensions,
-  Modal,
   TouchableOpacity,
+  Modal,
   Pressable,
+  Platform,
 } from 'react-native';
-import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
 import { CachedImage } from '../components/CachedImage';
+import { Badge } from '../components/Badge';
+import { NoDataDisplay } from '../components/NoDataDisplay';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
+
+const FEATURED_IMAGE_HEIGHT = 240;
+
+function estimateReadTime(content) {
+  if (!content || typeof content !== 'string') return null;
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(1, Math.ceil(words / 200));
+  return minutes;
+}
+
+function getFormattedDate(article) {
+  if (typeof article?.getFormattedDate === 'function') {
+    return article.getFormattedDate();
+  }
+  if (article?.publishedAt) {
+    const d = new Date(article.publishedAt);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  return '';
+}
 
 export default function NewsDetailScreen({ route }) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   const { article } = route.params;
-  const { width: screenWidth } = useWindowDimensions();
   const [imageModalVisible, setImageModalVisible] = useState(false);
 
-  const styles = getStyles(colors, screenWidth);
+  const hasImage = typeof article?.hasImage === 'function' ? article.hasImage() : !!article?.imageUrl;
+  const readTime = article?.readTime ?? estimateReadTime(article?.content);
+  const formattedDate = getFormattedDate(article);
+  const styles = getStyles(colors);
 
   const handleImagePress = () => {
-    if (article.hasImage && article.hasImage()) {
-      setImageModalVisible(true);
-    }
+    if (hasImage) setImageModalVisible(true);
   };
 
-  const closeImageModal = () => {
-    setImageModalVisible(false);
-  };
+  const closeImageModal = () => setImageModalVisible(false);
+
+  if (!article) {
+    return (
+      <View style={styles.container}>
+        <NoDataDisplay
+          icon="document-outline"
+          title="Article not found"
+          message="The requested article could not be loaded. It may have been removed or the link may be invalid."
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Featured Image */}
-        {article.hasImage && article.hasImage() ? (
-          <TouchableOpacity 
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {hasImage ? (
+          <TouchableOpacity
             onPress={handleImagePress}
-            activeOpacity={0.9}
-            accessible={true}
+            activeOpacity={0.95}
+            accessible
             accessibilityLabel="Featured image, tap to view full size"
-            accessibilityHint="Double tap to open image in full screen"
+            accessibilityRole="imagebutton"
           >
             <CachedImage
               uri={article.imageUrl}
               style={styles.featuredImage}
               resizeMode="cover"
               accessibilityLabel={`Featured image for ${article.title}`}
-              testID="news-detail-image"
             />
           </TouchableOpacity>
         ) : (
-          <View style={styles.imagePlaceholder}>
-            <Ionicons name="image-outline" size={60} color={colors.textSecondary} />
-            <Text style={styles.imagePlaceholderText}>No Image Available</Text>
+          <View style={[styles.imagePlaceholder, { backgroundColor: colors.card }]}>
+            <Ionicons name="newspaper-outline" size={64} color={colors.textSecondary} />
+            <Text style={styles.imagePlaceholderText}>No image</Text>
           </View>
         )}
 
         <View style={styles.content}>
-          <View style={styles.header}>
-            <View style={[styles.categoryBadge, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
-              <Text style={[styles.categoryText, { color: colors.primary }]}>
-                {article.category}
-              </Text>
-            </View>
-            <Text style={styles.dateText}>{article.date}</Text>
+          <View style={styles.metaRow}>
+            {article.category && (
+              <Badge label={article.category} variant="info" size="small" />
+            )}
+            <Text style={styles.dateText}>
+              {formattedDate}
+            </Text>
           </View>
 
           <Text style={styles.title}>{article.title}</Text>
 
-          <View style={styles.metaInfo}>
-            <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-              <Text style={styles.metaText}>{article.readTime} min read</Text>
+          {(readTime || article.author) && (
+            <View style={styles.detailMeta}>
+              {readTime && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                  <Text style={styles.metaText}>{readTime} min read</Text>
+                </View>
+              )}
+              {article.author && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
+                  <Text style={styles.metaText}>{article.author}</Text>
+                </View>
+              )}
             </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
-              <Text style={styles.metaText}>{article.author}</Text>
-            </View>
-          </View>
+          )}
 
-          <Text style={styles.articleContent}>{article.content}</Text>
+          <View style={styles.divider} />
+
+          <Text style={styles.articleContent}>
+            {article.content || article.excerpt || ''}
+          </Text>
 
           {article.tags && article.tags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              <Text style={styles.tagsLabel}>Tags:</Text>
-              <View style={styles.tags}>
-                {article.tags.map((tag, index) => (
-                  <View key={tag} style={styles.tag}>
-                    <Text style={styles.tagText}>#{tag}</Text>
+            <View style={styles.tagsSection}>
+              <Text style={styles.tagsLabel}>Tags</Text>
+              <View style={styles.tagsRow}>
+                {article.tags.map((tag) => (
+                  <View
+                    key={tag}
+                    style={[styles.tag, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}
+                  >
+                    <Text style={[styles.tagText, { color: colors.primary }]}>#{tag}</Text>
                   </View>
                 ))}
               </View>
@@ -102,38 +148,36 @@ export default function NewsDetailScreen({ route }) {
         </View>
       </ScrollView>
 
-      {/* Image Zoom Modal */}
       <Modal
         visible={imageModalVisible}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={closeImageModal}
-        statusBarTranslucent={true}
+        statusBarTranslucent
       >
-        <Pressable 
-          style={styles.modalContainer}
+        <Pressable
+          style={styles.modalOverlay}
           onPress={closeImageModal}
-          accessible={true}
+          accessible
           accessibilityLabel="Close full screen image"
-          accessibilityHint="Tap anywhere to close"
+          accessibilityRole="button"
         >
           <View style={styles.modalContent}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeButton}
               onPress={closeImageModal}
-              accessible={true}
-              accessibilityLabel="Close button"
+              accessible
+              accessibilityLabel="Close"
               accessibilityRole="button"
             >
-              <Ionicons name="close" size={30} color="#fff" />
+              <Ionicons name="close" size={28} color="#fff" />
             </TouchableOpacity>
-            {article.hasImage && article.hasImage() && (
+            {hasImage && (
               <CachedImage
                 uri={article.imageUrl}
                 style={styles.fullScreenImage}
                 resizeMode="contain"
                 accessibilityLabel={`Full size image for ${article.title}`}
-                testID="news-detail-image-fullscreen"
               />
             )}
           </View>
@@ -143,44 +187,124 @@ export default function NewsDetailScreen({ route }) {
   );
 }
 
-function getStyles(colors, screenWidth) {
-  const isSmallScreen = screenWidth < 375;
-  const isMediumScreen = screenWidth >= 375 && screenWidth < 768;
-  const isLargeScreen = screenWidth >= 768;
+NewsDetailScreen.propTypes = {
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      article: PropTypes.object,
+    }),
+  }).isRequired,
+};
 
-  const contentPadding = isSmallScreen ? 15 : isMediumScreen ? 20 : 30;
-  const titleSize = isSmallScreen ? 22 : isMediumScreen ? 26 : 30;
-  const contentSize = isSmallScreen ? 15 : 16;
-  const imageHeight = isSmallScreen ? 200 : isMediumScreen ? 250 : 300;
-
+function getStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    scrollView: {
+      flex: 1,
     },
     scrollContent: {
       flexGrow: 1,
+      paddingBottom: spacing.xxxl,
     },
     featuredImage: {
       width: '100%',
-      height: imageHeight,
+      height: FEATURED_IMAGE_HEIGHT,
       backgroundColor: colors.surface,
     },
     imagePlaceholder: {
       width: '100%',
-      height: imageHeight,
-      backgroundColor: colors.card,
+      height: FEATURED_IMAGE_HEIGHT,
       justifyContent: 'center',
       alignItems: 'center',
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
     },
     imagePlaceholderText: {
-      marginTop: 10,
-      fontSize: 14,
+      ...typography.bodySmall,
       color: colors.textSecondary,
+      marginTop: spacing.sm,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    modalContainer: {
+    content: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xl,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+      flexWrap: 'wrap',
+    },
+    dateText: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    title: {
+      ...typography.h3,
+      color: colors.text,
+      lineHeight: 32,
+      marginBottom: spacing.lg,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    detailMeta: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xl,
+      marginBottom: spacing.lg,
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    metaText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginBottom: spacing.xl,
+    },
+    articleContent: {
+      ...typography.body,
+      color: colors.text,
+      lineHeight: 26,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    tagsSection: {
+      marginTop: spacing.xxl,
+      paddingTop: spacing.xl,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    tagsLabel: {
+      ...typography.label,
+      color: colors.text,
+      marginBottom: spacing.sm,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    tagsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    tag: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    tagText: {
+      ...typography.bodySmall,
+      fontWeight: '600',
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.95)',
       justifyContent: 'center',
@@ -194,103 +318,19 @@ function getStyles(colors, screenWidth) {
     },
     closeButton: {
       position: 'absolute',
-      top: 50,
-      right: 20,
+      top: 56,
+      right: spacing.lg,
       zIndex: 10,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      borderRadius: 20,
-      padding: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     fullScreenImage: {
       width: '100%',
       height: '100%',
     },
-    content: {
-      padding: contentPadding,
-      paddingBottom: 40,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 15,
-      flexWrap: 'wrap',
-      gap: 10,
-    },
-    categoryBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    categoryText: {
-      fontSize: isSmallScreen ? 11 : 12,
-      fontWeight: '600',
-    },
-    dateText: {
-      fontSize: isSmallScreen ? 11 : 12,
-      color: colors.textSecondary,
-    },
-    title: {
-      fontSize: titleSize,
-      fontWeight: 'bold',
-      color: colors.text,
-      marginBottom: 15,
-      lineHeight: titleSize * 1.3,
-    },
-    metaInfo: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: isSmallScreen ? 15 : 20,
-      marginBottom: 20,
-      paddingBottom: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    metaItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    metaText: {
-      fontSize: isSmallScreen ? 13 : 14,
-      color: colors.textSecondary,
-    },
-    articleContent: {
-      fontSize: contentSize,
-      color: colors.text,
-      lineHeight: contentSize * 1.6,
-      marginBottom: 20,
-    },
-    tagsContainer: {
-      marginTop: 20,
-    },
-    tagsLabel: {
-      fontSize: isSmallScreen ? 13 : 14,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 10,
-    },
-    tags: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-    },
-    tag: {
-      backgroundColor: colors.card,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 15,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    tagText: {
-      fontSize: isSmallScreen ? 11 : 12,
-      color: colors.primary,
-      fontWeight: '500',
-    },
   });
 }
-
-NewsDetailScreen.propTypes = {
-  route: PropTypes.object.isRequired,
-};

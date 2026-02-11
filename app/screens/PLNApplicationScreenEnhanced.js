@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,23 +13,16 @@ import {
   Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
+import { GlobalHeader, UnifiedFormInput, UnifiedCard, UnifiedButton } from '../components';
+import { SpinnerCore } from '../components/SpinnerCore';
 import { plnService } from '../services/plnService';
 import { validators } from '../utils/validation';
 import { useAppContext } from '../context/AppContext';
-
-// Import Unified Design System Components
-import {
-  GlobalHeader,
-  UnifiedFormInput,
-  UnifiedCard,
-  UnifiedButton,
-  UnifiedSkeletonLoader,
-  RATheme,
-  typography,
-  spacing,
-} from '../components/UnifiedDesignSystem';
 
 // Import native modules - use dynamic import for development builds
 import * as DocumentPicker from 'expo-document-picker';
@@ -39,6 +32,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
   const { colors, isDark } = useTheme();
   const { user } = useAppContext();
   const insets = useSafeAreaInsets();
+  const bg = colors.backgroundSecondary || colors.background;
   const [loading, setLoading] = useState(false);
   const [documentLoading, setDocumentLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -48,8 +42,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
   const [fieldTouched, setFieldTouched] = useState({});
   const [passwordVerified, setPasswordVerified] = useState(false);
 
-  // Use government-standard styles with proper design system
-  const styles = createStyles(colors, isDark, insets);
+  const styles = useMemo(() => createStyles(colors, isDark, insets), [colors, isDark, insets]);
 
   // Check authentication on mount
   useEffect(() => {
@@ -1163,7 +1156,12 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
           disabled={documentLoading}
         >
           {documentLoading ? (
-            <UnifiedSkeletonLoader type="button" animated={true} />
+            <View style={styles.documentLoadingWrap}>
+              <SpinnerCore size="small" color={colors.primary} />
+              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.sm }]}>
+                Loading...
+              </Text>
+            </View>
           ) : (
             <>
               <Ionicons name="document-text-outline" size={32} color={colors.primary} />
@@ -1248,7 +1246,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
   // Password verification gate (when user exists but not yet verified)
   if (user && !passwordVerified) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: bg }]}>
         <PasswordVerificationModal
           visible={true}
           title="Verify Your Identity"
@@ -1262,7 +1260,8 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: bg }]}>
+      <StatusBar style="dark" />
       {renderHelpModal()}
 
       <KeyboardAvoidingView
@@ -1272,7 +1271,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={true}
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           bounces={true}
           overScrollMode="always"
@@ -1329,16 +1328,20 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
     </View>
   );
 }
-// Government-standard styling using official design system
-const createStyles = (colors, isDark, insets) => StyleSheet.create({
+const createStyles = (colors, isDark, insets) => {
+  const bg = colors.backgroundSecondary || colors.background;
+  const cardBg = colors.card || colors.surface;
+
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: bg,
   },
   progressSection: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.xl,
+    backgroundColor: bg,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
+    paddingTop: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -1398,6 +1401,7 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: spacing.lg,
     paddingBottom: Math.max(spacing.xl * 4, (insets?.bottom || 0) + 80),
   },
   stepHeader: {
@@ -1411,9 +1415,10 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
   readOnlyField: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderRadius: 12,
+    justifyContent: 'space-between',
+    backgroundColor: cardBg,
+    padding: spacing.md,
+    borderRadius: 10,
     marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1470,15 +1475,15 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
     marginBottom: spacing.lg,
   },
   quantityOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.lg,
-    backgroundColor: colors.background,
+    marginRight: spacing.md,
+    backgroundColor: bg,
   },
   quantitySelected: {
     borderColor: colors.primary,
@@ -1487,7 +1492,7 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
   plateChoiceContainer: {
     marginBottom: spacing.xl,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: cardBg,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1552,16 +1557,16 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+    padding: spacing.md,
+    backgroundColor: cardBg,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
   },
   declarationContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: cardBg,
     padding: spacing.lg,
-    borderRadius: 12,
+    borderRadius: 10,
     marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1593,11 +1598,15 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
     borderColor: colors.primary,
     borderStyle: 'dashed',
     borderRadius: 12,
-    padding: spacing.xxxl,
+    padding: spacing.xxl,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary + '08',
+  },
+  documentLoadingWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   documentInfo: {
     flexDirection: 'row',
@@ -1616,9 +1625,9 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
   navigationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.xl,
-    paddingBottom: Math.max(spacing.xl, insets?.bottom || 0) + 4,
-    backgroundColor: colors.background,
+    padding: spacing.lg,
+    paddingBottom: Math.max(spacing.lg, (insets?.bottom || 0) + spacing.md),
+    backgroundColor: bg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -1631,13 +1640,14 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
   },
   helpModal: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: bg,
   },
   helpContent: {
     flex: 1,
-    padding: spacing.xl,
+    padding: spacing.lg,
   },
-});
+  });
+};
 
 // Screen options to hide the default header
 PLNApplicationScreenEnhanced.options = {

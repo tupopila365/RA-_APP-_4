@@ -118,3 +118,8 @@ app/ios/Pods/
 .kiro/
 .zencoder
 .zenflow
+backend/logs/
+.cursor/
+.cursorrules
+.kombai
+

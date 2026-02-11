@@ -35,6 +35,7 @@ import FindOfficesScreen from './screens/FindOfficesScreen';
 import RoadStatusScreen from './screens/RoadStatusScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import ReportPotholeScreen from './screens/ReportPotholeScreen';
+import SetLocationScreen from './screens/SetLocationScreen';
 import ReportConfirmationScreen from './screens/ReportConfirmationScreen';
 import MyReportsScreen from './screens/MyReportsScreen';
 import ReportDetailScreen from './screens/ReportDetailScreen';
@@ -59,7 +60,10 @@ import NotificationPermissionScreen from './screens/NotificationPermissionScreen
 import LocationPermissionScreen from './screens/LocationPermissionScreen';
 import { RATheme } from './theme/colors';
 import { LowerNavigationClean } from './components/LowerNavigationClean';
+import { NavigationHeader } from './components/NavigationHeader';
+import { GlobalDrawer, navigationRef } from './components/GlobalDrawer';
 import { AppProvider, useAppContext } from './context/AppContext';
+import { DrawerProvider } from './context/DrawerContext';
 import { CacheProvider } from './context/CacheContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DependencyProvider } from './src/presentation/di/DependencyContext';
@@ -104,15 +108,9 @@ function NewsStack() {
   return (
     <Stack.Navigator
       screenOptions={{
+        header: (props) => <NavigationHeader {...props} />,
         headerBackTitleVisible: false,
         gestureEnabled: true,
-        headerStyle: {
-          backgroundColor: colors.primary,
-        },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
       }}
     >
       <Stack.Screen name="NewsList" component={NewsScreen} options={{ title: 'News' }} />
@@ -128,15 +126,9 @@ function ProcurementStack() {
   return (
     <Stack.Navigator
       screenOptions={{
+        header: (props) => <NavigationHeader {...props} />,
         headerBackTitleVisible: false,
         gestureEnabled: true,
-        headerStyle: {
-          backgroundColor: colors.primary,
-        },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
       }}
     >
       <Stack.Screen name="ProcurementMain" component={ProcurementScreen} options={{ title: 'Procurement', headerShown: false }} />
@@ -159,18 +151,12 @@ function MainTabs() {
       tabBar={(props) => <LowerNavigationClean {...props} />}
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: 'transparent',
+          backgroundColor: colors.backgroundSecondary,
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
         },
-        headerStyle: {
-          backgroundColor: colors.primary,
-        },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        header: (props) => <NavigationHeader {...props} />,
       }}
     >
       <Tab.Screen 
@@ -286,20 +272,15 @@ function AppNavigator() {
   // Skip authentication requirement for now - chatbot works without login
   // Show main app directly
   return (
-    <Stack.Navigator
-      initialRouteName="MainTabs"
-      screenOptions={{
-        headerBackTitleVisible: false,
-        gestureEnabled: true,
-        headerStyle: {
-          backgroundColor: colors.primary,
-        },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
+    <DrawerProvider>
+      <Stack.Navigator
+        initialRouteName="MainTabs"
+        screenOptions={{
+          header: (props) => <NavigationHeader {...props} />,
+          headerBackTitleVisible: false,
+          gestureEnabled: true,
+        }}
+      >
       <Stack.Screen
         name="MainTabs"
         component={MainTabs}
@@ -344,6 +325,11 @@ function AppNavigator() {
         name="ReportPothole" 
         component={ReportPotholeScreen}
         options={{ title: 'Report Road Damage' }}
+      />
+      <Stack.Screen 
+        name="SetLocation" 
+        component={SetLocationScreen}
+        options={{ title: 'Set Location', headerShown: false }}
       />
       <Stack.Screen 
         name="ReportConfirmation" 
@@ -450,6 +436,8 @@ function AppNavigator() {
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
+    <GlobalDrawer />
+    </DrawerProvider>
   );
 }
 
@@ -3388,7 +3376,7 @@ export default function App() {
         <DependencyProvider>
           <AppProvider>
             <CacheProvider>
-              <NavigationContainer>
+              <NavigationContainer ref={navigationRef}>
                 <DeepLinkHandler />
                 <RootStack />
               </NavigationContainer>

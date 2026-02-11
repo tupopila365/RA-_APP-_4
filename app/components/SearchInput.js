@@ -1,19 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, TextInput, StyleSheet, useColorScheme, TouchableOpacity, Text, ScrollView, Pressable, Platform } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Text, ScrollView, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
 import { useDebounce } from '../hooks/useDebounce';
+import { spacing } from '../theme/spacing';
 
-// Memoize styles per color scheme
-const stylesCache = new Map();
+const MIN_TOUCH_SIZE = 44;
 
-function getStyles(colors) {
-  const cacheKey = `${colors.primary}-${colors.text}-${colors.border}`;
-  if (stylesCache.has(cacheKey)) {
-    return stylesCache.get(cacheKey);
-  }
-
-  const styles = StyleSheet.create({
+function getStyles(colors, isFocused) {
+  return StyleSheet.create({
     wrapper: {
       position: 'relative',
       zIndex: 1000,
@@ -21,66 +16,80 @@ function getStyles(colors) {
     container: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.inputBackground,
+      backgroundColor: colors.card,
       borderRadius: 12,
-      paddingHorizontal: 14,
-      height: 52,
-      borderWidth: 1,
-      borderColor: colors.inputBorder,
+      paddingHorizontal: spacing.lg,
+      minHeight: MIN_TOUCH_SIZE,
+      borderWidth: 2,
+      borderColor: isFocused ? colors.primary : colors.border,
       ...Platform.select({
         ios: {
-          shadowColor: colors.shadow,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.06,
           shadowRadius: 4,
         },
         android: {
-          elevation: 2,
+          elevation: 1,
         },
       }),
     },
-    icon: {
-      marginRight: 10,
+    iconWrap: {
+      width: 20,
+      height: 20,
+      marginRight: spacing.md,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     input: {
       flex: 1,
       color: colors.text,
       fontSize: 16,
+      paddingVertical: spacing.md,
+      ...Platform.select({
+        ios: { paddingVertical: spacing.sm },
+      }),
     },
     clearButton: {
-      padding: 5,
+      width: MIN_TOUCH_SIZE,
+      height: MIN_TOUCH_SIZE,
+      marginRight: -spacing.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     suggestionsContainer: {
       position: 'absolute',
-      top: 55,
+      top: MIN_TOUCH_SIZE + spacing.sm,
       left: 0,
       right: 0,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.card,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
+      overflow: 'hidden',
       ...Platform.select({
         ios: {
-          shadowColor: colors.shadow,
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
+          shadowOpacity: 0.12,
+          shadowRadius: 12,
         },
         android: {
-          elevation: 2,
+          elevation: 4,
         },
       }),
-      maxHeight: 200,
+      maxHeight: 280,
       zIndex: 1001,
     },
     suggestionsList: {
-      flex: 1,
+      flexGrow: 0,
     },
     suggestionItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 15,
+      minHeight: 48,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -88,20 +97,24 @@ function getStyles(colors) {
       borderBottomWidth: 0,
     },
     suggestionItemPressed: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.primary + '12',
     },
-    suggestionIcon: {
-      marginRight: 10,
+    suggestionIconWrap: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: colors.backgroundSecondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.md,
     },
     suggestionText: {
       flex: 1,
       fontSize: 15,
       color: colors.text,
+      lineHeight: 20,
     },
   });
-
-  stylesCache.set(cacheKey, styles);
-  return styles;
 }
 
 export const SearchInput = React.memo(function SearchInput({
@@ -127,11 +140,10 @@ export const SearchInput = React.memo(function SearchInput({
   const [isFocused, setIsFocused] = useState(false);
   const [showSuggestionDropdown, setShowSuggestionDropdown] = useState(false);
   const debouncedValue = useDebounce(value, debounceDelay);
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  
-  // Memoize styles to prevent recreation on every render
-  const styles = useMemo(() => getStyles(colors), [colors.primary, colors.text, colors.border]);
+  const { colors } = useTheme();
+
+  // Memoize styles — update on focus for border state
+  const styles = useMemo(() => getStyles(colors, isFocused), [colors, isFocused]);
   
   // Memoize the search callback to prevent unnecessary re-renders
   const memoizedOnSearch = useRef(onSearch);
@@ -243,7 +255,9 @@ export const SearchInput = React.memo(function SearchInput({
   return (
     <View style={[styles.wrapper, style]}>
       <View style={styles.container}>
-        <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.icon} />
+        <View style={styles.iconWrap}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} />
+        </View>
         <TextInput
           style={styles.input}
           placeholder={placeholder}
@@ -261,15 +275,16 @@ export const SearchInput = React.memo(function SearchInput({
           autoCorrect={false}
         />
         {value && value.length > 0 && (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleClear}
             style={styles.clearButton}
             testID="search-clear-button"
             accessible={true}
             accessibilityLabel="Clear search"
             accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="close" size={20} color={colors.textSecondary} />
+            <Ionicons name="close-circle" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -277,10 +292,11 @@ export const SearchInput = React.memo(function SearchInput({
       {/* Suggestions Dropdown */}
       {showSuggestionDropdown && filteredSuggestions.length > 0 && (
         <View style={styles.suggestionsContainer}>
-          <ScrollView 
+          <ScrollView
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled={true}
             style={styles.suggestionsList}
+            showsVerticalScrollIndicator={true}
           >
             {filteredSuggestions.map((suggestion, index) => (
               <Pressable
@@ -288,7 +304,7 @@ export const SearchInput = React.memo(function SearchInput({
                 style={({ pressed }) => [
                   styles.suggestionItem,
                   pressed && styles.suggestionItemPressed,
-                  index === filteredSuggestions.length - 1 && styles.lastSuggestionItem
+                  index === filteredSuggestions.length - 1 && styles.lastSuggestionItem,
                 ]}
                 onPress={() => handleSuggestionPress(suggestion)}
                 testID={`suggestion-${index}`}
@@ -296,15 +312,13 @@ export const SearchInput = React.memo(function SearchInput({
                 accessibilityLabel={`Suggestion: ${suggestion}`}
                 accessibilityRole="button"
               >
-                <Ionicons 
-                  name="search" 
-                  size={16} 
-                  color={colors.textSecondary} 
-                  style={styles.suggestionIcon} 
-                />
-                <Text style={styles.suggestionText} numberOfLines={1}>
+                <View style={styles.suggestionIconWrap}>
+                  <Ionicons name="search" size={18} color={colors.primary} />
+                </View>
+                <Text style={styles.suggestionText} numberOfLines={2}>
                   {suggestion}
                 </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
               </Pressable>
             ))}
           </ScrollView>

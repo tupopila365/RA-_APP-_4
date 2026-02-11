@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Pressable,
-  useColorScheme,
   RefreshControl,
   Alert,
   Linking,
@@ -20,33 +19,18 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
-import { radii, spacing, sizes, shadows } from '../theme/designTokens';
+import { useTheme } from '../hooks/useTheme';
+import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
+import { radii, sizes, shadows } from '../theme/designTokens';
 import { getSharedMapOptions } from '../theme/mapStyles';
-import RoadsMap, { MAP_MODES, MARKER_TYPES } from '../components/RoadsMap';
+import MapComponent, { MAP_MODES, MARKER_TYPES, isMapAvailable, MapPrimitives } from '../components/MapComponent';
 import { LoadingOverlay } from '../components/LoadingOverlay';
-import { ErrorState, EmptyState, SearchInput, UnifiedSkeletonLoader } from '../components';
+
+const { Marker, Polyline, Callout } = MapPrimitives;
+import { ErrorState, EmptyState, FilterDropdownBox, LocationFilterBadge } from '../components';
 import { roadStatusService } from '../services/roadStatusService';
 import { trafficService, getCongestionColor } from '../services/trafficService';
-
-// Conditionally import MapView
-let MapView = null;
-let Marker = null;
-let Callout = null;
-let Circle = null;
-let Polyline = null;
-let PROVIDER_GOOGLE = null;
-try {
-  const MapModule = require('react-native-maps');
-  MapView = MapModule.default;
-  Marker = MapModule.Marker;
-  Callout = MapModule.Callout;
-  Circle = MapModule.Circle;
-  Polyline = MapModule.Polyline;
-  PROVIDER_GOOGLE = MapModule.PROVIDER_GOOGLE;
-} catch (error) {
-  console.warn('MapView not available:', error.message);
-}
 
 // Conditionally import Location - fallback if not available
 let Location = null;
@@ -726,9 +710,8 @@ const PulsingMarker = ({ coordinate, roadwork, onPress, colors }) => {
 };
 
 export default function RoadStatusScreen() {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const sharedMapOptions = useMemo(() => getSharedMapOptions(colorScheme === 'dark'), [colorScheme]);
+  const { colors, isDark } = useTheme();
+  const sharedMapOptions = useMemo(() => getSharedMapOptions(isDark), [isDark]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const screenHeight = Dimensions.get('window').height;
@@ -737,8 +720,7 @@ export default function RoadStatusScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(null); // Road status: null=All, or Open/Ongoing/Planned/Closed
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [locationBasedRegion, setLocationBasedRegion] = useState(null);
@@ -751,9 +733,9 @@ export default function RoadStatusScreen() {
   const [mapType, setMapType] = useState('standard'); // 'standard', 'satellite', 'hybrid'
   const [showTraffic, setShowTraffic] = useState(true);
   const [trafficData, setTrafficData] = useState([]); // Array of traffic status objects
+  const [isLegendOpen, setIsLegendOpen] = useState(true);
   const [loadingTraffic, setLoadingTraffic] = useState(false);
   const mapModalRef = useRef(null);
-  const [sortBy, setSortBy] = useState('relevance'); // 'relevance', 'distance', 'date', 'status'
   const [savedRoadworks, setSavedRoadworks] = useState([]);
   
   // Route Planner State
@@ -1100,7 +1082,7 @@ export default function RoadStatusScreen() {
   const fetchRoadStatus = async () => {
     try {
       setError(null);
-      const data = await roadStatusService.getRoadStatus(searchQuery);
+      const data = await roadStatusService.getRoadStatus();
       setRoadworks(data);
       setLastUpdated(new Date());
     } catch (err) {
@@ -1123,21 +1105,35 @@ export default function RoadStatusScreen() {
     fetchRoadStatus();
   };
 
-  // Load saved roadworks from AsyncStorage on mount
+  // Load saved roadworks and map legend preference from AsyncStorage on mount
   useEffect(() => {
-    const loadSavedRoadworks = async () => {
+    const loadSavedData = async () => {
       try {
         const AsyncStorage = require('@react-native-async-storage/async-storage').default;
         const saved = await AsyncStorage.getItem('savedRoadworks');
         if (saved) {
           setSavedRoadworks(JSON.parse(saved));
         }
+        const legendPref = await AsyncStorage.getItem('roadStatus_mapLegendOpen');
+        if (legendPref !== null) {
+          setIsLegendOpen(legendPref === 'true');
+        }
       } catch (error) {
-        console.warn('Failed to load saved roadworks:', error);
+        console.warn('Failed to load saved data:', error);
       }
     };
-    loadSavedRoadworks();
+    loadSavedData();
   }, []);
+
+  const setLegendOpen = async (open) => {
+    setIsLegendOpen(open);
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.setItem('roadStatus_mapLegendOpen', String(open));
+    } catch (error) {
+      console.warn('Failed to save legend preference:', error);
+    }
+  };
 
   const toggleSaveRoadwork = async (roadwork) => {
     try {
@@ -1418,8 +1414,8 @@ export default function RoadStatusScreen() {
   const filteredRoadworks = useMemo(() => {
     let filtered = roadworks;
 
-    if (selectedStatus) {
-      filtered = filtered.filter((rw) => rw.status === selectedStatus);
+    if (statusFilter) {
+      filtered = filtered.filter((rw) => rw.status === statusFilter);
     }
 
     if (selectedRegion) {
@@ -1427,18 +1423,6 @@ export default function RoadStatusScreen() {
         (rw) =>
           rw.region?.toLowerCase() === selectedRegion.toLowerCase() ||
           rw.area?.toLowerCase().includes(selectedRegion.toLowerCase())
-      );
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (rw) =>
-          rw.title?.toLowerCase().includes(query) ||
-          rw.road?.toLowerCase().includes(query) ||
-          rw.section?.toLowerCase().includes(query) ||
-          rw.area?.toLowerCase().includes(query) ||
-          rw.region?.toLowerCase().includes(query)
       );
     }
 
@@ -1459,40 +1443,20 @@ export default function RoadStatusScreen() {
       });
     }
 
-    // Sort based on selected sort option
+    // Sort: critical first, then by distance if location available
     filtered = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'distance':
-          if (!userLocation) return 0;
-          const distA = a.distanceKm ?? Infinity;
-          const distB = b.distanceKm ?? Infinity;
-          return distA - distB;
-        
-        case 'date':
-          const dateA = new Date(a.startDate || a.createdAt || 0);
-          const dateB = new Date(b.startDate || b.createdAt || 0);
-          return dateB - dateA; // Newest first
-        
-        case 'status':
-          const statusOrder = { 'Closed': 0, 'Restricted': 1, 'Ongoing': 2, 'Planned': 3, 'Open': 4 };
-          return (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
-        
-        case 'relevance':
-        default:
-          // Critical roadworks first, then by distance if available
-          const aCritical = a.status === 'Closed' || a.status === 'Restricted' || (a.expectedDelayMinutes && a.expectedDelayMinutes > 30);
-          const bCritical = b.status === 'Closed' || b.status === 'Restricted' || (b.expectedDelayMinutes && b.expectedDelayMinutes > 30);
-          if (aCritical && !bCritical) return -1;
-          if (!aCritical && bCritical) return 1;
-          if (userLocation && a.distanceKm && b.distanceKm) {
-            return a.distanceKm - b.distanceKm;
-          }
-          return 0;
+      const aCritical = a.status === 'Closed' || a.status === 'Restricted' || (a.expectedDelayMinutes && a.expectedDelayMinutes > 30);
+      const bCritical = b.status === 'Closed' || b.status === 'Restricted' || (b.expectedDelayMinutes && b.expectedDelayMinutes > 30);
+      if (aCritical && !bCritical) return -1;
+      if (!aCritical && bCritical) return 1;
+      if (userLocation && a.distanceKm != null && b.distanceKm != null) {
+        return a.distanceKm - b.distanceKm;
       }
+      return 0;
     });
 
     return filtered;
-  }, [roadworks, searchQuery, selectedStatus, selectedRegion, userLocation, sortBy]);
+  }, [roadworks, statusFilter, selectedRegion, userLocation]);
 
   const styles = getStyles(colors, screenHeight, screenWidth);
 
@@ -1607,11 +1571,11 @@ export default function RoadStatusScreen() {
   }, [colors, selectedRoadworkForMap]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} edges={['top', 'bottom']}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       {/* Map View Mode - Full Screen Map */}
       {viewMode === 'map' && !isInitialLoading && (
-        !MapView ? (
+        !isMapAvailable ? (
           <View style={styles.mapUnavailableContainer}>
             <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
             <Text style={styles.mapUnavailableTitle}>
@@ -1629,29 +1593,49 @@ export default function RoadStatusScreen() {
           </View>
         ) : mapRegion ? (
           <View style={styles.mapFullScreenContainer}>
-            {/* Map Header with View Toggle */}
-            <View style={styles.mapHeader}>
-              <TouchableOpacity
-                style={styles.mapHeaderButton}
-                onPress={() => setViewMode('list')}
-                accessibilityLabel="Switch to list view"
-              >
-                <Ionicons name="list" size={20} color={colors.text} />
-                <Text style={styles.mapHeaderButtonText}>List View</Text>
-              </TouchableOpacity>
-              <View style={styles.mapHeaderTitle}>
-                <Text style={styles.mapHeaderTitleText}>Road Status Map</Text>
-                <Text style={styles.mapHeaderSubtitle}>
-                  {filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length} roadwork{filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length !== 1 ? 's' : ''} shown
-                </Text>
+            {/* View Toggle - overlay at top */}
+            {!isInitialLoading && roadworks.length > 0 && (
+              <View style={styles.mapToggleOverlay}>
+                <View style={[styles.viewToggleContainer, styles.mapViewToggle, { backgroundColor: colors.background }]}>
+                  <TouchableOpacity
+                    style={[
+                      styles.viewToggleButton,
+                      { borderColor: colors.border },
+                      viewMode === 'list' && [styles.viewToggleButtonActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
+                    ]}
+                    onPress={() => setViewMode('list')}
+                    accessibilityLabel="Switch to list view"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="list" size={18} color={viewMode === 'list' ? '#FFFFFF' : colors.textSecondary} />
+                    <Text style={[styles.viewToggleText, { color: viewMode === 'list' ? '#FFFFFF' : colors.text }]}>
+                      List
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.viewToggleButton,
+                      { borderColor: colors.border },
+                      viewMode === 'map' && [styles.viewToggleButtonActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
+                    ]}
+                    onPress={() => setViewMode('map')}
+                    accessibilityLabel="Switch to map view"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="map" size={18} color={viewMode === 'map' ? '#FFFFFF' : colors.textSecondary} />
+                    <Text style={[styles.viewToggleText, { color: viewMode === 'map' ? '#FFFFFF' : colors.text }]}>
+                      Map
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-            <RoadsMap
+            )}
+            {/* Map fills entire screen */}
+            <MapComponent
               mode={routePlannerMode ? MAP_MODES.NAVIGATE : MAP_MODES.VIEW}
               initialRegion={mapRegion}
-              onSelectLocation={routePlannerMode ? handleRouteMapPress : undefined}
+              onPress={routePlannerMode ? handleRouteMapPress : undefined}
               onRegionChange={(region) => {
-                // Update map region and trigger traffic data refresh
                 setMapRegion(region);
               }}
               showsUserLocation={true}
@@ -1682,6 +1666,7 @@ export default function RoadStatusScreen() {
                   : []),
               ]}
               style={styles.mapFullScreen}
+              showRoadworks={false}
             >
               {/* Route Planner: Start and End Point Markers */}
               {routePlannerMode && routeStartPoint && Marker && (
@@ -1759,7 +1744,7 @@ export default function RoadStatusScreen() {
                   />
                 );
               })}
-            </RoadsMap>
+            </MapComponent>
           
           {/* Route Planner Controls */}
           {routePlannerMode && (
@@ -1841,50 +1826,73 @@ export default function RoadStatusScreen() {
           )}
           
           {/* Map Legend Overlay */}
-          <View style={styles.mapLegendOverlay}>
-            <View style={styles.mapLegendItem}>
-              <View style={[styles.mapLegendMarker, { backgroundColor: colors.error }]}>
-                <Ionicons name="close-circle" size={12} color="#FFFFFF" />
+          {isLegendOpen ? (
+            <View style={styles.mapLegendOverlay}>
+              <View style={styles.mapLegendHeader}>
+                <Text style={styles.mapLegendHeaderText}>Legend</Text>
+                <TouchableOpacity
+                  onPress={() => setLegendOpen(false)}
+                  style={styles.mapLegendCloseButton}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Close legend"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.mapLegendText}>Closed Road</Text>
-            </View>
-            <View style={styles.mapLegendItem}>
-              <View style={[styles.mapLegendMarker, { backgroundColor: colors.success }]}>
-                <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
-              </View>
-              <Text style={styles.mapLegendText}>Recommended Route</Text>
-            </View>
-            <View style={styles.mapLegendItem}>
-              <View style={[styles.mapLegendMarker, { backgroundColor: '#6B7280' }]}>
-                <Ionicons name="ellipsis-horizontal" size={12} color="#FFFFFF" />
-              </View>
-              <Text style={styles.mapLegendText}>Alternate Route</Text>
-            </View>
-            <View style={styles.mapLegendItem}>
-              <View style={[styles.mapLegendMarker, { backgroundColor: colors.warning }]}>
-                <Ionicons name="warning" size={12} color="#FFFFFF" />
-              </View>
-              <Text style={styles.mapLegendText}>Ongoing Work</Text>
-            </View>
-            {showTraffic && (
-              <>
-                <View style={styles.mapLegendDivider} />
-                <Text style={styles.mapLegendTitle}>Traffic Status</Text>
-                <View style={styles.mapLegendItem}>
-                  <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#10B981' }]} />
-                  <Text style={styles.mapLegendText}>Clear</Text>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendMarker, { backgroundColor: colors.error }]}>
+                  <Ionicons name="close-circle" size={12} color="#FFFFFF" />
                 </View>
-                <View style={styles.mapLegendItem}>
-                  <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#F59E0B' }]} />
-                  <Text style={styles.mapLegendText}>Moderate</Text>
+                <Text style={styles.mapLegendText}>Closed Road</Text>
+              </View>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendMarker, { backgroundColor: colors.success }]}>
+                  <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
                 </View>
-                <View style={styles.mapLegendItem}>
-                  <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#EF4444' }]} />
-                  <Text style={styles.mapLegendText}>Heavy</Text>
+                <Text style={styles.mapLegendText}>Recommended Route</Text>
+              </View>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendMarker, { backgroundColor: '#6B7280' }]}>
+                  <Ionicons name="ellipsis-horizontal" size={12} color="#FFFFFF" />
                 </View>
-              </>
-            )}
-          </View>
+                <Text style={styles.mapLegendText}>Alternate Route</Text>
+              </View>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendMarker, { backgroundColor: colors.warning }]}>
+                  <Ionicons name="warning" size={12} color="#FFFFFF" />
+                </View>
+                <Text style={styles.mapLegendText}>Ongoing Work</Text>
+              </View>
+              {showTraffic && (
+                <>
+                  <View style={styles.mapLegendDivider} />
+                  <Text style={styles.mapLegendTitle}>Traffic Status</Text>
+                  <View style={styles.mapLegendItem}>
+                    <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#10B981' }]} />
+                    <Text style={styles.mapLegendText}>Clear</Text>
+                  </View>
+                  <View style={styles.mapLegendItem}>
+                    <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#F59E0B' }]} />
+                    <Text style={styles.mapLegendText}>Moderate</Text>
+                  </View>
+                  <View style={styles.mapLegendItem}>
+                    <View style={[styles.mapLegendTrafficLine, { backgroundColor: '#EF4444' }]} />
+                    <Text style={styles.mapLegendText}>Heavy</Text>
+                  </View>
+                </>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.mapLegendReopenButton}
+              onPress={() => setLegendOpen(true)}
+              accessibilityLabel="Show map legend"
+              accessibilityRole="button"
+            >
+              <Ionicons name="information-circle-outline" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          )}
 
           {/* Traffic Toggle Button */}
           <TouchableOpacity
@@ -1902,25 +1910,6 @@ export default function RoadStatusScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Results Count on Map */}
-          {!routePlannerMode && (
-            <View style={styles.mapResultsOverlay}>
-              <Text style={styles.mapResultsText}>
-                {filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length} roadwork{filteredRoadworks.filter(rw => getRoadworkCoordinates(rw)).length !== 1 ? 's' : ''} on map
-              </Text>
-            </View>
-          )}
-
-          {/* Route Planner Button */}
-          {!routePlannerMode && (
-            <TouchableOpacity
-              style={styles.routePlannerButton}
-              onPress={startRoutePlanning}
-            >
-              <Ionicons name="navigate" size={24} color="#FFFFFF" />
-              <Text style={styles.routePlannerButtonText}>Plan Route</Text>
-            </TouchableOpacity>
-          )}
         </View>
         ) : null
       )}
@@ -1938,273 +1927,87 @@ export default function RoadStatusScreen() {
         }
         showsVerticalScrollIndicator={true}
       >
+        {/* Screen Header */}
+        {!isInitialLoading && (
+          <View style={[styles.screenHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.screenTitle, { color: colors.text }]}>Road Status</Text>
+            <Text style={[styles.screenSubtitle, { color: colors.textMuted }]}>
+              {roadworks.length} roadwork{roadworks.length !== 1 ? 's' : ''} across Namibia
+            </Text>
+          </View>
+        )}
+
         {/* View Mode Toggle */}
         {!isInitialLoading && roadworks.length > 0 && (
-          <View style={styles.viewToggleContainer}>
+          <View style={[styles.viewToggleContainer, { backgroundColor: colors.background }]}>
             <TouchableOpacity
               style={[
                 styles.viewToggleButton,
-                viewMode === 'list' && styles.viewToggleButtonActive
+                { borderColor: colors.border },
+                viewMode === 'list' && [styles.viewToggleButtonActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
               ]}
               onPress={() => setViewMode('list')}
               accessibilityLabel="Switch to list view"
               accessibilityRole="button"
             >
-              <Ionicons 
-                name="list" 
-                size={20} 
-                color={viewMode === 'list' ? '#FFFFFF' : colors.textSecondary} 
-              />
-              <Text 
-                style={[
-                  styles.viewToggleText,
-                  viewMode === 'list' && { color: '#FFFFFF', fontWeight: '600' }
-                ]}
-              >
-                List View
+              <Ionicons name="list" size={18} color={viewMode === 'list' ? '#FFFFFF' : colors.textSecondary} />
+              <Text style={[styles.viewToggleText, { color: viewMode === 'list' ? '#FFFFFF' : colors.text }]}>
+                List
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.viewToggleButton,
-                viewMode === 'map' && styles.viewToggleButtonActive
+                { borderColor: colors.border },
+                viewMode === 'map' && [styles.viewToggleButtonActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
               ]}
               onPress={() => setViewMode('map')}
               accessibilityLabel="Switch to map view"
               accessibilityRole="button"
             >
-              <Ionicons 
-                name="map" 
-                size={20} 
-                color={viewMode === 'map' ? '#FFFFFF' : colors.textSecondary} 
-              />
-              <Text 
-                style={[
-                  styles.viewToggleText,
-                  viewMode === 'map' && { color: '#FFFFFF', fontWeight: '600' }
-                ]}
-              >
-                Map View
+              <Ionicons name="map" size={18} color={viewMode === 'map' ? '#FFFFFF' : colors.textSecondary} />
+              <Text style={[styles.viewToggleText, { color: viewMode === 'map' ? '#FFFFFF' : colors.text }]}>
+                Map
               </Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Status Legend */}
+        {/* Filter by Road Status & Region (dropdown boxes) */}
         {!isInitialLoading && roadworks.length > 0 && viewMode === 'list' && (
-          <View style={styles.legendContainer}>
-            <Text style={styles.legendTitle}>Status Legend</Text>
-            <View style={styles.legendItems}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-                <Text style={styles.legendText}>Open - Normal traffic flow</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
-                <Text style={styles.legendText}>Ongoing - Expect delays</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: colors.info }]} />
-                <Text style={styles.legendText}>Planned - Scheduled</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
-                <Text style={styles.legendText}>Closed - Use alternative</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Search Input */}
-        {!isInitialLoading && !isEmpty && viewMode === 'list' && (
-          <View style={styles.searchInputContainer}>
-            <SearchInput
-              placeholder="Search road name, area, or location..."
-              onSearch={setSearchQuery}
-              onClear={() => setSearchQuery('')}
-              style={styles.searchInput}
-              accessibilityLabel="Search road status"
-              accessibilityHint="Search by road name, area, or title"
-            />
-          </View>
-        )}
-
-        {/* Sort Selector */}
-        {!isInitialLoading && roadworks.length > 0 && viewMode === 'list' && (
-          <View style={styles.sortContainer}>
-            <Text style={styles.sortLabel}>Sort by:</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.sortOptions}
-            >
-              {[
-                { value: 'relevance', label: 'Relevance' },
-                { value: 'distance', label: 'Distance', disabled: !userLocation },
-                { value: 'date', label: 'Date' },
-                { value: 'status', label: 'Status' },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.sortChip,
-                    sortBy === option.value && styles.sortChipActive,
-                    option.disabled && styles.sortChipDisabled,
-                  ]}
-                  onPress={() => !option.disabled && setSortBy(option.value)}
-                  disabled={option.disabled}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Sort by ${option.label}${option.disabled ? ' (disabled)' : ''}`}
-                  accessibilityState={{ selected: sortBy === option.value, disabled: option.disabled }}
-                >
-                  <Text
-                    style={[
-                      styles.sortChipText,
-                      sortBy === option.value && styles.sortChipTextActive,
-                      option.disabled && styles.sortChipTextDisabled,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Status Filter Chips */}
-        {!isInitialLoading && roadworks.length > 0 && viewMode === 'list' && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterContainer}
-          >
-            <TouchableOpacity
-              style={[
-                styles.filterChip,
-                selectedStatus === null && styles.filterChipActive,
-              ]}
-              onPress={() => setSelectedStatus(null)}
-              accessibilityRole="button"
-              accessibilityLabel="Show all statuses"
-              accessibilityState={{ selected: selectedStatus === null }}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selectedStatus === null && styles.filterChipTextActive,
-                ]}
-              >
-                All
-              </Text>
-            </TouchableOpacity>
-            {statusFilters.map((status) => (
-              <TouchableOpacity
-                key={status}
-                style={[
-                  styles.filterChip,
-                  selectedStatus === status && styles.filterChipActive,
-                ]}
-                onPress={() =>
-                  setSelectedStatus(selectedStatus === status ? null : status)
-                }
-                accessibilityRole="button"
-                accessibilityLabel={`Filter by status: ${status}`}
-                accessibilityState={{ selected: selectedStatus === status }}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedStatus === status && styles.filterChipTextActive,
-                  ]}
-                >
-                  {status}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-
-        {/* Region Filter */}
-        {!isInitialLoading && roadworks.length > 0 && viewMode === 'list' && (
-          <View style={styles.regionFilterSection}>
+          <View style={styles.filterBySection}>
             <View style={styles.regionFilterHeader}>
-              <Text style={styles.regionFilterTitle}>Filter by Region</Text>
-              {isDetectingLocation && (
-                <View style={styles.locationDetectingContainer}>
-                  <UnifiedSkeletonLoader type="text-line" style={{ width: 16, height: 16, borderRadius: 8 }} />
-                  <Text style={styles.locationDetectingText}>Detecting your location...</Text>
-                </View>
-              )}
-              {locationBasedRegion && selectedRegion === locationBasedRegion && (
-                <View style={styles.locationBasedFilterContainer}>
-                  <Ionicons name="location" size={14} color={colors.primary} />
-                  <Text style={styles.locationBasedFilterText}>
-                    Filtered by your location
-                  </Text>
-                </View>
-              )}
-              {!locationBasedRegion && !isDetectingLocation && (
-                <TouchableOpacity
-                  style={styles.useLocationButton}
-                  onPress={() => requestLocationPermission(true)}
-                  accessibilityLabel="Use my location to filter"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="location-outline" size={16} color={colors.primary} />
-                  <Text style={styles.useLocationButtonText}>Use My Location</Text>
-                </TouchableOpacity>
-              )}
+              <LocationFilterBadge
+                isDetectingLocation={isDetectingLocation}
+                isFilteredByLocation={!!locationBasedRegion && selectedRegion === locationBasedRegion}
+                onUseLocation={() => requestLocationPermission(true)}
+                testID="location-filter-badge"
+              />
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterContainer}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  selectedRegion === null && styles.filterChipActive,
-                ]}
-                onPress={() => setSelectedRegion(null)}
-                accessibilityRole="button"
-                accessibilityLabel="Show all regions"
-                accessibilityState={{ selected: selectedRegion === null }}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedRegion === null && styles.filterChipTextActive,
-                  ]}
-                >
-                  All Regions
-                </Text>
-              </TouchableOpacity>
-              {regions.map((region) => (
-                <TouchableOpacity
-                  key={region}
-                  style={[
-                    styles.filterChip,
-                    selectedRegion === region && styles.filterChipActive,
-                  ]}
-                  onPress={() =>
-                    setSelectedRegion(selectedRegion === region ? null : region)
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel={`Filter by region: ${region}`}
-                  accessibilityState={{ selected: selectedRegion === region }}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedRegion === region && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {region}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <View style={styles.filterDropdownRow}>
+              <FilterDropdownBox
+                label="Road Status"
+                placeholder="Road Status"
+                value={statusFilter}
+                options={['All', ...statusFilters]}
+                nullMapsToOption="All"
+                onSelect={(item) => setStatusFilter(item === 'All' ? null : item)}
+                onClear={() => setStatusFilter(null)}
+                accessibilityLabel="Road Status filter"
+                testID="filter-road-status"
+              />
+              <FilterDropdownBox
+                label="Region"
+                placeholder="Region"
+                value={selectedRegion}
+                options={['All Regions', ...regions]}
+                nullMapsToOption="All Regions"
+                onSelect={(item) => setSelectedRegion(item === 'All Regions' ? null : item)}
+                onClear={() => setSelectedRegion(null)}
+                accessibilityLabel="Region filter"
+                testID="filter-region"
+              />
+            </View>
           </View>
         )}
 
@@ -2214,23 +2017,22 @@ export default function RoadStatusScreen() {
         {/* List View */}
         {viewMode === 'list' && showEmptyState ? (
           <EmptyState
-            icon={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'search-outline' : 'map-outline'}
-            title={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'No Results Found' : 'No Roadworks in This Area'}
-            message={(searchQuery.trim() || selectedStatus || selectedRegion)
-              ? 'No roadworks match your search or filters.'
+            icon={(statusFilter || selectedRegion) ? 'search-outline' : 'map-outline'}
+            title={(statusFilter || selectedRegion) ? 'No Results Found' : 'No Roadworks in This Area'}
+            message={(statusFilter || selectedRegion)
+              ? 'No roadworks match your filters.'
               : 'All roads are currently open and operating normally.'}
-            primaryActionLabel={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'Clear filters' : 'Refresh'}
+            primaryActionLabel={(statusFilter || selectedRegion) ? 'Clear filters' : 'Refresh'}
             onPrimaryAction={() => {
-              if (searchQuery.trim() || selectedStatus || selectedRegion) {
-                setSearchQuery('');
-                setSelectedStatus(null);
+              if (statusFilter || selectedRegion) {
+                setStatusFilter(null);
                 setSelectedRegion(null);
               } else {
                 handleRetry();
               }
             }}
-            secondaryActionLabel={(searchQuery.trim() || selectedStatus || selectedRegion) ? 'Refresh' : undefined}
-            onSecondaryAction={(searchQuery.trim() || selectedStatus || selectedRegion) ? handleRetry : undefined}
+            secondaryActionLabel={(statusFilter || selectedRegion) ? 'Refresh' : undefined}
+            onSecondaryAction={(statusFilter || selectedRegion) ? handleRetry : undefined}
           />
         ) : viewMode === 'list' && (
           <>
@@ -2283,7 +2085,7 @@ export default function RoadStatusScreen() {
                         </TouchableOpacity>
                       </View>
                     </View>
-                    <Text style={styles.criticalTitle}>{roadwork.title}</Text>
+                    <Text style={styles.criticalCardTitle}>{roadwork.title}</Text>
                     {roadwork.reason && (
                       <View style={styles.criticalRow}>
                         <Ionicons name="construct" size={16} color={colors.error} />
@@ -2456,14 +2258,14 @@ export default function RoadStatusScreen() {
               </View>
             )}
 
-            {(searchQuery.trim() || selectedStatus || selectedRegion) && (
-              <Text style={styles.resultsCount}>
+            {(statusFilter || selectedRegion) && (
+              <Text style={[styles.resultsCount, { color: colors.textSecondary }]}>
                 {filteredRoadworks.length}{' '}
                 {filteredRoadworks.length === 1 ? 'result' : 'results'} found
-                {(selectedStatus || selectedRegion) && (
+                {(statusFilter || selectedRegion) && (
                   <Text style={styles.resultsCountFilters}>
-                    {' '}({selectedStatus ? `Status: ${selectedStatus}` : ''}
-                    {selectedStatus && selectedRegion ? ', ' : ''}
+                    {' '}({statusFilter ? `Status: ${statusFilter}` : ''}
+                    {statusFilter && selectedRegion ? ', ' : ''}
                     {selectedRegion ? `Region: ${selectedRegion}` : ''})
                   </Text>
                 )}
@@ -2710,7 +2512,7 @@ export default function RoadStatusScreen() {
                     <View style={styles.alternativeRouteInline}>
                       <View style={styles.alternativeRouteHeader}>
                         <Ionicons name="swap-horizontal" size={18} color={colors.primary} />
-                        <Text style={styles.alternativeRouteTitle}>💡 Alternative Route Available</Text>
+                        <Text style={styles.alternativeRouteTitle}>Alternative Route Available</Text>
                       </View>
                       <Text style={styles.alternativeRouteDescription}>
                         {roadwork.alternativeRoute}
@@ -2772,43 +2574,51 @@ export default function RoadStatusScreen() {
       )}
 
       {/* In-App Map Modal */}
-      {MapView && showMapModal && selectedRoadworkForMap && modalMapRegion && (
+      {isMapAvailable && showMapModal && selectedRoadworkForMap && modalMapRegion && (
         <Modal
           visible={showMapModal}
           animationType="slide"
           onRequestClose={() => setShowMapModal(false)}
         >
           <SafeAreaView style={styles.mapModalContainer} edges={['top', 'bottom']}>
-            {/* Header */}
+            {/* Header - Redesigned */}
             <View style={[styles.mapModalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowMapModal(false)}
                 style={styles.mapModalBackButton}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 accessibilityLabel="Close map"
                 accessibilityRole="button"
               >
-                <Ionicons name="arrow-back" size={24} color={colors.text} />
+                <Ionicons name="chevron-back" size={24} color={colors.primary} />
               </TouchableOpacity>
-              <View style={styles.mapModalHeaderText}>
-                <Text style={[styles.mapModalTitle, { color: colors.text }]} numberOfLines={1}>
-                  {selectedRoadworkForMap.road || 'Roadwork'}
-                </Text>
+              <View style={styles.mapModalHeaderContent}>
+                <View style={styles.mapModalHeaderTitleRow}>
+                  <Text style={[styles.mapModalTitle, { color: colors.text }]} numberOfLines={1}>
+                    {selectedRoadworkForMap.road || 'Roadwork'}
+                  </Text>
+                  <View style={[styles.mapModalStatusPill, { backgroundColor: getStatusColor(selectedRoadworkForMap.status, colors) + '20' }]}>
+                    <Text style={[styles.mapModalStatusPillText, { color: getStatusColor(selectedRoadworkForMap.status, colors) }]}>
+                      {selectedRoadworkForMap.status}
+                    </Text>
+                  </View>
+                </View>
                 <Text style={[styles.mapModalSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
                   {selectedRoadworkForMap.section || selectedRoadworkForMap.title}
                 </Text>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowMapModal(false)}
-                style={styles.mapModalCloseButton}
+                style={[styles.mapModalDoneButton, { backgroundColor: colors.primary }]}
                 accessibilityLabel="Close"
                 accessibilityRole="button"
               >
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Text style={styles.mapModalDoneButtonText}>Done</Text>
               </TouchableOpacity>
             </View>
 
             {/* Map View */}
-            <RoadsMap
+            <MapComponent
               mode={MAP_MODES.VIEW}
               initialRegion={modalMapRegion}
               markers={mapModalMarkers}
@@ -2831,135 +2641,94 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary,
     },
     scrollContent: {
       flexGrow: 1,
-      padding: 20,
+      padding: spacing.lg,
+      paddingBottom: spacing.xxxl * 2,
+    },
+    screenHeader: {
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+      borderBottomWidth: 1,
+    },
+    screenTitle: {
+      ...typography.h4,
+    },
+    screenSubtitle: {
+      ...typography.caption,
+      marginTop: spacing.xs,
     },
     searchInputContainer: {
       paddingHorizontal: 0,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.sm,
     },
     legendContainer: {
-      marginHorizontal: 0,
-      marginTop: 16,
-      marginBottom: 12,
-      padding: 18,
-      backgroundColor: colors.surface || colors.card,
-      borderRadius: 8,
+      marginTop: spacing.lg,
+      marginBottom: spacing.lg,
+      padding: spacing.lg,
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.03,
-      shadowRadius: 2,
-      elevation: 1,
     },
-    legendTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 12,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    legendRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.lg,
     },
     legendItems: {
-      gap: 10,
+      gap: spacing.md,
     },
     legendItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: spacing.sm,
     },
     legendDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
     },
     legendText: {
-      fontSize: 13,
-      color: colors.text,
-      lineHeight: 18,
+      ...typography.caption,
+    },
+    filterBySection: {
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    filterSectionLabel: {
+      ...typography.label,
+      marginBottom: spacing.md,
     },
     content: {
       padding: 0,
     },
-    searchInput: {
-      margin: 0,
-    },
-    sortContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 12,
-      marginBottom: 8,
-      paddingHorizontal: 20,
-      gap: 12,
-    },
-    sortLabel: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-    },
-    sortOptions: {
-      gap: 8,
-    },
-    sortChip: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 16,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginRight: 6,
-    },
-    sortChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    sortChipDisabled: {
-      opacity: 0.5,
-    },
-    sortChipText: {
-      fontSize: 13,
-      fontWeight: '500',
-      color: colors.textSecondary,
-    },
-    sortChipTextActive: {
-      color: '#FFFFFF',
-      fontWeight: '600',
-    },
-    sortChipTextDisabled: {
-      color: colors.textSecondary,
-    },
     filterContainer: {
-      paddingHorizontal: 15,
-      paddingVertical: 10,
-      gap: 10,
+      paddingVertical: spacing.md,
+      paddingLeft: 0,
+      gap: spacing.sm,
+    },
+    filterDropdownRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
     },
     filterChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: colors.card,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: 20,
       borderWidth: 1,
-      borderColor: colors.border,
-      marginRight: 8,
+      marginRight: spacing.sm,
     },
-    filterChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
+    filterChipActive: {},
     filterChipText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textSecondary,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      ...typography.bodySmall,
+      fontWeight: '600',
     },
     filterChipTextActive: {
-      color: '#FFFFFF',
       fontWeight: '600',
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     resultsCount: {
       fontSize: 14,
@@ -2972,94 +2741,45 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       color: colors.textSecondary,
       fontStyle: 'italic',
     },
-    regionFilterSection: {
-      marginTop: 8,
-      marginBottom: 12,
-    },
     regionFilterHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 10,
-      paddingHorizontal: 20,
+      marginBottom: spacing.md,
+      paddingHorizontal: 0,
       flexWrap: 'wrap',
-      gap: 8,
-    },
-    regionFilterTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      flex: 1,
-    },
-    locationDetectingContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    locationDetectingText: {
-      fontSize: 12,
-      color: colors.textSecondary,
-    },
-    locationBasedFilterContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      backgroundColor: colors.card,
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.primary,
-    },
-    locationBasedFilterText: {
-      fontSize: 12,
-      color: colors.primary,
-      fontWeight: '500',
-    },
-    useLocationButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.primary,
-      backgroundColor: colors.card,
-    },
-    useLocationButtonText: {
-      fontSize: 12,
-      color: colors.primary,
-      fontWeight: '500',
+      gap: spacing.sm,
     },
     sectionTitle: {
-      fontSize: 18,
-      fontWeight: '600',
+      ...typography.h5,
       color: colors.text,
-      marginTop: 24,
-      marginBottom: 16,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      marginTop: spacing.xxl,
+      marginBottom: spacing.lg,
     },
     criticalSection: {
-      marginBottom: 24,
+      marginBottom: spacing.xxl,
     },
     criticalHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 16,
-      gap: 8,
+      marginBottom: spacing.lg,
+      gap: spacing.sm,
     },
     criticalTitle: {
-      fontSize: 18,
-      fontWeight: '600',
+      ...typography.h5,
       color: colors.error,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    },
+    criticalCardTitle: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: spacing.sm,
     },
     criticalCard: {
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: 20,
-      marginBottom: 16,
+      backgroundColor: colors.cardBackground,
+      borderRadius: 12,
+      padding: spacing.xxl,
+      marginBottom: spacing.lg,
       borderWidth: 1,
       borderColor: colors.error,
       borderLeftWidth: 4,
@@ -3067,40 +2787,36 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
     },
     criticalBadge: {
       alignSelf: 'flex-start',
-      marginBottom: 12,
+      marginBottom: spacing.md,
     },
     criticalBadgeText: {
-      fontSize: 14,
-      fontWeight: '600',
+      ...typography.label,
       color: colors.error,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 8,
+      marginBottom: spacing.sm,
       flexWrap: 'wrap',
-      gap: 8,
+      gap: spacing.sm,
     },
     criticalRoadName: {
-      fontSize: 16,
+      ...typography.body,
       fontWeight: '600',
       color: colors.text,
       flex: 1,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     criticalRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 10,
-      gap: 8,
+      marginTop: spacing.md,
+      gap: spacing.sm,
     },
     criticalText: {
-      fontSize: 14,
+      ...typography.bodySmall,
       color: colors.text,
       flex: 1,
-      lineHeight: 20,
     },
     alternativeRoute: {
       flexDirection: 'row',
@@ -3213,35 +2929,33 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       color: colors.textSecondary,
     },
     card: {
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
+      backgroundColor: colors.cardBackground,
+      borderRadius: 12,
+      marginBottom: spacing.lg,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: colors.border,
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2 },
+        android: { elevation: 2 },
+      }),
     },
     statusBadgeTop: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
       borderLeftWidth: 4,
-      gap: 8,
+      gap: spacing.sm,
     },
     statusTextTop: {
-      fontSize: 13,
-      fontWeight: '700',
+      ...typography.label,
       letterSpacing: 0.5,
     },
     cardHeader: {
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      marginBottom: 12,
+      paddingHorizontal: spacing.xxl,
+      paddingTop: spacing.lg,
+      marginBottom: spacing.md,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
@@ -3256,17 +2970,21 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
     cardHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: spacing.sm,
       flexWrap: 'wrap',
     },
     cardHeaderActions: {
       flexDirection: 'row',
-      gap: 8,
-      marginLeft: 8,
+      gap: spacing.sm,
+      marginLeft: spacing.sm,
     },
     iconButton: {
-      padding: 6,
-      borderRadius: 6,
+      padding: spacing.sm,
+      borderRadius: 8,
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     distanceBadge: {
       flexDirection: 'row',
@@ -3285,16 +3003,14 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       color: colors.primary,
     },
     cardTitle: {
-      fontSize: 16,
+      ...typography.body,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 4,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      marginBottom: spacing.xs,
     },
     cardRoad: {
-      fontSize: 14,
+      ...typography.bodySmall,
       color: colors.textSecondary,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     statusBadge: {
       paddingHorizontal: 12,
@@ -3308,28 +3024,27 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       textTransform: 'uppercase',
     },
     cardBody: {
-      paddingHorizontal: 20,
-      paddingBottom: 16,
-      gap: 12,
+      paddingHorizontal: spacing.xxl,
+      paddingBottom: spacing.lg,
+      gap: spacing.md,
     },
     cardRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 10,
+      gap: spacing.md,
     },
     warningRow: {
-      padding: 10,
+      padding: spacing.md,
       backgroundColor: colors.warning + '15',
-      borderRadius: 6,
-      marginTop: 4,
+      borderRadius: 8,
+      marginTop: spacing.xs,
       borderWidth: 1,
       borderColor: colors.warning + '30',
     },
     cardText: {
-      fontSize: 14,
+      ...typography.bodySmall,
       color: colors.text,
       flex: 1,
-      lineHeight: 20,
     },
     warningText: {
       color: colors.warning,
@@ -3337,9 +3052,9 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
     },
     cardActions: {
       flexDirection: 'row',
-      gap: 10,
-      marginTop: 16,
-      paddingTop: 16,
+      gap: spacing.md,
+      marginTop: spacing.lg,
+      paddingTop: spacing.lg,
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
@@ -3348,11 +3063,11 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 8,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 10,
       borderWidth: 1,
-      gap: 6,
+      gap: spacing.sm,
       minHeight: 44,
     },
     actionButtonText: {
@@ -3417,34 +3132,31 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       fontSize: 12,
       color: colors.textSecondary,
     },
-    // View Toggle Styles
+    // View Toggle Styles - Segmented control
     viewToggleContainer: {
       flexDirection: 'row',
-      marginTop: 16,
-      marginBottom: 12,
-      backgroundColor: colors.card,
-      borderRadius: 8,
+      marginTop: spacing.lg,
+      marginBottom: spacing.lg,
+      borderRadius: 12,
       padding: 4,
-      gap: 4,
+      gap: 0,
+      borderWidth: 1,
     },
     viewToggleButton: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 6,
-      gap: 8,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 10,
+      gap: spacing.sm,
+      borderWidth: 1,
     },
-    viewToggleButtonActive: {
-      backgroundColor: colors.primary,
-    },
+    viewToggleButtonActive: {},
     viewToggleText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textSecondary,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      ...typography.bodyMedium,
+      fontWeight: '600',
     },
     /* ========================
        Map Container
@@ -3480,54 +3192,60 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
       flex: 1,
       width: '100%',
       height: '100%',
+      position: 'relative',
+    },
+    mapToggleOverlay: {
+      position: 'absolute',
+      top: spacing.sm,
+      left: spacing.lg,
+      right: spacing.lg,
+      zIndex: 10,
+      alignItems: 'center',
+    },
+    mapViewToggle: {
+      marginTop: 0,
+      marginBottom: 0,
     },
     mapHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      backgroundColor: colors.card,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.cardBackground,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.1,
-          shadowRadius: 2,
-        },
-        android: {
-          elevation: 2,
-        },
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 },
+        android: { elevation: 2 },
       }),
     },
     mapHeaderButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
       backgroundColor: colors.primary,
-      borderRadius: 8,
-      gap: 6,
-      marginRight: 12,
+      borderRadius: 10,
+      gap: spacing.sm,
+      marginRight: spacing.md,
     },
     mapHeaderButtonText: {
       color: '#FFFFFF',
+      ...typography.bodySmall,
       fontWeight: '600',
-      fontSize: 14,
     },
     mapHeaderTitle: {
       flex: 1,
     },
     mapHeaderTitleText: {
-      fontSize: 16,
+      ...typography.body,
       fontWeight: '600',
       color: colors.text,
     },
     mapHeaderSubtitle: {
-      fontSize: 12,
+      ...typography.caption,
       color: colors.textSecondary,
-      marginTop: 2,
+      marginTop: spacing.xs,
     },
     mapFullScreen: {
       flex: 1,
@@ -3572,18 +3290,47 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
        ========================= */
     mapLegendOverlay: {
       position: 'absolute',
-      top: spacing.md,
+      bottom: spacing.lg,
       right: spacing.md,
       padding: spacing.sm,
-      backgroundColor: colors.cardBackground,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      ...shadows.sm,
+      backgroundColor: colors.card,
       borderRadius: radii.md,
       borderWidth: 1,
       borderColor: colors.border,
       gap: spacing.xs,
+      zIndex: 20,
+      ...shadows.sm,
+    },
+    mapLegendHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+      paddingBottom: spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    mapLegendHeaderText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    mapLegendCloseButton: {
+      padding: 2,
+    },
+    mapLegendReopenButton: {
+      position: 'absolute',
+      bottom: spacing.lg,
+      right: spacing.md,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      zIndex: 20,
       ...shadows.sm,
     },
     mapLegendItem: {
@@ -3798,11 +3545,64 @@ function getStyles(colors, screenHeight = Dimensions.get('window').height, scree
     mapModalHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      gap: spacing.md,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      minHeight: 56,
+      ...Platform.select({
+        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 2 },
+        android: { elevation: 2 },
+      }),
+    },
+    mapModalBackButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    mapModalHeaderContent: {
+      flex: 1,
+      minWidth: 0,
+      marginHorizontal: spacing.sm,
+    },
+    mapModalHeaderTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: 2,
+    },
+    mapModalTitle: {
+      fontSize: 17,
+      fontWeight: '600',
+      flex: 1,
+    },
+    mapModalStatusPill: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: radii.md,
+    },
+    mapModalStatusPillText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    mapModalSubtitle: {
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    mapModalDoneButton: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.lg,
+      minHeight: 44,
+      justifyContent: 'center',
+    },
+    mapModalDoneButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
     },
     mapModalMap: {
       flex: 1,

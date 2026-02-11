@@ -75,17 +75,7 @@ export class PotholeReportsController {
         return;
       }
 
-      if (!roadName?.trim() && !streetName?.trim()) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Either road name or street name is required',
-          },
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
+      // roadName and streetName are optional - location coordinates are the primary identifier
 
       // Validate photo file
       if (!req.file) {

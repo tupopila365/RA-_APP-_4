@@ -79,6 +79,13 @@
           "savePhotosPermission": "Allow Roads Authority to save photos of road damage.",
           "isAccessMediaLocationEnabled": true
         }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "backgroundColor": "#F8FAFC",
+          "barStyle": "dark"
+        }
       ]
     ],
     "extra": {

@@ -1,28 +1,31 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet, useColorScheme, Text } from 'react-native';
-import { RATheme } from '../theme/colors';
+import { View, StyleSheet, Text } from 'react-native';
+import { useTheme } from '../hooks/useTheme';
+import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
 import { LoadingOverlay } from './LoadingOverlay';
+import { SpinnerCore } from './SpinnerCore';
 
 /**
- * LoadingIndicator - A reusable loading component with blue circle spinner
- * 
+ * LoadingIndicator - Reusable loading component with custom enterprise spinner
+ *
  * @param {Object} props
- * @param {string} props.size - Size of the spinner ('small' | 'large' | number)
+ * @param {string} props.size - Size of the spinner ('small' | 'medium' | 'large' | number)
  * @param {string} props.message - Optional message to display below spinner
  * @param {boolean} props.fullScreen - Whether to show as full screen overlay
  * @param {boolean} props.overlay - Whether to show as blocking overlay (banking app style)
  * @param {boolean} props.loading - Controls visibility when overlay is true (default: true)
  * @param {string} props.testID - Test identifier
  * @param {string} props.color - Custom color for spinner (defaults to primary blue)
- * 
+ *
  * @example
  * <LoadingIndicator />
  * <LoadingIndicator message="Loading data..." />
  * <LoadingIndicator fullScreen size="large" />
  * <LoadingIndicator overlay loading={isLoading} message="Processing..." />
  */
-export function LoadingIndicator({ 
-  size = 'large', 
+export function LoadingIndicator({
+  size = 'large',
   message,
   fullScreen = false,
   overlay = false,
@@ -30,7 +33,6 @@ export function LoadingIndicator({
   testID,
   color,
 }) {
-  // If overlay prop is true, use LoadingOverlay component
   if (overlay) {
     return (
       <LoadingOverlay
@@ -43,31 +45,19 @@ export function LoadingIndicator({
     );
   }
 
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
+  const spinnerColor = color || colors.primary;
   const styles = getStyles(colors);
-  const spinnerColor = color || colors.primary; // Default to blue primary color
 
   const content = (
     <View style={styles.container}>
-      <ActivityIndicator 
-        size={size} 
-        color={spinnerColor}
-        testID={testID}
-        accessible={true}
-        accessibilityLabel="Loading content"
-        accessibilityRole="progressbar"
-      />
+      <SpinnerCore size={size} color={spinnerColor} testID={testID} />
       {message && <Text style={styles.message}>{message}</Text>}
     </View>
   );
 
   if (fullScreen) {
-    return (
-      <View style={styles.fullScreen}>
-        {content}
-      </View>
-    );
+    return <View style={styles.fullScreen}>{content}</View>;
   }
 
   return content;
@@ -78,7 +68,7 @@ const getStyles = (colors) =>
     container: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 40,
+      paddingVertical: spacing.xxl,
     },
     fullScreen: {
       flex: 1,
@@ -87,35 +77,10 @@ const getStyles = (colors) =>
       backgroundColor: colors.background,
     },
     message: {
-      marginTop: 15,
-      fontSize: 16,
-      color: colors.text,
+      marginTop: spacing.lg,
+      ...typography.body,
       fontWeight: '500',
+      color: colors.textSecondary,
       textAlign: 'center',
     },
   });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

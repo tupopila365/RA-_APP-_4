@@ -2,20 +2,24 @@ import React, { useMemo } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../hooks/useTheme';
+import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
 
 const TAB_META = {
-  Home: { icon: 'home-outline', activeIcon: 'home', label: 'HOME' },
-  Notifications: { icon: 'notifications-outline', activeIcon: 'notifications', label: 'ALERTS' },
-  Chatbot: { icon: 'chatbubble-outline', activeIcon: 'chatbubble', label: 'CHAT', center: true },
-  Offices: { icon: 'search-outline', activeIcon: 'search', label: 'OFFICES' },
-  Settings: { icon: 'settings-outline', activeIcon: 'settings', label: 'SETTINGS' },
+  Home: { icon: 'home-outline', activeIcon: 'home', label: 'Home' },
+  Notifications: { icon: 'notifications-outline', activeIcon: 'notifications', label: 'Alerts' },
+  Chatbot: { icon: 'chatbubbles-outline', activeIcon: 'chatbubbles', label: 'Chat', center: true },
+  Offices: { icon: 'location-outline', activeIcon: 'location', label: 'Offices' },
+  Settings: { icon: 'settings-outline', activeIcon: 'settings', label: 'Settings' },
 };
 
 const ORDERED_TABS = ['Home', 'Notifications', 'Chatbot', 'Offices', 'Settings'];
 
 export function LowerNavigationClean({ state, navigation }) {
   const insets = useSafeAreaInsets();
-  const styles = useMemo(() => getStyles(insets.bottom), [insets.bottom]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors, isDark, insets.bottom), [colors, isDark, insets.bottom]);
   const activeRouteName = state.routes[state.index]?.name;
 
   const visibleRoutes = ORDERED_TABS
@@ -23,11 +27,12 @@ export function LowerNavigationClean({ state, navigation }) {
     .filter(Boolean);
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
-      <View style={styles.navBar}>
+    <View style={styles.navBar} pointerEvents="box-none">
         {visibleRoutes.map((route) => {
           const meta = TAB_META[route.name] || TAB_META.Home;
           const isFocused = activeRouteName === route.name;
+          const iconColor = isFocused ? colors.primary : colors.textMuted;
+          const labelColor = isFocused ? colors.primary : colors.textMuted;
 
           return (
             <TouchableOpacity
@@ -37,116 +42,103 @@ export function LowerNavigationClean({ state, navigation }) {
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
               accessibilityLabel={meta.label}
-              activeOpacity={0.75}
+              activeOpacity={0.7}
             >
               {meta.center ? (
                 <View style={styles.centerItemWrap}>
-                  <View style={styles.centerBadge} />
                   <View style={[styles.centerIconContainer, isFocused && styles.centerIconContainerActive]}>
                     <Ionicons
                       name={isFocused ? meta.activeIcon : meta.icon}
-                      size={30}
-                      color={isFocused ? '#0B4A86' : '#0B3C78'}
+                      size={24}
+                      color={iconColor}
                     />
                   </View>
-                  <Text style={[styles.navLabel, styles.centerLabel]}>CHAT</Text>
+                  <Text style={[styles.navLabel, styles.centerLabel, { color: labelColor }]}>{meta.label}</Text>
                 </View>
               ) : (
                 <>
                   <Ionicons
                     name={isFocused ? meta.activeIcon : meta.icon}
                     size={22}
-                    color={isFocused ? '#2563FF' : '#A4B0C5'}
+                    color={iconColor}
                   />
-                  <Text style={[styles.navLabel, isFocused && styles.navLabelActive]}>{meta.label}</Text>
+                  <Text style={[styles.navLabel, isFocused && styles.navLabelActive, { color: isFocused ? colors.primary : colors.textMuted }]}>
+                    {meta.label}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
           );
         })}
-      </View>
     </View>
   );
 }
 
-function getStyles(insetBottom) {
+function getStyles(colors, isDark, insetBottom) {
   return StyleSheet.create({
-    container: {
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      paddingBottom: Math.max(insetBottom, 8),
-      backgroundColor: 'transparent',
-    },
     navBar: {
       flexDirection: 'row',
       alignItems: 'flex-end',
       justifyContent: 'space-between',
-      backgroundColor: '#FFFFFF',
-      borderRadius: 28,
+      marginHorizontal: spacing.xxl,
+      marginTop: spacing.sm,
+      marginBottom: Math.max(insetBottom, spacing.sm),
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.lg,
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: '#E7EDF6',
-      paddingHorizontal: 10,
-      paddingTop: 8,
-      paddingBottom: 10,
+      borderColor: colors.border,
       ...Platform.select({
         ios: {
-          shadowColor: '#0A2D5E',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 18,
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: isDark ? 0.3 : 0.08,
+          shadowRadius: 8,
         },
         android: {
-          elevation: 7,
+          elevation: 2,
         },
       }),
     },
     navItem: {
       flex: 1,
-      minHeight: 54,
+      minHeight: 48,
       alignItems: 'center',
       justifyContent: 'flex-end',
+      paddingVertical: spacing.sm,
     },
     navLabel: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: '#B6C0D1',
-      marginTop: 4,
-      letterSpacing: 0.2,
+      ...typography.caption,
+      fontWeight: '500',
+      marginTop: spacing.xs,
     },
     navLabelActive: {
-      color: '#2563FF',
-      fontWeight: '700',
+      fontWeight: '600',
     },
     centerItemWrap: {
       alignItems: 'center',
       justifyContent: 'flex-end',
-      marginTop: -34,
-    },
-    centerBadge: {
-      width: 14,
-      height: 14,
-      borderRadius: 7,
-      backgroundColor: '#FDC010',
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
-      marginBottom: -8,
-      zIndex: 2,
+      marginTop: -24,
     },
     centerIconContainer: {
-      width: 86,
-      height: 74,
-      borderRadius: 22,
-      backgroundColor: '#F8FAFF',
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      backgroundColor: colors.cardBackground,
       borderWidth: 1,
-      borderColor: '#E7EDF6',
+      borderColor: colors.border,
       alignItems: 'center',
       justifyContent: 'center',
     },
     centerIconContainerActive: {
-      backgroundColor: '#F2F8FF',
+      backgroundColor: colors.cardBackground,
+      borderColor: colors.primary,
+      borderWidth: 1.5,
     },
     centerLabel: {
-      marginTop: 2,
+      marginTop: spacing.xs,
     },
   });
 }

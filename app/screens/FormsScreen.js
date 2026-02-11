@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   Alert,
   RefreshControl,
   Platform,
@@ -13,16 +12,44 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
-import useDocumentDownload from '../hooks/useDocumentDownload';
-import { LoadingOverlay, ErrorState, EmptyState, SearchInput } from '../components';
-import { formsService } from '../services/formsService';
+import { useTheme } from '../hooks/useTheme';
+import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
+import {
+  ErrorState,
+  SearchInput,
+  UnifiedCard,
+  FilterDropdownBox,
+} from '../components';
+import { NoDataDisplay } from '../components/NoDataDisplay';
+import { LoadingOverlay } from '../components/LoadingOverlay';
+import { SpinnerCore } from '../components/SpinnerCore';
+import useDocumentDownload from '../hooks/useDocumentDownload';
+import { formsService } from '../services/formsService';
+
+// Category to icon and accent color
+const CATEGORY_CONFIG = {
+  Procurement: { icon: 'briefcase-outline', colorKey: 'primary' },
+  'Roads & Infrastructure': { icon: 'construct-outline', colorKey: 'primary' },
+  'Plans & Strategies': { icon: 'map-outline', colorKey: 'primary' },
+  'Conferences & Events': { icon: 'calendar-outline', colorKey: 'primary' },
+  'Legislation & Policy': { icon: 'shield-checkmark-outline', colorKey: 'primary' },
+  default: { icon: 'document-text-outline', colorKey: 'primary' },
+};
+
+const FILTERS = [
+  'All',
+  'Procurement',
+  'Roads & Infrastructure',
+  'Plans & Strategies',
+  'Conferences & Events',
+  'Legislation & Policy',
+];
 
 export default function FormsScreen() {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const styles = getStyles(colors);
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const bg = colors.backgroundSecondary || colors.background;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -33,7 +60,6 @@ export default function FormsScreen() {
   const [error, setError] = useState(null);
   const [currentDownloadId, setCurrentDownloadId] = useState(null);
 
-  // Use the document download hook
   const {
     isDownloading,
     progress,
@@ -41,27 +67,11 @@ export default function FormsScreen() {
     resetDownload,
   } = useDocumentDownload();
 
-  // Filter options
-  const filters = [
-    'All',
-    'Procurement',
-    'Roads & Infrastructure',
-    'Plans & Strategies',
-    'Conferences & Events',
-    'Legislation & Policy',
-  ];
-
   const fetchForms = useCallback(async (isRefresh = false) => {
     try {
-      if (!isRefresh) {
-        setLoading(true);
-      }
+      if (!isRefresh) setLoading(true);
       setError(null);
-
-      console.log('Fetching forms...');
       const formsData = await formsService.getForms();
-      console.log('Fetched forms count:', formsData?.length || 0);
-      
       setForms(formsData || []);
     } catch (err) {
       console.error('Error fetching forms:', err);
@@ -79,21 +89,35 @@ export default function FormsScreen() {
     fetchForms();
   }, [fetchForms]);
 
-  // Apply search and filter
-  const filteredData = forms.filter((item) => {
-    // Search filter
-    const matchesSearch = !searchQuery.trim() || 
-      item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Category filter
-    const matchesFilter = selectedFilter === 'All' || item.category === selectedFilter;
-    
-    return matchesSearch && matchesFilter;
-  });
+  const filteredData = useMemo(() => {
+    return forms.filter((item) => {
+      const matchesSearch =
+        !searchQuery.trim() ||
+        item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter =
+        selectedFilter === 'All' || item.category === selectedFilter;
+      return matchesSearch && matchesFilter;
+    });
+  }, [forms, searchQuery, selectedFilter]);
+
+  const groupedByCategory = useMemo(() => {
+    const groups = {};
+    filteredData.forEach((item) => {
+      const cat = item.category || 'Other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    return Object.keys(groups)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = groups[key];
+        return acc;
+      }, {});
+  }, [filteredData]);
 
   const toggleExpand = (id) => {
-    setExpandedForm(expandedForm === id ? null : id);
+    setExpandedForm((prev) => (prev === id ? null : id));
   };
 
   const handleDownload = async (document, formName) => {
@@ -101,15 +125,14 @@ export default function FormsScreen() {
       Alert.alert('Error', 'No document available for download');
       return;
     }
-
     try {
       setCurrentDownloadId(document.url);
       resetDownload();
       await startDownload(document.url, document.fileName || document.title);
-      setCurrentDownloadId(null);
     } catch (err) {
       console.error('Download error:', err);
       Alert.alert('Error', 'Failed to download document. Please try again.');
+    } finally {
       setCurrentDownloadId(null);
     }
   };
@@ -119,19 +142,21 @@ export default function FormsScreen() {
     await fetchForms(true);
   };
 
+  const getCategoryStyle = (category) => {
+    return CATEGORY_CONFIG[category] || CATEGORY_CONFIG.default;
+  };
+
   if (error && !refreshing) {
     return (
-      <View style={styles.container}>
-        <ErrorState
-          message={error}
-          onRetry={() => fetchForms()}
-        />
-      </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: bg }]} edges={['top', 'bottom']}>
+        <StatusBar style="dark" />
+        <ErrorState message={error} onRetry={() => fetchForms()} fullScreen />
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: bg }]} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
       <ScrollView
         style={styles.scrollView}
@@ -140,16 +165,28 @@ export default function FormsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.primary]}
             tintColor={colors.primary}
           />
         }
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Search Input */}
-        <View style={styles.searchInputContainer}>
+        {/* Welcome Section */}
+        <View style={styles.welcomeRow}>
+          <View style={[styles.welcomeIconWrap, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name="document-text-outline" size={28} color={colors.primary} />
+          </View>
+          <View style={styles.welcomeText}>
+            <Text style={styles.welcomeTitle}>Forms & Documents</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Download official Roads Authority forms, policies, and documents
+            </Text>
+          </View>
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchContainer}>
           <SearchInput
-            placeholder="Search forms..."
+            placeholder="Search forms or documents..."
             onSearch={setSearchQuery}
             onClear={() => setSearchQuery('')}
             style={styles.searchInput}
@@ -158,138 +195,166 @@ export default function FormsScreen() {
           />
         </View>
 
-        {/* Category Filter Chips */}
-        <View style={styles.filterSectionContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterContainer}
-          >
-            {filters.map((filter, index) => (
-              <TouchableOpacity
-                key={filter || `filter-${index}`}
-                style={[
-                  styles.filterChip,
-                  selectedFilter === filter && styles.filterChipActive,
-                ]}
-                onPress={() => setSelectedFilter(filter)}
-              >
-                <Text style={[
-                    styles.filterChipText,
-                    selectedFilter === filter && styles.filterChipTextActive,
-                  ]}
-                 numberOfLines={1}
-                 maxFontSizeMultiplier={1.3}>
-                  {filter}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        {/* Category Filter */}
+        <View style={styles.filterRow}>
+          <FilterDropdownBox
+            label="Category"
+            placeholder="Category"
+            value={selectedFilter === 'All' ? null : selectedFilter}
+            options={FILTERS}
+            nullMapsToOption="All"
+            onSelect={(item) => setSelectedFilter(item)}
+            onClear={() => setSelectedFilter('All')}
+            accessibilityLabel="Filter by category"
+            testID="filter-category"
+          />
         </View>
 
-        {/* Results Count */}
+        {/* Results count */}
         {filteredData.length > 0 && (searchQuery.trim() || selectedFilter !== 'All') && (
-          <View style={styles.resultsCountContainer}>
-            <Text style={styles.resultsCount} maxFontSizeMultiplier={1.3}>
+          <View style={styles.resultsRow}>
+            <Text style={styles.resultsCount}>
               {filteredData.length} {filteredData.length === 1 ? 'form' : 'forms'} found
             </Text>
           </View>
         )}
 
-        {/* Forms List */}
+        {/* Content */}
         {filteredData.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
-            <EmptyState
-              icon="document-text-outline"
-              message={forms.length === 0 ? 'No forms available' : 'No forms match your search'}
-              accessibilityLabel="No forms found"
-            />
-          </View>
+          <NoDataDisplay
+            preset="forms"
+            title={forms.length === 0 ? 'No forms available' : 'No forms match your search'}
+            message={
+              forms.length === 0
+                ? 'Forms and documents will appear here when available.'
+                : 'Try a different search term or category filter.'
+            }
+          />
         ) : (
           <View style={styles.content}>
-            {filteredData.map((item, index) => {
-              const isExpanded = expandedForm === item.id;
+            {Object.entries(groupedByCategory).map(([category, items]) => {
+              const config = getCategoryStyle(category);
               return (
-                <TouchableOpacity 
-                  key={item.id || `form-${index}`} 
-                  style={styles.formCard} 
-                  activeOpacity={0.7}
-                  onPress={() => toggleExpand(item.id)}
-                >
-                  <View style={styles.formHeader}>
-                    <View style={[styles.categoryBadge, { backgroundColor: colors.secondary }]}>
-                      <Text style={[styles.categoryText, { color:'#fff'  }]} maxFontSizeMultiplier={1.3}>
-                        {item.category}
-                      </Text>
+                <View key={category} style={styles.categorySection}>
+                  <View style={styles.categoryHeader}>
+                    <View style={[styles.categoryIconWrap, { backgroundColor: colors.primary + '18' }]}>
+                      <Ionicons name={config.icon} size={18} color={colors.primary} />
                     </View>
-                    <Ionicons 
-                      name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                      size={24} 
-                      color={colors.primary} 
-                    />
-                  </View>
-                  <Text style={styles.formTitle} numberOfLines={2} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
-                    {item.name}
-                  </Text>
-                  <View style={styles.formDetails}>
-                    <View style={styles.detailItem}>
-                      <Ionicons name="document-attach-outline" size={16} color={colors.textSecondary} />
-                      <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
-                        {item.documents?.length || 0} {item.documents?.length === 1 ? 'document' : 'documents'}
+                    <Text style={styles.categoryTitle}>{category}</Text>
+                    <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '20' }]}>
+                      <Text style={[styles.categoryBadgeText, { color: colors.primary }]}>
+                        {items.length}
                       </Text>
                     </View>
                   </View>
 
-                  {isExpanded && (
-                    <View style={styles.expandedContent}>
-                      <View style={styles.divider} />
-                      
-                      <View style={styles.section}>
-                        <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Documents</Text>
-                        {item.documents && item.documents.length > 0 ? (
-                          item.documents.map((doc, docIndex) => {
-                            const isDocDownloading = isDownloading && currentDownloadId === doc.url;
-                            return (
-                              <TouchableOpacity
-                                key={docIndex}
-                                style={[
-                                  styles.downloadButton,
-                                  { backgroundColor: colors.primary },
-                                  isDocDownloading && styles.downloadButtonDisabled,
-                                ]}
-                                onPress={() => handleDownload(doc, item.name)}
-                                disabled={isDocDownloading}
-                              >
-                                {isDocDownloading ? (
-                                  <>
-                                    <UnifiedSkeletonLoader type="circle" width={16} height={16} />
-                                    <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
-                                      Downloading {progress}%
+                  {items.map((item, index) => {
+                    const isExpanded = expandedForm === item.id;
+                    const docCount = item.documents?.length || 0;
+
+                    return (
+                      <UnifiedCard
+                        key={item.id || `form-${index}`}
+                        variant="default"
+                        padding="none"
+                        style={styles.formCard}
+                      >
+                        <TouchableOpacity
+                          style={styles.formCardHeader}
+                          onPress={() => toggleExpand(item.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.formCardLeft}>
+                            <View style={[styles.formIconWrap, { backgroundColor: colors.primary + '12' }]}>
+                              <Ionicons
+                                name={getCategoryStyle(item.category).icon}
+                                size={22}
+                                color={colors.primary}
+                              />
+                            </View>
+                            <View style={styles.formCardTitleWrap}>
+                              <Text style={styles.formTitle} numberOfLines={2}>
+                                {item.name}
+                              </Text>
+                              <View style={styles.formMeta}>
+                                <Ionicons name="document-attach-outline" size={14} color={colors.textSecondary} />
+                                <Text style={styles.formMetaText}>
+                                  {docCount} {docCount === 1 ? 'document' : 'documents'}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                          <Ionicons
+                            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                            size={22}
+                            color={colors.textSecondary}
+                          />
+                        </TouchableOpacity>
+
+                        {isExpanded && item.documents?.length > 0 && (
+                          <View style={styles.documentsList}>
+                            <View style={[styles.documentsDivider, { backgroundColor: colors.border }]} />
+                            {item.documents.map((doc, docIndex) => {
+                              const isDocDownloading =
+                                isDownloading && currentDownloadId === doc.url;
+                              const docTitle =
+                                doc.title || doc.fileName || `Document ${docIndex + 1}`;
+
+                              return (
+                                <TouchableOpacity
+                                  key={docIndex}
+                                  style={[
+                                    styles.documentRow,
+                                    docIndex < item.documents.length - 1 && styles.documentRowBorder,
+                                  ]}
+                                  onPress={() => handleDownload(doc, item.name)}
+                                  disabled={isDocDownloading}
+                                  activeOpacity={0.7}
+                                >
+                                  <View style={styles.documentRowLeft}>
+                                    <View style={[styles.docIconWrap, { backgroundColor: colors.error + '15' }]}>
+                                      <Ionicons name="document-outline" size={18} color={colors.error} />
+                                    </View>
+                                    <Text style={styles.documentTitle} numberOfLines={2}>
+                                      {docTitle}
                                     </Text>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Ionicons name="download-outline" size={20} color="#FFFFFF" />
-                                    <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
-                                      {doc.title || doc.fileName || `Document ${docIndex + 1}`}
-                                    </Text>
-                                  </>
-                                )}
-                              </TouchableOpacity>
-                            );
-                          })
-                        ) : (
-                          <Text style={styles.sectionText} maxFontSizeMultiplier={1.3}>No documents available</Text>
+                                  </View>
+                                  <View style={[styles.downloadBtn, { backgroundColor: colors.primary }]}>
+                                    {isDocDownloading ? (
+                                      <SpinnerCore size="small" color="#FFFFFF" />
+                                    ) : (
+                                      <Ionicons name="download-outline" size={20} color="#FFFFFF" />
+                                    )}
+                                  </View>
+                                </TouchableOpacity>
+                              );
+                            })}
+                            {isDownloading && currentDownloadId && (
+                              <View style={styles.progressWrap}>
+                                <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+                                  <View
+                                    style={[
+                                      styles.progressFill,
+                                      { width: `${progress}%`, backgroundColor: colors.primary },
+                                    ]}
+                                  />
+                                </View>
+                                <Text style={styles.progressText}>{progress}%</Text>
+                              </View>
+                            )}
+                          </View>
                         )}
-                      </View>
-                      {isDownloading && currentDownloadId && (
-                        <View style={styles.progressBarContainer}>
-                          <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: colors.primary }]} />
-                        </View>
-                      )}
-                    </View>
-                  )}
-                </TouchableOpacity>
+
+                        {isExpanded && (!item.documents || item.documents.length === 0) && (
+                          <View style={styles.documentsList}>
+                            <View style={[styles.documentsDivider, { backgroundColor: colors.border }]} />
+                            <Text style={styles.noDocsText}>No documents available</Text>
+                          </View>
+                        )}
+                      </UnifiedCard>
+                    );
+                  })}
+                </View>
               );
             })}
           </View>
@@ -304,199 +369,212 @@ function getStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary || colors.background,
     },
     scrollView: {
       flex: 1,
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: spacing.xl,
       padding: spacing.lg,
+      paddingBottom: spacing.xxl,
     },
-    searchInputContainer: {
-      paddingHorizontal: 0,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.sm,
+    welcomeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+      gap: spacing.md,
+    },
+    welcomeIconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    welcomeText: {
+      flex: 1,
+    },
+    welcomeTitle: {
+      ...typography.h3,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    welcomeSubtitle: {
+      ...typography.body,
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+    searchContainer: {
+      marginBottom: spacing.md,
     },
     searchInput: {
       margin: 0,
     },
-    filterSectionContainer: {
-      paddingHorizontal: 0,
-      paddingVertical: spacing.sm,
+    filterRow: {
+      marginBottom: spacing.md,
     },
-    filterContainer: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      gap: spacing.sm,
-      flexDirection: 'row',
-      flexWrap: 'nowrap',
-    },
-    filterChip: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: 8,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginRight: spacing.sm,
-      minWidth: 60,
-      maxWidth: 180,
-      height: 36,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    filterChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    filterChipText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textSecondary,
-      textAlign: 'center',
-      numberOfLines: 1,
-      flexShrink: 1,
-    },
-    filterChipTextActive: {
-      color: '#FFFFFF',
-      fontWeight: '600',
-    },
-    resultsCountContainer: {
-      paddingHorizontal: 0,
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.sm,
+    resultsRow: {
+      marginBottom: spacing.sm,
     },
     resultsCount: {
-      fontSize: 14,
+      ...typography.caption,
       color: colors.textSecondary,
-      marginBottom: spacing.sm,
-    },
-    emptyStateContainer: {
-      padding: spacing.xl,
-      minHeight: 300,
-      justifyContent: 'center',
-      alignItems: 'center',
     },
     content: {
-      padding: 0,
+      marginTop: spacing.sm,
     },
-    formCard: {
-      backgroundColor: colors.card,
-      borderRadius: 8,
-      padding: spacing.xl,
-      marginBottom: spacing.md,
-      shadowColor: '#fff',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-      borderWidth: 1,
-      borderColor: colors.border,
+    categorySection: {
+      marginBottom: spacing.xl,
     },
-    formHeader: {
+    categoryHeader: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    categoryIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    categoryTitle: {
+      ...typography.h4,
+      flex: 1,
+      fontWeight: '600',
+      color: colors.text,
     },
     categoryBadge: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
       borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.secondary,
+      minWidth: 28,
+      alignItems: 'center',
     },
-    categoryText: {
-      fontSize: 12,
+    categoryBadgeText: {
+      ...typography.caption,
       fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      fontSize: 12,
     },
-    formTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
+    formCard: {
       marginBottom: spacing.md,
-      lineHeight: 24,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      overflow: 'hidden',
+      padding: 0,
     },
-    formDetails: {
+    formCardHeader: {
       flexDirection: 'row',
-      marginBottom: spacing.md,
-      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: spacing.lg,
+    },
+    formCardLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      minWidth: 0,
       gap: spacing.md,
     },
-    detailItem: {
-      flexDirection: 'row',
+    formIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      justifyContent: 'center',
       alignItems: 'center',
-      marginRight: spacing.lg,
-      marginBottom: spacing.xs,
-      gap: spacing.xs,
     },
-    detailText: {
-      fontSize: 14,
-      color: colors.textSecondary,
+    formCardTitleWrap: {
       flex: 1,
+      minWidth: 0,
     },
-    expandedContent: {
-      marginTop: spacing.lg,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginBottom: spacing.lg,
-    },
-    section: {
-      marginBottom: spacing.lg,
-    },
-    sectionTitle: {
+    formTitle: {
+      ...typography.body,
       fontSize: 16,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: spacing.sm,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    sectionText: {
-      fontSize: 14,
-      color: colors.text,
+      marginBottom: 4,
       lineHeight: 22,
     },
-    downloadButton: {
+    formMeta: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: spacing.xs,
+    },
+    formMetaText: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      fontSize: 13,
+    },
+    documentsList: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    documentsDivider: {
+      height: 1,
+      marginBottom: spacing.md,
+    },
+    documentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xl,
-      borderRadius: 8,
-      marginTop: spacing.sm,
+      gap: spacing.md,
+    },
+    documentRowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    documentRowLeft: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: spacing.sm,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
+      minWidth: 0,
     },
-    downloadButtonDisabled: {
-      opacity: 0.7,
+    docIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-    downloadButtonText: {
-      color: '#FFFFFF',
-      fontSize: 15,
-      fontWeight: '600',
+    documentTitle: {
+      ...typography.body,
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
     },
-    progressBarContainer: {
+    downloadBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    progressWrap: {
+      marginTop: spacing.md,
+      gap: spacing.xs,
+    },
+    progressTrack: {
       height: 4,
-      backgroundColor: colors.border,
       borderRadius: 2,
-      marginTop: spacing.sm,
       overflow: 'hidden',
     },
-    progressBar: {
+    progressFill: {
       height: '100%',
       borderRadius: 2,
+    },
+    progressText: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      textAlign: 'right',
+    },
+    noDocsText: {
+      ...typography.body,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+      paddingVertical: spacing.md,
     },
   });
 }

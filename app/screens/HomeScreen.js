@@ -1,340 +1,579 @@
-import { useMemo, useState } from 'react';
+/**
+ * HomeScreen - Dashboard-style home
+ * - Header: Hamburger + User name + Road Status, Report Road Damage links
+ * - Dashboard: Applications, NATIS, E-Recruitment
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
+  View,
+  Text,
   Image,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
   Modal,
   Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
+  Linking,
+  RefreshControl,
+  ActivityIndicator,
+  Platform,
+  Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useAppContext } from '../context/AppContext';
-import { SearchInput } from '../components';
-import { spacing } from '../theme/spacing';
+import { useDrawer } from '../context/DrawerContext';
 import { typography } from '../theme/typography';
-import RAIcon from '../assets/icon.png';
+import { spacing } from '../theme/spacing';
+import { UnifiedCard, NewsCard } from '../components';
+import { useNewsUseCases } from '../src/presentation/di/DependencyContext';
+import { useNewsViewModel } from '../src/presentation/viewModels/useNewsViewModel';
 
-const BRAND = {
-  background: '#F6F8FC',
-  surface: '#FFFFFF',
-  border: '#E7EDF6',
-  heading: '#0B3C78',
-  muted: '#94A7C0',
-  tagBlue: '#00AEEF',
-  heroBg: '#0B4A86',
-  heroBorder: '#1762A8',
-  heroBody: '#B9D1EB',
-  heroText: '#E8F2FF',
-  heroPrimary: '#12B8FF',
-  heroSecondary: '#35679B',
-  heroSecondaryBorder: '#4C7CAA',
-  accentYellow: '#FDC010',
-  alertRed: '#E11D48',
-  successGreen: '#0BAE68',
-  waitBlue: '#0B3C78',
-};
+import { plnService } from '../services/plnService';
 
-const CARD_MAP = [
-  {
-    id: 'road',
-    title: 'Live Road Status',
-    subtitle: 'MAP & REAL-TIME UPDATES',
-    icon: 'map-outline',
-    color: '#0AB36D',
-    route: 'RoadStatus',
-    featured: true,
-  },
-  {
-    id: 'report',
-    title: 'Report Damage',
-    subtitle: 'HELP US FIX ROADS',
-    icon: 'warning-outline',
-    color: '#FF2D55',
-    route: 'ReportPothole',
-  },
-  {
-    id: 'apply',
-    title: 'Apply Online',
-    subtitle: 'PERMITS & LICENSES',
-    icon: 'document-text-outline',
-    color: '#2563FF',
-    route: 'Applications',
-  },
-  {
-    id: 'submissions',
-    title: 'My Submissions',
-    subtitle: 'TRACK YOUR REPORTS',
-    icon: 'clipboard-outline',
-    color: '#4F46E5',
-    route: 'MyReports',
-  },
-  {
-    id: 'forms',
-    title: 'Forms & Docs',
-    subtitle: 'OFFICIAL DOWNLOADS',
-    icon: 'folder-outline',
-    color: '#F08A00',
-    route: 'Forms',
-  },
-  {
-    id: 'press',
-    title: 'Press Center',
-    subtitle: 'LATEST RA NEWS',
-    icon: 'newspaper-outline',
-    color: '#8A94A6',
-    route: 'News',
-  },
-  {
-    id: 'offices',
-    title: 'RA Offices',
-    subtitle: 'FIND NEAREST BRANCH',
-    icon: 'location-outline',
-    color: '#06B6D4',
-    route: 'Offices',
-  },
-];
+const RALogo = require('../assets/icon.png');
 
-const MENU_GROUPS = [
-  {
-    title: 'ACCOUNT MANAGEMENT',
-    items: [
-      { icon: 'person-outline', label: 'MY PROFILE', route: 'Settings' },
-      { icon: 'notifications-outline', label: 'NOTIFICATIONS', route: 'Notifications' },
-      { icon: 'shield-outline', label: 'SECURITY & PRIVACY', route: 'Settings' },
-    ],
-  },
-  {
-    title: 'SUPPORT & INFO',
-    items: [
-      { icon: 'call-outline', label: 'CONTACT SUPPORT', route: 'Settings' },
-      { icon: 'open-outline', label: 'OFFICIAL WEBSITE', route: 'RAServices' },
-      { icon: 'document-text-outline', label: 'TERMS OF SERVICE', route: 'Settings' },
-    ],
-  },
-];
-
-const STAT_CARDS = [
-  { id: 'alerts', label: 'ACTIVE\nALERTS', value: '03', valueColor: BRAND.alertRed },
-  { id: 'offices', label: 'OFFICES\nOPEN', value: '12', valueColor: BRAND.successGreen },
-  { id: 'wait', label: 'WAIT TIME', value: '15m', valueColor: BRAND.waitBlue },
-];
+const NATIS_URL = 'https://natis.nra.org.na/';
+const E_RECRUITMENT_URL = 'https://recruitment.nra.org.na/';
 
 export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
   const { user } = useAppContext();
-  const { width } = useWindowDimensions();
-  const [query, setQuery] = useState('');
-  const [menuVisible, setMenuVisible] = useState(false);
-  const styles = useMemo(() => getStyles(colors, width), [colors, width]);
+  const insets = useSafeAreaInsets();
+  const { openDrawer } = useDrawer();
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const visibleCards = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return CARD_MAP;
-    return CARD_MAP.filter((card) =>
-      `${card.title} ${card.subtitle}`.toLowerCase().includes(q)
-    );
-  }, [query]);
+  const [myApplicationsCount, setMyApplicationsCount] = useState(null);
 
-  const openRoute = (route) => {
-    if (route) navigation.navigate(route);
+  const { getNewsUseCase, searchNewsUseCase } = useNewsUseCases();
+  const { allNews: newsItems, refresh: refreshNews } = useNewsViewModel({
+    getNewsUseCase,
+    searchNewsUseCase,
+  });
+  const latestNews = newsItems.slice(0, 3);
+
+  const loadData = useCallback(async () => {
+    try {
+      if (user) {
+        try {
+          const apps = await plnService.getMyApplications();
+          setMyApplicationsCount(Array.isArray(apps) ? apps.length : 0);
+        } catch {
+          setMyApplicationsCount(0);
+        }
+      } else {
+        setMyApplicationsCount(null);
+      }
+    } catch (err) {
+      console.warn('HomeScreen data load:', err?.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData();
+    refreshNews();
+  }, [loadData, refreshNews]);
+
+  const openLink = async (url) => {
+    try {
+      await WebBrowser.openBrowserAsync(url);
+    } catch (err) {
+      try {
+        await Linking.openURL(url);
+      } catch (e) {
+        console.warn('Could not open URL:', url);
+      }
+    }
   };
+
+  const userName = user?.fullName?.split(' ')[0] || 'Guest';
+
+  const styles = getStyles(colors, insets);
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <SafeAreaView edges={['top']} style={styles.headerContainer}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.brandTitle}>ROADS AUTHORITY</Text>
-              <Text style={styles.brandTagline}>SAFE ROADS TO PROSPERITY</Text>
-            </View>
-
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.headerIconButton}
-                onPress={() => navigation.navigate('Notifications')}
-                accessibilityLabel="Open notifications"
-              >
-                <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
-                <View style={styles.notificationDot} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerIconButton}
-                onPress={() => setMenuVisible(true)}
-                accessibilityLabel="Open navigation menu"
-              >
-                <Ionicons name="menu-outline" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <SearchInput
-            placeholder="How can we help you today?"
-            value={query}
-            onSearch={setQuery}
-            onChangeTextImmediate={setQuery}
-            onClear={() => setQuery('')}
-            accessibilityLabel="Search services"
-          />
-        </SafeAreaView>
-
-        <View style={styles.content}>
-          <View style={styles.heroCard}>
-            <View style={styles.heroBadgeRow}>
-              <Ionicons name="information-circle" size={18} color={BRAND.accentYellow} />
-              <Text style={styles.heroBadgeText}>NATIONAL INFRASTRUCTURE</Text>
-            </View>
-            <Text style={styles.heroHeading}>Safe Roads to Prosperity</Text>
-            <Text style={styles.heroBody}>
-              Namibia's official portal for national road services and infrastructure updates.
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={openDrawer}
+            accessibilityLabel="Open menu"
+          >
+            <Ionicons name="menu" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerBrand}>
+            <Image
+              source={RALogo}
+              style={styles.headerLogo}
+              resizeMode="contain"
+              {...(Platform.OS === 'android' && { renderToHardwareTextureAndroid: true })}
+            />
+            <Text style={styles.userName} numberOfLines={1}>
+              {user?.fullName || 'Guest'}
             </Text>
-
-            <View style={styles.heroActionsRow}>
-              <TouchableOpacity style={styles.heroPrimaryButton} onPress={() => openRoute('News')}>
-                <Text style={styles.heroPrimaryText}>LATEST NEWS</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.heroSecondaryButton} onPress={() => openRoute('RAServices')}>
-                <Text style={styles.heroSecondaryText}>ABOUT RA</Text>
-              </TouchableOpacity>
-            </View>
           </View>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('Notifications')}
+            accessibilityLabel="Notifications"
+          >
+            <Ionicons name="notifications-outline" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-          <View style={styles.statsRow}>
-            {STAT_CARDS.map((stat) => (
-              <View key={stat.id} style={styles.statCard}>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-                <Text style={[styles.statValue, { color: stat.valueColor }]}>{stat.value}</Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.welcomeRow}>
+          <View style={styles.welcomeText}>
+            <Text style={styles.greeting}>Hello, {userName}</Text>
+            <Text style={styles.subtitle}>Roads Authority Digital Portal</Text>
+          </View>
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionSubtitle}>Most used services</Text>
+
+          <UnifiedCard
+            variant="elevated"
+            padding="large"
+            onPress={() => navigation.navigate('RoadStatus')}
+            accessible
+            accessibilityLabel="View road status"
+            style={styles.quickActionCard}
+          >
+            <View style={styles.quickActionContent}>
+              <View style={[styles.quickActionIconWrap, { backgroundColor: colors.primary + '25' }]}>
+                <Ionicons name="map" size={32} color={colors.primary} />
               </View>
-            ))}
-          </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Road Status</Text>
+                <Text style={styles.quickActionMeta}>Real-time road conditions & closures</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={colors.primary} />
+            </View>
+          </UnifiedCard>
 
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>GOVERNMENT SERVICES</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-          </View>
+          <UnifiedCard
+            variant="elevated"
+            padding="large"
+            onPress={() => navigation.navigate('ReportPothole')}
+            accessible
+            accessibilityLabel="Report road damage"
+            style={styles.quickActionCard}
+          >
+            <View style={styles.quickActionContent}>
+              <View style={[styles.quickActionIconWrap, { backgroundColor: colors.error + '25' }]}>
+                <Ionicons name="warning" size={32} color={colors.error} />
+              </View>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Report Road Damage</Text>
+                <Text style={styles.quickActionMeta}>Potholes, hazards & road issues</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={colors.primary} />
+            </View>
+          </UnifiedCard>
+        </View>
 
-          {visibleCards.map((card) => {
-            if (card.featured) {
-              return (
-                <TouchableOpacity
-                  key={card.id}
-                  style={styles.featureCard}
-                  activeOpacity={0.8}
-                  onPress={() => openRoute(card.route)}
-                >
-                  <View
-                    style={[
-                      styles.serviceIconWrap,
-                      { backgroundColor: `${card.color}1A`, borderColor: `${card.color}40` },
-                    ]}
-                  >
-                    <Ionicons name={card.icon} size={22} color={card.color} />
-                  </View>
-                  <Text style={styles.featureTitle}>{card.title}</Text>
-                  <Text style={styles.serviceSubtitle}>{card.subtitle}</Text>
-                </TouchableOpacity>
-              );
-            }
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Latest News</Text>
+          <Text style={styles.sectionSubtitle}>Stay informed</Text>
 
-            return (
-              <TouchableOpacity
-                key={card.id}
-                style={styles.gridCard}
-                activeOpacity={0.8}
-                onPress={() => openRoute(card.route)}
-              >
-                <View
-                  style={[
-                    styles.serviceIconWrap,
-                    { backgroundColor: `${card.color}14`, borderColor: `${card.color}30` },
-                  ]}
-                >
-                  <Ionicons name={card.icon} size={22} color={card.color} />
-                </View>
-                <Text style={styles.gridTitle}>{card.title}</Text>
-                <Text style={styles.serviceSubtitle}>{card.subtitle}</Text>
-              </TouchableOpacity>
-            );
-          })}
+          {latestNews.length > 0 ? (
+            latestNews.map((item) => (
+              <NewsCard
+                key={item.id}
+                title={item.title}
+                excerpt={item.getShortExcerpt?.() || item.excerpt}
+                thumbnail={item.hasImage?.() ? item.imageUrl : null}
+                date={item.getTimeAgo?.() || item.getFormattedDate?.()}
+                category={item.category}
+                onPress={() =>
+                  navigation.navigate('News', {
+                    screen: 'NewsDetail',
+                    params: { article: item },
+                  })
+                }
+                style={styles.newsCard}
+              />
+            ))
+          ) : null}
+          <UnifiedCard
+            variant="outlined"
+            padding="medium"
+            onPress={() => navigation.navigate('News', { screen: 'NewsList' })}
+            accessible
+            accessibilityLabel="View all news"
+            style={styles.viewAllCard}
+          >
+            <View style={styles.linkRow}>
+              <Ionicons name="newspaper-outline" size={22} color={colors.primary} />
+              <Text style={styles.linkLabel}>View all news</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </View>
+          </UnifiedCard>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Services</Text>
+
+          <UnifiedCard
+            variant="elevated"
+            padding="large"
+            onPress={() => navigation.navigate('Applications')}
+            accessible
+            accessibilityLabel="Applications portal"
+          >
+            <View style={styles.serviceRow}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="folder-open-outline" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.serviceText}>
+                <Text style={styles.serviceTitle}>Applications</Text>
+                <Text style={styles.serviceMeta}>
+                  PLN, vehicle registration & more
+                  {myApplicationsCount !== null && myApplicationsCount > 0 && (
+                    <Text style={styles.badgeText}> · {myApplicationsCount} yours</Text>
+                  )}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </View>
+          </UnifiedCard>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>External Links</Text>
+
+          <UnifiedCard
+            variant="outlined"
+            padding="medium"
+            onPress={() => openLink(NATIS_URL)}
+            accessible
+            accessibilityLabel="Open NATIS Online"
+          >
+            <View style={styles.linkRow}>
+              <Ionicons name="car-outline" size={22} color={colors.primary} />
+              <Text style={styles.linkLabel}>NATIS Online</Text>
+              <Ionicons name="open-outline" size={18} color={colors.textMuted} />
+            </View>
+          </UnifiedCard>
+
+          <UnifiedCard
+            variant="outlined"
+            padding="medium"
+            onPress={() => openLink(E_RECRUITMENT_URL)}
+            accessible
+            accessibilityLabel="Open E-Recruitment"
+          >
+            <View style={styles.linkRow}>
+              <Ionicons name="people-outline" size={22} color={colors.primary} />
+              <Text style={styles.linkLabel}>E-Recruitment</Text>
+              <Ionicons name="open-outline" size={18} color={colors.textMuted} />
+            </View>
+          </UnifiedCard>
+        </View>
+
+        <View style={styles.footer}>
+          <Image
+            source={RALogo}
+            style={styles.footerLogo}
+            resizeMode="contain"
+            {...(Platform.OS === 'android' && { renderToHardwareTextureAndroid: true })}
+          />
+          <Text style={styles.footerText}>Roads Authority Namibia</Text>
         </View>
       </ScrollView>
 
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <View style={styles.drawerOverlay}>
-          <Pressable style={styles.drawerBackdrop} onPress={() => setMenuVisible(false)} />
-
-          <View style={styles.drawerPanel}>
-            <View style={styles.drawerHeader}>
-              <View style={styles.avatarWrap}>
-                <Ionicons name="person-outline" size={20} color={BRAND.accentYellow} />
-              </View>
-              <View style={styles.drawerHeaderText}>
-                <Text style={styles.drawerName}>{user?.fullName || 'JOHN DOE'}</Text>
-                <Text style={styles.drawerTier}>PREMIUM ROAD USER</Text>
-              </View>
-              <TouchableOpacity onPress={() => setMenuVisible(false)}>
-                <Ionicons name="close" size={22} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.drawerBody}>
-              {MENU_GROUPS.map((group, index) => (
-                <View key={group.title} style={index > 0 ? styles.drawerGroupSpacing : undefined}>
-                  <Text style={styles.drawerSection}>{group.title}</Text>
-                  {group.items.map((item) => (
-                    <DrawerItem
-                      key={item.label}
-                      icon={item.icon}
-                      label={item.label}
-                      onPress={() => {
-                        setMenuVisible(false);
-                        openRoute(item.route);
-                      }}
-                    />
-                  ))}
-                </View>
-              ))}
-
-              <TouchableOpacity
-                style={styles.logoutRow}
-                onPress={() => {
-                  setMenuVisible(false);
-                  openRoute('Settings');
-                }}
-              >
-                <Ionicons name="log-out-outline" size={20} color="#F43F5E" />
-                <Text style={styles.logoutText}>LOG OUT OF PORTAL</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.drawerFooter}>
-              <Text style={styles.drawerFooterHeading}>ROADS AUTHORITY • 2026</Text>
-              <Text style={styles.drawerFooterText}>VERSION 4.2.0-NAM (STABLE)</Text>
-              <Text style={styles.drawerFooterText}>DIGITAL INFRASTRUCTURE UNIT</Text>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
 
-function DrawerItem({ icon, label, onPress }) {
+function SideDrawer({ visible, onClose, userName, navigation, openLink, colors, RALogo }) {
+  const insets = useSafeAreaInsets();
+  const [modalVisible, setModalVisible] = useState(visible);
+  const slideAnim = useRef(new Animated.Value(-1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setModalVisible(true);
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setModalVisible(false));
+    }
+  }, [visible, slideAnim, fadeAnim]);
+
+  const drawerSlide = slideAnim.interpolate({
+    inputRange: [-1, 0],
+    outputRange: [-320, 0],
+  });
+
+  const handleItemPress = (fn) => {
+    onClose();
+    fn();
+  };
+
   return (
-    <TouchableOpacity style={drawerStyles.item} onPress={onPress} activeOpacity={0.75}>
-      <Ionicons name={icon} size={19} color="#C6D2E2" />
-      <Text style={drawerStyles.label}>{label}</Text>
+    <Modal visible={modalVisible} transparent animationType="none">
+      <View style={sideDrawerStyles.overlay}>
+        <Animated.View
+          style={[sideDrawerStyles.backdrop, { backgroundColor: colors.overlay, opacity: fadeAnim }]}
+          pointerEvents="auto"
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        </Animated.View>
+        <Animated.View
+          style={[
+            sideDrawerStyles.drawer,
+            {
+              backgroundColor: colors.background,
+              transform: [{ translateX: drawerSlide }],
+            },
+          ]}
+        >
+          <View
+            style={[
+              sideDrawerStyles.header,
+              {
+                backgroundColor: colors.primary,
+                paddingTop: Math.max(insets.top, 24) + spacing.md,
+              },
+            ]}
+          >
+            <View style={sideDrawerStyles.headerTop}>
+              <Image
+                source={RALogo}
+                style={sideDrawerStyles.headerLogo}
+                resizeMode="contain"
+                {...(Platform.OS === 'android' && { renderToHardwareTextureAndroid: true })}
+              />
+              <TouchableOpacity onPress={onClose} style={sideDrawerStyles.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            <Text style={sideDrawerStyles.headerGreeting}>Hello, {userName}</Text>
+            <Text style={sideDrawerStyles.headerOrg}>Roads Authority Namibia</Text>
+          </View>
+
+          <ScrollView
+            style={sideDrawerStyles.menu}
+            contentContainerStyle={sideDrawerStyles.menuContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[sideDrawerStyles.sectionLabel, sideDrawerStyles.sectionLabelFirst, { color: colors.textMuted }]}>
+              SERVICES
+            </Text>
+            <DrawerItem
+              icon="folder-open-outline"
+              label="Applications"
+              onPress={() => handleItemPress(() => navigation.navigate('Applications'))}
+              colors={colors}
+            />
+            <DrawerItem
+              icon="location-outline"
+              label="Find Offices"
+              onPress={() => handleItemPress(() => navigation.navigate('Offices'))}
+              colors={colors}
+            />
+            <DrawerItem
+              icon="settings-outline"
+              label="Settings"
+              onPress={() => handleItemPress(() => navigation.navigate('Settings'))}
+              colors={colors}
+            />
+
+            <Text style={[sideDrawerStyles.sectionLabel, { color: colors.textMuted }]}>EXTERNAL LINKS</Text>
+            <DrawerItem
+              icon="car-outline"
+              label="NATIS Online"
+              sublabel="Vehicle registration"
+              onPress={() => handleItemPress(() => openLink(NATIS_URL))}
+              colors={colors}
+            />
+            <DrawerItem
+              icon="people-outline"
+              label="E-Recruitment"
+              sublabel="Careers portal"
+              onPress={() => handleItemPress(() => openLink(E_RECRUITMENT_URL))}
+              colors={colors}
+            />
+          </ScrollView>
+
+          <View style={[sideDrawerStyles.footer, { borderTopColor: colors.border }]}>
+            <Image
+              source={RALogo}
+              style={sideDrawerStyles.footerLogo}
+              resizeMode="contain"
+              {...(Platform.OS === 'android' && { renderToHardwareTextureAndroid: true })}
+            />
+            <Text style={[sideDrawerStyles.footerText, { color: colors.textMuted }]}>
+              Roads Authority Namibia
+            </Text>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+SideDrawer.propTypes = {
+  visible: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  userName: PropTypes.string.isRequired,
+  navigation: PropTypes.object.isRequired,
+  openLink: PropTypes.func.isRequired,
+  colors: PropTypes.object.isRequired,
+  RALogo: PropTypes.any.isRequired,
+};
+
+const sideDrawerStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  drawer: {
+    width: 300,
+    maxWidth: '85%',
+    flex: 1,
+  },
+  header: {
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xxl,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
+  },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -12,
+  },
+  headerGreeting: {
+    ...typography.h4,
+    color: '#FFFFFF',
+    marginBottom: spacing.xs,
+  },
+  headerOrg: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
+  menu: {
+    flex: 1,
+  },
+  menuContent: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  sectionLabel: {
+    ...typography.label,
+    letterSpacing: 0.5,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+  sectionLabelFirst: {
+    paddingTop: spacing.md,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xxl,
+    borderTopWidth: 1,
+  },
+  footerLogo: {
+    width: 20,
+    height: 20,
+  },
+  footerText: {
+    ...typography.caption,
+  },
+});
+
+function DrawerItem({ icon, label, sublabel, onPress, colors }) {
+  return (
+    <TouchableOpacity
+      style={[drawerItemStyles.item, { borderBottomColor: colors.border }]}
+      onPress={onPress}
+      activeOpacity={0.6}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={[drawerItemStyles.iconWrap, { backgroundColor: colors.backgroundSecondary }]}>
+        <Ionicons name={icon} size={20} color={colors.primary} />
+      </View>
+      <View style={drawerItemStyles.textWrap}>
+        <Text style={[drawerItemStyles.label, { color: colors.text }]}>{label}</Text>
+        {sublabel && (
+          <Text style={[drawerItemStyles.sublabel, { color: colors.textMuted }]}>{sublabel}</Text>
+        )}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
     </TouchableOpacity>
   );
 }
@@ -342,357 +581,208 @@ function DrawerItem({ icon, label, onPress }) {
 DrawerItem.propTypes = {
   icon: PropTypes.string.isRequired,
   label: PropTypes.string.isRequired,
+  sublabel: PropTypes.string,
   onPress: PropTypes.func.isRequired,
+  colors: PropTypes.object.isRequired,
 };
 
-const drawerStyles = StyleSheet.create({
+const drawerItemStyles = StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xl,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxl,
+    gap: spacing.lg,
+    minHeight: 56,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textWrap: {
+    flex: 1,
   },
   label: {
-    ...typography.bodySmall,
-    letterSpacing: 1.2,
-    fontWeight: '700',
-    color: '#123C73',
+    ...typography.body,
+    fontWeight: '600',
+  },
+  sublabel: {
+    ...typography.caption,
+    marginTop: 2,
   },
 });
 
-function getStyles(colors, width) {
-  const sidePadding = spacing.xl;
-  const gridGap = spacing.md;
-  const gridCardWidth = (width - sidePadding * 2 - gridGap) / 2;
-
+function getStyles(colors, insets) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: BRAND.background,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    header: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: Math.max(insets?.top ?? 0, 16) + spacing.md,
+      paddingBottom: spacing.md,
+      backgroundColor: colors.backgroundSecondary,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    headerBrand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      justifyContent: 'center',
+      gap: spacing.sm,
+    },
+    headerLogo: {
+      width: 28,
+      height: 28,
+    },
+    userName: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text,
+      flexShrink: 1,
+    },
+    headerButton: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scroll: {
+      flex: 1,
     },
     scrollContent: {
-      paddingBottom: 144,
+      padding: spacing.xxl,
+      paddingBottom: 160,
     },
-    headerContainer: {
-      backgroundColor: BRAND.background,
-      borderBottomWidth: 1,
-      borderBottomColor: BRAND.border,
-      paddingHorizontal: sidePadding,
-      paddingBottom: spacing.lg,
+    welcomeRow: {
+      marginBottom: spacing.xxl,
     },
-    headerRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: spacing.lg,
-    },
-    brandTitle: {
-      color: BRAND.heading,
-      fontSize: 24,
-      fontWeight: '800',
-      letterSpacing: 0.2,
-    },
-    brandTagline: {
-      color: BRAND.tagBlue,
-      fontSize: 12,
-      letterSpacing: 2.4,
-      fontWeight: '700',
-      marginTop: spacing.xs,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    headerIconButton: {
-      width: 36,
-      height: 36,
-      justifyContent: 'center',
-      alignItems: 'center',
-      position: 'relative',
-    },
-    notificationDot: {
-      position: 'absolute',
-      top: 7,
-      right: 5,
-      width: 7,
-      height: 7,
-      borderRadius: 3.5,
-      backgroundColor: BRAND.heroPrimary,
-      borderWidth: 1,
-      borderColor: BRAND.background,
-    },
-    content: {
-      paddingHorizontal: sidePadding,
-      paddingTop: spacing.lg,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
-    },
-    heroCard: {
-      width: '100%',
-      backgroundColor: BRAND.heroBg,
-      borderRadius: 32,
-      padding: spacing.xl,
-      marginBottom: spacing.lg,
-      borderWidth: 1,
-      borderColor: BRAND.heroBorder,
-      shadowColor: BRAND.heroBg,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.2,
-      shadowRadius: 10,
-      elevation: 5,
-    },
-    heroBadgeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginBottom: spacing.md,
-    },
-    heroBadgeText: {
-      color: BRAND.accentYellow,
-      letterSpacing: 1.8,
-      fontWeight: '700',
-      fontSize: 10,
-    },
-    heroHeading: {
-      color: BRAND.heroText,
-      fontSize: 40,
-      fontWeight: '700',
-      marginBottom: spacing.sm,
-    },
-    heroBody: {
-      ...typography.bodySmall,
-      color: BRAND.heroBody,
-      lineHeight: 20,
-      marginBottom: spacing.lg,
-      maxWidth: '88%',
-    },
-    heroActionsRow: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-    },
-    heroPrimaryButton: {
-      backgroundColor: BRAND.heroPrimary,
-      borderRadius: 24,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md - 2,
-    },
-    heroPrimaryText: {
-      color: '#F3FCFF',
-      fontSize: 11,
-      letterSpacing: 1.2,
-      fontWeight: '700',
-    },
-    heroSecondaryButton: {
-      backgroundColor: BRAND.heroSecondary,
-      borderRadius: 24,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md - 2,
-      borderWidth: 1,
-      borderColor: BRAND.heroSecondaryBorder,
-    },
-    heroSecondaryText: {
-      color: '#DBE8F6',
-      fontSize: 11,
-      letterSpacing: 1,
-      fontWeight: '700',
-    },
-    statsRow: {
-      width: '100%',
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-      marginBottom: spacing.xl,
-    },
-    statCard: {
+    welcomeText: {
       flex: 1,
-      backgroundColor: BRAND.surface,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: BRAND.border,
-      minHeight: 84,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.sm,
-      shadowColor: '#123C73',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 2,
     },
-    statLabel: {
-      color: BRAND.muted,
-      fontSize: 10.5,
-      letterSpacing: 1.2,
-      fontWeight: '700',
-      textAlign: 'center',
+    greeting: {
+      ...typography.h3,
+      color: colors.text,
       marginBottom: spacing.xs,
     },
-    statValue: {
-      fontSize: 28,
-      fontWeight: '800',
+    subtitle: {
+      ...typography.body,
+      color: colors.textSecondary,
     },
-    sectionHeaderRow: {
-      width: '100%',
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: spacing.md,
+    loadingRow: {
+      paddingVertical: spacing.md,
+    },
+    section: {
+      marginBottom: spacing.xxl,
     },
     sectionTitle: {
-      color: BRAND.heading,
-      fontWeight: '800',
-      letterSpacing: 1.6,
-      fontSize: 14,
+      ...typography.h5,
+      color: colors.text,
+      marginBottom: spacing.xs,
     },
-    featureCard: {
-      width: '100%',
-      backgroundColor: BRAND.surface,
-      borderRadius: 22,
-      borderWidth: 1,
-      borderColor: BRAND.border,
-      padding: spacing.lg,
-      marginBottom: spacing.md,
-      minHeight: 120,
+    sectionSubtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginBottom: spacing.lg,
     },
-    gridCard: {
-      width: gridCardWidth,
-      backgroundColor: BRAND.surface,
-      borderRadius: 22,
-      borderWidth: 1,
-      borderColor: BRAND.border,
-      padding: spacing.lg,
-      marginBottom: spacing.md,
-      minHeight: 152,
+    newsCard: {
+      marginBottom: spacing.lg,
     },
-    serviceIconWrap: {
-      width: 52,
-      height: 52,
+    viewAllCard: {
+      marginBottom: 0,
+    },
+    quickActionCard: {
+      marginBottom: spacing.lg,
+    },
+    quickActionContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.lg,
+    },
+    quickActionIconWrap: {
+      width: 56,
+      height: 56,
       borderRadius: 16,
-      borderWidth: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: spacing.md,
-    },
-    featureTitle: {
-      color: '#0C3F79',
-      fontSize: 30,
-      fontWeight: '700',
-      marginBottom: spacing.xs,
-    },
-    gridTitle: {
-      color: '#0C3F79',
-      fontSize: 30,
-      fontWeight: '700',
-      marginBottom: spacing.xs,
-    },
-    serviceSubtitle: {
-      color: BRAND.muted,
-      fontSize: 11,
-      letterSpacing: 0.45,
-      fontWeight: '700',
-      lineHeight: 14,
-    },
-    drawerOverlay: {
-      flex: 1,
-      flexDirection: 'row',
-      backgroundColor: 'rgba(9, 24, 47, 0.44)',
-    },
-    drawerBackdrop: {
-      flex: 1,
-    },
-    drawerPanel: {
-      width: '82%',
-      backgroundColor: BRAND.surface,
-      borderTopLeftRadius: 8,
-      borderBottomLeftRadius: 8,
-      overflow: 'hidden',
-    },
-    drawerHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: '#EFF3F8',
-    },
-    avatarWrap: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      backgroundColor: BRAND.heroBg,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: BRAND.heroBg,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 3,
     },
-    drawerHeaderText: {
+    quickActionText: {
       flex: 1,
     },
-    drawerName: {
-      color: BRAND.heading,
-      fontWeight: '700',
-      fontSize: 14,
+    quickActionTitle: {
+      ...typography.h5,
+      color: colors.text,
+      marginBottom: 2,
     },
-    drawerTier: {
-      color: '#9EB0C8',
-      fontWeight: '700',
-      fontSize: 10,
-      letterSpacing: 1,
+    quickActionMeta: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    serviceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.lg,
+    },
+    iconCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    serviceText: {
+      flex: 1,
+    },
+    serviceTitle: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    serviceMeta: {
+      ...typography.caption,
+      color: colors.textMuted,
       marginTop: 2,
     },
-    drawerBody: {
-      paddingHorizontal: spacing.xl + 2,
-      paddingTop: spacing.lg,
+    badgeText: {
+      color: colors.primary,
+      fontWeight: '600',
     },
-    drawerGroupSpacing: {
-      marginTop: spacing.xl,
-    },
-    drawerSection: {
-      color: '#C1CDDD',
-      fontSize: 10,
-      fontWeight: '700',
-      letterSpacing: 2,
-      marginBottom: spacing.sm,
-    },
-    logoutRow: {
+    linkRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.md,
-      marginTop: spacing.xl,
-      paddingVertical: spacing.sm,
     },
-    logoutText: {
-      color: '#F43F5E',
-      fontSize: 14,
-      fontWeight: '800',
-      letterSpacing: 1.5,
+    linkLabel: {
+      ...typography.body,
+      fontWeight: '500',
+      color: colors.text,
+      flex: 1,
     },
-    drawerFooter: {
-      marginTop: 'auto',
-      borderTopWidth: 1,
-      borderTopColor: '#F0F4FA',
+    footer: {
+      flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: spacing.lg,
-      paddingHorizontal: spacing.md,
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.xl,
     },
-    drawerFooterHeading: {
-      color: '#D1DBE8',
-      fontWeight: '700',
-      letterSpacing: 2,
-      fontSize: 10,
-      marginBottom: spacing.xs,
+    footerLogo: {
+      width: 24,
+      height: 24,
     },
-    drawerFooterText: {
-      color: '#E0E8F2',
-      fontWeight: '700',
-      letterSpacing: 1.2,
-      fontSize: 8,
+    footerText: {
+      ...typography.caption,
+      color: colors.textMuted,
     },
   });
 }
@@ -700,4 +790,3 @@ function getStyles(colors, width) {
 HomeScreen.propTypes = {
   navigation: PropTypes.object.isRequired,
 };
-

@@ -1,114 +1,125 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
 
 /**
- * Global Header Component - Bank-grade, government-ready
- * Used across all screens for consistency
- * Based on approved design from locked pages
+ * Global Header Component - Roads Authority Namibia
+ * Consistent header across all screens with support for primary (branded) or light variant.
  */
 export function GlobalHeader({
   title,
   subtitle,
   icon,
   onIconPress,
-  gradient = true,
+  variant = 'primary', // 'primary' | 'light'
+  gradient, // deprecated: use variant. gradient={false} => variant="light"
   testID,
   accessibilityLabel,
   showBackButton = false,
   onBackPress,
   rightActions = [],
+  logo,
 }) {
   const { colors } = useTheme();
-  const styles = getStyles(colors);
+  const insets = useSafeAreaInsets();
+  const resolvedVariant = gradient === false ? 'light' : variant;
+  const styles = getStyles(colors, insets, resolvedVariant);
+  const isLight = resolvedVariant === 'light';
+  const iconColor = isLight ? colors.text : colors.textInverse || '#FFFFFF';
 
   const headerContent = (
     <View style={styles.headerContent}>
       <View style={styles.leftSection}>
         {showBackButton && (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={onBackPress}
-            style={styles.backButton}
+            style={[styles.actionButton, isLight && styles.actionButtonLight]}
             accessible={true}
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.textInverse} />
+            <Ionicons name="arrow-back" size={24} color={iconColor} />
           </TouchableOpacity>
         )}
-        <View style={styles.textContainer}>
-          {title && <Text style={styles.title}>{title}</Text>}
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        <View style={[styles.textContainer, showBackButton && styles.textContainerWithBack]}>
+          {logo && !title ? (
+            <View style={styles.logoRow}>
+              <Image source={logo} style={styles.logo} resizeMode="contain" />
+              {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            </View>
+          ) : (
+            <>
+              {title && <Text style={styles.title} numberOfLines={1}>{title}</Text>}
+              {subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
+            </>
+          )}
         </View>
       </View>
-      
+
       <View style={styles.rightSection}>
         {rightActions.map((action, index) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={index}
             onPress={action.onPress}
-            style={styles.actionButton}
+            style={[styles.actionButton, isLight && styles.actionButtonLight]}
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel={action.accessibilityLabel}
+            accessibilityLabel={action.accessibilityLabel || action.icon}
           >
-            <Ionicons name={action.icon} size={24} color={colors.textInverse} />
+            <Ionicons name={action.icon} size={22} color={iconColor} />
           </TouchableOpacity>
         ))}
         {icon && (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={onIconPress}
-            style={styles.iconButton}
+            style={[styles.actionButton, isLight && styles.actionButtonLight]}
             accessible={true}
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
           >
-            <Ionicons name={icon} size={24} color={colors.textInverse} />
+            <Ionicons name={icon} size={22} color={iconColor} />
           </TouchableOpacity>
         )}
       </View>
     </View>
   );
 
-  if (gradient) {
-    return (
-      <LinearGradient
-        colors={[colors.primary, colors.primary]}
-        style={styles.header}
-        testID={testID}
-      >
-        {headerContent}
-      </LinearGradient>
-    );
-  }
-
   return (
-    <View style={[styles.header, styles.headerNoGradient]} testID={testID}>
+    <View style={styles.header} testID={testID}>
       {headerContent}
     </View>
   );
 }
 
-const getStyles = (colors) =>
-  StyleSheet.create({
+const getStyles = (colors, insets, variant) => {
+  const isLight = variant === 'light';
+  const headerBg = isLight ? (colors.backgroundSecondary || colors.background) : colors.primary;
+  const titleColor = isLight ? colors.text : (colors.textInverse || '#FFFFFF');
+  const subtitleColor = isLight ? colors.textSecondary : (colors.textInverse || '#FFFFFF');
+
+  return StyleSheet.create({
     header: {
-      paddingTop: 60,
-      paddingBottom: 20,
-      paddingHorizontal: 20,
-      borderBottomLeftRadius: 0,
-      borderBottomRightRadius: 0,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 8,
-    },
-    headerNoGradient: {
-      backgroundColor: colors.primary,
+      paddingTop: Math.max(insets.top, spacing.md) + spacing.sm,
+      paddingBottom: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: headerBg,
+      borderBottomWidth: isLight ? 1 : 0,
+      borderBottomColor: colors.border,
+      ...Platform.select({
+        ios: isLight
+          ? {}
+          : {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.12,
+              shadowRadius: 6,
+            },
+        android: isLight ? {} : { elevation: 4 },
+      }),
     },
     headerContent: {
       flexDirection: 'row',
@@ -119,49 +130,52 @@ const getStyles = (colors) =>
       flexDirection: 'row',
       alignItems: 'center',
       flex: 1,
+      minWidth: 0,
     },
     rightSection: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: spacing.xs,
     },
-    backButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    actionButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: spacing.md,
+      backgroundColor: isLight ? 'transparent' : 'rgba(255, 255, 255, 0.18)',
+    },
+    actionButtonLight: {
+      backgroundColor: 'transparent',
     },
     textContainer: {
       flex: 1,
+      marginLeft: spacing.md,
+      minWidth: 0,
+    },
+    textContainerWithBack: {
+      marginLeft: spacing.sm,
+    },
+    logoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    logo: {
+      width: 32,
+      height: 32,
     },
     title: {
-      color: colors.textInverse,
+      color: titleColor,
       ...typography.h3,
-      marginBottom: spacing.xs,
+      fontWeight: '600',
+      marginBottom: 2,
     },
     subtitle: {
-      color: colors.textInverse,
-      ...typography.bodySmall,
-      opacity: 0.9,
-    },
-    actionButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginLeft: spacing.sm,
-    },
-    iconButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginLeft: spacing.sm,
+      color: subtitleColor,
+      ...typography.caption,
+      fontSize: 13,
+      opacity: isLight ? 1 : 0.92,
     },
   });
+};
