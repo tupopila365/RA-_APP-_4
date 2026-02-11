@@ -29,6 +29,9 @@ export class AppUser {
   @Column({ default: false })
   isEmailVerified: boolean;
 
+  @Column({ default: false })
+  isPhoneVerified: boolean;
+
   @Column({ type: 'varchar', length: 255, nullable: true, select: false })
   emailVerificationToken: string | null;
 
@@ -37,6 +40,9 @@ export class AppUser {
 
   @Column({ type: 'datetime', nullable: true })
   emailVerifiedAt: Date | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  phoneVerifiedAt: Date | null;
 
   @Column({ type: 'datetime', nullable: true })
   lastLoginAt: Date | null;

@@ -8,17 +8,13 @@ import {
   useWindowDimensions,
   Image,
   Platform,
-  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../hooks/useTheme';
 import { SearchInput } from '../components/SearchInput';
 import RAIcon from '../assets/icon.png';
-import ApplicationImage1 from '../form_images/image.png';
-import ApplicationImage2 from '../form_images/images.png';
 
 // Responsive breakpoints (in dp)
 const BREAKPOINTS = {
@@ -114,39 +110,23 @@ export default function ApplicationsScreen({ navigation }) {
       title: 'Personalized Number Plates',
       icon: 'card-outline',
       color: colors.primary,
-      backgroundColor: '#F5F5F7',
+      backgroundColor: colors.backgroundSecondary,
       onPress: () => navigation?.navigate('PLNInfo'),
     },
     {
       id: 2,
-      title: 'Track PLN Application',
+      title: 'My Applications',
       icon: 'search-outline',
       color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      onPress: () => navigation?.navigate('PLNTracking'),
-    },
-    {
-      id: 3,
-      title: 'Vehicle Registration (New)',
-      icon: 'car-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      onPress: () => navigation?.navigate('VehicleRegistrationInfo', { type: 'new' }),
-    },
-    {
-      id: 4,
-      title: 'Vehicle Registration (Existing)',
-      icon: 'car-sport-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      onPress: () => navigation?.navigate('VehicleRegistrationInfo', { type: 'existing' }),
+      backgroundColor: colors.backgroundSecondary,
+      onPress: () => navigation?.navigate('MyApplications'),
     },
     {
       id: 5,
       title: 'My Reports',
       icon: 'list-outline',
       color: colors.primary,
-      backgroundColor: '#F5F5F7',
+      backgroundColor: colors.backgroundSecondary,
       onPress: () => navigation?.navigate('MyReports'),
     },
     {
@@ -154,7 +134,7 @@ export default function ApplicationsScreen({ navigation }) {
       title: 'Forms',
       icon: 'document-text-outline',
       color: colors.primary,
-      backgroundColor: '#F5F5F7',
+      backgroundColor: colors.backgroundSecondary,
       onPress: () => navigation?.navigate('Forms'),
     },
   ];
@@ -183,18 +163,8 @@ export default function ApplicationsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#00B4E6', '#0090C0', '#0078A3']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.header}
-      >
-        <ImageBackground
-          source={ApplicationImage1}
-          style={styles.headerBackground}
-          imageStyle={styles.headerBackgroundImage}
-        >
-          <SafeAreaView edges={['top']}>
+      <View style={styles.header}>
+        <SafeAreaView edges={['top']}>
           <View style={styles.headerContent}>
             <View style={styles.brandContainer}>
               <View style={styles.brandLogoWrapper}>
@@ -210,8 +180,8 @@ export default function ApplicationsScreen({ navigation }) {
                 />
               </View>
               <View style={styles.brandTextContainer}>
-                <Text style={styles.welcomeLabel} maxFontSizeMultiplier={1.3}>WELCOME TO</Text>
-                <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority Namibia</Text>
+                <Text style={styles.welcomeLabel} maxFontSizeMultiplier={1.3}>Roads Authority Namibia</Text>
+                <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Applications Portal</Text>
                 <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Applications & Services</Text>
                 <Text style={styles.taglineText} maxFontSizeMultiplier={1.3}>
                   Access digital forms and application services.
@@ -232,9 +202,8 @@ export default function ApplicationsScreen({ navigation }) {
               accessibilityHint="Type to filter available applications"
             />
           </View>
-          </SafeAreaView>
-        </ImageBackground>
-      </LinearGradient>
+        </SafeAreaView>
+      </View>
 
       <ScrollView 
         style={styles.scrollView} 
@@ -252,7 +221,7 @@ export default function ApplicationsScreen({ navigation }) {
                   onPress={item.onPress}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: item.backgroundColor || '#F5F5F7' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: item.backgroundColor || colors.backgroundSecondary }]}>
                     <Ionicons 
                       name={item.icon} 
                       size={Math.max(24, Math.min(secondaryIconSize - 8, 32))} 
@@ -302,9 +271,8 @@ function getStyles(colors, config) {
   const titleFontSize = isPhone ? 22 : isTablet ? 24 : 26;
   const sectionFontSize = isPhone ? 20 : isTablet ? 22 : 24;
   
-  // Banner height responsive to screen size
-  // Match home header compact height
-  const bannerHeight = isPhone ? (isLandscape ? 120 : 160) : isTablet ? (isLandscape ? 180 : 200) : 220;
+  // Banner height - match HomeScreen (shorter hero)
+  const bannerHeight = isPhone ? (isLandscape ? 100 : 130) : isTablet ? (isLandscape ? 150 : 170) : 180;
   
   return StyleSheet.create({
     container: {
@@ -312,9 +280,11 @@ function getStyles(colors, config) {
       backgroundColor: colors.background,
     },
     header: {
-      borderBottomLeftRadius: isPhone ? 24 : 32,
-      borderBottomRightRadius: isPhone ? 24 : 32,
-      backgroundColor: 'transparent',
+      borderBottomLeftRadius: isPhone ? 20 : 24,
+      borderBottomRightRadius: isPhone ? 20 : 24,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
       ...Platform.select({
         ios: {
           shadowColor: 'transparent',
@@ -330,7 +300,7 @@ function getStyles(colors, config) {
     headerContent: {
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 16,
+      marginBottom: isPhone ? 12 : 14,
       position: 'relative',
       paddingHorizontal: horizontalPadding,
     },
@@ -346,19 +316,25 @@ function getStyles(colors, config) {
       alignItems: 'center',
     },
     brandLogoWrapper: {
-      width: isPhone ? 96 : isTablet ? 104 : 112,
-      height: isPhone ? 96 : isTablet ? 104 : 112,
+      width: isPhone ? 80 : isTablet ? 88 : 96,
+      height: isPhone ? 80 : isTablet ? 88 : 96,
       borderRadius: 999,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 12,
+      padding: isPhone ? 10 : 12,
       overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      elevation: 3,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+        },
+        android: { elevation: 4 },
+      }),
     },
     brandLogo: {
       width: '100%',
@@ -366,14 +342,14 @@ function getStyles(colors, config) {
       borderRadius: 999,
     },
     welcomeLabel: {
-      color: '#FFFFFF',
+      color: colors.textSecondary,
       fontSize: isPhone ? 12 : 13,
       letterSpacing: 1.2,
       fontWeight: '700',
       marginBottom: 6,
     },
     titleText: {
-      color: '#FFFFFF',
+      color: colors.text,
       fontSize: titleFontSize + 2,
       fontWeight: '700',
       marginTop: 0,
@@ -381,7 +357,7 @@ function getStyles(colors, config) {
       textAlign: 'center',
     },
     subtitleText: {
-      color: '#FFFFFF',
+      color: colors.primary,
       fontSize: isPhone ? 15 : 17,
       ...Platform.select({
         ios: {
@@ -394,7 +370,7 @@ function getStyles(colors, config) {
       textAlign: 'center',
     },
     taglineText: {
-      color: '#FFFFFF',
+      color: colors.textSecondary,
       fontSize: isPhone ? 13 : 14,
       opacity: 0.9,
       marginTop: 8,
@@ -404,16 +380,8 @@ function getStyles(colors, config) {
     },
     headerBackground: {
       width: '100%',
-      borderBottomLeftRadius: isPhone ? 24 : 32,
-      borderBottomRightRadius: isPhone ? 24 : 32,
-      overflow: 'hidden',
-      minHeight: bannerHeight + (verticalPadding * 2),
-      paddingTop: isPhone ? 24 : 30,
-      paddingBottom: isPhone ? 20 : 25,
-      paddingHorizontal: horizontalPadding,
     },
     headerBackgroundImage: {
-      opacity: 0.35,
       resizeMode: 'cover',
     },
     searchContainer: {
@@ -518,27 +486,27 @@ function getStyles(colors, config) {
       flexWrap: 'wrap',
       gap: gridGap,
     },
-    // Menu items - standard size, responsive width
+    // Menu items - matches HomeScreen glassmorphism style
     menuItem: {
       width: secondaryItemWidth,
       minWidth: MIN_TOUCH_TARGET * 1.8,
-      backgroundColor: '#FFFFFF',
-      borderRadius: isPhone ? 12 : 16,
+      backgroundColor: colors.surface,
+      borderRadius: isPhone ? 16 : 20,
       padding: isPhone ? 10 : 14,
       marginBottom: isPhone ? 10 : 16,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: '#E6EAF0',
+      borderColor: colors.border,
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.15,
+          shadowRadius: 6,
         },
         android: {
-          elevation: 1,
+          elevation: 3,
         },
       }),
     },
@@ -547,7 +515,7 @@ function getStyles(colors, config) {
       height: iconContainerSecondary,
       minWidth: MIN_TOUCH_TARGET,
       minHeight: MIN_TOUCH_TARGET,
-      borderRadius: isPhone ? 12 : 14,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: isPhone ? 6 : 10,

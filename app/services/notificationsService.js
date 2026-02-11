@@ -31,7 +31,7 @@ const MOCK_NOTIFICATIONS = [
     data: {
       type: 'tender',
       tenderId: 'tender-456',
-      screen: 'Tenders',
+      screen: 'Procurement',
     },
     sentAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
@@ -85,7 +85,7 @@ const MOCK_NOTIFICATIONS = [
     data: {
       type: 'tender',
       tenderId: 'tender-457',
-      screen: 'Tenders',
+      screen: 'Procurement',
     },
     sentAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
     createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
@@ -139,7 +139,7 @@ const MOCK_NOTIFICATIONS = [
     data: {
       type: 'tender',
       tenderId: 'tender-458',
-      screen: 'Tenders',
+      screen: 'Procurement',
     },
     sentAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago
     createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),

@@ -61,9 +61,14 @@ export const useNotifications = () => {
 
     // Navigate based on notification type
     if (data.type === 'news' && data.newsId) {
-      navigation.navigate('NewsDetail', { id: data.newsId });
+      navigation.navigate('News', {
+        screen: 'NewsDetail',
+        params: { id: data.newsId },
+      });
     } else if (data.type === 'tender' && data.tenderId) {
-      navigation.navigate('Tenders');
+      navigation.navigate('Procurement', {
+        screen: 'ProcurementMain',
+      });
     } else if (data.type === 'vacancy' && data.vacancyId) {
       navigation.navigate('Vacancies');
     } else if (data.screen) {

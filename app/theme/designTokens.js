@@ -2,6 +2,7 @@ import { spacing } from './spacing';
 import { borderRadius as radii } from './borderRadius';
 import { shadows } from './shadows';
 import { RATheme } from './colors';
+import { typography } from './typography';
 
 /**
  * Design Tokens - Unified Design System
@@ -18,6 +19,7 @@ export { radii };
 
 // Re-export shadows
 export { shadows };
+export { typography };
 
 // Size tokens for common UI elements
 export const sizes = {
@@ -55,6 +57,7 @@ export const designTokens = {
   spacing,
   radii,
   shadows,
+  typography,
   sizes,
 };
 

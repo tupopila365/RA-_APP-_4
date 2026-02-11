@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Image,
@@ -40,6 +39,7 @@ export default function LoginScreen({ navigation, route }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
 
   // Dynamic styles based on theme
   const styles = createStyles(colors);
@@ -87,10 +87,11 @@ export default function LoginScreen({ navigation, route }) {
 
   const handleLogin = async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please enter your email and password.');
+      setFormError('Please review the highlighted fields and try again.');
       return;
     }
 
+    setFormError('');
     setLoading(true);
     try {
       const result = await authService.login(email.trim(), password);
@@ -98,30 +99,18 @@ export default function LoginScreen({ navigation, route }) {
       // Update app context with user data
       await login(result.user);
 
-      Alert.alert('Success', 'Logged in successfully!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Navigate to return screen if provided, otherwise to main tabs
-            if (returnScreen) {
-              navigation.replace(returnScreen, returnParams);
-            } else {
-              navigation.replace('MainTabs');
-            }
-          },
-        },
-      ]);
+      if (returnScreen) {
+        navigation.replace(returnScreen, returnParams);
+      } else {
+        navigation.replace('MainTabs');
+      }
     } catch (error) {
       console.error('Login error:', error);
       
       // Show detailed error message
       const errorMessage = error.message || 'Invalid email or password. Please try again.';
       
-      Alert.alert(
-        'Login Failed',
-        errorMessage,
-        [{ text: 'OK' }]
-      );
+      setFormError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -164,6 +153,11 @@ export default function LoginScreen({ navigation, route }) {
               <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 }]}>
                 Sign in to your Roads Authority account
               </Text>
+              {!!formError && (
+                <Text style={styles.formErrorText} accessibilityLiveRegion="polite">
+                  {formError}
+                </Text>
+              )}
               
               <UnifiedFormInput
                 label="Email Address"
@@ -210,7 +204,7 @@ export default function LoginScreen({ navigation, route }) {
 
             {/* Footer Links */}
             <View style={styles.footerLinks}>
-              <TouchableOpacity onPress={() => Alert.alert('Help', 'Contact support for password reset')}>
+              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
                 <Text style={[typography.body, { color: colors.primary, textDecorationLine: 'underline' }]}>
                   Forgot your password?
                 </Text>
@@ -243,6 +237,12 @@ const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  formErrorText: {
+    ...typography.bodySmall,
+    color: colors.error,
+    marginBottom: spacing.md,
+    textAlign: 'center',
   },
   keyboardView: {
     flex: 1,

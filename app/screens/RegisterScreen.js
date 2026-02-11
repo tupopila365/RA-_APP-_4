@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Image,
   useColorScheme,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -37,13 +37,28 @@ export default function RegisterScreen({ navigation }) {
   const colorScheme = useColorScheme();
   const themeColors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
 
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationMethod, setVerificationMethod] = useState('email');
+  const [phoneMasked, setPhoneMasked] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState('');
+  const [countdown, setCountdown] = useState(0);
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
+  const otpRefs = useRef([]);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   // Professional styles using design system
   const styles = createStyles(themeColors);
@@ -104,8 +119,10 @@ export default function RegisterScreen({ navigation }) {
       setErrors((prev) => ({ ...prev, 'Confirm Password': null }));
     }
 
-    // Phone number is optional, but if provided, validate it
-    if (phoneNumber.trim()) {
+    // Phone required when using phone verification
+    if (verificationMethod === 'phone') {
+      isValid = validateField('Phone Number', phoneNumber, { required: true, phone: true }) && isValid;
+    } else if (phoneNumber.trim()) {
       isValid = validateField('Phone Number', phoneNumber, { phone: true }) && isValid;
     }
 
@@ -114,29 +131,38 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please correct the errors in the form.');
+      setFormError('Please correct the highlighted fields before continuing.');
       return;
     }
 
+    setFormError('');
     setLoading(true);
+    setOtpError('');
     try {
       const result = await authService.register(
         email.trim(),
         password,
         fullName.trim() || null,
-        phoneNumber.trim() || null
+        phoneNumber.trim() || null,
+        verificationMethod
       );
 
-      // Email verification disabled - log user in directly
-      await login(result.user);
-      Alert.alert('Success', 'Account created successfully!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            navigation.replace('MainTabs');
-          },
-        },
-      ]);
+      if (result.needPhoneVerification) {
+        setPhoneMasked(result.phoneMasked || `***${phoneNumber.slice(-3)}`);
+        setStep(2);
+        setCountdown(30);
+        return;
+      }
+
+      if (result.needEmailVerification) {
+        navigation.replace('EmailVerification', { email: result.user.email });
+        return;
+      }
+
+      if (result.user && result.accessToken) {
+        await login(result.user);
+        navigation.replace('MainTabs');
+      }
     } catch (error) {
       console.error('Registration error:', error);
       
@@ -152,17 +178,53 @@ export default function RegisterScreen({ navigation }) {
         errorMessage = 'Please enter a valid email address.';
       }
       
-      Alert.alert('Registration Failed', errorMessage, [
-        {
-          text: errorMessage.includes('already exists') ? 'Go to Login' : 'OK',
-          onPress: errorMessage.includes('already exists') 
-            ? () => navigation.navigate('Login')
-            : undefined,
-        },
-      ]);
+      if (errorMessage.includes('already exists')) {
+        setFormError(`${errorMessage} Use the Sign In screen if you already have an account.`);
+      } else {
+        setFormError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOtpChange = (value, index) => {
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    setOtpError('');
+    if (value && index < 5) otpRefs.current[index + 1]?.focus();
+    if (newOtp.every((d) => d !== '') && newOtp.join('').length === 6) {
+      handleVerifyOtp(newOtp.join(''));
+    }
+  };
+
+  const handleVerifyOtp = async (otpCode) => {
+    if (!otpCode || otpCode.length !== 6) return;
+    setLoading(true);
+    setOtpError('');
+    try {
+      const result = await authService.registerVerifyOtp(
+        email,
+        phoneNumber,
+        otpCode,
+        password
+      );
+      await login(result.user);
+      navigation.replace('MainTabs');
+    } catch (error) {
+      setOtpError(error.message || 'Invalid or expired code. Please try again.');
+      setOtp(['', '', '', '', '', '']);
+      otpRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (countdown > 0) return;
+    await handleRegister();
+    setCountdown(30);
   };
 
   return (
@@ -172,7 +234,7 @@ export default function RegisterScreen({ navigation }) {
         title="Create Account"
         subtitle="Join Roads Authority Digital Services"
         showBackButton={true}
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => (step === 2 ? setStep(1) : navigation.goBack())}
       />
       
       <KeyboardAvoidingView
@@ -199,12 +261,19 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.cardContainer}>
               <UnifiedCard variant="elevated" padding="large">
               <Text style={[typography.h3, { color: themeColors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
-                Create Account
+                {step === 1 ? 'Create Account' : 'Verify Your Phone'}
               </Text>
               <Text style={[typography.body, { color: themeColors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 }]}>
-                Join Roads Authority Digital Services
+                {step === 1 ? 'Join Roads Authority Digital Services' : 'Enter the code sent to your phone'}
               </Text>
-              
+              {!!formError && step === 1 && (
+                <Text style={styles.formErrorText} accessibilityLiveRegion="polite">
+                  {formError}
+                </Text>
+              )}
+
+              {step === 1 && (
+              <>
               <UnifiedFormInput
                 label="Full Name"
                 value={fullName}
@@ -286,17 +355,56 @@ export default function RegisterScreen({ navigation }) {
                 onChangeText={(text) => {
                   setPhoneNumber(text);
                   if (text.trim()) {
-                    validateField('Phone Number', text, { phone: true });
+                    validateField('Phone Number', text, verificationMethod === 'phone' ? { required: true, phone: true } : { phone: true });
                   } else {
                     setErrors((prev) => ({ ...prev, 'Phone Number': null }));
                   }
                 }}
-                placeholder="Enter your phone number"
+                placeholder="e.g. 0812345678"
                 error={errors['Phone Number']}
                 keyboardType="phone-pad"
                 leftIcon="call-outline"
-                helperText="Optional - for account recovery and notifications"
+                helperText={verificationMethod === 'phone' ? 'Required for verification' : 'Optional'}
+                required={verificationMethod === 'phone'}
               />
+
+              <Text style={[typography.body, { color: themeColors.textSecondary, marginBottom: spacing.sm }]}>
+                Verify your account via
+              </Text>
+              <View style={styles.verificationOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.verificationOption,
+                    verificationMethod === 'email' && styles.verificationOptionSelected,
+                  ]}
+                  onPress={() => setVerificationMethod('email')}
+                >
+                  <Ionicons
+                    name={verificationMethod === 'email' ? 'mail' : 'mail-outline'}
+                    size={24}
+                    color={verificationMethod === 'email' ? themeColors.primary : themeColors.textSecondary}
+                  />
+                  <Text style={[typography.body, { color: themeColors.text, marginLeft: spacing.sm }]}>
+                    Email
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.verificationOption,
+                    verificationMethod === 'phone' && styles.verificationOptionSelected,
+                  ]}
+                  onPress={() => setVerificationMethod('phone')}
+                >
+                  <Ionicons
+                    name={verificationMethod === 'phone' ? 'call' : 'call-outline'}
+                    size={24}
+                    color={verificationMethod === 'phone' ? themeColors.primary : themeColors.textSecondary}
+                  />
+                  <Text style={[typography.body, { color: themeColors.text, marginLeft: spacing.sm }]}>
+                    Phone (SMS)
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               <UnifiedButton
                 label="Create Account"
@@ -310,6 +418,49 @@ export default function RegisterScreen({ navigation }) {
                 fullWidth
                 style={{ marginTop: spacing.lg }}
               />
+              </>
+              )}
+
+              {step === 2 && (
+                <View style={styles.otpSection}>
+                  <Text style={[typography.body, { color: themeColors.textSecondary, textAlign: 'center', marginBottom: spacing.md }]}>
+                    Enter the 6-digit code sent to {phoneMasked}
+                  </Text>
+                  <View style={styles.otpContainer}>
+                    {otp.map((digit, index) => (
+                      <TextInput
+                        key={index}
+                        ref={(ref) => (otpRefs.current[index] = ref)}
+                        style={[styles.otpInput, otpError && styles.otpInputError]}
+                        value={digit}
+                        onChangeText={(value) => handleOtpChange(value, index)}
+                        keyboardType="numeric"
+                        maxLength={1}
+                        textAlign="center"
+                      />
+                    ))}
+                  </View>
+                  {otpError ? (
+                    <Text style={[typography.body, { color: themeColors.error, marginTop: spacing.sm }]}>
+                      {otpError}
+                    </Text>
+                  ) : null}
+                  <TouchableOpacity
+                    style={styles.resendButton}
+                    onPress={handleResendOtp}
+                    disabled={countdown > 0}
+                  >
+                    <Text style={[typography.body, { color: countdown > 0 ? themeColors.textSecondary : themeColors.primary }]}>
+                      {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
+                    </Text>
+                  </TouchableOpacity>
+                  {loading && (
+                    <Text style={[typography.body, { color: themeColors.textSecondary, marginTop: spacing.sm }]}>
+                      Verifying...
+                    </Text>
+                  )}
+                </View>
+              )}
               </UnifiedCard>
             </View>
 
@@ -384,6 +535,56 @@ const createStyles = (colors) => StyleSheet.create({
   cardContainer: {
     padding: 0,
     marginBottom: spacing.md,
+  },
+  formErrorText: {
+    ...typography.bodySmall,
+    color: colors.error,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  verificationOptions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  verificationOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  verificationOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '15',
+  },
+  otpSection: {
+    marginTop: spacing.md,
+  },
+  otpContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginVertical: spacing.lg,
+  },
+  otpInput: {
+    width: 44,
+    height: 52,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 8,
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  otpInputError: {
+    borderColor: colors.error,
+  },
+  resendButton: {
+    alignSelf: 'center',
+    marginTop: spacing.md,
   },
   
   // Footer Links

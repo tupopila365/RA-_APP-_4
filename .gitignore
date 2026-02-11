@@ -112,3 +112,9 @@ app/ios/project.xcworkspace
 app/ios/.xcode.env.local
 app/ios/*.jsbundle
 app/ios/Pods/
+
+
+
+.kiro/
+.zencoder
+.zenflow

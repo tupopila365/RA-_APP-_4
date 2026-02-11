@@ -1,22 +1,22 @@
 export const typography = {
   h1: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: '700',
     lineHeight: 40,
   },
   h2: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '700',
     lineHeight: 36,
   },
   h3: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     lineHeight: 32,
   },
   h4: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     lineHeight: 28,
   },
   h5: {
@@ -29,9 +29,24 @@ export const typography = {
     fontWeight: '400',
     lineHeight: 24,
   },
+  bodyLarge: {
+    fontSize: 18,
+    fontWeight: '400',
+    lineHeight: 28,
+  },
+  bodyMedium: {
+    fontSize: 15,
+    fontWeight: '400',
+    lineHeight: 22,
+  },
   bodySmall: {
     fontSize: 14,
     fontWeight: '400',
+    lineHeight: 20,
+  },
+  button: {
+    fontSize: 16,
+    fontWeight: '600',
     lineHeight: 20,
   },
   label: {

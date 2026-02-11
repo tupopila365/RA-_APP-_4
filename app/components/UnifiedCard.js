@@ -76,7 +76,7 @@ export function UnifiedCard({
 
 const getStyles = (colors, isDark) => StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF', // Always solid white for bank-grade consistency
+    backgroundColor: colors.cardBackground,
     borderRadius: 12, // Consistent radius for professional look
     marginBottom: spacing.md,
   },
@@ -85,7 +85,7 @@ const getStyles = (colors, isDark) => StyleSheet.create({
   cardDefault: {
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: isDark ? 0 : 0.08,
         shadowRadius: 2,
@@ -93,7 +93,7 @@ const getStyles = (colors, isDark) => StyleSheet.create({
       android: {
         // Use border-only approach for Android to prevent fogginess
         borderWidth: 1,
-        borderColor: isDark ? colors.border : '#E6EAF0',
+        borderColor: colors.cardBorder,
         elevation: 0, // Remove elevation completely
       },
     }),
@@ -101,7 +101,7 @@ const getStyles = (colors, isDark) => StyleSheet.create({
     ...Platform.select({
       ios: {
         borderWidth: 1,
-        borderColor: isDark ? colors.border : '#E6EAF0',
+        borderColor: colors.cardBorder,
       },
     }),
   },
@@ -110,17 +110,17 @@ const getStyles = (colors, isDark) => StyleSheet.create({
   cardElevated: {
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: isDark ? 0 : 0.12,
         shadowRadius: 4,
         borderWidth: 1,
-        borderColor: isDark ? colors.border : '#E6EAF0',
+        borderColor: colors.cardBorder,
       },
       android: {
         // Android gets a slightly darker border instead of elevation
         borderWidth: 2,
-        borderColor: isDark ? colors.border : '#D1D9E6',
+        borderColor: colors.borderMedium,
         elevation: 0,
       },
     }),

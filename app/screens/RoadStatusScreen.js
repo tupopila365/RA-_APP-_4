@@ -24,7 +24,8 @@ import { RATheme } from '../theme/colors';
 import { radii, spacing, sizes, shadows } from '../theme/designTokens';
 import { getSharedMapOptions } from '../theme/mapStyles';
 import RoadsMap, { MAP_MODES, MARKER_TYPES } from '../components/RoadsMap';
-import { LoadingOverlay, ErrorState, EmptyState, SearchInput } from '../components';
+import { LoadingOverlay } from '../components/LoadingOverlay';
+import { ErrorState, EmptyState, SearchInput, UnifiedSkeletonLoader } from '../components';
 import { roadStatusService } from '../services/roadStatusService';
 import { trafficService, getCongestionColor } from '../services/trafficService';
 

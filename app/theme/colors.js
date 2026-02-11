@@ -70,6 +70,8 @@ export const colors = {
   background: BACKGROUND_COLORS.primary,
   backgroundSecondary: BACKGROUND_COLORS.secondary,
   backgroundTertiary: BACKGROUND_COLORS.tertiary,
+  surface: COMPONENT_COLORS.surface,
+  surfaceMuted: COMPONENT_COLORS.surfaceMuted,
   
   // Component colors
   buttonPrimary: COMPONENT_COLORS.buttonPrimary,
@@ -77,6 +79,7 @@ export const colors = {
   inputBorder: COMPONENT_COLORS.inputBorder,
   inputBorderFocus: COMPONENT_COLORS.inputBorderFocus,
   inputBorderError: COMPONENT_COLORS.inputBorderError,
+  card: COMPONENT_COLORS.cardBackground,
   
   // Feature colors (semantic)
   featureApplication: COMPONENT_COLORS.featureApplication,

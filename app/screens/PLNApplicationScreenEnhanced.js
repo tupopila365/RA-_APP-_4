@@ -33,6 +33,7 @@ import {
 
 // Import native modules - use dynamic import for development builds
 import * as DocumentPicker from 'expo-document-picker';
+import { PasswordVerificationModal } from '../components/PasswordVerificationModal';
 
 export default function PLNApplicationScreenEnhanced({ navigation }) {
   const { colors, isDark } = useTheme();
@@ -45,6 +46,7 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
   const [showHelp, setShowHelp] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [fieldTouched, setFieldTouched] = useState({});
+  const [passwordVerified, setPasswordVerified] = useState(false);
 
   // Use government-standard styles with proper design system
   const styles = createStyles(colors, isDark, insets);
@@ -60,6 +62,11 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
       });
     }
   }, [user, navigation]);
+
+  // Don't render form until authenticated (and password verified when user exists)
+  if (!user) {
+    return null;
+  }
   // Wizard steps with guidance
   const wizardSteps = [
     {
@@ -1238,52 +1245,25 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
     }
   };
 
+  // Password verification gate (when user exists but not yet verified)
+  if (user && !passwordVerified) {
+    return (
+      <View style={styles.container}>
+        <PasswordVerificationModal
+          visible={true}
+          title="Verify Your Identity"
+          message="Enter your password to start your PLN application."
+          userEmail={user?.email}
+          onVerified={() => setPasswordVerified(true)}
+          onCancel={() => navigation?.goBack()}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {renderProgressHeader()}
       {renderHelpModal()}
-
-      {/* Progress Indicator */}
-      <View style={styles.progressSection}>
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${formProgress}%` }]} />
-        </View>
-        
-        <View style={styles.stepIndicators}>
-          {wizardSteps.map((step, index) => (
-            <View key={step.id} style={styles.stepIndicatorContainer}>
-              <View
-                style={[
-                  styles.stepIndicator,
-                  index === currentStep && styles.activeStepIndicator,
-                  index < currentStep && styles.completedStepIndicator,
-                ]}
-              >
-                <Ionicons
-                  name={index < currentStep ? 'checkmark' : step.icon}
-                  size={16}
-                  color={index <= currentStep ? '#FFFFFF' : colors.textSecondary}
-                />
-              </View>
-              {index < wizardSteps.length - 1 && (
-                <View style={[styles.stepConnector, index < currentStep && styles.completedStepConnector]} />
-              )}
-            </View>
-          ))}
-        </View>
-        
-        <View style={styles.stepInfo}>
-          <Text style={[typography.h4, { color: colors.text, textAlign: 'center' }]}>
-            {wizardSteps[currentStep].title}
-          </Text>
-          <Text style={[typography.bodySmall, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs }]}>
-            {wizardSteps[currentStep].subtitle}
-          </Text>
-          <Text style={[typography.bodySmall, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs, lineHeight: 20 }]}>
-            {wizardSteps[currentStep].description}
-          </Text>
-        </View>
-      </View>
 
       <KeyboardAvoidingView
         style={styles.content}
@@ -1291,9 +1271,55 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
       >
         <ScrollView
           style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
+          bounces={true}
+          overScrollMode="always"
         >
+          {renderProgressHeader()}
+          {/* Progress Indicator */}
+          <View style={styles.progressSection}>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBar, { width: `${formProgress}%` }]} />
+            </View>
+            
+            <View style={styles.stepIndicators}>
+              {wizardSteps.map((step, index) => (
+                <View key={step.id} style={styles.stepIndicatorContainer}>
+                  <View
+                    style={[
+                      styles.stepIndicator,
+                      index === currentStep && styles.activeStepIndicator,
+                      index < currentStep && styles.completedStepIndicator,
+                    ]}
+                  >
+                    <Ionicons
+                      name={index < currentStep ? 'checkmark' : step.icon}
+                      size={16}
+                      color={index <= currentStep ? '#FFFFFF' : colors.textSecondary}
+                    />
+                  </View>
+                  {index < wizardSteps.length - 1 && (
+                    <View style={[styles.stepConnector, index < currentStep && styles.completedStepConnector]} />
+                  )}
+                </View>
+              ))}
+            </View>
+            
+            <View style={styles.stepInfo}>
+              <Text style={[typography.h4, { color: colors.text, textAlign: 'center' }]}>
+                {wizardSteps[currentStep].title}
+              </Text>
+              <Text style={[typography.bodySmall, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs }]}>
+                {wizardSteps[currentStep].subtitle}
+              </Text>
+              <Text style={[typography.bodySmall, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs, lineHeight: 20 }]}>
+                {wizardSteps[currentStep].description}
+              </Text>
+            </View>
+          </View>
+
           {renderCurrentStep()}
           <View style={styles.bottomSpacing} />
         </ScrollView>
@@ -1369,6 +1395,10 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: Math.max(spacing.xl * 4, (insets?.bottom || 0) + 80),
   },
   stepHeader: {
     flexDirection: 'row',
@@ -1597,7 +1627,7 @@ const createStyles = (colors, isDark, insets) => StyleSheet.create({
     minWidth: spacing.xl,
   },
   bottomSpacing: {
-    height: spacing.xl,
+    height: spacing.xl * 2,
   },
   helpModal: {
     flex: 1,

@@ -13,6 +13,7 @@
     "lint": "eslint src --ext .ts",
     "seed:admin": "ts-node src/scripts/seedAdmin.ts",
     "create:admin": "ts-node src/scripts/createAdminUser.ts",
+    "test:ozeki-sms": "ts-node src/scripts/test-ozeki-sms.ts",
     "security:test": "node ../security-test.js",
     "typeorm": "typeorm-ts-node-commonjs",
     "security:cleanup": "ts-node -e \"require('./src/services/antivirusService').AntivirusService.cleanupQuarantine()\""

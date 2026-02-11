@@ -204,7 +204,7 @@ export default function SettingsScreen() {
               icon="key-outline"
               title="Change Password"
               subtitle="Update your account password"
-              onPress={() => Alert.alert('Password', 'Change password coming soon')}
+              onPress={() => navigation.navigate('ChangePassword')}
               colors={colors}
               showDivider
             />

@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
 // Import notifications conditionally to avoid Expo Go errors
@@ -18,7 +18,7 @@ try {
 }
 
 
-import HomeScreen from './screens/HomeScreen';
+import HomeScreen from './screens/HomeScreen.js';
 import NewsScreen from './screens/NewsScreen';
 import NewsDetailScreen from './screens/NewsDetailScreen';
 import VacanciesScreen from './screens/VacanciesScreen';
@@ -43,17 +43,22 @@ import PLNApplicationScreenEnhanced from './screens/PLNApplicationScreenEnhanced
 import PLNWizardScreen from './screens/PLNWizardScreen';
 import PLNConfirmationScreen from './screens/PLNConfirmationScreen';
 import PLNTrackingScreen from './screens/PLNTrackingScreen';
+import MyApplicationsScreen from './screens/MyApplicationsScreen';
 import VehicleRegistrationInfoScreen from './screens/VehicleRegistrationInfoScreen';
 import VehicleRegistrationWizardScreen from './screens/VehicleRegistrationWizardScreen';
 import RAServicesScreen from './screens/RAServicesScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import EmailVerificationScreen from './screens/EmailVerificationScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
+import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
 import NotificationPermissionScreen from './screens/NotificationPermissionScreen';
 import LocationPermissionScreen from './screens/LocationPermissionScreen';
 import { RATheme } from './theme/colors';
+import { LowerNavigationClean } from './components/LowerNavigationClean';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { CacheProvider } from './context/CacheContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -147,35 +152,17 @@ function ProcurementStack() {
 function MainTabs() {
   const colorScheme = useColorScheme();
   const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
-  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
       detachInactiveScreens={false}
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => getTabBarIcon(route, focused, color, size),
+      tabBar={(props) => <LowerNavigationClean {...props} />}
+      screenOptions={{
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'transparent',
           borderTopWidth: 0,
-          elevation: 12, // Android shadow
-          shadowColor: '#000', // iOS shadow
-          shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
-          height: 68 + insets.bottom,
-          paddingBottom: insets.bottom + 6,
-          paddingTop: 6,
-        },
-        tabBarItemStyle: {
-          borderRadius: 16,
-          marginHorizontal: 6,
-        },
-        tabBarActiveTintColor: colors.secondary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 2,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         headerStyle: {
           backgroundColor: colors.primary,
@@ -184,7 +171,7 @@ function MainTabs() {
         headerTitleStyle: {
           fontWeight: 'bold',
         },
-      })}
+      }}
     >
       <Tab.Screen 
         name="Home" 
@@ -192,23 +179,32 @@ function MainTabs() {
         options={{ headerShown: false }}
       />
       <Tab.Screen 
-        name="News" 
-        component={NewsStack}
-        options={{ headerShown: false }}
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ headerShown: true, title: 'Alerts' }}
       />
       <Tab.Screen 
         name="Chatbot" 
         component={ChatbotScreen}
         options={{ 
           headerShown: true,
-          title: 'RA Assistant',
-          tabBarLabel: 'Chat'
+          title: 'RA Assistant'
         }}
+      />
+      <Tab.Screen
+        name="Offices"
+        component={FindOfficesScreen}
+        options={{ headerShown: true, title: 'Find Offices' }}
       />
       <Tab.Screen 
         name="Settings" 
         component={SettingsScreen}
         options={{ headerShown: true }}
+      />
+      <Tab.Screen
+        name="News"
+        component={NewsStack}
+        options={{ headerShown: false, tabBarButton: () => null }}
       />
     </Tab.Navigator>
   );
@@ -241,6 +237,14 @@ function AuthStack() {
       <Stack.Screen
         name="Register"
         component={RegisterScreen}
+      />
+      <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordScreen}
+      />
+      <Stack.Screen
+        name="ResetPassword"
+        component={ResetPasswordScreen}
       />
       <Stack.Screen
         name="EmailVerification"
@@ -385,6 +389,11 @@ function AppNavigator() {
         component={PLNInfoScreen}
         options={{ title: 'Personalised Number Plates' }}
       />
+      <Stack.Screen
+        name="PLNWizard"
+        component={PLNWizardScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen 
         name="PLNApplication" 
         component={PLNApplicationScreenEnhanced}
@@ -404,6 +413,11 @@ function AppNavigator() {
         name="PLNTracking" 
         component={PLNTrackingScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="MyApplications" 
+        component={MyApplicationsScreen}
+        options={{ title: 'My Applications' }}
       />
       <Stack.Screen 
         name="VehicleRegistrationInfo" 
@@ -426,6 +440,11 @@ function AppNavigator() {
         options={{ title: 'RA Services' }}
       />
       <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={{ title: 'Change password', headerShown: false }}
+      />
+      <Stack.Screen
         name="Auth"
         component={AuthStack}
         options={{ headerShown: false }}
@@ -441,19 +460,20 @@ function RootStack() {
 // Component to handle deep links for email verification
 function DeepLinkHandler() {
   const navigation = useNavigation();
+  const { login } = useAppContext();
 
   useEffect(() => {
     // Handle initial URL (when app is opened via deep link)
     const handleInitialURL = async () => {
       const initialUrl = await Linking.getInitialURL();
       if (initialUrl) {
-        handleDeepLink(initialUrl, navigation);
+        handleDeepLink(initialUrl, navigation, login);
       }
     };
 
     // Handle URL when app is already running
     const subscription = Linking.addEventListener('url', (event) => {
-      handleDeepLink(event.url, navigation);
+      handleDeepLink(event.url, navigation, login);
     });
 
     handleInitialURL();
@@ -461,12 +481,12 @@ function DeepLinkHandler() {
     return () => {
       subscription?.remove();
     };
-  }, [navigation]);
+  }, [navigation, login]);
 
   return null;
 }
 
-async function handleDeepLink(url, navigation) {
+async function handleDeepLink(url, navigation, login) {
   try {
     const parsedUrl = Linking.parse(url);
     
@@ -479,12 +499,17 @@ async function handleDeepLink(url, navigation) {
         Alert.alert('Verifying Email', 'Please wait...', [{ text: 'OK' }]);
         
         try {
-          // Verify email with token
+          // Verify email with token (stores tokens and returns user)
           const result = await authService.verifyEmail(token);
+          
+          // Auto-login if we have user
+          if (result.user && login) {
+            await login(result.user);
+          }
           
           Alert.alert(
             'Email Verified',
-            'Your email has been successfully verified! You can now log in.',
+            'Your account is verified! You are now signed in.',
             [
               {
                 text: 'OK',
@@ -3249,12 +3274,10 @@ async function handleDeepLink(url, navigation) {
 
 
 
-                  // Navigate to login screen
-                  navigation.navigate('Auth', {
-                    screen: 'Login',
-                    params: {
-                      message: 'Email verified successfully. Please log in.',
-                    },
+                  // Navigate to main app (user is already logged in)
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs' }],
                   });
                 },
               },

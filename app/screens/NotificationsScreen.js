@@ -214,7 +214,7 @@ export default function NotificationsScreen({ navigation }) {
       });
     } else if (type === 'tender') {
       navigation.navigate('Procurement', {
-        screen: 'BidsRFQs',
+        screen: 'ProcurementMain',
       });
     } else if (type === 'vacancy') {
       navigation.navigate('Vacancies');

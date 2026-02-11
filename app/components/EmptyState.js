@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
 import { UnifiedButton } from './UnifiedButton';
+import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
 
 export function EmptyState({
   title,
@@ -15,8 +17,7 @@ export function EmptyState({
   secondaryActionLabel,
   onSecondaryAction,
 }) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   const styles = getStyles(colors);
 
   return (
@@ -25,7 +26,8 @@ export function EmptyState({
       testID={testID}
       accessible={true}
       accessibilityLabel={accessibilityLabel || message}
-      accessibilityRole="text"
+      accessibilityRole="none"
+      accessibilityLiveRegion="polite"
     >
       <Ionicons name={icon} size={64} color={colors.textSecondary} />
       {title && <Text style={styles.title}>{title}</Text>}
@@ -60,27 +62,25 @@ const getStyles = (colors) =>
     container: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 60,
-      paddingHorizontal: 24,
+      paddingVertical: spacing.xxxl,
+      paddingHorizontal: spacing.lg,
     },
     title: {
-      marginTop: 12,
-      fontSize: 18,
-      fontWeight: '700',
+      marginTop: spacing.sm,
+      ...typography.h5,
       color: colors.text,
       textAlign: 'center',
     },
     message: {
-      marginTop: 15,
-      fontSize: 18,
-      fontWeight: '600',
-      color: colors.text,
+      marginTop: spacing.sm,
+      ...typography.body,
+      color: colors.textSecondary,
       textAlign: 'center',
     },
     actions: {
       width: '100%',
-      marginTop: 20,
-      gap: 10,
+      marginTop: spacing.lg,
+      gap: spacing.sm,
     },
     secondaryButton: {
       marginTop: 4,

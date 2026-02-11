@@ -8,10 +8,11 @@ export class AppUsersController {
   /**
    * Register a new app user
    * POST /api/app-users/register
+   * verificationMethod: 'email' | 'phone' - user must verify before login
    */
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email, password, fullName, phoneNumber } = req.body;
+      const { email, password, fullName, phoneNumber, verificationMethod } = req.body;
 
       // Validate required fields
       if (!email || !email.trim()) {
@@ -38,15 +39,116 @@ export class AppUsersController {
         return;
       }
 
-      // Register user
-      const { user, tokens } = await appUsersService.register({
+      const result = await appUsersService.register({
         email: email.trim(),
         password,
         fullName: fullName?.trim(),
         phoneNumber: phoneNumber?.trim(),
+        verificationMethod: verificationMethod || 'email',
       });
 
-      logger.info(`App user registered: ${user.email}`);
+      const { user, tokens, needEmailVerification, needPhoneVerification, phoneMasked } = result;
+
+      if (needPhoneVerification) {
+        res.status(200).json({
+          success: true,
+          data: {
+            needPhoneVerification: true,
+            phoneMasked,
+            email: user.email,
+            phone: user.phoneNumber,
+            message: 'Verification code sent to your phone. Enter it to complete registration.',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (needEmailVerification) {
+        res.status(201).json({
+          success: true,
+          data: {
+            user: {
+              id: user.id,
+              email: user.email,
+              fullName: user.fullName,
+              phoneNumber: user.phoneNumber,
+              isEmailVerified: user.isEmailVerified,
+              isPhoneVerified: user.isPhoneVerified,
+              createdAt: user.createdAt,
+            },
+            needEmailVerification: true,
+            message: 'Please check your email to verify your account.',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (tokens) {
+        res.status(201).json({
+          success: true,
+          data: {
+            user: {
+              id: user.id,
+              email: user.email,
+              fullName: user.fullName,
+              phoneNumber: user.phoneNumber,
+              isEmailVerified: user.isEmailVerified,
+              isPhoneVerified: user.isPhoneVerified,
+              createdAt: user.createdAt,
+            },
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+          },
+          message: 'User registered successfully.',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (error: any) {
+      logger.error('Register error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Complete registration after phone OTP verification
+   * POST /api/app-users/register/verify-otp
+   */
+  async registerVerifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, phone, otp, password } = req.body;
+
+      if (!email || !phone || !otp || !password) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Email, phone, verification code, and password are required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (password.length < 8) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Password must be at least 8 characters',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const { user, tokens } = await appUsersService.registerWithPhoneVerification(
+        email.trim(),
+        phone.trim(),
+        otp.toString().trim(),
+        password
+      );
 
       res.status(201).json({
         success: true,
@@ -57,17 +159,17 @@ export class AppUsersController {
             fullName: user.fullName,
             phoneNumber: user.phoneNumber,
             isEmailVerified: user.isEmailVerified,
+            isPhoneVerified: user.isPhoneVerified,
             createdAt: user.createdAt,
           },
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
-          emailVerificationRequired: !user.isEmailVerified,
         },
-        message: 'User registered successfully. Please verify your email address.',
+        message: 'Account created successfully.',
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      logger.error('Register error:', error);
+      logger.error('Register verify OTP error:', error);
       next(error);
     }
   }
@@ -210,6 +312,7 @@ export class AppUsersController {
             fullName: user.fullName,
             phoneNumber: user.phoneNumber,
             isEmailVerified: user.isEmailVerified,
+            isPhoneVerified: user.isPhoneVerified,
             lastLoginAt: user.lastLoginAt,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
@@ -272,7 +375,56 @@ export class AppUsersController {
   }
 
   /**
-   * Change password
+   * Send OTP for change password (verify current password, then send OTP to registered phone)
+   * POST /api/app-users/me/password/send-otp
+   */
+  async sendChangePasswordOtp(req: AppAuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.AUTH_REQUIRED,
+            message: 'Authentication required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const { currentPassword } = req.body;
+
+      if (!currentPassword || !currentPassword.trim()) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Current password is required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const { phoneMasked } = await appUsersService.requestChangePasswordOtp(userId, currentPassword.trim());
+
+      res.status(200).json({
+        success: true,
+        data: {
+          phoneMasked,
+          message: 'Verification code sent to your registered phone.',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Send change password OTP error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Change password with OTP (after send-otp)
    * PUT /api/app-users/me/password
    */
   async changePassword(req: AppAuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -290,21 +442,21 @@ export class AppUsersController {
         return;
       }
 
-      const { oldPassword, newPassword } = req.body;
+      const { otp, newPassword } = req.body;
 
-      if (!oldPassword || !newPassword) {
+      if (!otp || !otp.toString().trim()) {
         res.status(400).json({
           success: false,
           error: {
             code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Old password and new password are required',
+            message: 'Verification code is required',
           },
           timestamp: new Date().toISOString(),
         });
         return;
       }
 
-      if (newPassword.length < 8) {
+      if (!newPassword || newPassword.length < 8) {
         res.status(400).json({
           success: false,
           error: {
@@ -316,7 +468,7 @@ export class AppUsersController {
         return;
       }
 
-      await appUsersService.changePassword(userId, { oldPassword, newPassword });
+      await appUsersService.changePasswordWithOtp(userId, otp.toString().trim(), newPassword);
 
       logger.info(`App user password changed: ${userId}`);
 
@@ -353,7 +505,7 @@ export class AppUsersController {
         return;
       }
 
-      const user = await appUsersService.verifyEmail(token);
+      const { user, tokens } = await appUsersService.verifyEmail(token);
 
       logger.info(`Email verified for user: ${user.email}`);
 
@@ -368,6 +520,8 @@ export class AppUsersController {
             isEmailVerified: user.isEmailVerified,
             emailVerifiedAt: user.emailVerifiedAt,
           },
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
         },
         message: 'Email verified successfully',
         timestamp: new Date().toISOString(),
@@ -410,6 +564,141 @@ export class AppUsersController {
       });
     } catch (error: any) {
       logger.error('Resend verification email error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Request password reset - send OTP to registered phone
+   * POST /api/app-users/forgot-password
+   */
+  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+
+      if (!email || !email.trim()) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Email is required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const { phoneMasked, phone } = await appUsersService.requestPasswordReset(email.trim());
+
+      res.status(200).json({
+        success: true,
+        data: {
+          phoneMasked,
+          phone, // For client to pass to verify-otp (null if user not found)
+          message: 'If an account exists with this email, a verification code has been sent to your registered phone.',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Forgot password error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Verify OTP and get reset token
+   * POST /api/app-users/verify-otp
+   */
+  async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { phone, otp } = req.body;
+
+      if (!phone || !phone.trim()) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Phone number is required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (!otp || !otp.toString().trim()) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Verification code is required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const { resetToken } = await appUsersService.verifyOtpAndGetResetToken(
+        phone.trim(),
+        otp.toString().trim()
+      );
+
+      res.status(200).json({
+        success: true,
+        data: {
+          resetToken,
+          message: 'Verification successful. You can now set your new password.',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Verify OTP error:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Reset password with token
+   * POST /api/app-users/reset-password
+   */
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { resetToken, newPassword } = req.body;
+
+      if (!resetToken || !resetToken.trim()) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Reset token is required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (!newPassword || newPassword.length < 8) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'New password must be at least 8 characters',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      await appUsersService.resetPasswordWithToken(resetToken.trim(), newPassword);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          message: 'Password reset successfully. You can now log in with your new password.',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Reset password error:', error);
       next(error);
     }
   }

@@ -1,1069 +1,703 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  useWindowDimensions,
   Image,
-  ImageBackground,
-  Platform,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../hooks/useTheme';
 import { useAppContext } from '../context/AppContext';
-import { UnifiedSkeletonLoader, SearchInput } from '../components';
-import { Card, Badge } from '../components';
-import { bannersService } from '../services/bannersService';
-import { notificationsService } from '../services/notificationsService';
+import { SearchInput } from '../components';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 import RAIcon from '../assets/icon.png';
-import Poster1 from '../assets/poster-1.png';
-import Poster2 from '../assets/poster-2.png';
-import Poster3 from '../assets/poster-3.png';
-import HomepageBanner from '../assets/banner_images/homepage.png';
 
-// Responsive breakpoints (in dp)
-const BREAKPOINTS = {
-  PHONE: 600,
-  TABLET: 840,
-  LARGE_TABLET: 1024,
+const BRAND = {
+  background: '#F6F8FC',
+  surface: '#FFFFFF',
+  border: '#E7EDF6',
+  heading: '#0B3C78',
+  muted: '#94A7C0',
+  tagBlue: '#00AEEF',
+  heroBg: '#0B4A86',
+  heroBorder: '#1762A8',
+  heroBody: '#B9D1EB',
+  heroText: '#E8F2FF',
+  heroPrimary: '#12B8FF',
+  heroSecondary: '#35679B',
+  heroSecondaryBorder: '#4C7CAA',
+  accentYellow: '#FDC010',
+  alertRed: '#E11D48',
+  successGreen: '#0BAE68',
+  waitBlue: '#0B3C78',
 };
 
-// Minimum touch target size (Material Design & iOS guidelines)
-const MIN_TOUCH_TARGET = 48;
+const CARD_MAP = [
+  {
+    id: 'road',
+    title: 'Live Road Status',
+    subtitle: 'MAP & REAL-TIME UPDATES',
+    icon: 'map-outline',
+    color: '#0AB36D',
+    route: 'RoadStatus',
+    featured: true,
+  },
+  {
+    id: 'report',
+    title: 'Report Damage',
+    subtitle: 'HELP US FIX ROADS',
+    icon: 'warning-outline',
+    color: '#FF2D55',
+    route: 'ReportPothole',
+  },
+  {
+    id: 'apply',
+    title: 'Apply Online',
+    subtitle: 'PERMITS & LICENSES',
+    icon: 'document-text-outline',
+    color: '#2563FF',
+    route: 'Applications',
+  },
+  {
+    id: 'submissions',
+    title: 'My Submissions',
+    subtitle: 'TRACK YOUR REPORTS',
+    icon: 'clipboard-outline',
+    color: '#4F46E5',
+    route: 'MyReports',
+  },
+  {
+    id: 'forms',
+    title: 'Forms & Docs',
+    subtitle: 'OFFICIAL DOWNLOADS',
+    icon: 'folder-outline',
+    color: '#F08A00',
+    route: 'Forms',
+  },
+  {
+    id: 'press',
+    title: 'Press Center',
+    subtitle: 'LATEST RA NEWS',
+    icon: 'newspaper-outline',
+    color: '#8A94A6',
+    route: 'News',
+  },
+  {
+    id: 'offices',
+    title: 'RA Offices',
+    subtitle: 'FIND NEAREST BRANCH',
+    icon: 'location-outline',
+    color: '#06B6D4',
+    route: 'Offices',
+  },
+];
 
-/**
- * Determine device type and get responsive values based on screen width
- */
-const getResponsiveConfig = (screenWidth, screenHeight) => {
-  const isLandscape = screenWidth > screenHeight;
-  const isPhone = screenWidth < BREAKPOINTS.PHONE;
-  const isTablet = screenWidth >= BREAKPOINTS.PHONE && screenWidth < BREAKPOINTS.TABLET;
-  const isLargeTablet = screenWidth >= BREAKPOINTS.TABLET;
-  
-  // Column counts based on device type and orientation
-  // Phones: Always 3 columns for optimal fit
-  // Tablets: More columns for better space utilization
-  let primaryColumns, secondaryColumns;
-  
-  if (isPhone) {
-    // Phones: Always 3 columns regardless of orientation for consistent layout
-    primaryColumns = 3;
-    secondaryColumns = 3;
-  } else if (isTablet) {
-    primaryColumns = isLandscape ? 4 : 3;
-    secondaryColumns = isLandscape ? 5 : 4;
-  } else {
-    // Large tablets/iPads
-    primaryColumns = isLandscape ? 5 : 4;
-    secondaryColumns = isLandscape ? 6 : 5;
-  }
-  
-  // Scale factor for icons and spacing
-  const scaleFactor = Math.min(screenWidth / 375, 1.5); // Base width 375dp (iPhone SE)
-  
-  return {
-    isPhone,
-    isTablet,
-    isLargeTablet,
-    isLandscape,
-    primaryColumns,
-    secondaryColumns,
-    scaleFactor,
-    screenWidth,
-    screenHeight,
-  };
-};
+const MENU_GROUPS = [
+  {
+    title: 'ACCOUNT MANAGEMENT',
+    items: [
+      { icon: 'person-outline', label: 'MY PROFILE', route: 'Settings' },
+      { icon: 'notifications-outline', label: 'NOTIFICATIONS', route: 'Notifications' },
+      { icon: 'shield-outline', label: 'SECURITY & PRIVACY', route: 'Settings' },
+    ],
+  },
+  {
+    title: 'SUPPORT & INFO',
+    items: [
+      { icon: 'call-outline', label: 'CONTACT SUPPORT', route: 'Settings' },
+      { icon: 'open-outline', label: 'OFFICIAL WEBSITE', route: 'RAServices' },
+      { icon: 'document-text-outline', label: 'TERMS OF SERVICE', route: 'Settings' },
+    ],
+  },
+];
 
-/**
- * Format timestamp to relative time (e.g., "2 hours ago", "Yesterday")
- */
-const formatTimeAgo = (dateString) => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now - date) / 1000);
+const STAT_CARDS = [
+  { id: 'alerts', label: 'ACTIVE\nALERTS', value: '03', valueColor: BRAND.alertRed },
+  { id: 'offices', label: 'OFFICES\nOPEN', value: '12', valueColor: BRAND.successGreen },
+  { id: 'wait', label: 'WAIT TIME', value: '15m', valueColor: BRAND.waitBlue },
+];
 
-  if (diffInSeconds < 60) {
-    return 'Just now';
-  }
-
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) {
-    return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
-  }
-
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) {
-    return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
-  }
-
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays === 1) {
-    return 'Yesterday';
-  }
-  if (diffInDays < 7) {
-    return `${diffInDays} days ago`;
-  }
-
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-/**
- * Get icon name for notification type
- */
-const getNotificationIcon = (type) => {
-  const iconMap = {
-    news: 'newspaper-outline',
-    tender: 'document-text-outline',
-    vacancy: 'briefcase-outline',
-    general: 'notifications-outline',
-  };
-  return iconMap[type] || 'notifications-outline';
-};
-
-export default function HomeScreen({ navigation, showMenuOnly = false }) {
+export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
   const { user } = useAppContext();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  
-  // Get responsive configuration based on current screen dimensions
-  const responsiveConfig = useMemo(
-    () => getResponsiveConfig(screenWidth, screenHeight),
-    [screenWidth, screenHeight]
-  );
-  
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
-  const [banners, setBanners] = useState([]);
-  const [loadingBanners, setLoadingBanners] = useState(true);
-  const [notifications, setNotifications] = useState([]);
-  const [loadingNotifications, setLoadingNotifications] = useState(false);
-  const [dismissedNotificationIds, setDismissedNotificationIds] = useState([]);
-  
-  // Calculate item width based on columns and spacing
-  const getItemWidth = (columns, horizontalPadding = 20, gap = 8) => {
-    const totalPadding = horizontalPadding * 2;
-    const totalGap = gap * (columns - 1);
-    return (screenWidth - totalPadding - totalGap) / columns;
-  };
-  
-  // Calculate responsive icon sizes (available for use in render)
-  // Default values to prevent errors if responsiveConfig is not yet available
-  const scaleFactor = responsiveConfig?.scaleFactor || 1;
-  const isLargeTablet = responsiveConfig?.isLargeTablet || false;
-  const primaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(72 * scaleFactor, isLargeTablet ? 80 : 72));
-  const secondaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(56 * scaleFactor, isLargeTablet ? 64 : 56));
+  const { width } = useWindowDimensions();
+  const [query, setQuery] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
+  const styles = useMemo(() => getStyles(colors, width), [colors, width]);
 
-  const handleNatisOnline = async () => {
-    await WebBrowser.openBrowserAsync('https://online.ra.org.na/#/');
-  };
-
-  const handleERecruitment = async () => {
-    await WebBrowser.openBrowserAsync('https://erec.ra.org.na/#/');
-  };
-
-  // Fetch banners from API
-  useEffect(() => {
-    fetchBanners();
-  }, []);
-
-  const fetchBanners = async () => {
-    try {
-      setLoadingBanners(true);
-      const fetchedBanners = await bannersService.getActiveBanners();
-      
-      // If we have API banners, use them; otherwise fall back to default posters
-      if (fetchedBanners && fetchedBanners.length > 0) {
-        setBanners(fetchedBanners);
-      } else {
-        // Fallback to default posters if no banners from API
-        setBanners(defaultPosterBanners);
-      }
-    } catch (error) {
-      console.error('Error fetching banners:', error);
-      // On error, use default posters
-      setBanners(defaultPosterBanners);
-    } finally {
-      setLoadingBanners(false);
-    }
-  };
-
-  // Default poster banners (fallback)
-  const defaultPosterBanners = [
-    {
-      id: 'poster-1',
-      source: Poster1,
-      title: 'Roads Authority Namibia',
-      description: 'Safe Roads to Prosperity',
-      isLocal: true,
-    },
-    {
-      id: 'poster-2',
-      source: Poster2,
-      title: 'Contact the NaTIS Office in Your Town',
-      description: '#WeBuildTheJourney',
-      isLocal: true,
-    },
-    {
-      id: 'poster-3',
-      source: Poster3,
-      title: 'Serving Namibia with Purpose',
-      description: '#WeBuildTheJourney',
-      isLocal: true,
-    },
-  ];
-
-  // Handle banner press (open link if available)
-  const handleBannerPress = async (banner) => {
-    if (banner.linkUrl) {
-      try {
-        await WebBrowser.openBrowserAsync(banner.linkUrl);
-      } catch (error) {
-        console.error('Error opening banner link:', error);
-      }
-    }
-  };
-
-  // Primary actions - most important, larger emphasis
-  const primaryMenuItems = [
-    {
-      id: 1,
-      title: 'NATIS Online',
-      icon: 'car-outline',
-      color: colors.primary,
-      backgroundColor: '#E3F2FD',
-      isPrimary: true,
-      onPress: handleNatisOnline,
-    },
-    {
-      id: 2.5,
-      title: 'Report Road Damage',
-      icon: 'alert-circle-outline',
-      color: colors.primary,
-      backgroundColor: '#E3F2FD',
-      isPrimary: true,
-      onPress: () => navigation?.navigate('ReportPothole'),
-    },
-    {
-      id: 8.5,
-      title: 'Road Status',
-      icon: 'map-outline',
-      color: colors.primary,
-      backgroundColor: '#E3F2FD',
-      isPrimary: true,
-      onPress: () => navigation?.navigate('RoadStatus'),
-    },
-  ];
-
-  // Secondary actions - standard size, neutral styling
-  const secondaryMenuItems = [
-    {
-      id: 1,
-      title: 'E-Recruitment',
-      icon: 'briefcase-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: handleERecruitment,
-    },
-    {
-      id: 2,
-      title: 'News',
-      icon: 'newspaper-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('News'),
-    },
-    {
-      id: 3,
-      title: 'Careers',
-      icon: 'document-text-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('Vacancies'),
-    },
-    {
-      id: 4,
-      title: 'Procurement',
-      icon: 'business-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('Procurement'),
-    },
-    {
-      id: 5,
-      title: 'RA Services',
-      icon: 'construct-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('RAServices'),
-    },
-    {
-      id: 6,
-      title: 'FAQs',
-      icon: 'help-circle-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('FAQs'),
-    },
-    {
-      id: 7,
-      title: 'Find Offices',
-      icon: 'location-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('Find Offices'),
-    },
-    {
-      id: 8,
-      title: 'Settings',
-      icon: 'settings-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('MainTabs', { screen: 'Settings' }),
-    },
-    {
-      id: 8.5,
-      title: 'Alerts',
-      icon: 'notifications-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('Notifications'),
-    },
-    {
-      id: 9,
-      title: 'Chat',
-      icon: 'chatbubble-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('MainTabs', { screen: 'Chatbot' }),
-    },
-    {
-      id: 10,
-      title: 'Applications',
-      icon: 'document-text-outline',
-      color: colors.primary,
-      backgroundColor: '#F5F5F7',
-      isPrimary: false,
-      onPress: () => navigation?.navigate('Applications'),
-    },
-  ];
-
-  // Combine all items for filtering/search
-  const menuItems = [...primaryMenuItems, ...secondaryMenuItems];
-
-  // Generate responsive styles based on current screen dimensions
-  const styles = useMemo(
-    () => getStyles(colors, responsiveConfig),
-    [colors, responsiveConfig]
-  );
-  const headerBackgroundSource = useMemo(() => {
-    // Use the homepage banner image as the header background
-    return HomepageBanner;
-  }, []);
-
-  const handleNotificationPress = (notification) => {
-    // Navigate based on notification type
-    if (notification.type === 'news') {
-      navigation?.navigate('News');
-    } else if (notification.type === 'vacancy') {
-      navigation?.navigate('Vacancies');
-    } else {
-      // Navigate to Notifications tab
-      const tabNavigator = navigation?.getParent('MainTabs');
-      if (tabNavigator) {
-        tabNavigator.navigate('Notifications');
-      } else {
-        navigation?.navigate('MainTabs', { screen: 'Notifications' });
-      }
-    }
-  };
-
-  if (showMenuOnly) {
-    return (
-      <View style={styles.container}>
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-          <View style={styles.menuGrid}>
-            {menuItems.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={item.isPrimary ? styles.menuItemPrimary : styles.menuItem}
-                onPress={item.onPress}
-                activeOpacity={0.7}
-              >
-                <View style={[
-                  item.isPrimary ? styles.menuIconContainerPrimary : styles.menuIconContainer, 
-                  { backgroundColor: item.backgroundColor || '#F5F5F7' }
-                ]}>
-                  <Ionicons name={item.icon} size={item.isPrimary ? 40 : 32} color={item.color} />
-                </View>
-                <Text style={item.isPrimary ? styles.menuItemTextPrimary : styles.menuItemText} maxFontSizeMultiplier={1.3}>
-                  {item.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-
-      </View>
+  const visibleCards = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return CARD_MAP;
+    return CARD_MAP.filter((card) =>
+      `${card.title} ${card.subtitle}`.toLowerCase().includes(q)
     );
-  }
+  }, [query]);
+
+  const openRoute = (route) => {
+    if (route) navigation.navigate(route);
+  };
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <LinearGradient
-          colors={['#00B4E6', '#0090C0', '#0078A3']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.header}
-        >
-          <ImageBackground
-            source={headerBackgroundSource}
-            style={styles.headerBackground}
-            imageStyle={styles.headerBackgroundImage}
-          >
-            <SafeAreaView edges={['top']}>
-            <View style={styles.headerContent}>
-            <View style={styles.brandContainer}>
-              <View style={styles.brandLogoWrapper}>
-                <Image 
-                  source={RAIcon} 
-                  style={styles.brandLogo}
-                  resizeMode="contain"
-                  {...Platform.select({
-                    android: {
-                      renderToHardwareTextureAndroid: true,
-                    },
-                  })}
-                />
-              </View>
-              <View style={styles.brandTextContainer}>
-                {user?.fullName ? (
-                  <Text style={[styles.welcomeLabel, { color: colors.secondary }]} maxFontSizeMultiplier={1.3}>
-                    Welcome, {user.fullName}
-                  </Text>
-                ) : (
-                  <Text style={styles.welcomeLabel} maxFontSizeMultiplier={1.3}>WELCOME TO</Text>
-                )}
-                <Text style={styles.titleText} maxFontSizeMultiplier={1.3}>Roads Authority Namibia</Text>
-                <Text style={styles.subtitleText} maxFontSizeMultiplier={1.3}>Safe Roads to Prosperity</Text>
-                <Text style={styles.taglineText} maxFontSizeMultiplier={1.3}>
-                  Your gateway to safer roads and essential services in Namibia.
-                </Text>
-              </View>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <SafeAreaView edges={['top']} style={styles.headerContainer}>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.brandTitle}>ROADS AUTHORITY</Text>
+              <Text style={styles.brandTagline}>SAFE ROADS TO PROSPERITY</Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.alertButton}
-              onPress={() => {
-                // Always drive to alerts/notifications screen
-                const tabNavigator = navigation?.getParent('MainTabs');
-                if (tabNavigator?.navigate) {
-                  tabNavigator.navigate('Notifications');
-                } else {
-                  navigation?.navigate('Notifications');
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="notifications" size={24} color={colors.primary} />
-              {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
-                <View style={styles.alertBadge}>
-                  <Text style={styles.alertBadgeText} maxFontSizeMultiplier={1.3}>
-                    {notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 9 
-                      ? '9+' 
-                      : notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <SearchInput
-              placeholder="Search..."
-              value={searchQuery}
-              onSearch={setSearchQuery}
-              onChangeTextImmediate={setSearchQuery}
-              onClear={() => setSearchQuery('')}
-              accessibilityLabel="Search services"
-              accessibilityHint="Search all services and quick actions"
-            />
-          </View>
-          </SafeAreaView>
-        </ImageBackground>
-      </LinearGradient>
-
-        <View style={styles.content}>
-        {/* Recent Alerts Section */}
-        {!searchQuery.trim() && 
-         !loadingNotifications && 
-         notifications.filter(n => !dismissedNotificationIds.includes(n.id)).length > 0 && (
-          <View style={styles.notificationsSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Recent Alerts</Text>
-              <TouchableOpacity onPress={() => {
-                // Navigate to Notifications tab in MainTabs
-                const tabNavigator = navigation?.getParent('MainTabs');
-                if (tabNavigator) {
-                  tabNavigator.navigate('Notifications');
-                } else {
-                  navigation?.navigate('MainTabs', { screen: 'Notifications' });
-                }
-              }}>
-                <Text style={[styles.viewAllText, { color: colors.primary }]} maxFontSizeMultiplier={1.3}>View All</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                onPress={() => navigation.navigate('Notifications')}
+                accessibilityLabel="Open notifications"
+              >
+                <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
+                <View style={styles.notificationDot} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                onPress={() => setMenuVisible(true)}
+                accessibilityLabel="Open navigation menu"
+              >
+                <Ionicons name="menu-outline" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <View style={styles.notificationsList}>
-              {notifications
-                .filter(n => !dismissedNotificationIds.includes(n.id))
-                .slice(0, 3)
-                .map((notification, index, array) => (
-                  <TouchableOpacity
-                    key={notification.id}
-                    onPress={() => handleNotificationPress(notification)}
-                    activeOpacity={0.7}
+          </View>
+
+          <SearchInput
+            placeholder="How can we help you today?"
+            value={query}
+            onSearch={setQuery}
+            onChangeTextImmediate={setQuery}
+            onClear={() => setQuery('')}
+            accessibilityLabel="Search services"
+          />
+        </SafeAreaView>
+
+        <View style={styles.content}>
+          <View style={styles.heroCard}>
+            <View style={styles.heroBadgeRow}>
+              <Ionicons name="information-circle" size={18} color={BRAND.accentYellow} />
+              <Text style={styles.heroBadgeText}>NATIONAL INFRASTRUCTURE</Text>
+            </View>
+            <Text style={styles.heroHeading}>Safe Roads to Prosperity</Text>
+            <Text style={styles.heroBody}>
+              Namibia's official portal for national road services and infrastructure updates.
+            </Text>
+
+            <View style={styles.heroActionsRow}>
+              <TouchableOpacity style={styles.heroPrimaryButton} onPress={() => openRoute('News')}>
+                <Text style={styles.heroPrimaryText}>LATEST NEWS</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.heroSecondaryButton} onPress={() => openRoute('RAServices')}>
+                <Text style={styles.heroSecondaryText}>ABOUT RA</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.statsRow}>
+            {STAT_CARDS.map((stat) => (
+              <View key={stat.id} style={styles.statCard}>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+                <Text style={[styles.statValue, { color: stat.valueColor }]}>{stat.value}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>GOVERNMENT SERVICES</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </View>
+
+          {visibleCards.map((card) => {
+            if (card.featured) {
+              return (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.featureCard}
+                  activeOpacity={0.8}
+                  onPress={() => openRoute(card.route)}
+                >
+                  <View
+                    style={[
+                      styles.serviceIconWrap,
+                      { backgroundColor: `${card.color}1A`, borderColor: `${card.color}40` },
+                    ]}
                   >
-                    <Card style={[
-                      styles.notificationCard,
-                      index < array.length - 1 && { 
-                        borderBottomWidth: 1, 
-                        borderBottomColor: colors.border,
-                        borderRadius: 0 
-                      },
-                      index === array.length - 1 && { 
-                        borderBottomLeftRadius: 20,
-                        borderBottomRightRadius: 20 
-                      },
-                      index === 0 && {
-                        borderTopLeftRadius: 20,
-                        borderTopRightRadius: 20
-                      }
-                    ]}>
-                      <View style={styles.notificationContent}>
-                        <View style={[styles.notificationIconContainer, { backgroundColor: colors.secondary }]}>
-                          <Ionicons
-                            name={getNotificationIcon(notification.type)}
-                            size={20}
-                            color={colors.secondary}
-                          />
-                        </View>
-                        <View style={styles.notificationTextContainer}>
-                          <View style={styles.notificationHeaderRow}>
-                            <Text style={styles.notificationTitle} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                              {notification.title}
-                            </Text>
-                            <Badge
-                              label={notification.type}
-                              variant={notification.type === 'news' ? 'info' : notification.type === 'vacancy' ? 'success' : 'default'}
-                            />
-                          </View>
-                          <Text style={styles.notificationBody} numberOfLines={2} maxFontSizeMultiplier={1.3}>
-                            {notification.body}
-                          </Text>
-                          <Text style={styles.notificationTime} maxFontSizeMultiplier={1.3}>
-                            {formatTimeAgo(notification.sentAt)}
-                          </Text>
-                        </View>
-                      </View>
-                    </Card>
-                  </TouchableOpacity>
-                ))}
-            </View>
-          </View>
-        )}
-
-        {/* Primary Actions Section */}
-        {!searchQuery.trim() && (
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>Quick Actions</Text>
-            <View style={styles.menuGrid}>
-              {primaryMenuItems.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.menuItemPrimary}
-                  onPress={item.onPress}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.menuIconContainerPrimary, { backgroundColor: item.backgroundColor }]}>
-                    <Ionicons 
-                      name={item.icon} 
-                      size={Math.max(32, Math.min(primaryIconSize - 8, 40))} 
-                      color={item.color} 
-                    />
+                    <Ionicons name={card.icon} size={22} color={card.color} />
                   </View>
-                  <Text style={styles.menuItemTextPrimary} maxFontSizeMultiplier={1.3}>{item.title}</Text>
+                  <Text style={styles.featureTitle}>{card.title}</Text>
+                  <Text style={styles.serviceSubtitle}>{card.subtitle}</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+              );
+            }
 
-        {/* All Services Section */}
-        <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>{searchQuery.trim() ? 'Search Results' : 'All Services'}</Text>
-          <View style={styles.menuGrid}>
-            {(searchQuery.trim() ? menuItems : secondaryMenuItems)
-              .filter((item) => {
-                if (!searchQuery.trim()) return true;
-                return item.title.toLowerCase().includes(searchQuery.toLowerCase());
-              })
-              .map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.menuItem}
-                  onPress={item.onPress}
-                  activeOpacity={0.7}
+            return (
+              <TouchableOpacity
+                key={card.id}
+                style={styles.gridCard}
+                activeOpacity={0.8}
+                onPress={() => openRoute(card.route)}
+              >
+                <View
+                  style={[
+                    styles.serviceIconWrap,
+                    { backgroundColor: `${card.color}14`, borderColor: `${card.color}30` },
+                  ]}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: item.backgroundColor || '#F5F5F7' }]}>
-                    <Ionicons 
-                      name={item.icon} 
-                      size={Math.max(24, Math.min(secondaryIconSize - 8, 32))} 
-                      color={item.color} 
-                    />
-                  </View>
-                  <Text style={styles.menuItemText} maxFontSizeMultiplier={1.3}>{item.title}</Text>
-                </TouchableOpacity>
-              ))}
-          </View>
-          {searchQuery.trim() && menuItems.filter((item) => 
-            item.title.toLowerCase().includes(searchQuery.toLowerCase())
-          ).length === 0 && (
-            <Text style={styles.noResultsText} maxFontSizeMultiplier={1.3}>No results found for "{searchQuery}"</Text>
-          )}
-        </View>
+                  <Ionicons name={card.icon} size={22} color={card.color} />
+                </View>
+                <Text style={styles.gridTitle}>{card.title}</Text>
+                <Text style={styles.serviceSubtitle}>{card.subtitle}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <View style={styles.drawerOverlay}>
+          <Pressable style={styles.drawerBackdrop} onPress={() => setMenuVisible(false)} />
+
+          <View style={styles.drawerPanel}>
+            <View style={styles.drawerHeader}>
+              <View style={styles.avatarWrap}>
+                <Ionicons name="person-outline" size={20} color={BRAND.accentYellow} />
+              </View>
+              <View style={styles.drawerHeaderText}>
+                <Text style={styles.drawerName}>{user?.fullName || 'JOHN DOE'}</Text>
+                <Text style={styles.drawerTier}>PREMIUM ROAD USER</Text>
+              </View>
+              <TouchableOpacity onPress={() => setMenuVisible(false)}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.drawerBody}>
+              {MENU_GROUPS.map((group, index) => (
+                <View key={group.title} style={index > 0 ? styles.drawerGroupSpacing : undefined}>
+                  <Text style={styles.drawerSection}>{group.title}</Text>
+                  {group.items.map((item) => (
+                    <DrawerItem
+                      key={item.label}
+                      icon={item.icon}
+                      label={item.label}
+                      onPress={() => {
+                        setMenuVisible(false);
+                        openRoute(item.route);
+                      }}
+                    />
+                  ))}
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.logoutRow}
+                onPress={() => {
+                  setMenuVisible(false);
+                  openRoute('Settings');
+                }}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#F43F5E" />
+                <Text style={styles.logoutText}>LOG OUT OF PORTAL</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.drawerFooter}>
+              <Text style={styles.drawerFooterHeading}>ROADS AUTHORITY • 2026</Text>
+              <Text style={styles.drawerFooterText}>VERSION 4.2.0-NAM (STABLE)</Text>
+              <Text style={styles.drawerFooterText}>DIGITAL INFRASTRUCTURE UNIT</Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-function getStyles(colors, config) {
-  const {
-    isPhone,
-    isTablet,
-    isLargeTablet,
-    isLandscape,
-    primaryColumns,
-    secondaryColumns,
-    scaleFactor,
-    screenWidth,
-  } = config;
-  
-  // Responsive spacing and sizing
-  // Reduced padding on phones to maximize usable space
-  const horizontalPadding = isPhone ? 12 : isTablet ? 24 : 32;
-  const verticalPadding = isPhone ? 12 : 20;
-  const gridGap = isPhone ? 6 : 12; // Smaller gap on phones to fit items better
-  
-  // Calculate item widths dynamically
-  const primaryItemWidth = (screenWidth - horizontalPadding * 2 - gridGap * (primaryColumns - 1)) / primaryColumns;
-  const secondaryItemWidth = (screenWidth - horizontalPadding * 2 - gridGap * (secondaryColumns - 1)) / secondaryColumns;
-  
-  // Icon sizes are calculated in component scope, calculate containers here
-  // Note: primaryIconSize and secondaryIconSize are defined in component scope above
-  // These need to be passed in or recalculated here
-  const calculatedPrimaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(72 * scaleFactor, isLargeTablet ? 80 : 72));
-  const calculatedSecondaryIconSize = Math.max(MIN_TOUCH_TARGET, Math.min(56 * scaleFactor, isLargeTablet ? 64 : 56));
-  const iconContainerPrimary = calculatedPrimaryIconSize + 8; // Add padding
-  const iconContainerSecondary = calculatedSecondaryIconSize + 8;
-  
-  // Responsive font sizes with accessibility support
-  const baseFontSize = isPhone ? 12 : isTablet ? 13 : 14;
-  const titleFontSize = isPhone ? 22 : isTablet ? 24 : 26;
-  const sectionFontSize = isPhone ? 20 : isTablet ? 22 : 24;
-  
-  // Banner height responsive to screen size
-  // Shorter hero height to reduce header space
-  const bannerHeight = isPhone ? (isLandscape ? 100 : 130) : isTablet ? (isLandscape ? 150 : 170) : 180;
-  
+function DrawerItem({ icon, label, onPress }) {
+  return (
+    <TouchableOpacity style={drawerStyles.item} onPress={onPress} activeOpacity={0.75}>
+      <Ionicons name={icon} size={19} color="#C6D2E2" />
+      <Text style={drawerStyles.label}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+DrawerItem.propTypes = {
+  icon: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  onPress: PropTypes.func.isRequired,
+};
+
+const drawerStyles = StyleSheet.create({
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  label: {
+    ...typography.bodySmall,
+    letterSpacing: 1.2,
+    fontWeight: '700',
+    color: '#123C73',
+  },
+});
+
+function getStyles(colors, width) {
+  const sidePadding = spacing.xl;
+  const gridGap = spacing.md;
+  const gridCardWidth = (width - sidePadding * 2 - gridGap) / 2;
+
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      borderBottomLeftRadius: isPhone ? 24 : 32,
-      borderBottomRightRadius: isPhone ? 24 : 32,
-      backgroundColor: 'transparent',
-      ...Platform.select({
-        ios: {
-          shadowColor: 'transparent',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0,
-          shadowRadius: 0,
-        },
-        android: {
-          elevation: 0,
-        },
-      }),
-    },
-    headerContent: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: isPhone ? 12 : 14,
-      position: 'relative',
-      paddingHorizontal: horizontalPadding,
-    },
-    brandContainer: {
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 10,
-      width: '100%',
-    },
-    brandTextContainer: {
-      marginTop: isPhone ? 2 : 4,
-      width: '100%',
-      alignItems: 'center',
-    },
-    brandLogoWrapper: {
-      width: isPhone ? 80 : isTablet ? 88 : 96,
-      height: isPhone ? 80 : isTablet ? 88 : 96,
-      borderRadius: 999,
-      backgroundColor: '#FFFFFF',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: isPhone ? 10 : 12,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      elevation: 3,
-    },
-    brandLogo: {
-      width: '100%',
-      height: '100%',
-      borderRadius: 999,
-    },
-    welcomeLabel: {
-      color: '#FFFFFF',
-      fontSize: isPhone ? 12 : 13,
-      letterSpacing: 1.2,
-      fontWeight: '700',
-      marginBottom: 6,
-    },
-    titleText: {
-      color: '#FFFFFF',
-      fontSize: titleFontSize + 2,
-      fontWeight: '700',
-      marginTop: 0,
-      letterSpacing: -0.5,
-      textAlign: 'center',
-    },
-    subtitleText: {
-      color: '#FFFFFF',
-      fontSize: isPhone ? 15 : 17,
-      ...Platform.select({
-        ios: {
-          opacity: 0.9,
-        },
-        android: {},
-      }),
-      marginTop: 2,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    taglineText: {
-      color: '#FFFFFF',
-      fontSize: isPhone ? 12 : 13,
-      opacity: 0.9,
-      marginTop: isPhone ? 6 : 8,
-      textAlign: 'center',
-      lineHeight: isPhone ? 16 : 18,
-      paddingHorizontal: 0,
-    },
-    alertButton: {
-      width: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
-      height: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor),
-      borderRadius: Math.max(MIN_TOUCH_TARGET, 44 * scaleFactor) / 2,
-      backgroundColor: '#FFFFFF',
-      justifyContent: 'center',
-      alignItems: 'center',
-      position: 'absolute',
-      right: horizontalPadding,
-      top: 0,
-      elevation: 0,
-      shadowOpacity: 0,
-    },
-    alertBadge: {
-      position: 'absolute',
-      top: -2,
-      right: -2,
-      backgroundColor: '#FF4444',
-      borderRadius: 10,
-      minWidth: 20,
-      height: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 4,
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
-    },
-    alertBadgeText: {
-      color: '#FFFFFF',
-      fontSize: 10,
-      fontWeight: '700',
-    },
-
-    scrollView: {
-      flex: 1,
+      backgroundColor: BRAND.background,
     },
     scrollContent: {
-      paddingBottom: isPhone ? 80 : 100,
+      paddingBottom: 144,
     },
-    content: {
-      padding: horizontalPadding,
-      paddingBottom: isPhone ? 80 : 100,
-      paddingTop: isPhone ? 12 : 20, // Reduced top padding on phones
+    headerContainer: {
+      backgroundColor: BRAND.background,
+      borderBottomWidth: 1,
+      borderBottomColor: BRAND.border,
+      paddingHorizontal: sidePadding,
+      paddingBottom: spacing.lg,
     },
-    searchContainer: {
-      marginBottom: isPhone ? 12 : 16,
-      paddingHorizontal: 0,
-      backgroundColor: 'transparent',
-    },
-    headerBackground: {
-      width: '100%',
-      borderBottomLeftRadius: isPhone ? 24 : 32,
-      borderBottomRightRadius: isPhone ? 24 : 32,
-      overflow: 'hidden',
-      minHeight: bannerHeight + verticalPadding * 1.2,
-      paddingTop: isPhone ? 14 : 18,
-      paddingBottom: isPhone ? 12 : 16,
-      paddingHorizontal: horizontalPadding,
-    },
-    headerBackgroundImage: {
-      opacity: 0.5,
-      resizeMode: 'cover',
-    },
-    menuSection: {
-      marginTop: 8,
-    },
-    sectionTitle: {
-      fontSize: sectionFontSize,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: isPhone ? 12 : 18, // Reduced margin on phones
-      letterSpacing: -0.3,
-    },
-    menuGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: gridGap,
-    },
-    // Primary menu items - larger, more prominent, responsive width
-    menuItemPrimary: {
-      width: primaryItemWidth,
-      minWidth: MIN_TOUCH_TARGET * 2, // Ensure minimum usable size
-      backgroundColor: '#FFFFFF', // Solid white background
-      borderRadius: isPhone ? 14 : 20,
-      padding: isPhone ? 12 : 20, // Reduced padding on phones
-      marginBottom: isPhone ? 10 : 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: '#E6EAF0',
-      // Android-safe elevation
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 1, // Reduced from 5 to 1
-        },
-      }),
-    },
-    menuIconContainerPrimary: {
-      width: iconContainerPrimary,
-      height: iconContainerPrimary,
-      minWidth: MIN_TOUCH_TARGET,
-      minHeight: MIN_TOUCH_TARGET,
-      borderRadius: isPhone ? 14 : 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: isPhone ? 8 : 14, // Reduced margin on phones
-      // Remove shadow/elevation from icon containers to prevent double layering
-    },
-    menuItemTextPrimary: {
-      fontSize: baseFontSize,
-      fontWeight: '700',
-      color: colors.text,
-      textAlign: 'center',
-      letterSpacing: -0.2,
-      lineHeight: baseFontSize + 4,
-    },
-    // Secondary menu items - standard size, neutral, responsive width
-    menuItem: {
-      width: secondaryItemWidth,
-      minWidth: MIN_TOUCH_TARGET * 1.8,
-      backgroundColor: '#FFFFFF', // Solid white background
-      borderRadius: isPhone ? 12 : 16,
-      padding: isPhone ? 10 : 14, // Reduced padding on phones
-      marginBottom: isPhone ? 10 : 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: '#E6EAF0',
-      // Android-safe elevation
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-        },
-        android: {
-          elevation: 1, // Reduced from 2 to 1
-        },
-      }),
-    },
-    menuIconContainer: {
-      width: iconContainerSecondary,
-      height: iconContainerSecondary,
-      minWidth: MIN_TOUCH_TARGET,
-      minHeight: MIN_TOUCH_TARGET,
-      borderRadius: isPhone ? 12 : 14,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: isPhone ? 6 : 10, // Reduced margin on phones
-      // Remove shadow/elevation from icon containers to prevent double layering
-    },
-    menuItemText: {
-      fontSize: isPhone ? 10 : 11,
-      fontWeight: '600',
-      color: colors.text,
-      textAlign: 'center',
-      letterSpacing: -0.1,
-      lineHeight: (isPhone ? 10 : 11) + 3,
-      // Support dynamic text sizing (accessibility)
-      ...(Platform.OS === 'ios' && {
-        allowFontScaling: true,
-      }),
-    },
-    notificationsSection: {
-      marginBottom: 24,
-    },
-    sectionHeader: {
+    headerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: spacing.lg,
     },
-    viewAllText: {
-      fontSize: 14,
-      fontWeight: '600',
-      letterSpacing: -0.2,
+    brandTitle: {
+      color: BRAND.heading,
+      fontSize: 24,
+      fontWeight: '800',
+      letterSpacing: 0.2,
     },
-    notificationsList: {
-      gap: 0,
-      marginHorizontal: -20,
-      borderRadius: 20,
-      overflow: 'hidden',
-      backgroundColor: '#FFFFFF', // Solid white background
-      // Android-safe elevation
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 4,
-        },
-        android: {
-          elevation: 1, // Reduced from 4 to 1
-        },
-      }),
-      borderWidth: 1,
-      borderColor: '#E6EAF0',
+    brandTagline: {
+      color: BRAND.tagBlue,
+      fontSize: 12,
+      letterSpacing: 2.4,
+      fontWeight: '700',
+      marginTop: spacing.xs,
     },
-    notificationCard: {
-      padding: 16,
-      marginBottom: 0,
-      borderRadius: 0,
-      marginHorizontal: 0,
-      borderBottomWidth: 0,
-    },
-    notificationContent: {
+    headerActions: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
-    notificationIconContainer: {
-      width: Math.max(MIN_TOUCH_TARGET, 40 * scaleFactor),
-      height: Math.max(MIN_TOUCH_TARGET, 40 * scaleFactor),
-      borderRadius: isPhone ? 10 : 12,
+    headerIconButton: {
+      width: 36,
+      height: 36,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 12,
-      // Remove shadow/elevation from icon containers to prevent double layering
+      position: 'relative',
     },
-    notificationTextContainer: {
-      flex: 1,
+    notificationDot: {
+      position: 'absolute',
+      top: 7,
+      right: 5,
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+      backgroundColor: BRAND.heroPrimary,
+      borderWidth: 1,
+      borderColor: BRAND.background,
     },
-    notificationHeaderRow: {
+    content: {
+      paddingHorizontal: sidePadding,
+      paddingTop: spacing.lg,
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      marginBottom: 6,
-      gap: 8,
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
     },
-    notificationTitle: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.text,
-      letterSpacing: -0.2,
+    heroCard: {
+      width: '100%',
+      backgroundColor: BRAND.heroBg,
+      borderRadius: 32,
+      padding: spacing.xl,
+      marginBottom: spacing.lg,
+      borderWidth: 1,
+      borderColor: BRAND.heroBorder,
+      shadowColor: BRAND.heroBg,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.2,
+      shadowRadius: 10,
+      elevation: 5,
+    },
+    heroBadgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    heroBadgeText: {
+      color: BRAND.accentYellow,
+      letterSpacing: 1.8,
+      fontWeight: '700',
+      fontSize: 10,
+    },
+    heroHeading: {
+      color: BRAND.heroText,
+      fontSize: 40,
+      fontWeight: '700',
+      marginBottom: spacing.sm,
+    },
+    heroBody: {
+      ...typography.bodySmall,
+      color: BRAND.heroBody,
       lineHeight: 20,
+      marginBottom: spacing.lg,
+      maxWidth: '88%',
     },
-    notificationBody: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      lineHeight: 18,
-      marginBottom: 6,
+    heroActionsRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    heroPrimaryButton: {
+      backgroundColor: BRAND.heroPrimary,
+      borderRadius: 24,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md - 2,
+    },
+    heroPrimaryText: {
+      color: '#F3FCFF',
+      fontSize: 11,
+      letterSpacing: 1.2,
+      fontWeight: '700',
+    },
+    heroSecondaryButton: {
+      backgroundColor: BRAND.heroSecondary,
+      borderRadius: 24,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md - 2,
+      borderWidth: 1,
+      borderColor: BRAND.heroSecondaryBorder,
+    },
+    heroSecondaryText: {
+      color: '#DBE8F6',
+      fontSize: 11,
+      letterSpacing: 1,
+      fontWeight: '700',
+    },
+    statsRow: {
+      width: '100%',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginBottom: spacing.xl,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: BRAND.surface,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: BRAND.border,
+      minHeight: 84,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+      shadowColor: '#123C73',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    statLabel: {
+      color: BRAND.muted,
+      fontSize: 10.5,
+      letterSpacing: 1.2,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginBottom: spacing.xs,
+    },
+    statValue: {
+      fontSize: 28,
+      fontWeight: '800',
+    },
+    sectionHeaderRow: {
+      width: '100%',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    sectionTitle: {
+      color: BRAND.heading,
+      fontWeight: '800',
+      letterSpacing: 1.6,
+      fontSize: 14,
+    },
+    featureCard: {
+      width: '100%',
+      backgroundColor: BRAND.surface,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: BRAND.border,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      minHeight: 120,
+    },
+    gridCard: {
+      width: gridCardWidth,
+      backgroundColor: BRAND.surface,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: BRAND.border,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      minHeight: 152,
+    },
+    serviceIconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      borderWidth: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    featureTitle: {
+      color: '#0C3F79',
+      fontSize: 30,
+      fontWeight: '700',
+      marginBottom: spacing.xs,
+    },
+    gridTitle: {
+      color: '#0C3F79',
+      fontSize: 30,
+      fontWeight: '700',
+      marginBottom: spacing.xs,
+    },
+    serviceSubtitle: {
+      color: BRAND.muted,
+      fontSize: 11,
+      letterSpacing: 0.45,
+      fontWeight: '700',
+      lineHeight: 14,
+    },
+    drawerOverlay: {
+      flex: 1,
+      flexDirection: 'row',
+      backgroundColor: 'rgba(9, 24, 47, 0.44)',
+    },
+    drawerBackdrop: {
+      flex: 1,
+    },
+    drawerPanel: {
+      width: '82%',
+      backgroundColor: BRAND.surface,
+      borderTopLeftRadius: 8,
+      borderBottomLeftRadius: 8,
+      overflow: 'hidden',
+    },
+    drawerHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: '#EFF3F8',
+    },
+    avatarWrap: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: BRAND.heroBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: BRAND.heroBg,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    drawerHeaderText: {
+      flex: 1,
+    },
+    drawerName: {
+      color: BRAND.heading,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    drawerTier: {
+      color: '#9EB0C8',
+      fontWeight: '700',
+      fontSize: 10,
+      letterSpacing: 1,
       marginTop: 2,
     },
-    notificationTime: {
-      fontSize: 11,
-      color: colors.textSecondary,
-      fontWeight: '500',
+    drawerBody: {
+      paddingHorizontal: spacing.xl + 2,
+      paddingTop: spacing.lg,
     },
-    noResultsText: {
-      fontSize: 16,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      marginTop: 20,
+    drawerGroupSpacing: {
+      marginTop: spacing.xl,
+    },
+    drawerSection: {
+      color: '#C1CDDD',
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 2,
+      marginBottom: spacing.sm,
+    },
+    logoutRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      marginTop: spacing.xl,
+      paddingVertical: spacing.sm,
+    },
+    logoutText: {
+      color: '#F43F5E',
+      fontSize: 14,
+      fontWeight: '800',
+      letterSpacing: 1.5,
+    },
+    drawerFooter: {
+      marginTop: 'auto',
+      borderTopWidth: 1,
+      borderTopColor: '#F0F4FA',
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.md,
+    },
+    drawerFooterHeading: {
+      color: '#D1DBE8',
+      fontWeight: '700',
+      letterSpacing: 2,
+      fontSize: 10,
+      marginBottom: spacing.xs,
+    },
+    drawerFooterText: {
+      color: '#E0E8F2',
+      fontWeight: '700',
+      letterSpacing: 1.2,
+      fontSize: 8,
     },
   });
 }
 
 HomeScreen.propTypes = {
   navigation: PropTypes.object.isRequired,
-  showMenuOnly: PropTypes.bool,
 };
-
 

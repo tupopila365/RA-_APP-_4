@@ -23,7 +23,7 @@ export class FieldEncryption {
     
     const key = this.getEncryptionKey();
     const iv = crypto.randomBytes(this.IV_LENGTH);
-    const cipher = crypto.createCipher(this.ALGORITHM, key);
+    const cipher = crypto.createCipheriv(this.ALGORITHM, key, iv);
     cipher.setAAD(Buffer.from('pln-data'));
     
     let encrypted = cipher.update(plaintext, 'utf8', 'hex');
@@ -46,7 +46,7 @@ export class FieldEncryption {
     const tag = Buffer.from(encryptedData.slice(this.IV_LENGTH * 2, (this.IV_LENGTH + this.TAG_LENGTH) * 2), 'hex');
     const encrypted = encryptedData.slice((this.IV_LENGTH + this.TAG_LENGTH) * 2);
     
-    const decipher = crypto.createDecipher(this.ALGORITHM, key);
+    const decipher = crypto.createDecipheriv(this.ALGORITHM, key, iv);
     decipher.setAAD(Buffer.from('pln-data'));
     decipher.setAuthTag(tag);
     

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Option 1: Executive Dashboard - Roads Authority App Wireframe</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Comic Sans MS', 'Marker Felt', cursive;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    
+    .wireframe-container {
+      max-width: 420px;
+      margin: 0 auto;
+      background: #fff;
+      border: 3px solid #000;
+      box-shadow: 5px 5px 0 #999;
+    }
+    
+    .header {
+      background: #e0e0e0;
+      border-bottom: 2px solid #000;
+      padding: 15px;
+      position: relative;
+    }
+    
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .menu-icon {
+      width: 30px;
+      height: 25px;
+      border: 2px solid #000;
+      background: #fff;
+      position: relative;
+    }
+    
+    .menu-icon::before,
+    .menu-icon::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      height: 2px;
+      background: #000;
+    }
+    
+    .menu-icon::before {
+      top: 6px;
+    }
+    
+    .menu-icon::after {
+      bottom: 6px;
+    }
+    
+    .logo {
+      width: 40px;
+      height: 40px;
+      border: 2px solid #000;
+      border-radius: 50%;
+      background: #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+    
+    .notification-bell {
+      width: 30px;
+      height: 30px;
+      border: 2px solid #000;
+      border-radius: 50%;
+      background: #fff;
+      position: relative;
+    }
+    
+    .badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 16px;
+      height: 16px;
+      background: #666;
+      border: 2px solid #000;
+      border-radius: 50%;
+      font-size: 8px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .user-greeting {
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    
+    .search-box {
+      border: 2px solid #000;
+      padding: 10px;
+      background: #fff;
+      margin-bottom: 10px;
+    }
+    
+    .quick-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    
+    .stat-card {
+      border: 2px solid #000;
+      padding: 10px;
+      background: #fff;
+      text-align: center;
+      position: relative;
+    }
+    
+    .stat-number {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 5px 0;
+    }
+    
+    .stat-label {
+      font-size: 10px;
+    }
+    
+    .content {
+      padding: 15px;
+    }
+    
+    .section-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin: 15px 0 10px;
+      border-bottom: 2px solid #000;
+      padding-bottom: 5px;
+    }
+    
+    .service-card {
+      border: 2px solid #000;
+      padding: 12px;
+      background: #fff;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    
+    .service-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .service-icon {
+      width: 40px;
+      height: 40px;
+      border: 2px solid #000;
+      border-radius: 8px;
+      background: #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .service-info {
+      flex: 1;
+      margin-left: 10px;
+    }
+    
+    .service-title {
+      font-weight: bold;
+      font-size: 13px;
+    }
+    
+    .service-subtitle {
+      font-size: 10px;
+      color: #666;
+    }
+    
+    .chevron {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #000;
+      background: #fff;
+    }
+    
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .action-button {
+      border: 2px solid #000;
+      padding: 15px 10px;
+      background: #e0e0e0;
+      text-align: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
+    .primary-action {
+      background: #666;
+      color: #fff;
+    }
+    
+    .bottom-nav {
+      border-top: 2px solid #000;
+      background: #e0e0e0;
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+    }
+    
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 10px;
+    }
+    
+    .nav-icon {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #000;
+      border-radius: 50%;
+      background: #fff;
+      margin-bottom: 3px;
+    }
+    
+    .nav-item.active .nav-icon {
+      background: #666;
+    }
+    
+    .component-tag {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: #4CAF50;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      z-index: 10;
+    }
+    
+    .component-tag.new {
+      background: #FF9800;
+    }
+    
+    .list-item {
+      border: 2px solid #000;
+      padding: 10px;
+      background: #fff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+    
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border: 2px solid #000;
+      border-radius: 50%;
+      background: #666;
+      margin-right: 10px;
+    }
+    
+    h1 {
+      font-size: 18px;
+      margin: 20px 0 10px;
+      text-align: center;
+      text-decoration: underline;
+    }
+    
+    .description {
+      text-align: center;
+      font-size: 12px;
+      margin-bottom: 20px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>Option 1: Executive Dashboard</h1>
+  <p class="description">Information-dense, traditional banking app layout with comprehensive overview</p>
+  
+  <div class="wireframe-container">
+    <!-- REUSABLE: GlobalHeader from app/components/GlobalHeader.js -->
+    <div style="position: relative;">
+      <span class="component-tag" title="app/components/GlobalHeader.js">[REUSE] GlobalHeader</span>
+      <div class="header">
+        <div class="header-top">
+          <div class="menu-icon"></div>
+          <div class="logo">RA</div>
+          <div class="notification-bell">
+            <div class="badge">3</div>
+          </div>
+        </div>
+        
+        <div class="user-greeting">
+          Welcome, John Doe
+        </div>
+        
+        <!-- REUSABLE: SearchInput from app/components/SearchInput.js -->
+        <div style="position: relative;">
+          <span class="component-tag" title="app/components/SearchInput.js">[REUSE] SearchInput</span>
+          <div class="search-box">
+            🔍 Search services, forms, status...
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- NEW COMPONENT: DashboardStats (to be created at app/components/DashboardStats.js) -->
+    <div style="position: relative; padding: 15px; background: #f9f9f9; border-bottom: 2px solid #000;">
+      <span class="component-tag new" title="To be created at app/components/DashboardStats.js">[NEW] DashboardStats</span>
+      <div class="quick-stats">
+        <div class="stat-card">
+          <div class="stat-number">2</div>
+          <div class="stat-label">My Reports</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">1</div>
+          <div class="stat-label">Applications</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Alerts</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="content">
+      <!-- Quick Actions Section -->
+      <div class="section-title">⚡ QUICK ACTIONS</div>
+      
+      <div class="action-grid">
+        <!-- REUSABLE: UnifiedButton from app/components/UnifiedButton.js -->
+        <div style="position: relative;">
+          <span class="component-tag" title="app/components/UnifiedButton.js">[REUSE] UnifiedButton</span>
+          <div class="action-button primary-action">
+            🚗 NATIS Online
+          </div>
+        </div>
+        
+        <div style="position: relative;">
+          <span class="component-tag" title="app/components/UnifiedButton.js">[REUSE] UnifiedButton</span>
+          <div class="action-button primary-action">
+            ⚠️ Report Damage
+          </div>
+        </div>
+        
+        <div style="position: relative;">
+          <span class="component-tag" title="app/components/UnifiedButton.js">[REUSE] UnifiedButton</span>
+          <div class="action-button">
+            📍 Road Status
+          </div>
+        </div>
+        
+        <div style="position: relative;">
+          <span class="component-tag" title="app/components/UnifiedButton.js">[REUSE] UnifiedButton</span>
+          <div class="action-button">
+            🏢 Find Offices
+          </div>
+        </div>
+      </div>
+      
+      <!-- My Services Section -->
+      <div class="section-title">📋 MY SERVICES</div>
+      
+      <!-- REUSABLE: UnifiedCard from app/components/UnifiedCard.js -->
+      <div style="position: relative;">
+        <span class="component-tag" title="app/components/UnifiedCard.js">[REUSE] UnifiedCard</span>
+        <div class="service-card">
+          <div class="service-header">
+            <div style="display: flex; align-items: center;">
+              <div class="service-icon">📄</div>
+              <div class="service-info">
+                <div class="service-title">My Applications</div>
+                <div class="service-subtitle">1 in progress</div>
+              </div>
+            </div>
+            <div class="chevron">→</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="position: relative;">
+        <span class="component-tag" title="app/components/UnifiedCard.js">[REUSE] UnifiedCard</span>
+        <div class="service-card">
+          <div class="service-header">
+            <div style="display: flex; align-items: center;">
+              <div class="service-icon">📝</div>
+              <div class="service-info">
+                <div class="service-title">My Reports</div>
+                <div class="service-subtitle">2 active reports</div>
+              </div>
+            </div>
+            <div class="chevron">→</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Government Services -->
+      <div class="section-title">🏛️ GOVERNMENT SERVICES</div>
+      
+      <!-- REUSABLE: ListItem from app/components/ListItem.js -->
+      <div style="position: relative;">
+        <span class="component-tag" title="app/components/ListItem.js">[REUSE] ListItem</span>
+        <div class="list-item">
+          <div class="status-indicator"></div>
+          <div style="flex: 1;">
+            <div style="font-weight: bold; font-size: 12px;">Vehicle Registration</div>
+            <div style="font-size: 10px; color: #666;">Register new vehicles</div>
+          </div>
+          <div class="chevron">→</div>
+        </div>
+      </div>
+      
+      <div style="position: relative;">
+        <span class="component-tag" title="app/components/ListItem.js">[REUSE] ListItem</span>
+        <div class="list-item">
+          <div class="status-indicator"></div>
+          <div style="flex: 1;">
+            <div style="font-weight: bold; font-size: 12px;">Licence Renewal</div>
+            <div style="font-size: 10px; color: #666;">Renew driver's licence</div>
+          </div>
+          <div class="chevron">→</div>
+        </div>
+      </div>
+      
+      <div style="position: relative;">
+        <span class="component-tag" title="app/components/ListItem.js">[REUSE] ListItem</span>
+        <div class="list-item">
+          <div class="status-indicator"></div>
+          <div style="flex: 1;">
+            <div style="font-weight: bold; font-size: 12px;">Road Permits</div>
+            <div style="font-size: 10px; color: #666;">Apply for permits</div>
+          </div>
+          <div class="chevron">→</div>
+        </div>
+      </div>
+      
+      <!-- Latest News -->
+      <div class="section-title">📰 LATEST NEWS</div>
+      
+      <!-- REUSABLE: Card from app/components/Card.js -->
+      <div style="position: relative;">
+        <span class="component-tag" title="app/components/Card.js">[REUSE] Card</span>
+        <div class="service-card">
+          <div style="font-weight: bold; margin-bottom: 5px;">Road Maintenance Schedule</div>
+          <div style="font-size: 10px; color: #666; margin-bottom: 5px;">B1 Highway maintenance from 15-20 Feb</div>
+          <div style="font-size: 9px; color: #999;">2 hours ago</div>
+        </div>
+      </div>
+      
+      <div style="height: 80px;"></div>
+    </div>
+    
+    <!-- REUSABLE: LowerNavigation from app/components/LowerNavigation.js -->
+    <div style="position: relative;">
+      <span class="component-tag" title="app/components/LowerNavigation.js">[REUSE] LowerNavigation</span>
+      <div class="bottom-nav">
+        <div class="nav-item active">
+          <div class="nav-icon"></div>
+          <div>Home</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon"></div>
+          <div>Services</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon"></div>
+          <div>Chat</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon"></div>
+          <div>More</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div style="max-width: 420px; margin: 20px auto; padding: 15px; background: #fff; border: 2px solid #000;">
+    <h3 style="font-size: 14px; margin-bottom: 10px;">Key Features:</h3>
+    <ul style="font-size: 12px; line-height: 1.8;">
+      <li>Dashboard-style overview with quick stats at top</li>
+      <li>Hamburger menu for side drawer (additional services)</li>
+      <li>Information-dense layout maximizes visible content</li>
+      <li>Traditional banking app aesthetic with clear sections</li>
+      <li>Quick actions prominently displayed</li>
+      <li>Personal service cards (My Applications, My Reports)</li>
+      <li>Bottom navigation for 4 main sections</li>
+      <li>Status indicators throughout for at-a-glance updates</li>
+    </ul>
+  </div>
+</body>
+</html>

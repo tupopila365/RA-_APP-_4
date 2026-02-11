@@ -43,7 +43,14 @@ interface EnvConfig {
   SMTP_FROM_EMAIL?: string;
   SMTP_FROM_NAME?: string;
   EMAIL_VERIFICATION_BASE_URL?: string;
-  
+
+  // Ozeki SMS (phone verification)
+  OZEKI_SMS_BASE_URL?: string;
+  OZEKI_SMS_USERNAME?: string;
+  OZEKI_SMS_PASSWORD?: string;
+  OTP_EXPIRY_SECONDS?: number;
+  PASSWORD_RESET_TOKEN_EXPIRY?: string;
+
   // Security Configuration
   FIELD_ENCRYPTION_KEY: string;
   RECAPTCHA_SECRET_KEY?: string;
@@ -118,7 +125,16 @@ export const env: EnvConfig = {
   SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL || 'noreply@roadsauthority.na',
   SMTP_FROM_NAME: process.env.SMTP_FROM_NAME || 'Roads Authority Namibia',
   EMAIL_VERIFICATION_BASE_URL: process.env.EMAIL_VERIFICATION_BASE_URL || 'roadsauthority://verify-email',
-  
+
+  // Ozeki SMS (phone verification)
+  OZEKI_SMS_BASE_URL: process.env.OZEKI_SMS_BASE_URL,
+  OZEKI_SMS_USERNAME: process.env.OZEKI_SMS_USERNAME,
+  OZEKI_SMS_PASSWORD: process.env.OZEKI_SMS_PASSWORD,
+  OTP_EXPIRY_SECONDS: process.env.OTP_EXPIRY_SECONDS
+    ? parseInt(process.env.OTP_EXPIRY_SECONDS, 10)
+    : 300,
+  PASSWORD_RESET_TOKEN_EXPIRY: process.env.PASSWORD_RESET_TOKEN_EXPIRY || '15m',
+
   // Security Configuration
   FIELD_ENCRYPTION_KEY: getEnvVar('FIELD_ENCRYPTION_KEY'),
   RECAPTCHA_SECRET_KEY: process.env.RECAPTCHA_SECRET_KEY,

@@ -21,21 +21,21 @@ function getStyles(colors) {
     container: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.inputBackground,
       borderRadius: 12,
-      paddingHorizontal: 15,
-      height: 50,
+      paddingHorizontal: 14,
+      height: 52,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.inputBorder,
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.08,
           shadowRadius: 4,
         },
         android: {
-          elevation: 1,
+          elevation: 2,
         },
       }),
     },
@@ -55,13 +55,13 @@ function getStyles(colors) {
       top: 55,
       left: 0,
       right: 0,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.surface,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.15,
           shadowRadius: 8,

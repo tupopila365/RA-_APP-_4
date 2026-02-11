@@ -131,6 +131,9 @@ export const COMPONENT_COLORS = {
   cardBackground: NEUTRAL_COLORS.white,
   cardBorder: NEUTRAL_COLORS.gray200,
   cardShadow: SHADOW_COLORS.light,
+  surface: NEUTRAL_COLORS.white,
+  surfaceMuted: NEUTRAL_COLORS.gray50,
+  disabledBackground: NEUTRAL_COLORS.gray100,
   
   // Feature icon colors (semantic)
   featureApplication: STATUS_COLORS.success,
@@ -263,6 +266,9 @@ export const GOVERNMENT_THEME = {
     background: BACKGROUND_COLORS.primary,
     backgroundSecondary: BACKGROUND_COLORS.secondary,
     backgroundTertiary: BACKGROUND_COLORS.tertiary,
+    surface: COMPONENT_COLORS.surface,
+    surfaceMuted: COMPONENT_COLORS.surfaceMuted,
+    disabledBackground: COMPONENT_COLORS.disabledBackground,
     overlay: BACKGROUND_COLORS.overlay,
     overlayLight: BACKGROUND_COLORS.overlayLight,
     
@@ -299,6 +305,9 @@ export const GOVERNMENT_THEME = {
     cardBackground: COMPONENT_COLORS.cardBackground,
     cardBorder: COMPONENT_COLORS.cardBorder,
     cardShadow: COMPONENT_COLORS.cardShadow,
+    // Compatibility aliases used by legacy components
+    card: COMPONENT_COLORS.cardBackground,
+    input: COMPONENT_COLORS.inputBackground,
     
     // Feature colors
     featureApplication: COMPONENT_COLORS.featureApplication,
@@ -357,6 +366,9 @@ export const GOVERNMENT_THEME = {
     background: DARK_THEME.background.primary,
     backgroundSecondary: DARK_THEME.background.secondary,
     backgroundTertiary: DARK_THEME.background.tertiary,
+    surface: NEUTRAL_COLORS.gray800,
+    surfaceMuted: NEUTRAL_COLORS.gray700,
+    disabledBackground: NEUTRAL_COLORS.gray700,
     overlay: DARK_THEME.background.overlay,
     overlayLight: DARK_THEME.background.overlayLight,
     
@@ -393,6 +405,9 @@ export const GOVERNMENT_THEME = {
     cardBackground: NEUTRAL_COLORS.gray800,
     cardBorder: NEUTRAL_COLORS.gray700,
     cardShadow: 'rgba(0, 0, 0, 0.3)',
+    // Compatibility aliases used by legacy components
+    card: NEUTRAL_COLORS.gray800,
+    input: NEUTRAL_COLORS.gray800,
     
     // Feature colors (same as light mode)
     featureApplication: COMPONENT_COLORS.featureApplication,

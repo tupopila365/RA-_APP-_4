@@ -48,11 +48,11 @@ function getStyles(colors) {
     },
 
     inputWrapper: {
-      backgroundColor: colors.card,
+      backgroundColor: colors.inputBackground,
       borderRadius: 12,
       borderWidth: 1.5,
       borderColor: colors.border,
-      shadowColor: '#000',
+      shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
       shadowRadius: 2,
@@ -64,7 +64,7 @@ function getStyles(colors) {
     inputWrapperFocused: {
       borderColor: colors.primary,
       borderWidth: 2,
-      backgroundColor: 'rgba(0, 122, 255, 0.08)',
+      backgroundColor: colors.backgroundSecondary,
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.2,

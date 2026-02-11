@@ -3,6 +3,7 @@ export interface RegisterDTO {
   password: string;
   fullName?: string;
   phoneNumber?: string;
+  verificationMethod?: 'email' | 'phone';
 }
 
 export interface LoginDTO {

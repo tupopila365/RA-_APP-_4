@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
-import { Button } from './Button';
+import { useTheme } from '../hooks/useTheme';
+import { UnifiedButton } from './UnifiedButton';
+import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
 
 export function ErrorState({
   message = 'Something went wrong',
@@ -11,8 +13,7 @@ export function ErrorState({
   testID,
   fullScreen = false,
 }) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   const styles = getStyles(colors);
 
   const content = (
@@ -20,11 +21,12 @@ export function ErrorState({
       <Ionicons name={icon} size={64} color={colors.error} />
       <Text style={styles.message}>{message}</Text>
       {onRetry && (
-        <Button
+        <UnifiedButton
           label="Try Again"
           onPress={onRetry}
           variant="primary"
           style={styles.button}
+          accessibilityLabel="Retry loading content"
         />
       )}
     </View>
@@ -39,7 +41,7 @@ export function ErrorState({
   }
 
   return (
-    <View style={styles.containerOnly} testID={testID}>
+    <View style={styles.containerOnly} testID={testID} accessibilityLiveRegion="polite">
       {content}
     </View>
   );
@@ -50,12 +52,15 @@ const getStyles = (colors) =>
     container: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 40,
+      paddingVertical: spacing.xxxl,
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
     },
     containerOnly: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 40,
+      paddingVertical: spacing.xxxl,
+      paddingHorizontal: spacing.lg,
     },
     fullScreen: {
       flex: 1,
@@ -64,14 +69,12 @@ const getStyles = (colors) =>
       backgroundColor: colors.background,
     },
     message: {
-      marginTop: 15,
-      fontSize: 16,
+      ...typography.body,
       color: colors.text,
       fontWeight: '500',
       textAlign: 'center',
-      marginHorizontal: 20,
     },
     button: {
-      marginTop: 20,
+      marginTop: spacing.md,
     },
   });

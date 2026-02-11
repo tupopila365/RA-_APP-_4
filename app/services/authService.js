@@ -13,11 +13,12 @@ class AuthService {
    * @param {string} email - User email
    * @param {string} password - User password
    * @param {string} fullName - User full name (optional)
-   * @param {string} phoneNumber - User phone number (optional)
+   * @param {string} phoneNumber - User phone number (required for phone verification)
+   * @param {string} verificationMethod - 'email' | 'phone' (default: 'email')
+   * @returns {Promise<Object>} - May include needEmailVerification, needPhoneVerification, or tokens
    */
-  async register(email, password, fullName = null, phoneNumber = null) {
+  async register(email, password, fullName = null, phoneNumber = null, verificationMethod = 'email') {
     try {
-      // Use longer timeout for registration (30 seconds)
       const response = await ApiClient.requestWithTimeout(
         '/app-users/register',
         30000,
@@ -28,6 +29,7 @@ class AuthService {
             password,
             fullName: fullName?.trim() || undefined,
             phoneNumber: phoneNumber?.trim() || undefined,
+            verificationMethod,
           },
         }
       );
@@ -36,9 +38,21 @@ class AuthService {
         throw new Error(response.error?.message || 'Registration failed');
       }
 
-      // Store tokens and user data
-      await this.storeTokens(response.data.accessToken, response.data.refreshToken);
-      await this.storeUser(response.data.user);
+      // If phone verification needed - return for OTP step
+      if (response.data.needPhoneVerification) {
+        return response.data;
+      }
+
+      // If email verification needed - navigate to email verification screen
+      if (response.data.needEmailVerification) {
+        return response.data;
+      }
+
+      // Registration complete with tokens
+      if (response.data.accessToken && response.data.user) {
+        await this.storeTokens(response.data.accessToken, response.data.refreshToken);
+        await this.storeUser(response.data.user);
+      }
 
       return response.data;
     } catch (error) {
@@ -309,11 +323,50 @@ class AuthService {
   }
 
   /**
-   * Change password
-   * @param {string} oldPassword - Current password
+   * Send OTP for change password (verifies current password, sends OTP to registered phone)
+   * @param {string} currentPassword - Current password
+   * @returns {Promise<{ phoneMasked: string }>}
+   */
+  async sendChangePasswordOtp(currentPassword) {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await ApiClient.post('/app-users/me/password/send-otp', {
+        currentPassword,
+      }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to send verification code');
+      }
+
+      return response.data || {};
+    } catch (error) {
+      console.error('Send change password OTP error:', error);
+      if (error.status === 401) {
+        try {
+          await this.refreshToken();
+          return await this.sendChangePasswordOtp(currentPassword);
+        } catch (refreshError) {
+          throw new Error('Session expired. Please login again.');
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Change password with OTP (after sendChangePasswordOtp)
+   * @param {string} otp - Verification code from SMS
    * @param {string} newPassword - New password
    */
-  async changePassword(oldPassword, newPassword) {
+  async changePassword(otp, newPassword) {
     try {
       const accessToken = await this.getAccessToken();
       if (!accessToken) {
@@ -321,7 +374,7 @@ class AuthService {
       }
 
       const response = await ApiClient.put('/app-users/me/password', {
-        oldPassword,
+        otp,
         newPassword,
       }, {
         headers: {
@@ -339,7 +392,7 @@ class AuthService {
       if (error.status === 401) {
         try {
           await this.refreshToken();
-          return await this.changePassword(oldPassword, newPassword);
+          return await this.changePassword(otp, newPassword);
         } catch (refreshError) {
           throw new Error('Session expired. Please login again.');
         }
@@ -450,7 +503,10 @@ class AuthService {
         throw new Error(response.error?.message || 'Email verification failed');
       }
 
-      // Update stored user data if available
+      // Store tokens and user for auto-login
+      if (response.data.accessToken && response.data.refreshToken) {
+        await this.storeTokens(response.data.accessToken, response.data.refreshToken);
+      }
       if (response.data.user) {
         await this.storeUser(response.data.user);
       }
@@ -458,6 +514,41 @@ class AuthService {
       return response.data;
     } catch (error) {
       console.error('Verify email error:', error);
+      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
+        throw new Error('Cannot connect to server. Please check your internet connection.');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Complete registration after phone OTP verification
+   * @param {string} email - User email
+   * @param {string} phone - User phone number
+   * @param {string} otp - 6-digit verification code
+   * @param {string} password - User password
+   */
+  async registerVerifyOtp(email, phone, otp, password) {
+    try {
+      const response = await ApiClient.post('/app-users/register/verify-otp', {
+        email: email.trim(),
+        phone: phone.trim(),
+        otp: otp.toString().trim(),
+        password,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Verification failed');
+      }
+
+      if (response.data.accessToken && response.data.user) {
+        await this.storeTokens(response.data.accessToken, response.data.refreshToken);
+        await this.storeUser(response.data.user);
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Register verify OTP error:', error);
       if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
         throw new Error('Cannot connect to server. Please check your internet connection.');
       }
@@ -500,6 +591,84 @@ class AuthService {
     } catch (error) {
       console.error('Check email verification status error:', error);
       return false;
+    }
+  }
+
+  /**
+   * Request password reset - send OTP to registered phone
+   * @param {string} email - User email
+   * @returns {Promise<{phoneMasked: string}>}
+   */
+  async forgotPassword(email) {
+    try {
+      const response = await ApiClient.post('/app-users/forgot-password', {
+        email: email.trim(),
+      });
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to send verification code');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
+        throw new Error('Cannot connect to server. Please check your internet connection.');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Verify OTP and get reset token
+   * @param {string} phone - User phone number
+   * @param {string} otp - 6-digit verification code
+   * @returns {Promise<{resetToken: string}>}
+   */
+  async verifyOtpForReset(phone, otp) {
+    try {
+      const response = await ApiClient.post('/app-users/verify-otp', {
+        phone: phone.trim(),
+        otp: otp.toString().trim(),
+      });
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Invalid or expired verification code');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Verify OTP error:', error);
+      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
+        throw new Error('Cannot connect to server. Please check your internet connection.');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Reset password with token
+   * @param {string} resetToken - Token from verifyOtpForReset
+   * @param {string} newPassword - New password
+   */
+  async resetPassword(resetToken, newPassword) {
+    try {
+      const response = await ApiClient.post('/app-users/reset-password', {
+        resetToken: resetToken.trim(),
+        newPassword,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to reset password');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Reset password error:', error);
+      if (error.message.includes('Network request failed') || error.message.includes('Failed to fetch')) {
+        throw new Error('Cannot connect to server. Please check your internet connection.');
+      }
+      throw error;
     }
   }
 }

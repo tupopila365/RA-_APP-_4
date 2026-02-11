@@ -37,7 +37,7 @@ export function GlobalHeader({
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={colors.textInverse} />
           </TouchableOpacity>
         )}
         <View style={styles.textContainer}>
@@ -56,7 +56,7 @@ export function GlobalHeader({
             accessibilityRole="button"
             accessibilityLabel={action.accessibilityLabel}
           >
-            <Ionicons name={action.icon} size={24} color="#FFFFFF" />
+            <Ionicons name={action.icon} size={24} color={colors.textInverse} />
           </TouchableOpacity>
         ))}
         {icon && (
@@ -67,7 +67,7 @@ export function GlobalHeader({
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
           >
-            <Ionicons name={icon} size={24} color="#FFFFFF" />
+            <Ionicons name={icon} size={24} color={colors.textInverse} />
           </TouchableOpacity>
         )}
       </View>
@@ -101,7 +101,7 @@ const getStyles = (colors) =>
       paddingHorizontal: 20,
       borderBottomLeftRadius: 0,
       borderBottomRightRadius: 0,
-      shadowColor: '#000',
+      shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.15,
       shadowRadius: 12,
@@ -137,17 +137,14 @@ const getStyles = (colors) =>
       flex: 1,
     },
     title: {
-      color: '#FFFFFF',
-      fontSize: 28,
-      fontWeight: 'bold',
-      marginBottom: 5,
-      ...typography.h2,
+      color: colors.textInverse,
+      ...typography.h3,
+      marginBottom: spacing.xs,
     },
     subtitle: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      opacity: 0.9,
+      color: colors.textInverse,
       ...typography.bodySmall,
+      opacity: 0.9,
     },
     actionButton: {
       width: 44,

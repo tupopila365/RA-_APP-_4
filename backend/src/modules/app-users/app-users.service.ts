@@ -8,6 +8,8 @@ import { ERROR_CODES } from '../../constants/errors';
 import { env } from '../../config/env';
 import { getRedisClient } from '../../config/redis';
 import { emailService } from '../../services/email.service';
+import { smsService, normalizePhone } from '../../services/sms.service';
+import { storeOtp, verifyAndConsumeOtp, storeRegisterOtp, verifyAndConsumeRegisterOtp, storeChangePasswordOtp, verifyAndConsumeChangePasswordOtp } from '../../services/otp.service';
 import { safeRedisDel } from '../../utils/redis';
 
 interface AuthTokens {
@@ -23,10 +25,12 @@ interface TokenPayload {
 export class AppUsersService {
   /**
    * Register a new app user
+   * If verificationMethod is 'email': creates user unverified, sends verification email
+   * If verificationMethod is 'phone': sends OTP (use registerWithPhoneVerification after)
    */
-  async register(dto: RegisterDTO): Promise<{ user: AppUser; tokens: AuthTokens }> {
+  async register(dto: RegisterDTO): Promise<{ user: AppUser; tokens?: AuthTokens; needEmailVerification?: boolean; needPhoneVerification?: boolean; phoneMasked?: string }> {
     try {
-      const { email, password, fullName, phoneNumber } = dto;
+      const { email, password, fullName, phoneNumber, verificationMethod } = dto;
       const repo = AppDataSource.getRepository(AppUser);
 
       const existingUser = await repo.findOne({ where: { email: email.toLowerCase().trim() } });
@@ -38,23 +42,73 @@ export class AppUsersService {
         };
       }
 
+      const verification = verificationMethod || 'email';
+
+      if (verification === 'phone') {
+        if (!phoneNumber || !phoneNumber.trim()) {
+          throw {
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'Phone number is required for phone verification',
+            statusCode: 400,
+          };
+        }
+        if (!smsService.isConfigured()) {
+          throw {
+            code: ERROR_CODES.DB_OPERATION_FAILED,
+            message: 'SMS service is not configured. Please use email verification.',
+            statusCode: 503,
+          };
+        }
+
+        const otp = crypto.randomInt(100000, 999999).toString();
+        await storeRegisterOtp(phoneNumber, otp, email, fullName?.trim() ?? null, phoneNumber.trim());
+
+        const message = `Your Roads Authority verification code is: ${otp}. Valid for 5 minutes.`;
+        await smsService.sendSms(phoneNumber, message);
+
+        const normalizedPhone = normalizePhone(phoneNumber);
+        const phoneMasked = `***${normalizedPhone.slice(-3)}`;
+
+        logger.info(`Registration OTP sent for: ${email}`);
+
+        return {
+          needPhoneVerification: true,
+          phoneMasked,
+          user: { email, fullName: fullName?.trim() ?? null, phoneNumber: phoneNumber.trim() } as AppUser,
+        };
+      }
+
+      // Email verification flow
+      const verificationToken = this.generateEmailVerificationToken();
+      const tokenExpiry = new Date();
+      tokenExpiry.setHours(tokenExpiry.getHours() + 24);
+
       const user = repo.create({
         email: email.toLowerCase().trim(),
         password,
         fullName: fullName?.trim() ?? null,
         phoneNumber: phoneNumber?.trim() ?? null,
-        isEmailVerified: true,
-        emailVerifiedAt: new Date(),
+        isEmailVerified: false,
+        isPhoneVerified: false,
+        emailVerificationToken: verificationToken,
+        emailVerificationTokenExpiry: tokenExpiry,
       });
 
       const saved = await repo.save(user);
-      const tokens = await this.generateTokens(saved);
-      await this.storeRefreshToken(saved.id.toString(), tokens.refreshToken);
 
-      logger.info(`New app user registered: ${saved.email}`);
+      await emailService.sendVerificationEmail(
+        saved.email,
+        saved.fullName ?? undefined,
+        verificationToken
+      );
+
+      logger.info(`New app user registered (email pending): ${saved.email}`);
 
       const { password: _, emailVerificationToken: __, ...rest } = saved;
-      return { user: rest as AppUser, tokens };
+      return {
+        needEmailVerification: true,
+        user: rest as AppUser,
+      };
     } catch (error: any) {
       logger.error('Register app user error:', error);
       if (error.statusCode) {
@@ -70,6 +124,68 @@ export class AppUsersService {
   }
 
   /**
+   * Complete registration after phone OTP verification
+   */
+  async registerWithPhoneVerification(
+    email: string,
+    phone: string,
+    otp: string,
+    password: string
+  ): Promise<{ user: AppUser; tokens: AuthTokens }> {
+    try {
+      const payload = await verifyAndConsumeRegisterOtp(phone, otp);
+
+      if (!payload || payload.email.toLowerCase() !== email.toLowerCase().trim()) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Invalid or expired verification code. Please request a new one.',
+        };
+      }
+
+      const repo = AppDataSource.getRepository(AppUser);
+      const existingUser = await repo.findOne({ where: { email: payload.email.toLowerCase() } });
+      if (existingUser) {
+        throw {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'User with this email already exists',
+          statusCode: 409,
+        };
+      }
+
+      const user = repo.create({
+        email: payload.email.toLowerCase(),
+        password,
+        fullName: payload.fullName,
+        phoneNumber: payload.phoneNumber,
+        isEmailVerified: false,
+        isPhoneVerified: true,
+        phoneVerifiedAt: new Date(),
+      });
+
+      const saved = await repo.save(user);
+      const tokens = await this.generateTokens(saved);
+      await this.storeRefreshToken(saved.id.toString(), tokens.refreshToken);
+
+      logger.info(`New app user registered (phone verified): ${saved.email}`);
+
+      const { password: _, ...rest } = saved;
+      return { user: rest as AppUser, tokens };
+    } catch (error: any) {
+      logger.error('Register with phone verification error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to complete registration',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
    * Login app user
    */
   async login(credentials: LoginDTO): Promise<{ user: AppUser; tokens: AuthTokens }> {
@@ -78,7 +194,7 @@ export class AppUsersService {
       const repo = AppDataSource.getRepository(AppUser);
       const user = await repo.findOne({
         where: { email: email.toLowerCase().trim() },
-        select: ['id', 'email', 'password', 'fullName', 'phoneNumber', 'isEmailVerified', 'lastLoginAt', 'createdAt', 'updatedAt'],
+        select: ['id', 'email', 'password', 'fullName', 'phoneNumber', 'isEmailVerified', 'isPhoneVerified', 'lastLoginAt', 'createdAt', 'updatedAt'],
       });
 
       if (!user) {
@@ -86,6 +202,15 @@ export class AppUsersService {
           code: ERROR_CODES.AUTH_INVALID_CREDENTIALS,
           message: 'Invalid email or password',
           statusCode: 401,
+        };
+      }
+
+      const isVerified = user.isEmailVerified || user.isPhoneVerified;
+      if (!isVerified) {
+        throw {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Please verify your email or phone number before signing in.',
+          statusCode: 403,
         };
       }
 
@@ -134,7 +259,7 @@ export class AppUsersService {
       const repo = AppDataSource.getRepository(AppUser);
       const user = await repo.findOne({
         where: { id: idNum },
-        select: ['id', 'email', 'fullName', 'phoneNumber', 'isEmailVerified', 'emailVerifiedAt', 'lastLoginAt', 'createdAt', 'updatedAt'],
+        select: ['id', 'email', 'fullName', 'phoneNumber', 'isEmailVerified', 'isPhoneVerified', 'emailVerifiedAt', 'phoneVerifiedAt', 'lastLoginAt', 'createdAt', 'updatedAt'],
       });
 
       if (!user) {
@@ -211,7 +336,10 @@ export class AppUsersService {
         throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'User not found' };
       }
       const repo = AppDataSource.getRepository(AppUser);
-      const user = await repo.findOne({ where: { id: idNum } });
+      const user = await repo.findOne({
+        where: { id: idNum },
+        select: ['id', 'email', 'password', 'fullName', 'phoneNumber', 'isEmailVerified', 'isPhoneVerified', 'lastLoginAt', 'createdAt', 'updatedAt'],
+      });
       if (!user) {
         throw {
           statusCode: 404,
@@ -237,6 +365,120 @@ export class AppUsersService {
       logger.info(`App user password changed: ${id}`);
     } catch (error: any) {
       logger.error('Change password error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to change password',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Request OTP for change password: verify current password, send OTP to user's phone
+   */
+  async requestChangePasswordOtp(userId: string, currentPassword: string): Promise<{ phoneMasked: string }> {
+    try {
+      const idNum = parseInt(userId, 10);
+      if (isNaN(idNum)) {
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'User not found' };
+      }
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({
+        where: { id: idNum },
+        select: ['id', 'email', 'password', 'phoneNumber'],
+      });
+      if (!user) {
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'User not found' };
+      }
+
+      const isPasswordValid = await user.comparePassword(currentPassword);
+      if (!isPasswordValid) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+          message: 'Current password is incorrect',
+        };
+      }
+
+      if (!user.phoneNumber || !user.phoneNumber.trim()) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'No phone number registered. Please add a phone number in your profile to use this feature.',
+        };
+      }
+
+      if (!smsService.isConfigured()) {
+        throw {
+          statusCode: 503,
+          code: ERROR_CODES.DB_OPERATION_FAILED,
+          message: 'SMS service is not configured. Please contact support.',
+        };
+      }
+
+      const otp = crypto.randomInt(100000, 999999).toString();
+      await storeChangePasswordOtp(userId, otp);
+
+      const message = `Your Roads Authority verification code for password change is: ${otp}. Valid for 5 minutes.`;
+      await smsService.sendSms(user.phoneNumber, message);
+
+      const normalizedPhone = normalizePhone(user.phoneNumber);
+      const last3 = normalizedPhone.slice(-3);
+      const phoneMasked = `***${last3}`;
+
+      logger.info(`Change password OTP sent to user: ${user.email}`);
+      return { phoneMasked };
+    } catch (error: any) {
+      logger.error('Request change password OTP error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to send verification code',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Change password using OTP (after send-otp)
+   */
+  async changePasswordWithOtp(userId: string, otp: string, newPassword: string): Promise<void> {
+    try {
+      const valid = await verifyAndConsumeChangePasswordOtp(userId, otp);
+      if (!valid) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+          message: 'Invalid or expired verification code. Please request a new code.',
+        };
+      }
+
+      const idNum = parseInt(userId, 10);
+      if (isNaN(idNum)) {
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'User not found' };
+      }
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({
+        where: { id: idNum },
+        select: ['id', 'password'],
+      });
+      if (!user) {
+        throw { statusCode: 404, code: ERROR_CODES.NOT_FOUND, message: 'User not found' };
+      }
+
+      user.password = newPassword;
+      await repo.save(user);
+
+      logger.info(`App user password changed with OTP: ${userId}`);
+    } catch (error: any) {
+      logger.error('Change password with OTP error:', error);
       if (error.statusCode) {
         throw error;
       }
@@ -394,9 +636,9 @@ export class AppUsersService {
   }
 
   /**
-   * Verify email using token
+   * Verify email using token. Returns user and tokens for auto-login.
    */
-  async verifyEmail(token: string): Promise<AppUser> {
+  async verifyEmail(token: string): Promise<{ user: AppUser; tokens: AuthTokens }> {
     try {
       const repo = AppDataSource.getRepository(AppUser);
       const user = await repo.findOne({
@@ -441,8 +683,11 @@ export class AppUsersService {
         logger.error('Failed to send welcome email:', emailError);
       }
 
+      const tokens = await this.generateTokens(user);
+      await this.storeRefreshToken(String(user.id), tokens.refreshToken);
+
       const { password: _, emailVerificationToken: __, ...rest } = user;
-      return rest as AppUser;
+      return { user: rest as AppUser, tokens };
     } catch (error: any) {
       logger.error('Verify email error:', error);
       if (error.statusCode) {
@@ -508,6 +753,165 @@ export class AppUsersService {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
         message: 'Failed to resend verification email',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Request password reset: send OTP to user's registered phone via SMS
+   */
+  async requestPasswordReset(email: string): Promise<{ phoneMasked: string }> {
+    try {
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({
+        where: { email: email.toLowerCase().trim() },
+        select: ['id', 'email', 'phoneNumber'],
+      });
+
+      if (!user) {
+        // Don't reveal that user doesn't exist (prevent email enumeration)
+        return { phoneMasked: '***', phone: null };
+      }
+
+      if (!user.phoneNumber || !user.phoneNumber.trim()) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Phone number not registered. Please contact support for password reset.',
+        };
+      }
+
+      if (!smsService.isConfigured()) {
+        throw {
+          statusCode: 503,
+          code: ERROR_CODES.DB_OPERATION_FAILED,
+          message: 'SMS service is not configured. Please contact support.',
+        };
+      }
+
+      const otp = crypto.randomInt(100000, 999999).toString();
+      const normalizedPhone = normalizePhone(user.phoneNumber);
+
+      await storeOtp(user.phoneNumber, otp, user.email);
+
+      const message = `Your Roads Authority verification code is: ${otp}. Valid for 5 minutes.`;
+      await smsService.sendSms(user.phoneNumber, message);
+
+      const last3 = normalizedPhone.slice(-3);
+      const phoneMasked = `***${last3}`;
+
+      logger.info(`Password reset OTP sent to user: ${user.email}`);
+
+      // Return phone for client to use in verify-otp (needed for Redis lookup)
+      return { phoneMasked, phone: user.phoneNumber };
+    } catch (error: any) {
+      logger.error('Request password reset error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to send verification code',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Verify OTP and return short-lived reset token
+   */
+  async verifyOtpAndGetResetToken(phone: string, otp: string): Promise<{ resetToken: string }> {
+    try {
+      const email = await verifyAndConsumeOtp(phone, otp);
+
+      if (!email) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Invalid or expired verification code. Please request a new one.',
+        };
+      }
+
+      const payload = {
+        purpose: 'password_reset',
+        email,
+      };
+
+      const resetToken = jwt.sign(payload, env.JWT_SECRET, {
+        expiresIn: env.PASSWORD_RESET_TOKEN_EXPIRY as string,
+      } as jwt.SignOptions);
+
+      return { resetToken };
+    } catch (error: any) {
+      logger.error('Verify OTP error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to verify code',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Reset password using reset token
+   */
+  async resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+    try {
+      const decoded = jwt.verify(token, env.JWT_SECRET) as { purpose?: string; email?: string };
+
+      if (decoded.purpose !== 'password_reset' || !decoded.email) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.AUTH_INVALID_TOKEN,
+          message: 'Invalid or expired reset link. Please request a new password reset.',
+        };
+      }
+
+      const repo = AppDataSource.getRepository(AppUser);
+      const user = await repo.findOne({ where: { email: decoded.email } });
+
+      if (!user) {
+        throw {
+          statusCode: 404,
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'User not found',
+        };
+      }
+
+      if (newPassword.length < 8) {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Password must be at least 8 characters',
+        };
+      }
+
+      user.password = newPassword;
+      await repo.save(user);
+
+      logger.info(`Password reset completed for user: ${user.email}`);
+    } catch (error: any) {
+      logger.error('Reset password error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      if (error.name === 'TokenExpiredError') {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.AUTH_INVALID_TOKEN,
+          message: 'Reset link has expired. Please request a new password reset.',
+        };
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to reset password',
         details: error.message,
       };
     }

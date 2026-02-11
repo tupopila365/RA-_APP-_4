@@ -6,9 +6,9 @@ import {
   Text,
   StyleSheet,
   Animated,
-  useColorScheme,
 } from 'react-native';
-import { RATheme } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
+import { typography } from '../theme/typography';
 
 /**
  * LoadingOverlay - Full-screen blocking loading overlay
@@ -35,8 +35,7 @@ export function LoadingOverlay({
   color,
   testID,
 }) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   const styles = getStyles(colors);
   const spinnerColor = color || colors.primary;
   
@@ -95,7 +94,11 @@ export function LoadingOverlay({
               accessibilityRole="progressbar"
             />
             {message && (
-              <Text style={styles.message} testID={testID ? `${testID}-message` : undefined}>
+              <Text
+                style={styles.message}
+                testID={testID ? `${testID}-message` : undefined}
+                accessibilityLiveRegion="polite"
+              >
                 {message}
               </Text>
             )}
@@ -110,7 +113,7 @@ const getStyles = (colors) =>
   StyleSheet.create({
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)', // Semi-transparent dark scrim
+      backgroundColor: colors.overlay,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -128,7 +131,7 @@ const getStyles = (colors) =>
     },
     message: {
       marginTop: 16,
-      fontSize: 16,
+      ...typography.body,
       fontWeight: '500',
       color: colors.textInverse || '#FFFFFF',
       textAlign: 'center',

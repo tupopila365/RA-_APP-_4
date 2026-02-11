@@ -21,6 +21,12 @@ export { UnifiedSkeletonLoader } from './UnifiedSkeletonLoader';
 // Android-Safe Components
 export { AndroidSafeCard } from './AndroidSafeCard';
 
+// Executive Dashboard Components (Option 1)
+export { QuickStatsCard } from './QuickStatsCard';
+export { AccordionCard } from './AccordionCard';
+export { CategoryTabs } from './CategoryTabs';
+export { NewsCard } from './NewsCard';
+
 // Theme and Design Tokens
 export { useTheme } from '../hooks/useTheme';
 export { RATheme } from '../theme/colors';

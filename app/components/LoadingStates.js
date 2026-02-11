@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { RATheme } from '../theme/colors';
+import { View, StyleSheet } from 'react-native';
+import { useTheme } from '../hooks/useTheme';
 import { LoadingIndicator } from './LoadingIndicator';
 import { NewsCardSkeletonList } from './NewsCardSkeleton';
 
@@ -15,8 +15,7 @@ export function LoadingStates({
   style,
   testID
 }) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   const styles = getStyles(colors);
 
   switch (type) {
@@ -55,7 +54,7 @@ export function LoadingStates({
         <View style={[styles.initialContainer, style]} testID={testID}>
           <LoadingIndicator 
             size="large" 
-            message={message || "Loading news..."} 
+            message={message || "Loading..."} 
             color={colors.primary}
           />
         </View>

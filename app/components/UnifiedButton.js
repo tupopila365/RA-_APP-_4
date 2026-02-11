@@ -59,12 +59,12 @@ export function UnifiedButton({
   }[size] || 18;
 
   const iconColor = {
-    primary: '#FFFFFF',
-    secondary: '#000000',
+    primary: colors.textInverse,
+    secondary: colors.text,
     ghost: colors.primary,
     outline: colors.primary,
-    danger: '#FFFFFF',
-  }[variant] || '#FFFFFF';
+    danger: colors.textInverse,
+  }[variant] || colors.textInverse;
 
   const buttonStyle = [
     styles.button,
@@ -148,14 +148,14 @@ const getStyles = (colors) =>
       borderRadius: 8,
       justifyContent: 'center',
       alignItems: 'center',
-      shadowColor: '#000',
+      shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 4,
       elevation: 3,
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
+          shadowColor: colors.shadow,
         },
         android: {
           elevation: 3,
@@ -190,7 +190,7 @@ const getStyles = (colors) =>
       backgroundColor: colors.primary,
     },
     buttonSecondary: {
-      backgroundColor: colors.secondary,
+      backgroundColor: colors.buttonSecondary,
     },
     buttonGhost: {
       backgroundColor: 'transparent',
@@ -212,12 +212,12 @@ const getStyles = (colors) =>
     textPrimary: {
       ...typography.bodyMedium,
       fontWeight: '600',
-      color: '#FFFFFF',
+      color: colors.textInverse,
     },
     textSecondary: {
       ...typography.bodyMedium,
       fontWeight: '600',
-      color: '#000000',
+      color: colors.text,
     },
     textGhost: {
       ...typography.bodyMedium,
@@ -232,7 +232,7 @@ const getStyles = (colors) =>
     textDanger: {
       ...typography.bodyMedium,
       fontWeight: '600',
-      color: '#FFFFFF',
+      color: colors.textInverse,
     },
 
     // States
