@@ -111,21 +111,21 @@ export function PasswordVerificationModal({
 
             <View style={styles.buttons}>
               <UnifiedButton
-                label="Cancel"
-                variant="outline"
-                size="medium"
-                onPress={handleCancel}
-                disabled={loading}
-                style={styles.cancelButton}
-              />
-              <UnifiedButton
                 label="Continue"
                 variant="primary"
                 size="medium"
                 onPress={handleVerify}
                 loading={loading}
                 disabled={loading}
-                style={styles.continueButton}
+                style={styles.primaryButton}
+              />
+              <UnifiedButton
+                label="Cancel"
+                variant="outline"
+                size="medium"
+                onPress={handleCancel}
+                disabled={loading}
+                style={styles.cancelButton}
               />
             </View>
           </UnifiedCard>
@@ -147,9 +147,10 @@ function getStyles(colors) {
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContent: {
-      width: '90%',
+      width: '94%',
       maxWidth: 400,
-      marginHorizontal: spacing.xl,
+      marginHorizontal: spacing.lg,
+      alignSelf: 'stretch',
     },
     header: {
       alignItems: 'center',
@@ -176,16 +177,16 @@ function getStyles(colors) {
       lineHeight: 22,
     },
     buttons: {
-      flexDirection: 'row',
+      flexDirection: 'column',
       marginTop: spacing.lg,
+      width: '100%',
+      gap: spacing.sm,
+    },
+    primaryButton: {
+      width: '100%',
     },
     cancelButton: {
-      flex: 1,
-      marginRight: spacing.sm,
-    },
-    continueButton: {
-      flex: 1,
-      marginLeft: spacing.sm,
+      width: '100%',
     },
   });
 }

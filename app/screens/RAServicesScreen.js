@@ -210,27 +210,13 @@ export default function RAServicesScreen() {
           </View>
         </View>
 
-        {/* Quick Help - For frustrated users */}
-        <TouchableOpacity
-          style={[styles.quickHelpCard, { backgroundColor: colors.primary + '0C', borderColor: colors.primary + '30' }]}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Chatbot' })}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={24} color={colors.primary} />
-          <View style={styles.quickHelpText}>
-            <Text style={[styles.quickHelpTitle, { color: colors.text }]}>Need help quickly?</Text>
-            <Text style={[styles.quickHelpSub, { color: colors.textSecondary }]}>
-              Ask RA Assistant—available 24/7
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.primary} />
-        </TouchableOpacity>
-
         {/* Search - Prominent */}
         <View style={styles.searchContainer}>
           <SearchInput
             placeholder="Search services (e.g. licence, registration)..."
+            value={searchQuery}
             onSearch={setSearchQuery}
+            onChangeTextImmediate={setSearchQuery}
             onClear={() => setSearchQuery('')}
             style={styles.searchInput}
             accessibilityLabel="Search RA services"
@@ -520,27 +506,6 @@ function getStyles(colors) {
       fontSize: 14,
       color: colors.textSecondary,
       lineHeight: 20,
-    },
-    quickHelpCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: spacing.md,
-      borderRadius: 12,
-      borderWidth: 1,
-      marginBottom: spacing.lg,
-      gap: spacing.md,
-    },
-    quickHelpText: {
-      flex: 1,
-    },
-    quickHelpTitle: {
-      ...typography.body,
-      fontWeight: '600',
-      marginBottom: 2,
-    },
-    quickHelpSub: {
-      ...typography.caption,
-      fontSize: 13,
     },
     searchContainer: {
       marginBottom: spacing.md,

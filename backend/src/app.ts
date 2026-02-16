@@ -30,6 +30,7 @@ import procurementOpeningRegisterRoutes from './modules/procurement-opening-regi
 import analyticsRoutes from './modules/analytics/analytics.routes';
 import formsRoutes from './modules/forms/forms.routes';
 import raServicesRoutes from './modules/ra-services/ra-services.routes';
+import feedbackRoutes from './modules/feedback/feedback.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -80,6 +81,7 @@ export const createApp = (): Application => {
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/forms', formsRoutes);
   app.use('/api/ra-services', raServicesRoutes);
+  app.use('/api/feedback', feedbackRoutes);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);

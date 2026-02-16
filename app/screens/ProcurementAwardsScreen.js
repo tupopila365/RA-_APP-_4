@@ -217,7 +217,9 @@ export default function ProcurementAwardsScreen() {
         <View style={styles.searchInputContainer}>
           <SearchInput
             placeholder="Search awards..."
+            value={searchQuery}
             onSearch={setSearchQuery}
+            onChangeTextImmediate={setSearchQuery}
             onClear={() => setSearchQuery('')}
             style={styles.searchInput}
             accessibilityLabel="Search procurement awards"

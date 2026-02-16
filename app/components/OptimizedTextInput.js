@@ -1,18 +1,28 @@
 /**
- * Optimized TextInput Component
+ * Optimized TextInput Component - Bank-grade, Government-ready
  * 
  * This component implements all React Native TextInput performance best practices:
- * - Memoized styles
- * - useCallback for handlers
- * - React.memo to prevent unnecessary re-renders
- * - Debounced onChangeText support
+ * - Memoized styles with theme consistency
+ * - useCallback for handlers to prevent re-renders
+ * - React.memo with custom comparison for optimal performance
+ * - Debounced onChangeText support for search/filter scenarios
  * - Performance monitoring in dev mode
+ * - Consistent styling with UnifiedFormInput
+ * 
+ * @example
+ * <OptimizedTextInput
+ *   value={searchTerm}
+ *   onChangeText={setSearchTerm}
+ *   debounceMs={300}
+ *   placeholder="Type to search..."
+ * />
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { TextInput, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import { useDebounce } from '../hooks/useDebounce';
+import { spacing } from '../theme/spacing';
 
 // Memoize styles per color scheme
 const stylesCache = new Map();
@@ -26,9 +36,11 @@ function getStyles(colors) {
   const styles = StyleSheet.create({
     input: {
       fontSize: 16,
+      lineHeight: 22,
       color: colors.text,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingHorizontal: spacing.lg, // 16pt - consistent with form inputs
+      paddingVertical: spacing.md,   // 12pt
+      minHeight: 44, // Minimum touch target
       ...Platform.select({
         ios: { fontFamily: 'System' },
         android: { fontFamily: 'Roboto' },
@@ -125,6 +137,11 @@ export const OptimizedTextInput = React.memo(
         value={inputValue}
         onChangeText={handleChangeText}
         style={[styles.input, style]}
+        placeholderTextColor={colors.textMuted}
+        selectionColor={colors.primary}
+        cursorColor={colors.primary}
+        underlineColorAndroid="transparent"
+        maxFontSizeMultiplier={1.3}
       />
     );
   },

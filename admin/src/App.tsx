@@ -11,6 +11,7 @@ import { TendersList, TenderForm } from './pages/Tenders';
 import { BannersList, BannerForm } from './pages/Banners';
 import { LocationsList, LocationForm } from './pages/Locations';
 import { FAQList, FAQForm } from './pages/FAQs';
+import { FeedbackList } from './pages/Feedback';
 import { UsersList, UserForm } from './pages/Users';
 import { ReportsList, ReportDetail } from './pages/PotholeReports';
 import PLNDashboardPage from './pages/PLN/PLNDashboardPage';
@@ -693,6 +694,16 @@ function App() {
                 <ProtectedRoute requiredPermission="faqs:manage">
                   <Layout>
                     <FAQForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/feedback"
+              element={
+                <ProtectedRoute requiredPermission="feedback:manage">
+                  <Layout>
+                    <FeedbackList />
                   </Layout>
                 </ProtectedRoute>
               }

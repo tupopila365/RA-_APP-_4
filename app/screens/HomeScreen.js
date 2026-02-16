@@ -1,7 +1,7 @@
 /**
  * HomeScreen - Dashboard-style home
  * - Header: Hamburger + User name + Road Status, Report Road Damage links
- * - Dashboard: Applications, NATIS, E-Recruitment
+ * - Dashboard: Quick Actions, External Links (NATIS, E-Recruitment)
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -29,11 +29,7 @@ import { useAppContext } from '../context/AppContext';
 import { useDrawer } from '../context/DrawerContext';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
-import { UnifiedCard, NewsCard } from '../components';
-import { useNewsUseCases } from '../src/presentation/di/DependencyContext';
-import { useNewsViewModel } from '../src/presentation/viewModels/useNewsViewModel';
-
-import { plnService } from '../services/plnService';
+import { UnifiedCard } from '../components';
 
 const RALogo = require('../assets/icon.png');
 
@@ -48,34 +44,16 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [myApplicationsCount, setMyApplicationsCount] = useState(null);
-
-  const { getNewsUseCase, searchNewsUseCase } = useNewsUseCases();
-  const { allNews: newsItems, refresh: refreshNews } = useNewsViewModel({
-    getNewsUseCase,
-    searchNewsUseCase,
-  });
-  const latestNews = newsItems.slice(0, 3);
-
   const loadData = useCallback(async () => {
     try {
-      if (user) {
-        try {
-          const apps = await plnService.getMyApplications();
-          setMyApplicationsCount(Array.isArray(apps) ? apps.length : 0);
-        } catch {
-          setMyApplicationsCount(0);
-        }
-      } else {
-        setMyApplicationsCount(null);
-      }
+      // Home screen data load (reserved for future use)
     } catch (err) {
       console.warn('HomeScreen data load:', err?.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -84,8 +62,7 @@ export default function HomeScreen({ navigation }) {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData();
-    refreshNews();
-  }, [loadData, refreshNews]);
+  }, [loadData]);
 
   const openLink = async (url) => {
     try {
@@ -199,71 +176,24 @@ export default function HomeScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={24} color={colors.primary} />
             </View>
           </UnifiedCard>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Latest News</Text>
-          <Text style={styles.sectionSubtitle}>Stay informed</Text>
-
-          {latestNews.length > 0 ? (
-            latestNews.map((item) => (
-              <NewsCard
-                key={item.id}
-                title={item.title}
-                excerpt={item.getShortExcerpt?.() || item.excerpt}
-                thumbnail={item.hasImage?.() ? item.imageUrl : null}
-                date={item.getTimeAgo?.() || item.getFormattedDate?.()}
-                category={item.category}
-                onPress={() =>
-                  navigation.navigate('News', {
-                    screen: 'NewsDetail',
-                    params: { article: item },
-                  })
-                }
-                style={styles.newsCard}
-              />
-            ))
-          ) : null}
-          <UnifiedCard
-            variant="outlined"
-            padding="medium"
-            onPress={() => navigation.navigate('News', { screen: 'NewsList' })}
-            accessible
-            accessibilityLabel="View all news"
-            style={styles.viewAllCard}
-          >
-            <View style={styles.linkRow}>
-              <Ionicons name="newspaper-outline" size={22} color={colors.primary} />
-              <Text style={styles.linkLabel}>View all news</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </View>
-          </UnifiedCard>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Services</Text>
 
           <UnifiedCard
             variant="elevated"
             padding="large"
-            onPress={() => navigation.navigate('Applications')}
+            onPress={() => navigation.navigate('Feedback')}
             accessible
-            accessibilityLabel="Applications portal"
+            accessibilityLabel="Send feedback"
+            style={styles.quickActionCard}
           >
-            <View style={styles.serviceRow}>
-              <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
-                <Ionicons name="folder-open-outline" size={24} color={colors.primary} />
+            <View style={styles.quickActionContent}>
+              <View style={[styles.quickActionIconWrap, { backgroundColor: colors.primary + '25' }]}>
+                <Ionicons name="chatbubble-ellipses-outline" size={32} color={colors.primary} />
               </View>
-              <View style={styles.serviceText}>
-                <Text style={styles.serviceTitle}>Applications</Text>
-                <Text style={styles.serviceMeta}>
-                  PLN, vehicle registration & more
-                  {myApplicationsCount !== null && myApplicationsCount > 0 && (
-                    <Text style={styles.badgeText}> · {myApplicationsCount} yours</Text>
-                  )}
-                </Text>
+              <View style={styles.quickActionText}>
+                <Text style={styles.quickActionTitle}>Feedback</Text>
+                <Text style={styles.quickActionMeta}>Share your thoughts & help us improve</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              <Ionicons name="chevron-forward" size={24} color={colors.primary} />
             </View>
           </UnifiedCard>
         </View>
@@ -428,6 +358,13 @@ function SideDrawer({ visible, onClose, userName, navigation, openLink, colors, 
               icon="settings-outline"
               label="Settings"
               onPress={() => handleItemPress(() => navigation.navigate('Settings'))}
+              colors={colors}
+            />
+            <DrawerItem
+              icon="help-circle-outline"
+              label="FAQs"
+              sublabel="Frequently asked questions"
+              onPress={() => handleItemPress(() => navigation.navigate('FAQs'))}
               colors={colors}
             />
 
@@ -695,12 +632,6 @@ function getStyles(colors, insets) {
       ...typography.caption,
       color: colors.textMuted,
       marginBottom: spacing.lg,
-    },
-    newsCard: {
-      marginBottom: spacing.lg,
-    },
-    viewAllCard: {
-      marginBottom: 0,
     },
     quickActionCard: {
       marginBottom: spacing.lg,

@@ -22,6 +22,7 @@ import {
 } from '../components/UnifiedDesignSystem';
 
 import { SearchInput } from '../components/SearchInput';
+import { FilterDropdownBox } from '../components/FilterDropdownBox';
 import { NoDataDisplay } from '../components/NoDataDisplay';
 import { LoadingOverlay } from '../components';
 import { CachedImage } from '../components/CachedImage';
@@ -185,7 +186,9 @@ export default function MyReportsScreen({ navigation }) {
           <View style={styles.searchInputContainer}>
             <SearchInput
               placeholder="Search by road, location, or reference code..."
+              value={searchQuery}
               onSearch={setSearchQuery}
+              onChangeTextImmediate={setSearchQuery}
               onClear={() => setSearchQuery('')}
               style={styles.searchInput}
               accessibilityLabel="Search reports"
@@ -197,50 +200,18 @@ export default function MyReportsScreen({ navigation }) {
         {reports.length > 0 && (
           <>
             <View style={styles.toolbarRow}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterContainer}
-              >
-                <TouchableOpacity
-                  style={[styles.filterChip, selectedFilter === 'All' && styles.filterChipActive]}
-                  onPress={() => setSelectedFilter('All')}
-                >
-                  <Text style={[styles.filterChipText, selectedFilter === 'All' && styles.filterChipTextActive]}>
-                    All
-                  </Text>
-                </TouchableOpacity>
-                {statusFilters
-                  .filter((f) => f !== 'All')
-                  .map((filter) => {
-                    const statusValue = filter.toLowerCase().replace(' ', '-');
-                    const statusColor = getStatusColor(statusValue, colors);
-                    return (
-                      <TouchableOpacity
-                        key={filter}
-                        style={[
-                          styles.filterChip,
-                          selectedFilter === filter && styles.filterChipActive,
-                          selectedFilter === filter && {
-                            backgroundColor: statusColor + '20',
-                            borderColor: statusColor,
-                          },
-                        ]}
-                        onPress={() => setSelectedFilter(selectedFilter === filter ? 'All' : filter)}
-                      >
-                        <Text
-                          style={[
-                            styles.filterChipText,
-                            selectedFilter === filter && styles.filterChipTextActive,
-                            selectedFilter === filter && { color: statusColor },
-                          ]}
-                        >
-                          {filter}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-              </ScrollView>
+              <View style={styles.filterDropdownWrap}>
+                <FilterDropdownBox
+                  label="Status"
+                  placeholder="All statuses"
+                  value={selectedFilter === 'All' ? null : selectedFilter}
+                  options={statusFilters}
+                  nullMapsToOption="All"
+                  onSelect={setSelectedFilter}
+                  onClear={() => setSelectedFilter('All')}
+                  accessibilityLabel="Filter reports by status"
+                />
+              </View>
               <TouchableOpacity
                 style={styles.sortButton}
                 onPress={() => setSortOrder((s) => (s === 'newest' ? 'oldest' : 'newest'))}
@@ -416,41 +387,11 @@ function getStyles(colors) {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: spacing.sm,
-    },
-    filterContainer: {
-      flex: 1,
-      paddingVertical: spacing.sm,
-      flexDirection: 'row',
-      flexWrap: 'nowrap',
       gap: spacing.sm,
     },
-    filterChip: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: 8,
-      backgroundColor: colors.cardBackground,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginRight: spacing.sm,
-      minWidth: 70,
-      height: 36,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    filterChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    filterChipText: {
-      ...typography.bodySmall,
-      fontWeight: '500',
-      color: colors.textSecondary,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    filterChipTextActive: {
-      color: colors.textInverse || '#FFFFFF',
-      fontWeight: '600',
+    filterDropdownWrap: {
+      flex: 1,
+      minWidth: 0,
     },
     sortButton: {
       flexDirection: 'row',

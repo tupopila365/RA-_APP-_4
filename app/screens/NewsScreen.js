@@ -88,7 +88,9 @@ export default function NewsScreen({ navigation }) {
         <View style={styles.searchContainer}>
           <SearchInput
             placeholder="Search articles..."
+            value={searchQuery}
             onSearch={handleSearch}
+            onChangeTextImmediate={setSearchQuery}
             onClear={clearSearch}
             style={styles.searchInput}
             accessibilityLabel="Search news articles"

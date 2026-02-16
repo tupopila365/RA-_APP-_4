@@ -1,13 +1,24 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, useColorScheme, View } from 'react-native';
+import React, { useRef, useCallback } from 'react';
+import { 
+  Pressable, 
+  Text, 
+  StyleSheet, 
+  View, 
+  Platform,
+  Animated,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RATheme } from '../theme/colors';
-import SkeletonLoader from './SkeletonLoader';
+import { useTheme } from '../hooks/useTheme';
+import { typography } from '../theme/typography';
+import { spacing } from '../theme/spacing';
+import { borderRadius } from '../theme/borderRadius';
 
 /**
  * DownloadButton Component
  * 
- * A reusable button component for downloading documents with progress indication.
+ * A specialized button for downloading documents with progress indication.
+ * Follows Apple HIG with 44pt minimum touch target and modern design.
  * 
  * @param {Function} onPress - Callback function when button is pressed
  * @param {boolean} isDownloading - Whether a download is currently in progress
@@ -26,52 +37,96 @@ export function DownloadButton({
   style,
   testID,
 }) {
-  const colorScheme = useColorScheme();
-  const colors = RATheme[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { colors } = useTheme();
   const styles = getStyles(colors);
+  
+  // Animation for press feedback
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  }, [scaleAnim]);
 
   const isDisabled = disabled || isDownloading;
 
   return (
     <View>
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={isDisabled}
-        activeOpacity={0.7}
-        style={[
-          styles.downloadButton,
-          { backgroundColor: colors.primary },
-          isDisabled && styles.downloadButtonDisabled,
-          style,
-        ]}
-        testID={testID}
-        accessible={true}
-        accessibilityLabel={isDownloading ? `Downloading ${progress}%` : label}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isDisabled }}
-      >
-        {isDownloading ? (
-          <>
-            <SkeletonLoader type="circle" width={16} height={16} testID={`${testID}-activity-indicator`} />
-            <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail">
-              Downloading {progress}%
-            </Text>
-          </>
-        ) : (
-          <>
-            <Ionicons name="download-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.downloadButtonText} numberOfLines={1} ellipsizeMode="tail">
-              {label}
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          disabled={isDisabled}
+          style={({ pressed }) => [
+            styles.downloadButton,
+            isDisabled && styles.downloadButtonDisabled,
+            pressed && !isDisabled && { backgroundColor: colors.primaryDark },
+            style,
+          ]}
+          testID={testID}
+          accessible={true}
+          accessibilityLabel={isDownloading ? `Downloading ${progress}%` : label}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isDisabled, busy: isDownloading }}
+          accessibilityHint="Downloads the document to your device"
+        >
+          <View style={styles.buttonContent}>
+            {isDownloading ? (
+              <>
+                <ActivityIndicator 
+                  size="small" 
+                  color={colors.textInverse} 
+                  testID={`${testID}-activity-indicator`}
+                />
+                <Text 
+                  style={styles.downloadButtonText} 
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={1.3}
+                >
+                  Downloading {Math.round(progress)}%
+                </Text>
+              </>
+            ) : (
+              <>
+                <Ionicons 
+                  name="download-outline" 
+                  size={20} 
+                  color={colors.textInverse} 
+                />
+                <Text 
+                  style={styles.downloadButtonText} 
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={1.3}
+                >
+                  {label}
+                </Text>
+              </>
+            )}
+          </View>
+        </Pressable>
+      </Animated.View>
+      
+      {/* Progress bar shown during download */}
       {isDownloading && (
         <View style={styles.progressBarContainer} testID={`${testID}-progress-container`}>
-          <View
+          <Animated.View
             style={[
               styles.progressBar,
-              { width: `${progress}%`, backgroundColor: colors.primary },
+              { width: `${progress}%` },
             ]}
             testID={`${testID}-progress-bar`}
           />
@@ -84,30 +139,58 @@ export function DownloadButton({
 const getStyles = (colors) =>
   StyleSheet.create({
     downloadButton: {
+      backgroundColor: colors.primary,
+      borderRadius: borderRadius.lg, // 12pt - consistent with UnifiedButton
+      minHeight: 50, // Above 44pt minimum touch target
+      paddingHorizontal: spacing.xl, // 20pt
+      paddingVertical: spacing.md,   // 12pt
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+    },
+    buttonContent: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
-      borderRadius: 10,
     },
     downloadButtonDisabled: {
-      opacity: 0.7,
+      backgroundColor: colors.disabledBackground,
+      opacity: 0.6,
+      ...Platform.select({
+        ios: {
+          shadowOpacity: 0,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     downloadButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
+      ...typography.button,
+      color: colors.textInverse,
       fontWeight: '600',
-      marginLeft: 8,
+      marginLeft: spacing.sm, // 8pt
     },
     progressBarContainer: {
       height: 4,
-      backgroundColor: colors.border,
-      borderRadius: 2,
-      marginTop: 8,
+      backgroundColor: colors.backgroundTertiary,
+      borderRadius: borderRadius.sm, // 4pt
+      marginTop: spacing.sm, // 8pt
       overflow: 'hidden',
     },
     progressBar: {
       height: '100%',
-      borderRadius: 2,
+      backgroundColor: colors.primary,
+      borderRadius: borderRadius.sm, // 4pt
     },
   });

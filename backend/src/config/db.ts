@@ -67,6 +67,7 @@ import { Vacancy } from '../modules/vacancies/vacancies.entity';
 import { VehicleReg } from '../modules/vehicle-reg/vehicle-reg.entity';
 import { RAService } from '../modules/ra-services/ra-services.entity';
 import { FileStorage } from '../modules/file-storage/file-storage.entity';
+import { Feedback } from '../modules/feedback/feedback.entity';
 
 const entities = [
   User,
@@ -93,6 +94,7 @@ const entities = [
   VehicleReg,
   RAService,
   FileStorage,
+  Feedback,
 ];
 
 const typeormBaseOptions = {

@@ -27,7 +27,6 @@ export default function SettingsScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const { user, logout } = useAppContext();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
   useEffect(() => {
     // Check notification permissions
@@ -88,16 +87,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleDarkModeToggle = (value) => {
-    setDarkModeEnabled(value);
-    // Note: In a real app, you'd save this preference and update the theme
-    // For now, this is handled by the system color scheme
-    Alert.alert(
-      'Theme Changed',
-      'Please restart the app to apply the theme change, or use your device settings to change the system theme.'
-    );
-  };
-
   const handleLogout = () => {
     Alert.alert(
       'Sign Out',
@@ -155,45 +144,6 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <UnifiedCard variant="default" padding="medium" style={styles.quickActionsCard}>
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity 
-              style={styles.quickActionItem}
-              onPress={() => navigation.navigate('MyReports')}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
-                <Ionicons name="document-text-outline" size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.quickActionText}>My Reports</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.quickActionItem}
-              onPress={() => navigation.navigate('Notifications')}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
-                <Ionicons name="notifications-outline" size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.quickActionText}>Alerts</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
-              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
-                <Ionicons name="help-circle-outline" size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.quickActionText}>Help</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionItem}>
-              <View style={[styles.quickActionIcon, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary }]}>
-                <Ionicons name="chatbubble-outline" size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.quickActionText}>Support</Text>
-            </TouchableOpacity>
-          </View>
-          </UnifiedCard>
-        </View>
-
         {/* Account */}
         {user && (
           <View style={styles.section}>
@@ -222,24 +172,6 @@ export default function SettingsScreen() {
               value={notificationsEnabled}
               onToggle={handleNotificationToggle}
               colors={colors}
-            />
-            <SettingsItem
-              icon="moon-outline"
-              title="Dark Mode"
-              subtitle="Switch between light and dark theme"
-              type="toggle"
-              value={darkModeEnabled}
-              onToggle={handleDarkModeToggle}
-              colors={colors}
-              showDivider
-            />
-            <SettingsItem
-              icon="language-outline"
-              title="Language"
-              subtitle="English"
-              onPress={() => Alert.alert('Language', 'Language settings coming soon')}
-              colors={colors}
-              showDivider
             />
           </UnifiedCard>
         </View>
@@ -440,35 +372,6 @@ function getStyles(colors, screenWidth) {
     },
     profileEditButton: {
       padding: 8,
-    },
-    
-    quickActionsCard: {
-      marginBottom: 0,
-    },
-    quickActionsGrid: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      flexWrap: 'wrap',
-    },
-    quickActionItem: {
-      width: (screenWidth - 60) / 4,
-      alignItems: 'center',
-      marginBottom: 16,
-    },
-    quickActionIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    quickActionText: {
-      ...typography.caption,
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.text,
-      textAlign: 'center',
     },
     section: {
       marginBottom: spacing.xl,

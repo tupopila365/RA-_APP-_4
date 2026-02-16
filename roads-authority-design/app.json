@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Roads Authority Design",
+    "slug": "roads-authority-design",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#00B4E6"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.roadsauthority.design",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take a photo of road damage",
+        "NSPhotoLibraryUsageDescription": "Choose a photo of road damage",
+        "NSLocationWhenInUseUsageDescription": "Report location of road damage"
+      }
+    },
+    "android": {
+      "adaptiveIcon": { "backgroundColor": "#00B4E6" },
+      "package": "com.roadsauthority.design",
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "web": {}
+  }
+}

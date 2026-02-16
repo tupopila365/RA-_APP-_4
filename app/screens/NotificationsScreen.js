@@ -21,6 +21,7 @@ import {
   typography,
   spacing,
 } from '../components/UnifiedDesignSystem';
+import { FilterDropdownBox } from '../components/FilterDropdownBox';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorState } from '../components/ErrorState';
 import { NoDataDisplay } from '../components/NoDataDisplay';
@@ -215,29 +216,18 @@ export default function NotificationsScreen({ navigation }) {
         {notifications.length > 0 && (
           <>
             <View style={styles.toolbarRow}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterContainer}
-              >
-                {TYPE_FILTERS.map((filter) => (
-                  <TouchableOpacity
-                    key={filter}
-                    style={[styles.filterChip, selectedFilter === filter && styles.filterChipActive]}
-                    onPress={() => setSelectedFilter(filter)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        selectedFilter === filter && styles.filterChipTextActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {filter}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <View style={styles.filterDropdownWrap}>
+                <FilterDropdownBox
+                  label="Type"
+                  placeholder="All types"
+                  value={selectedFilter === 'All' ? null : selectedFilter}
+                  options={TYPE_FILTERS}
+                  nullMapsToOption="All"
+                  onSelect={setSelectedFilter}
+                  onClear={() => setSelectedFilter('All')}
+                  accessibilityLabel="Filter alerts by type"
+                />
+              </View>
               <TouchableOpacity
                 style={styles.clearButton}
                 onPress={handleClearAll}
@@ -426,39 +416,11 @@ function getStyles(colors) {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: spacing.sm,
-    },
-    filterContainer: {
-      flex: 1,
-      flexDirection: 'row',
-      paddingVertical: spacing.sm,
       gap: spacing.sm,
     },
-    filterChip: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: 8,
-      backgroundColor: colors.cardBackground,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginRight: spacing.sm,
-      minWidth: 72,
-      height: 36,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    filterChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    filterChipText: {
-      ...typography.bodySmall,
-      fontWeight: '500',
-      color: colors.textSecondary,
-      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    },
-    filterChipTextActive: {
-      color: colors.textInverse || '#FFFFFF',
-      fontWeight: '600',
+    filterDropdownWrap: {
+      flex: 1,
+      minWidth: 0,
     },
     clearButton: {
       flexDirection: 'row',

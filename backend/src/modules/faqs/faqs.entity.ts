@@ -7,7 +7,7 @@ import {
   Index,
 } from 'typeorm';
 
-@Entity('faqs')
+@Entity('faqs') // feedback entity is in modules/feedback
 @Index(['category'])
 @Index(['order'])
 @Index(['createdAt'])

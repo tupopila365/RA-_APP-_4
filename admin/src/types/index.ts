@@ -167,6 +167,7 @@ export type Permission =
   | 'procurement:plan:manage'
   | 'procurement:awards:manage'
   | 'procurement:opening-register:manage'
-  | 'ra-services:manage';
+  | 'ra-services:manage'
+  | 'feedback:manage';
 
 export type Role = 'super-admin' | 'admin';

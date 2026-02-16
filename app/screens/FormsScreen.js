@@ -187,7 +187,9 @@ export default function FormsScreen() {
         <View style={styles.searchContainer}>
           <SearchInput
             placeholder="Search forms or documents..."
+            value={searchQuery}
             onSearch={setSearchQuery}
+            onChangeTextImmediate={setSearchQuery}
             onClear={() => setSearchQuery('')}
             style={styles.searchInput}
             accessibilityLabel="Search forms"

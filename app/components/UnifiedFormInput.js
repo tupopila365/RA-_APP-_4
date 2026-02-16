@@ -1,16 +1,41 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Platform,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
+import { borderRadius } from '../theme/borderRadius';
+
+/**
+ * Unified Form Input Component - Bank-grade, Government-ready
+ * 
+ * Redesigned following Apple Human Interface Guidelines:
+ * - Minimum 52pt height for comfortable touch targets
+ * - 12pt corner radius matching button design
+ * - Smooth focus animation with color transition
+ * - Clear label above field (not placeholder)
+ * - WCAG AA compliant error states
+ * - Character count for inputs with maxLength
+ * 
+ * @example
+ * <UnifiedFormInput
+ *   label="Email Address"
+ *   value={email}
+ *   onChangeText={setEmail}
+ *   keyboardType="email-address"
+ *   leftIcon="mail-outline"
+ *   error={emailError}
+ *   required
+ * />
+ */
 
 // Memoize styles per color scheme to avoid recreating on every render
 const stylesCache = new Map();
@@ -23,16 +48,22 @@ function getStyles(colors) {
 
   const styles = StyleSheet.create({
     container: {
-      marginBottom: spacing.lg,
+      marginBottom: spacing.lg, // 16pt
+    },
+
+    // Label row with optional required indicator
+    labelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm, // 8pt
     },
 
     label: {
-      ...typography.bodySmall,
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: spacing.sm,
-      letterSpacing: 0.2,
+      letterSpacing: 0.1,
       ...Platform.select({
         ios: { fontFamily: 'System' },
         android: { fontFamily: 'Roboto' },
@@ -47,59 +78,101 @@ function getStyles(colors) {
       color: colors.error,
     },
 
+    requiredIndicator: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.error,
+      marginLeft: 2,
+    },
+
+    optionalText: {
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+      fontStyle: 'italic',
+    },
+
+    // Input wrapper with focus and error states
     inputWrapper: {
       backgroundColor: colors.inputBackground,
-      borderRadius: 12,
+      borderRadius: borderRadius.lg, // 12pt - consistent with buttons
       borderWidth: 1.5,
-      borderColor: colors.border,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: Platform.OS === 'android' ? 0 : 1,
+      borderColor: colors.inputBorder,
       flexDirection: 'row',
       alignItems: 'center',
+      overflow: 'hidden',
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 2,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
 
     inputWrapperFocused: {
-      borderColor: colors.primary,
+      borderColor: colors.inputBorderFocus,
       borderWidth: 2,
-      backgroundColor: colors.backgroundSecondary,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 3,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
     },
 
     inputWrapperError: {
-      borderColor: colors.error,
-      shadowColor: colors.error,
+      borderColor: colors.inputBorderError,
+      borderWidth: 2,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.error,
+          shadowOpacity: 0.1,
+        },
+      }),
     },
 
     inputWrapperDisabled: {
-      backgroundColor: colors.background,
-      opacity: 0.7,
+      backgroundColor: colors.disabledBackground,
+      borderColor: colors.border,
+      opacity: 0.6,
     },
 
+    // Icon containers
     leftIconContainer: {
-      paddingLeft: spacing.md,
-      paddingRight: spacing.sm,
+      paddingLeft: spacing.lg,  // 16pt
+      paddingRight: spacing.xs, // 4pt
+      justifyContent: 'center',
+      alignItems: 'center',
     },
 
     rightIconContainer: {
-      paddingRight: spacing.md,
-      paddingLeft: spacing.sm,
+      paddingRight: spacing.md, // 12pt
+      paddingLeft: spacing.xs,  // 4pt
+      minWidth: 44,             // Touch target
+      minHeight: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
 
+    // Input field
     input: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      fontSize: 16,
-      color: colors.text,
-      minHeight: 52,
-      lineHeight: 22,
       flex: 1,
+      paddingHorizontal: spacing.lg, // 16pt
+      paddingVertical: spacing.md,   // 12pt
+      fontSize: 16,
+      lineHeight: 22,
+      color: colors.text,
+      minHeight: 52, // Above 44pt minimum + padding
       ...Platform.select({
         ios: { fontFamily: 'System' },
         android: { fontFamily: 'Roboto' },
@@ -107,45 +180,71 @@ function getStyles(colors) {
     },
 
     inputWithLeftIcon: {
-      paddingLeft: 0,
+      paddingLeft: spacing.sm, // 8pt (icon provides left padding)
     },
 
     inputWithRightIcon: {
-      paddingRight: 0,
+      paddingRight: spacing.xs, // 4pt (icon button provides right padding)
     },
 
     inputMultiline: {
       minHeight: 120,
+      paddingTop: spacing.md, // 12pt
       textAlignVertical: 'top',
     },
 
-    inputError: {
-      color: colors.text,
+    inputDisabled: {
+      color: colors.textDisabled,
     },
 
-    inputDisabled: {
-      color: colors.textSecondary,
+    // Bottom row: error/helper text + character count
+    bottomRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm, // 8pt
+      minHeight: 18,
     },
 
     errorContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: spacing.xs + 2,
-    },
-
-    errorText: {
-      ...typography.caption,
-      fontSize: 12,
-      color: colors.error,
-      marginLeft: spacing.xs,
       flex: 1,
     },
 
+    errorIcon: {
+      marginRight: spacing.xs, // 4pt
+    },
+
+    errorText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.error,
+      flex: 1,
+      lineHeight: 18,
+    },
+
     helperText: {
-      ...typography.caption,
-      fontSize: 12,
+      fontSize: 13,
+      fontWeight: '400',
       color: colors.textSecondary,
-      marginTop: spacing.xs + 2,
+      flex: 1,
+      lineHeight: 18,
+    },
+
+    characterCount: {
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+      marginLeft: spacing.sm,
+    },
+
+    characterCountWarning: {
+      color: colors.warning,
+    },
+
+    characterCountError: {
+      color: colors.error,
     },
   });
 
@@ -171,42 +270,101 @@ export const UnifiedFormInput = React.memo(function UnifiedFormInput({
   rightIcon,
   onRightIconPress,
   required = false,
+  optional = false, // Shows "(optional)" text
   helperText,
+  showCharacterCount = false, // Shows character count when maxLength is set
   testID,
   accessibilityLabel,
+  accessibilityHint,
   ...props
 }) {
   const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const inputRef = useRef(null);
+  
+  // Animation for focus state
+  const focusAnim = useRef(new Animated.Value(0)).current;
   
   // Memoize styles to prevent recreation on every render
   const styles = useMemo(() => getStyles(colors), [colors.primary, colors.text, colors.border]);
 
   const hasValue = useMemo(() => value?.length > 0, [value]);
   const showPasswordToggle = secureTextEntry;
+  const characterCount = value?.length || 0;
+  
+  // Character count thresholds for styling
+  const isNearLimit = maxLength && characterCount >= maxLength * 0.85;
+  const isAtLimit = maxLength && characterCount >= maxLength;
 
   // Memoize callbacks to prevent unnecessary re-renders
-  const handleFocus = useCallback(() => setIsFocused(true), []);
-  const handleBlur = useCallback(() => setIsFocused(false), []);
-  const handlePasswordToggle = useCallback(() => setIsPasswordVisible(prev => !prev), []);
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+    Animated.spring(focusAnim, {
+      toValue: 1,
+      useNativeDriver: false,
+      speed: 20,
+      bounciness: 0,
+    }).start();
+  }, [focusAnim]);
+  
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+    Animated.spring(focusAnim, {
+      toValue: 0,
+      useNativeDriver: false,
+      speed: 20,
+      bounciness: 0,
+    }).start();
+  }, [focusAnim]);
+  
+  const handlePasswordToggle = useCallback(() => {
+    setIsPasswordVisible(prev => !prev);
+  }, []);
+
+  // Tap on wrapper focuses input
+  const handleWrapperPress = useCallback(() => {
+    if (editable && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editable]);
+
+  // Determine icon color based on state
+  const getIconColor = useCallback((isLeft = true) => {
+    if (!editable) return colors.textDisabled;
+    if (error) return colors.error;
+    if (isFocused) return colors.primary;
+    return colors.textSecondary;
+  }, [colors, editable, error, isFocused]);
 
   return (
     <View style={[styles.container, style]} testID={testID}>
+      {/* Label row */}
       {label && (
-        <Text
-          style={[
-            styles.label,
-            (isFocused || hasValue) && styles.labelFocused,
-            error && styles.labelError,
-          ]}
-        >
-          {label}
-          {required && ' *'}
-        </Text>
+        <View style={styles.labelRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text
+              style={[
+                styles.label,
+                isFocused && styles.labelFocused,
+                error && styles.labelError,
+              ]}
+            >
+              {label}
+            </Text>
+            {required && (
+              <Text style={styles.requiredIndicator}>*</Text>
+            )}
+          </View>
+          {optional && !required && (
+            <Text style={styles.optionalText}>Optional</Text>
+          )}
+        </View>
       )}
 
-      <View
+      {/* Input wrapper - tappable to focus */}
+      <Pressable
+        onPress={handleWrapperPress}
         style={[
           styles.inputWrapper,
           isFocused && styles.inputWrapperFocused,
@@ -214,26 +372,31 @@ export const UnifiedFormInput = React.memo(function UnifiedFormInput({
           !editable && styles.inputWrapperDisabled,
         ]}
       >
+        {/* Left icon */}
         {leftIcon && (
           <View style={styles.leftIconContainer}>
-            <Ionicons name={leftIcon} size={20} color={colors.textSecondary} />
+            <Ionicons 
+              name={leftIcon} 
+              size={20} 
+              color={getIconColor(true)} 
+            />
           </View>
         )}
 
+        {/* Text input */}
         <TextInput
+          ref={inputRef}
           style={[
             styles.input,
             multiline && styles.inputMultiline,
-            error && styles.inputError,
             !editable && styles.inputDisabled,
             leftIcon && styles.inputWithLeftIcon,
             (showPasswordToggle || rightIcon) && styles.inputWithRightIcon,
-            { backgroundColor: 'transparent' },
           ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.textSecondary}
+          placeholderTextColor={colors.textMuted}
           multiline={multiline}
           numberOfLines={multiline ? numberOfLines : 1}
           keyboardType={keyboardType}
@@ -244,50 +407,89 @@ export const UnifiedFormInput = React.memo(function UnifiedFormInput({
           textAlignVertical={multiline ? 'top' : 'center'}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          accessible={true}
           accessibilityLabel={accessibilityLabel || label}
+          accessibilityHint={accessibilityHint}
+          accessibilityState={{
+            disabled: !editable,
+          }}
           underlineColorAndroid="transparent"
           selectionColor={colors.primary}
           cursorColor={colors.primary}
           importantForAutofill="no"
+          maxFontSizeMultiplier={1.3}
           {...props}
         />
 
+        {/* Password toggle button */}
         {showPasswordToggle && (
-          <TouchableOpacity
+          <Pressable
             style={styles.rightIconContainer}
             onPress={handlePasswordToggle}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessible={true}
             accessibilityRole="button"
+            accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}
           >
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={22}
-              color={colors.textSecondary}
+              color={getIconColor(false)}
             />
-          </TouchableOpacity>
+          </Pressable>
         )}
 
+        {/* Right icon button */}
         {rightIcon && !showPasswordToggle && (
-          <TouchableOpacity
+          <Pressable
             style={styles.rightIconContainer}
             onPress={onRightIconPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessible={true}
             accessibilityRole="button"
           >
-            <Ionicons name={rightIcon} size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
+            <Ionicons 
+              name={rightIcon} 
+              size={22} 
+              color={getIconColor(false)} 
+            />
+          </Pressable>
         )}
-      </View>
+      </Pressable>
 
-      {error && (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={16} color={colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
+      {/* Bottom row: error/helper text + character count */}
+      {(error || helperText || (showCharacterCount && maxLength)) && (
+        <View style={styles.bottomRow}>
+          {/* Error message */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons 
+                name="alert-circle" 
+                size={16} 
+                color={colors.error} 
+                style={styles.errorIcon}
+              />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : helperText ? (
+            <Text style={styles.helperText}>{helperText}</Text>
+          ) : (
+            <View style={{ flex: 1 }} />
+          )}
+
+          {/* Character count */}
+          {showCharacterCount && maxLength && (
+            <Text 
+              style={[
+                styles.characterCount,
+                isNearLimit && !isAtLimit && styles.characterCountWarning,
+                isAtLimit && styles.characterCountError,
+              ]}
+            >
+              {characterCount}/{maxLength}
+            </Text>
+          )}
         </View>
-      )}
-
-      {helperText && !error && (
-        <Text style={styles.helperText}>{helperText}</Text>
       )}
     </View>
   );

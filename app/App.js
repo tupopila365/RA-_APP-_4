@@ -43,8 +43,8 @@ import PLNInfoScreen from './screens/PLNInfoScreen';
 import PLNApplicationScreenEnhanced from './screens/PLNApplicationScreenEnhanced';
 import PLNWizardScreen from './screens/PLNWizardScreen';
 import PLNConfirmationScreen from './screens/PLNConfirmationScreen';
-import PLNTrackingScreen from './screens/PLNTrackingScreen';
 import MyApplicationsScreen from './screens/MyApplicationsScreen';
+import ApplicationStatusScreen from './screens/ApplicationStatusScreen';
 import VehicleRegistrationInfoScreen from './screens/VehicleRegistrationInfoScreen';
 import VehicleRegistrationWizardScreen from './screens/VehicleRegistrationWizardScreen';
 import RAServicesScreen from './screens/RAServicesScreen';
@@ -58,6 +58,8 @@ import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
 import NotificationPermissionScreen from './screens/NotificationPermissionScreen';
 import LocationPermissionScreen from './screens/LocationPermissionScreen';
+import FeedbackScreen from './screens/FeedbackScreen';
+import PaymentScreen from './screens/PaymentScreen';
 import { RATheme } from './theme/colors';
 import { LowerNavigationClean } from './components/LowerNavigationClean';
 import { NavigationHeader } from './components/NavigationHeader';
@@ -297,6 +299,11 @@ function AppNavigator() {
         options={{ title: 'FAQs' }}
       />
       <Stack.Screen 
+        name="Feedback" 
+        component={FeedbackScreen}
+        options={{ title: 'Feedback' }}
+      />
+      <Stack.Screen 
         name="Vacancies" 
         component={VacanciesScreen}
         options={{ title: 'Careers' }}
@@ -396,14 +403,19 @@ function AppNavigator() {
         options={{ title: 'Application Submitted' }}
       />
       <Stack.Screen 
-        name="PLNTracking" 
-        component={PLNTrackingScreen}
+        name="Payment" 
+        component={PaymentScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="MyApplications" 
         component={MyApplicationsScreen}
         options={{ title: 'My Applications' }}
+      />
+      <Stack.Screen 
+        name="ApplicationStatus" 
+        component={ApplicationStatusScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="VehicleRegistrationInfo" 

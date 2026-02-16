@@ -36,7 +36,7 @@ export default function PLNInfoScreen({ navigation }) {
   };
 
   const handleTrackApplication = () => {
-    navigation.navigate('PLNTracking');
+    navigation.navigate('MyApplications');
   };
 
   const handleDownloadForm = async () => {

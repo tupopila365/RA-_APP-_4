@@ -289,7 +289,9 @@ export default function FindOfficesScreen() {
         <View style={styles.searchInputContainer}>
           <SearchInput
             placeholder="Search offices, regions, or services..."
+            value={searchQuery}
             onSearch={setSearchQuery}
+            onChangeTextImmediate={setSearchQuery}
             onClear={() => setSearchQuery('')}
             style={styles.searchInput}
             accessibilityLabel="Search offices"

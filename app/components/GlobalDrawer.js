@@ -201,6 +201,13 @@ export function GlobalDrawer() {
               onPress={() => handleItemPress(() => navigate('Settings'))}
               colors={colors}
             />
+            <DrawerItem
+              icon="help-circle-outline"
+              label="FAQs"
+              sublabel="Frequently asked questions"
+              onPress={() => handleItemPress(() => navigate('FAQs'))}
+              colors={colors}
+            />
 
             <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>EXTERNAL LINKS</Text>
             <DrawerItem

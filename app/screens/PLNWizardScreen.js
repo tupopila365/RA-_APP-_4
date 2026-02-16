@@ -553,8 +553,8 @@ export default function PLNWizardScreen({ navigation }) {
             </View>
 
             <Button
-              title="Track Application"
-              onPress={() => navigation.navigate('PLNTracking', { referenceId, trackingPin })}
+              title="My Applications"
+              onPress={() => navigation.navigate('MyApplications')}
               style={styles.trackButton}
             />
           </View>

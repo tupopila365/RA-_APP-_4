@@ -403,11 +403,11 @@ export default function PLNApplicationWizard({ navigation }) {
       
       Alert.alert(
         'Application Submitted Successfully',
-        `Your PLN application has been submitted.\n\nReference ID: ${response.referenceId}\n\nPlease save this reference number for tracking your application.`,
+        `Your PLN application has been submitted.\n\nReference ID: ${response.referenceId}\n\nSave this reference. View status in My Applications.`,
         [
           {
-            text: 'Track Application',
-            onPress: () => navigation.navigate('PLNTracking', { referenceId: response.referenceId }),
+            text: 'My Applications',
+            onPress: () => navigation.navigate('MyApplications'),
           },
         ]
       );

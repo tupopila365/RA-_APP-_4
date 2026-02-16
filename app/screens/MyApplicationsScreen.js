@@ -106,10 +106,7 @@ export default function MyApplicationsScreen({ navigation }) {
   };
 
   const handleApplicationPress = (app) => {
-    navigation?.navigate('PLNTracking', {
-      referenceId: app?.referenceId ?? '',
-      pin: app?.trackingPin ?? '',
-    });
+    navigation?.navigate('ApplicationStatus', { application: app });
   };
 
   const formatDate = (dateString) => {

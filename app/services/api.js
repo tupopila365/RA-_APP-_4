@@ -173,4 +173,5 @@ export const API_ENDPOINTS = {
   PROCUREMENT_AWARDS_DETAIL: (id) => `/procurement-awards/${id}`,
   PROCUREMENT_OPENING_REGISTER: '/procurement-opening-register',
   PROCUREMENT_OPENING_REGISTER_DETAIL: (id) => `/procurement-opening-register/${id}`,
+  FEEDBACK: '/feedback',
 };

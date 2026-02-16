@@ -428,14 +428,11 @@ export default function PLNApplicationScreenEnhanced({ navigation }) {
       
       Alert.alert(
         'Application Submitted Successfully',
-        `Your PLN application has been submitted.\n\nReference ID: ${response.referenceId}\nTracking PIN: ${response.trackingPin}\n\nPlease save these details for tracking your application.`,
+        `Your PLN application has been submitted.\n\nReference ID: ${response.referenceId}\nTracking PIN: ${response.trackingPin}\n\nSave these details. View status in My Applications.`,
         [
           {
-            text: 'Track Application',
-            onPress: () => navigation.navigate('PLNTracking', { 
-              referenceId: response.referenceId, 
-              trackingPin: response.trackingPin 
-            }),
+            text: 'My Applications',
+            onPress: () => navigation.navigate('MyApplications'),
           },
         ]
       );

@@ -217,7 +217,9 @@ export default function OpeningRegisterScreen() {
         <View style={styles.searchInputContainer}>
           <SearchInput
             placeholder="Search opening register..."
+            value={searchQuery}
             onSearch={setSearchQuery}
+            onChangeTextImmediate={setSearchQuery}
             onClear={() => setSearchQuery('')}
             style={styles.searchInput}
             accessibilityLabel="Search opening register"

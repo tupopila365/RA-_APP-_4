@@ -120,7 +120,9 @@ export default function ApplicationsScreen({ navigation }) {
         <View style={styles.searchContainer}>
           <SearchInput
             placeholder="Search applications..."
+            value={searchQuery}
             onSearch={setSearchQuery}
+            onChangeTextImmediate={setSearchQuery}
             onClear={() => setSearchQuery('')}
             style={styles.searchInput}
             accessibilityLabel="Search applications"

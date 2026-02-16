@@ -20,6 +20,7 @@ import {
   ViewCarousel as BannerIcon,
   LocationOn as LocationIcon,
   HelpOutline as FAQIcon,
+  Feedback as FeedbackIcon,
   People as UsersIcon,
   Warning as PotholeIcon,
   Traffic as RoadStatusIcon,
@@ -107,6 +108,12 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         path: '/faqs',
         icon: <FAQIcon />,
         permission: 'faqs:manage',
+      },
+      {
+        label: 'Feedback',
+        path: '/feedback',
+        icon: <FeedbackIcon />,
+        permission: 'feedback:manage',
       },
       {
         label: 'Pothole Reports',

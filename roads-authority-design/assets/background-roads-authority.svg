@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <defs>
+    <!-- Main gradient: RA Sky Blue -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0099CC"/>
+      <stop offset="50%" style="stop-color:#00B4E6"/>
+      <stop offset="100%" style="stop-color:#33C4ED"/>
+    </linearGradient>
+    <!-- Soft overlay gradient -->
+    <linearGradient id="overlayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.06"/>
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0.03"/>
+    </linearGradient>
+    <!-- Gold accent (Namibian) - very subtle -->
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:0"/>
+      <stop offset="50%" style="stop-color:#FFD700;stop-opacity:0.05"/>
+      <stop offset="100%" style="stop-color:#FFD700;stop-opacity:0"/>
+    </linearGradient>
+    <!-- Radial gradient for ethereal orbs -->
+    <radialGradient id="orbSoft" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.14"/>
+      <stop offset="70%" style="stop-color:#FFFFFF;stop-opacity:0.05"/>
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="orbBlue" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#33C4ED;stop-opacity:0.12"/>
+      <stop offset="100%" style="stop-color:#00B4E6;stop-opacity:0"/>
+    </radialGradient>
+    <!-- Subtle grid -->
+    <pattern id="roadGrid" patternUnits="userSpaceOnUse" width="120" height="120">
+      <path d="M 60 0 L 60 120 M 0 60 L 120 60" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+
+  <!-- Base gradient -->
+  <rect x="0" y="0" width="1080" height="1920" fill="url(#bgGradient)"/>
+
+  <!-- Ethereal shapes layer: ellipses and orbs (professional, soft) -->
+  <ellipse cx="180" cy="320" rx="220" ry="140" fill="url(#orbSoft)" opacity="0.9"/>
+  <ellipse cx="880" cy="480" rx="280" ry="180" fill="url(#orbSoft)" opacity="0.7"/>
+  <ellipse cx="540" cy="1100" rx="320" ry="200" fill="url(#orbBlue)" opacity="0.85"/>
+  <ellipse cx="120" cy="1400" rx="160" ry="100" fill="url(#orbSoft)" opacity="0.6"/>
+  <ellipse cx="920" cy="1580" rx="200" ry="120" fill="url(#orbSoft)" opacity="0.5"/>
+
+  <!-- Organic blob shapes (rounded, flowing) -->
+  <path d="M 0 600 Q 400 520 540 580 Q 700 640 1080 560 L 1080 720 Q 600 680 400 660 Q 200 640 0 680 Z" fill="rgba(255,255,255,0.04)"/>
+  <path d="M 0 1200 Q 300 1140 600 1180 Q 900 1220 1080 1160 L 1080 1320 Q 720 1280 360 1260 Q 0 1240 0 1200 Z" fill="rgba(255,255,255,0.03)"/>
+  <path d="M 1080 200 Q 680 260 400 220 Q 120 180 0 240 L 0 400 Q 500 360 800 380 Q 1080 400 1080 200 Z" fill="rgba(255,255,255,0.035)"/>
+
+  <!-- Geometric accents: soft arcs (professional structure) -->
+  <g fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-linecap="round">
+    <path d="M 0 400 A 400 240 0 0 1 400 200"/>
+    <path d="M 1080 900 A 350 200 0 0 0 680 750"/>
+    <path d="M 540 1800 A 500 180 0 0 1 1080 1650"/>
+  </g>
+
+  <!-- Subtle grid -->
+  <rect x="0" y="0" width="1080" height="1920" fill="url(#roadGrid)"/>
+
+  <!-- Soft overlay -->
+  <rect x="0" y="0" width="1080" height="1920" fill="url(#overlayGradient)"/>
+
+  <!-- Gold accent band (bottom) -->
+  <rect x="0" y="1632" width="1080" height="288" fill="url(#goldAccent)"/>
+
+  <!-- Corner detail: refined quarter-circles -->
+  <g fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1">
+    <path d="M 0 0 L 240 0 M 0 0 L 0 240 M 0 80 A 80 80 0 0 1 80 0"/>
+    <path d="M 1080 0 L 840 0 M 1080 0 L 1080 240 M 1080 80 A 80 80 0 0 0 1000 0"/>
+  </g>
+</svg>

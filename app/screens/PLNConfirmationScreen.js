@@ -13,7 +13,7 @@ export default function PLNConfirmationScreen({ route }) {
   const styles = getStyles(colors);
 
   const handleTrackStatus = () => {
-    navigation.navigate('PLNTracking');
+    navigation.navigate('MyApplications');
   };
 
   const handleDone = () => {
@@ -61,7 +61,7 @@ export default function PLNConfirmationScreen({ route }) {
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Button
-            label="Track Application Status"
+            label="My Applications"
             onPress={handleTrackStatus}
             variant="primary"
             size="large"

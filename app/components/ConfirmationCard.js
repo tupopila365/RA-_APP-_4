@@ -116,7 +116,7 @@ export function ConfirmationCard({
   const styles = getStyles(colors, accentColor);
   const hasCancel = Boolean(cancelLabel && (onCancel || onRequestClose));
   const hasTertiary = Boolean(tertiaryLabel && onTertiary);
-  const useVerticalButtons = hasTertiary;
+  const useVerticalButtons = hasTertiary || hasCancel;
 
   const content = (
     <View style={styles.content}>
@@ -190,22 +190,22 @@ export function ConfirmationCard({
                 </>
               ) : (
                 <>
+                  <UnifiedButton
+                    label={confirmLabel}
+                    variant="primary"
+                    size="medium"
+                    onPress={handleConfirm}
+                    style={useVerticalButtons ? styles.verticalButton : styles.singleButton}
+                  />
                   {hasCancel && (
                     <UnifiedButton
                       label={cancelLabel}
                       variant="outline"
                       size="medium"
                       onPress={handleCancel}
-                      style={styles.cancelButton}
+                      style={useVerticalButtons ? styles.verticalButton : styles.cancelButton}
                     />
                   )}
-                  <UnifiedButton
-                    label={confirmLabel}
-                    variant="primary"
-                    size="medium"
-                    onPress={handleConfirm}
-                    style={hasCancel ? styles.confirmButton : styles.singleButton}
-                  />
                 </>
               )}
             </View>
@@ -228,10 +228,10 @@ function getStyles(colors) {
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContent: {
-      width: '90%',
+      width: '94%',
       maxWidth: 400,
-      marginHorizontal: spacing.xl,
-      alignSelf: 'center',
+      marginHorizontal: spacing.lg,
+      alignSelf: 'stretch',
     },
     content: {
       alignItems: 'center',
@@ -267,21 +267,28 @@ function getStyles(colors) {
       flexDirection: 'row',
       marginTop: spacing.md,
       gap: spacing.sm,
+      width: '100%',
+      alignSelf: 'stretch',
     },
     buttonsVertical: {
       flexDirection: 'column',
     },
     verticalButton: {
       width: '100%',
+      minWidth: 0,
     },
     cancelButton: {
       flex: 1,
+      minWidth: 0,
     },
     confirmButton: {
       flex: 1,
+      minWidth: 0,
     },
     singleButton: {
+      width: '100%',
       flex: 1,
+      minWidth: 0,
     },
   });
 }
