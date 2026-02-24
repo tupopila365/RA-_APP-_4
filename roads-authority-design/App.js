@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Image, Text, Pressable, StyleSheet } from 'react-native';
+import { authService } from './services/authService';
 import { StatusBar } from 'expo-status-bar';
 import { spacing } from './theme/spacing';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,13 +12,17 @@ import {
   BottomNavBar,
 } from './components';
 import { HomeDesignToggle } from './components/HomeDesignToggle';
-import { HomeGridLayout, HomeListLayout, HomeCardsLayout } from './components/HomeScreenLayouts';
+import { ImageSlideshow } from './components/ImageSlideshow';
+import { HomeGridLayout, HomeListLayout, HomeCardsLayout, HomeSimpleTilesLayout, HomeTopicsLayout } from './components/HomeScreenLayouts';
+import { HomeSearchWithSuggestions } from './components/HomeSearchWithSuggestions';
+import { searchAppContent } from './data/searchIndex';
 import { ReportRoadDamageScreen } from './screens/ReportRoadDamageScreen';
-import { FAQsScreen } from './screens/FAQsScreen';
 import { ServicesScreen } from './screens/ServicesScreen';
 import { NewsScreen } from './screens/NewsScreen';
 import { NewsDetailScreen } from './screens/NewsDetailScreen';
 import { FindOfficesScreen } from './screens/FindOfficesScreen';
+import { HelpScreen } from './screens/HelpScreen';
+import { ContactScreen } from './screens/ContactScreen';
 import { FormsScreen } from './screens/FormsScreen';
 import { SignInScreen } from './screens/SignInScreen';
 import { SignUpScreen } from './screens/SignUpScreen';
@@ -25,34 +30,43 @@ import { RoadStatusScreen } from './screens/RoadStatusScreen';
 import { MyReportsScreen } from './screens/MyReportsScreen';
 import { MyReportDetailScreen } from './screens/MyReportDetailScreen';
 import { FeedbackScreen } from './screens/FeedbackScreen';
-import { ApplicationsScreen } from './screens/ApplicationsScreen';
 import { ChatScreen } from './screens/ChatScreen';
 import { PLNApplicationInfoScreen } from './screens/PLNApplicationInfoScreen';
 import { PLNApplicationWizardScreen } from './screens/PLNApplicationWizardScreen';
 import { MyApplicationsScreen } from './screens/MyApplicationsScreen';
 import { ApplicationDetailScreen } from './screens/ApplicationDetailScreen';
+import { PaymentScreen } from './screens/PaymentScreen';
+import { SuccessScreen } from './screens/SuccessScreen';
+import { ReportDamageMapScreen } from './screens/ReportDamageMapScreen';
 
-function buildServiceItems(onReportDamage, onFaq, onServices, onNews, onFindOffices, onForms, onRoadStatus, onMyReports, onApplications) {
+function buildServiceItems(onReportDamage, onServices, onNews, onFindOffices, onForms, onRoadStatus, onMyReports, onFeedback) {
   return [
     { key: 'services', iconName: 'construct-outline', label: 'Services', onPress: onServices },
     { key: 'road-status', iconName: 'trail-sign-outline', label: 'Road Status', onPress: onRoadStatus },
     { key: 'report-damage', iconName: 'warning-outline', label: 'Report Road Damage', onPress: onReportDamage },
     { key: 'reports', iconName: 'document-text-outline', label: 'My Reports', onPress: onMyReports },
-    { key: 'faq', iconName: 'help-circle-outline', label: 'FAQs', onPress: onFaq },
-    { key: 'applications', iconName: 'folder-open-outline', label: 'Applications', onPress: onApplications },
-    { key: 'forms', iconName: 'documents-outline', label: 'Forms', onPress: onForms },
+    { key: 'forms', iconName: 'documents-outline', label: 'Downloads', onPress: onForms },
     { key: 'find-offices', iconName: 'location-outline', label: 'Find Offices', onPress: onFindOffices },
     { key: 'news', iconName: 'newspaper-outline', label: 'News', onPress: onNews },
+    { key: 'feedback', iconName: 'chatbox-ellipses-outline', label: 'Feedback', onPress: onFeedback },
   ];
 }
 
 const NAV_ITEMS = [
-  { key: 'home', iconName: 'home', label: 'Home', onPress: () => {} },
-  { key: 'services', iconName: 'construct-outline', label: 'Services', onPress: () => {} },
-  { key: 'reports', iconName: 'document-text-outline', label: 'Reports', onPress: () => {} },
-  { key: 'find-offices', iconName: 'location-outline', label: 'Offices', onPress: () => {} },
-  { key: 'chat', iconName: 'chatbubble-outline', label: 'Chat', onPress: () => {} },
+  { key: 'home', iconName: 'home-outline', iconNameActive: 'home', label: 'Home', onPress: () => {} },
+  { key: 'services', iconName: 'construct-outline', iconNameActive: 'construct', label: 'Services', onPress: () => {} },
+  { key: 'contact', iconName: 'call-outline', iconNameActive: 'call', label: 'Contact', onPress: () => {} },
+  { key: 'help', iconName: 'help-circle-outline', iconNameActive: 'help-circle', label: 'Help', onPress: () => {} },
+  { key: 'chat', iconName: 'chatbubble-outline', iconNameActive: 'chatbubble', label: 'Chat', onPress: () => {} },
 ];
+
+function getWelcomeMessage(user) {
+  if (!user) return 'Welcome';
+  const name = user.fullName?.trim();
+  if (name) return `Welcome, ${name.split(/\s+/)[0]}`;
+  if (user.email) return `Welcome, ${user.email.split('@')[0]}`;
+  return 'Welcome';
+}
 
 export default function App() {
   const [search, setSearch] = useState('');
@@ -61,28 +75,57 @@ export default function App() {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [lastReportDamageLocation, setLastReportDamageLocation] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [homeDesignOption, setHomeDesignOption] = useState(1);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    authService.getStoredUser().then(setCurrentUser);
+  }, []);
+
+  useEffect(() => {
+    if (screen === 'pln-wizard' && !currentUser) {
+      setScreen('pln-info');
+    }
+  }, [screen, currentUser]);
 
   const serviceItems = buildServiceItems(
     () => setScreen('report-damage'),
-    () => setScreen('faqs'),
     () => setScreen('services'),
     () => setScreen('news'),
     () => setScreen('find-offices'),
-    () => setScreen('forms'),
+    () => setScreen('downloads'),
     () => setScreen('road-status'),
     () => setScreen('my-reports'),
-    () => setScreen('applications')
+    () => setScreen('feedback')
   );
+  const getSearchSuggestions = (query) => searchAppContent(query);
+  const handleSearchSelect = (result) => {
+    setSearch('');
+    if (result.type === 'news') {
+      setSelectedArticle(result.payload);
+      setScreen('news-detail');
+    } else if (result.type === 'faq') {
+      setScreen('help');
+    } else if (result.type === 'form') {
+      setScreen('downloads');
+    } else if (result.type === 'service') {
+      setScreen('services');
+    } else if (result.type === 'road') {
+      setScreen('road-status');
+    } else if (result.type === 'office') {
+      setScreen('find-offices');
+    }
+  };
   const navItems = NAV_ITEMS.map((item) => ({
     ...item,
     onPress: () => {
       setActiveTab(item.key);
       if (item.key === 'home') setScreen('home');
       else if (item.key === 'services') setScreen('services');
-      else if (item.key === 'reports') setScreen('my-reports');
-      else if (item.key === 'find-offices') setScreen('find-offices');
+      else if (item.key === 'contact') setScreen('contact');
+      else if (item.key === 'help') setScreen('help');
       else if (item.key === 'chat') setScreen('chat');
     },
   }));
@@ -93,21 +136,26 @@ export default function App() {
   const isNews = screen === 'news';
   const isNewsDetail = screen === 'news-detail';
   const isFindOffices = screen === 'find-offices';
-  const isForms = screen === 'forms';
+  const isHelp = screen === 'help';
+  const isContact = screen === 'contact';
+  const isForms = screen === 'downloads';
   const isSignIn = screen === 'sign-in';
   const isSignUp = screen === 'sign-up';
   const isRoadStatus = screen === 'road-status';
   const isMyReports = screen === 'my-reports';
   const isMyReportDetail = screen === 'my-report-detail';
   const isFeedback = screen === 'feedback';
-  const isApplications = screen === 'applications';
   const isChat = screen === 'chat';
   const isPlnInfo = screen === 'pln-info';
   const isPlnWizard = screen === 'pln-wizard';
   const isMyApplications = screen === 'my-applications';
   const isApplicationDetail = screen === 'application-detail';
-  const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isApplications || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail;
-  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isForms ? 'Forms' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isApplications ? 'Applications' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : 'Roads Authority';
+  const isPayment = screen === 'payment';
+  const isReportDamageSuccess = screen === 'report-damage-success';
+  const isPlnApplicationSuccess = screen === 'pln-application-success';
+  const isReportDamageMap = screen === 'report-damage-map';
+  const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap;
+  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : 'Roads Authority';
 
   return (
     <SafeAreaProvider>
@@ -115,19 +163,17 @@ export default function App() {
         <StatusBar style="light" />
         <AppHeader
           logo={
-            !isSubScreen ? (
-              <Image
-                source={require('./assets/ra logo.png')}
-                style={styles.headerLogo}
-                resizeMode="contain"
-                accessibilityLabel="Roads Authority logo"
-              />
-            ) : null
+            <Image
+              source={require('./assets/ra logo.png')}
+              style={styles.headerLogo}
+              resizeMode="contain"
+              accessibilityLabel="Roads Authority logo"
+            />
           }
-          welcomeMessage={isSubScreen ? null : 'Welcome'}
+          welcomeMessage={isSubScreen ? null : getWelcomeMessage(currentUser)}
           title={screenTitle}
           showBack={isSubScreen}
-          onBackPress={isSubScreen ? () => { if (isNewsDetail) { setScreen('news'); setSelectedArticle(null); } else if (isMyReportDetail) { setScreen('my-reports'); setSelectedReport(null); } else if (isFeedback) { setScreen('home'); } else if (isChat) { setScreen('home'); } else if (isPlnInfo) { setScreen('applications'); } else if (isPlnWizard) { setScreen('pln-info'); } else if (isMyApplications) { setScreen('applications'); } else if (isApplicationDetail) { setScreen('my-applications'); setSelectedApplication(null); } else { setScreen('home'); } } : undefined}
+          onBackPress={isSubScreen ? () => { if (isNewsDetail) { setScreen('news'); setSelectedArticle(null); } else if (isMyReportDetail) { setScreen('my-reports'); setSelectedReport(null); } else if (isFeedback) { setScreen('home'); } else if (isChat) { setScreen('home'); } else if (isHelp) { setScreen('home'); } else if (isPlnInfo) { setScreen('services'); } else if (isPlnWizard) { setScreen('pln-info'); } else if (isMyApplications) { setScreen('services'); } else if (isApplicationDetail) { setScreen('my-applications'); setSelectedApplication(null); } else if (isPayment) { setScreen('application-detail'); } else if (isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap) { setScreen('home'); } else { setScreen('home'); } } : undefined}
           showMenu={!isSubScreen}
           onMenuPress={() => setMenuVisible(true)}
         />
@@ -135,13 +181,33 @@ export default function App() {
           <ReportRoadDamageScreen
             onBack={() => setScreen('home')}
             onSubmit={(data) => {
-              setScreen('home');
+              setLastReportDamageLocation(data?.location ?? null);
+              setScreen('report-damage-success');
             }}
           />
-        ) : isFaqs ? (
-          <FAQsScreen onBack={() => setScreen('home')} />
+        ) : isReportDamageSuccess ? (
+          <SuccessScreen
+            title="Report submitted"
+            message="Your road damage report has been submitted successfully. You can track its status under My Reports."
+            buttonText="Back to Home"
+            onDone={() => setScreen('home')}
+          />
+        ) : isReportDamageMap ? (
+          <ReportDamageMapScreen
+            location={lastReportDamageLocation}
+            onBack={() => setScreen('home')}
+          />
+        ) : isFaqs || isHelp ? (
+          <HelpScreen
+            onBack={() => setScreen('home')}
+            onOpenChat={() => setScreen('chat')}
+          />
         ) : isServices ? (
-          <ServicesScreen onBack={() => setScreen('home')} />
+          <ServicesScreen
+            onBack={() => setScreen('home')}
+            onPlnApplication={() => setScreen('pln-info')}
+            onMyApplications={() => setScreen('my-applications')}
+          />
         ) : isNewsDetail ? (
           <NewsDetailScreen
             article={selectedArticle}
@@ -154,12 +220,20 @@ export default function App() {
           />
         ) : isFindOffices ? (
           <FindOfficesScreen onBack={() => setScreen('home')} />
+        ) : isContact ? (
+          <ContactScreen onBack={() => setScreen('home')} />
         ) : isForms ? (
           <FormsScreen onBack={() => setScreen('home')} />
         ) : isSignIn ? (
-          <SignInScreen onBack={() => setScreen('home')} />
+          <SignInScreen
+            onBack={() => setScreen('home')}
+            onSignInSuccess={(user) => { setCurrentUser(user); }}
+          />
         ) : isSignUp ? (
-          <SignUpScreen onBack={() => setScreen('home')} />
+          <SignUpScreen
+            onBack={() => setScreen('home')}
+            onSignUpSuccess={(user) => { setCurrentUser(user); }}
+          />
         ) : isRoadStatus ? (
           <RoadStatusScreen onBack={() => setScreen('home')} />
         ) : isMyReportDetail ? (
@@ -177,56 +251,78 @@ export default function App() {
         ) : isPlnWizard ? (
           <PLNApplicationWizardScreen
             onBack={() => setScreen('pln-info')}
-            onSubmit={(data) => {
-              setScreen('applications');
-            }}
+            onSubmit={() => setScreen('pln-application-success')}
+          />
+        ) : isPlnApplicationSuccess ? (
+          <SuccessScreen
+            title="Application submitted"
+            message="Your PLN application has been received. You can track its status under My Applications. Review usually takes 5–7 working days."
+            buttonText="Back to Services"
+            onDone={() => setScreen('services')}
           />
         ) : isPlnInfo ? (
           <PLNApplicationInfoScreen
-            onBack={() => setScreen('applications')}
+            onBack={() => setScreen('services')}
             onStartApplication={() => setScreen('pln-wizard')}
+            isLoggedIn={!!currentUser}
+            onSignInRequired={() => setScreen('sign-in')}
           />
         ) : isApplicationDetail ? (
           <ApplicationDetailScreen
             application={selectedApplication}
             onBack={() => { setScreen('my-applications'); setSelectedApplication(null); }}
+            onFindOffices={() => setScreen('find-offices')}
+            onPayOnline={() => setScreen('payment')}
+          />
+        ) : isPayment ? (
+          <PaymentScreen
+            application={selectedApplication}
+            onBack={() => setScreen('application-detail')}
+            onPaymentSuccess={() => setScreen('application-detail')}
           />
         ) : isMyApplications ? (
           <MyApplicationsScreen
-            onBack={() => setScreen('applications')}
+            onBack={() => setScreen('services')}
             onSelectApplication={(app) => { setSelectedApplication(app); setScreen('application-detail'); }}
-          />
-        ) : isApplications ? (
-          <ApplicationsScreen
-            onBack={() => setScreen('home')}
-            onPlnApplication={() => setScreen('pln-info')}
-            onMyApplications={() => setScreen('my-applications')}
           />
         ) : isChat ? (
           <ChatScreen onBack={() => setScreen('home')} />
         ) : (
           <ScreenContainer>
-            <SearchBar
-              placeholder="Search the RA app"
+            <HomeSearchWithSuggestions
               value={search}
               onChangeText={setSearch}
+              getSuggestions={getSearchSuggestions}
+              onSelectSuggestion={handleSearchSelect}
             />
             <View style={styles.searchSpacer} />
             {homeDesignOption === 1 && <HomeGridLayout items={serviceItems} />}
             {homeDesignOption === 2 && <HomeListLayout items={serviceItems} />}
             {homeDesignOption === 3 && <HomeCardsLayout items={serviceItems} />}
+            {homeDesignOption === 4 && <HomeSimpleTilesLayout items={serviceItems} />}
+            {homeDesignOption === 5 && <HomeTopicsLayout items={serviceItems} />}
+            <View style={styles.bannerWrap}>
+              <ImageSlideshow
+                images={[
+                  require('./assets/image1.png'),
+                  require('./assets/image2.png'),
+                ]}
+                height={160}
+              />
+            </View>
             <HomeDesignToggle value={homeDesignOption} onChange={setHomeDesignOption} />
-            <Pressable style={styles.feedbackLinkWrap} onPress={() => setScreen('feedback')}>
-              <Text style={styles.feedbackLink}>Send feedback</Text>
-            </Pressable>
           </ScreenContainer>
         )}
         <HeaderMenu
           visible={menuVisible}
           onClose={() => setMenuVisible(false)}
+          isLoggedIn={!!currentUser}
           onSignIn={() => setScreen('sign-in')}
           onSignUp={() => setScreen('sign-up')}
-          onFeedback={() => setScreen('feedback')}
+          onSignOut={async () => {
+            await authService.logout();
+            setCurrentUser(null);
+          }}
         />
         <BottomNavBar items={navItems} activeKey={activeTab} />
       </View>
@@ -247,14 +343,14 @@ const styles = StyleSheet.create({
   searchSpacer: {
     height: 20,
   },
-  feedbackLinkWrap: {
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    alignSelf: 'center',
+  bannerWrap: {
+    width: '100%',
+    marginTop: spacing.xl,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  feedbackLink: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#00B4E6',
+  bannerImage: {
+    width: '100%',
+    height: 160,
   },
 });

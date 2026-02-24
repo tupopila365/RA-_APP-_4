@@ -4,19 +4,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS } from '../theme/colors';
-import { PRIMARY } from '../theme/colors';
+import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
 
-export function PLNApplicationInfoScreen({ onBack, onStartApplication }) {
+/** Green for PLN "Start application" button (slightly brighter) */
+const PLN_START_BUTTON_GREEN = '#3CB371';
+
+export function PLNApplicationInfoScreen({ onBack, onStartApplication, isLoggedIn, onSignInRequired }) {
+  const handlePrimaryAction = () => {
+    if (isLoggedIn) {
+      onStartApplication?.();
+    } else {
+      onSignInRequired?.();
+    }
+  };
+
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <View style={styles.iconWrap}>
-        <Ionicons name="document-text-outline" size={40} color={PRIMARY} />
-      </View>
-      <Text style={styles.title}>PLN Application</Text>
       <Text style={styles.subtitle}>
         Apply for a Public Road Transport Permit (PLN) with the Roads Authority.
       </Text>
+
+      {!isLoggedIn && (
+        <View style={styles.signInBanner}>
+          <Ionicons name="lock-closed-outline" size={20} color={NEUTRAL_COLORS.gray700} />
+          <Text style={styles.signInBannerText}>You must be signed in to submit a PLN application.</Text>
+        </View>
+      )}
 
       <Text style={styles.sectionTitle}>What you need</Text>
       <View style={styles.bulletList}>
@@ -39,9 +52,11 @@ export function PLNApplicationInfoScreen({ onBack, onStartApplication }) {
 
       <Pressable
         style={styles.primaryButton}
-        onPress={() => (onStartApplication ? onStartApplication() : onBack?.())}
+        onPress={handlePrimaryAction}
       >
-        <Text style={styles.primaryButtonText}>Start application</Text>
+        <Text style={styles.primaryButtonText}>
+          {isLoggedIn ? 'Start application' : 'Sign in to start application'}
+        </Text>
       </Pressable>
     </ScreenContainer>
   );
@@ -50,7 +65,7 @@ export function PLNApplicationInfoScreen({ onBack, onStartApplication }) {
 function BulletItem({ text }) {
   return (
     <View style={styles.bulletRow}>
-      <Ionicons name="ellipse" size={6} color={PRIMARY} style={styles.bulletIcon} />
+      <Ionicons name="ellipse" size={6} color={RA_YELLOW} style={styles.bulletIcon} />
       <Text style={styles.bulletText}>{text}</Text>
     </View>
   );
@@ -59,16 +74,6 @@ function BulletItem({ text }) {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  title: {
-    ...typography.h5,
-    color: NEUTRAL_COLORS.gray900,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
   },
   subtitle: {
     ...typography.bodySmall,
@@ -111,10 +116,25 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     lineHeight: 20,
   },
+  signInBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: NEUTRAL_COLORS.gray100,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  signInBannerText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray700,
+    flex: 1,
+  },
   primaryButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: PRIMARY,
+    backgroundColor: PLN_START_BUTTON_GREEN,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
     borderRadius: 8,

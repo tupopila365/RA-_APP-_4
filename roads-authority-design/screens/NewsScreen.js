@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer, SearchBar } from '../components';
-import { NEWS } from '../data/news';
+import { getNewsList } from '../services/newsService';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
@@ -19,19 +19,33 @@ function filterNews(items, query) {
   const q = query.trim().toLowerCase();
   return items.filter(
     (n) =>
-      n.title.toLowerCase().includes(q) ||
-      n.summary.toLowerCase().includes(q) ||
-      n.category.toLowerCase().includes(q)
+      (n.title && n.title.toLowerCase().includes(q)) ||
+      (n.summary && n.summary.toLowerCase().includes(q)) ||
+      (n.category && n.category.toLowerCase().includes(q))
   );
 }
 
 export function NewsScreen({ onBack, onSelectArticle }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const filteredNews = useMemo(() => filterNews(NEWS, searchQuery), [searchQuery]);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getNewsList({ published: true, limit: 100 })
+      .then((res) => { if (!cancelled) setItems(res.items || []); })
+      .catch((err) => { if (!cancelled) setError(err.message || 'Failed to load news'); setItems([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const filteredNews = useMemo(() => filterNews(items, searchQuery), [items, searchQuery]);
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <Text style={styles.title}>News & updates</Text>
       <Text style={styles.subtitle}>
         Latest from the Roads Authority.
       </Text>
@@ -41,7 +55,17 @@ export function NewsScreen({ onBack, onSelectArticle }) {
         onChangeText={setSearchQuery}
       />
       <View style={styles.list}>
-        {filteredNews.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={PRIMARY} />
+            <Text style={styles.loadingText}>Loading news…</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.empty}>
+            <Ionicons name="cloud-offline-outline" size={48} color={NEUTRAL_COLORS.gray400} />
+            <Text style={styles.emptyText}>{error}</Text>
+          </View>
+        ) : filteredNews.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="newspaper-outline" size={48} color={NEUTRAL_COLORS.gray400} />
             <Text style={styles.emptyText}>No articles match your search.</Text>
@@ -54,7 +78,13 @@ export function NewsScreen({ onBack, onSelectArticle }) {
               onPress={() => onSelectArticle?.(item)}
             >
               <View style={styles.imageWrap}>
-                <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
+                {item.image ? (
+                  <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+                    <Ionicons name="newspaper-outline" size={40} color={NEUTRAL_COLORS.gray400} />
+                  </View>
+                )}
               </View>
               <View style={styles.cardHeader}>
                 <Text style={styles.category}>{item.category}</Text>
@@ -73,11 +103,6 @@ export function NewsScreen({ onBack, onSelectArticle }) {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
-  },
-  title: {
-    ...typography.h5,
-    color: NEUTRAL_COLORS.gray900,
-    marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.bodySmall,
@@ -98,7 +123,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
     overflow: 'hidden',
@@ -114,6 +139,20 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     height: '100%',
+  },
+  cardImagePlaceholder: {
+    backgroundColor: NEUTRAL_COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxxl,
+  },
+  loadingText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray600,
+    marginTop: spacing.md,
   },
   cardHeader: {
     flexDirection: 'row',

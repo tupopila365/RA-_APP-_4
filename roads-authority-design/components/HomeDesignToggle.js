@@ -9,6 +9,8 @@ const OPTIONS = [
   { key: 1, label: 'Grid' },
   { key: 2, label: 'List' },
   { key: 3, label: 'Cards' },
+  { key: 4, label: 'Tiles' },
+  { key: 5, label: 'Topics' },
 ];
 
 export function HomeDesignToggle({ value, onChange }) {
@@ -19,7 +21,7 @@ export function HomeDesignToggle({ value, onChange }) {
         {OPTIONS.map((opt) => {
           const isSelected = value === opt.key;
           const isFirst = opt.key === 1;
-          const isLast = opt.key === 3;
+          const isLast = opt.key === OPTIONS.length;
           return (
             <Pressable
               key={opt.key}

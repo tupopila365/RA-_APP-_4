@@ -4,52 +4,51 @@ import { formService } from './forms.service';
 import { logger } from '../../utils/logger';
 import { ERROR_CODES } from '../../constants/errors';
 
+function toFormItem(item: { id: number; title: string; description: string | null; category: string; pdfUrl: string; published: boolean; createdAt: Date; updatedAt: Date }) {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description ?? '',
+    category: item.category,
+    pdfUrl: item.pdfUrl,
+    published: item.published,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+}
+
 export class FormController {
   /**
-   * Create a new form
+   * Create a new form/download
    * POST /api/forms
    */
   async createForm(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { name, category, documents, published } = req.body;
+      const { title, description, category, pdfUrl, published } = req.body;
 
-      if (!name || !category || !documents || !Array.isArray(documents) || documents.length === 0) {
+      if (!title || !category || !pdfUrl) {
         res.status(400).json({
           success: false,
           error: {
             code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Name, category, and at least one document are required',
+            message: 'Title, category, and PDF URL are required',
           },
           timestamp: new Date().toISOString(),
         });
         return;
       }
 
-      const form = await formService.createForm(
-        {
-          name,
-          category,
-          documents,
-          published: published === true,
-        },
-        req.user?.userId
-      );
+      const form = await formService.create({
+        title,
+        description: description || null,
+        category,
+        pdfUrl,
+        published: published === true,
+      });
 
       res.status(201).json({
         success: true,
-        data: {
-          form: {
-            id: form.id,
-            name: form.name,
-            category: form.category,
-            documents: form.documents,
-            published: form.published,
-            publishedAt: form.publishedAt,
-            createdAt: form.createdAt,
-            updatedAt: form.updatedAt,
-          },
-          message: 'Form created successfully',
-        },
+        data: { form: toFormItem(form), message: 'Form created successfully' },
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
@@ -59,19 +58,19 @@ export class FormController {
   }
 
   /**
-   * List forms with pagination, filtering, and search
+   * List forms – app uses ?published=true to get only published items
    * GET /api/forms
    */
   async listForms(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
-      const category = req.query.category as string;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const category = (req.query.category as string) || undefined;
       const published =
         req.query.published === 'true' ? true : req.query.published === 'false' ? false : undefined;
-      const search = req.query.search as string;
+      const search = (req.query.search as string) || undefined;
 
-      const result = await formService.listForms({
+      const result = await formService.list({
         page,
         limit,
         category,
@@ -82,16 +81,7 @@ export class FormController {
       res.status(200).json({
         success: true,
         data: {
-          items: result.items.map((item) => ({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            documents: item.documents,
-            published: item.published,
-            publishedAt: item.publishedAt,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-          })),
+          items: result.items.map(toFormItem),
           pagination: {
             total: result.total,
             page: result.page,
@@ -114,22 +104,10 @@ export class FormController {
   async getForm(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const form = await formService.getFormById(id);
-
+      const form = await formService.getById(id);
       res.status(200).json({
         success: true,
-        data: {
-          form: {
-            id: form.id,
-            name: form.name,
-            category: form.category,
-            documents: form.documents,
-            published: form.published,
-            publishedAt: form.publishedAt,
-            createdAt: form.createdAt,
-            updatedAt: form.updatedAt,
-          },
-        },
+        data: { form: toFormItem(form) },
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
@@ -145,31 +123,19 @@ export class FormController {
   async updateForm(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const { name, category, documents, published } = req.body;
+      const { title, description, category, pdfUrl, published } = req.body;
 
-      const updateData: any = {};
-      if (name !== undefined) updateData.name = name;
+      const updateData: Record<string, unknown> = {};
+      if (title !== undefined) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
       if (category !== undefined) updateData.category = category;
-      if (documents !== undefined) updateData.documents = documents;
+      if (pdfUrl !== undefined) updateData.pdfUrl = pdfUrl;
       if (published !== undefined) updateData.published = published === true;
 
-      const form = await formService.updateForm(id, updateData);
-
+      const form = await formService.update(id, updateData as any);
       res.status(200).json({
         success: true,
-        data: {
-          form: {
-            id: form.id,
-            name: form.name,
-            category: form.category,
-            documents: form.documents,
-            published: form.published,
-            publishedAt: form.publishedAt,
-            createdAt: form.createdAt,
-            updatedAt: form.updatedAt,
-          },
-          message: 'Form updated successfully',
-        },
+        data: { form: toFormItem(form), message: 'Form updated successfully' },
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
@@ -185,26 +151,18 @@ export class FormController {
   async deleteForm(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-
       if (!id || id === 'undefined' || id === 'null') {
         res.status(400).json({
           success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Form ID is required',
-          },
+          error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Form ID is required' },
           timestamp: new Date().toISOString(),
         });
         return;
       }
-
-      await formService.deleteForm(id);
-
+      await formService.delete(id);
       res.status(200).json({
         success: true,
-        data: {
-          message: 'Form deleted successfully',
-        },
+        data: { message: 'Form deleted successfully' },
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {

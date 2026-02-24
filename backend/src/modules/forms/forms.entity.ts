@@ -7,32 +7,44 @@ import {
   Index,
 } from 'typeorm';
 
-@Entity('forms')
+/** Categories matching the mobile app Downloads screen. */
+export const FORM_DOWNLOAD_CATEGORIES = [
+  'Permits',
+  'Procurement',
+  'Reports',
+  'Manuals',
+  'Plans',
+  'Legislation',
+] as const;
+
+export type FormDownloadCategory = (typeof FORM_DOWNLOAD_CATEGORIES)[number];
+
+/**
+ * One downloadable form/document as shown on the app Downloads screen.
+ * Admin is structured the same: title, description, category, single PDF URL.
+ */
+@Entity('form_downloads')
 @Index(['category'])
 @Index(['published'])
 @Index(['createdAt'])
-@Index(['publishedAt'])
-export class Form {
+export class FormDownload {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 200 })
-  name: string;
+  @Column({ type: 'nvarchar', length: 300 })
+  title: string;
+
+  @Column({ type: 'nvarchar', length: 1000, nullable: true })
+  description: string | null;
 
   @Column({ type: 'nvarchar', length: 100 })
-  category: 'Procurement' | 'Roads & Infrastructure' | 'Plans & Strategies' | 'Conferences & Events' | 'Legislation & Policy';
+  category: string;
 
-  @Column('simple-json')
-  documents: Array<{ title: string; url: string; fileName: string }>;
+  @Column({ type: 'nvarchar', length: 2000 })
+  pdfUrl: string;
 
-  @Column({ default: false })
+  @Column({ default: true })
   published: boolean;
-
-  @Column({ type: 'datetime', nullable: true })
-  publishedAt: Date | null;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  createdBy: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -40,4 +52,3 @@ export class Form {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-

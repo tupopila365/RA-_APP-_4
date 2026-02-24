@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   modal: {
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 8,
+    borderRadius: 0,
     maxHeight: 320,
   },
   option: {

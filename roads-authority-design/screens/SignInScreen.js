@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { ScreenContainer, FormInput } from '../components';
+import { useKeyboardScroll } from '../hooks/useKeyboardScroll';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
 import { PRIMARY } from '../theme/colors';
+import { authService } from '../services/authService';
 
 function isValidEmail(str) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str || '');
 }
 
-export function SignInScreen({ onBack }) {
+export function SignInScreen({ onBack, onSignInSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const { scrollViewRef, contentRef, onFocusWithRef } = useKeyboardScroll();
 
   const validate = () => {
     const next = {};
@@ -29,11 +32,14 @@ export function SignInScreen({ onBack }) {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      // Replace with your auth API call
-      await new Promise((r) => setTimeout(r, 600));
-      Alert.alert('Sign in', 'Sign in is not connected to a server yet. Connect your auth API to enable sign in.', [
-        { text: 'OK' },
+      await authService.login(email.trim(), password);
+      const user = await authService.getStoredUser();
+      onSignInSuccess?.(user);
+      Alert.alert('Signed in', 'You are now signed in.', [
+        { text: 'OK', onPress: onBack },
       ]);
+    } catch (err) {
+      Alert.alert('Sign in failed', err.message || 'Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -44,48 +50,52 @@ export function SignInScreen({ onBack }) {
   };
 
   return (
-    <ScreenContainer contentContainerStyle={styles.content}>
+    <ScreenContainer ref={scrollViewRef} contentContainerStyle={styles.content} keyboardAware>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
       >
-        <Text style={styles.title}>Sign in</Text>
-        <Text style={styles.subtitle}>
-          Sign in to your Roads Authority account to access applications and reports.
-        </Text>
+        <View ref={contentRef} collapsable={false}>
+          <Text style={styles.title}>Sign in</Text>
+          <Text style={styles.subtitle}>
+            Sign in to your Roads Authority account to access applications and reports.
+          </Text>
 
-        <FormInput
-          label="Email"
-          required
-          value={email}
-          onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
-          placeholder="you@example.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          error={errors.email}
-        />
-        <FormInput
-          label="Password"
-          required
-          value={password}
-          onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined })); }}
-          placeholder="Enter your password"
-          secureTextEntry
-          error={errors.password}
-        />
+          <FormInput
+            label="Email"
+            required
+            value={email}
+            onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
+            placeholder="you@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            error={errors.email}
+            onFocusWithRef={onFocusWithRef}
+          />
+          <FormInput
+            label="Password"
+            required
+            value={password}
+            onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined })); }}
+            placeholder="Enter your password"
+            secureTextEntry
+            error={errors.password}
+            onFocusWithRef={onFocusWithRef}
+          />
 
-        <Pressable style={styles.forgotWrap} onPress={handleForgotPassword}>
-          <Text style={styles.forgotText}>Forgot password?</Text>
-        </Pressable>
+          <Pressable style={styles.forgotWrap} onPress={handleForgotPassword}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </Pressable>
 
-        <Pressable
-          style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
-          onPress={handleSignIn}
-          disabled={submitting}
-        >
-          <Text style={styles.primaryButtonText}>{submitting ? 'Signing in…' : 'Sign in'}</Text>
-        </Pressable>
+          <Pressable
+            style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
+            onPress={handleSignIn}
+            disabled={submitting}
+          >
+            <Text style={styles.primaryButtonText}>{submitting ? 'Signing in…' : 'Sign in'}</Text>
+          </Pressable>
+        </View>
       </KeyboardAvoidingView>
     </ScreenContainer>
   );
@@ -110,7 +120,7 @@ const styles = StyleSheet.create({
   },
   forgotWrap: {
     alignSelf: 'flex-start',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   forgotText: {
     ...typography.bodySmall,
@@ -124,7 +134,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
     borderRadius: 8,
-    marginTop: spacing.sm,
+    marginTop: spacing.lg,
   },
   primaryButtonDisabled: {
     opacity: 0.6,

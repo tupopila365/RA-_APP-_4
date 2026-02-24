@@ -1,23 +1,28 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { spacing } from '../theme/spacing';
 import { ServiceTile } from './ServiceTile';
 
-const COLS = 3;
+const COLS = 4;
 const GAP = spacing.md;
 
-/** Equal-width cells so every menu box is the same size. */
+/** Content width: screen minus container horizontal padding (spacing.lg each side). */
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CONTAINER_PADDING = spacing.lg * 2;
+const CONTENT_WIDTH = SCREEN_WIDTH - CONTAINER_PADDING;
+const CELL_SIZE = (CONTENT_WIDTH - (COLS - 1) * GAP) / COLS;
+
+/** Tile is square (icon only); label sits below outside the tile. */
 const styles = StyleSheet.create({
   grid: {},
   row: {
     flexDirection: 'row',
     marginBottom: GAP,
+    gap: GAP,
   },
   cell: {
-    flex: 1,
-    minWidth: 0,
-    marginHorizontal: GAP / 2,
-    aspectRatio: 1,
+    width: CELL_SIZE,
+    flex: 0,
   },
 });
 
@@ -31,19 +36,24 @@ export function ServiceGrid({ items = [] }) {
   const rows = chunk(items, COLS);
   return (
     <View style={styles.grid}>
-      {rows.map((row, rowIndex) => (
-        <View key={rowIndex} style={styles.row}>
-          {row.map((item, index) => (
-            <View key={item.key || `${rowIndex}-${index}`} style={styles.cell}>
-              <ServiceTile
-                iconName={item.iconName}
-                label={item.label}
-                onPress={item.onPress}
-              />
+      {rows.map((row, rowIndex) => {
+        const cells = [];
+        for (let i = 0; i < COLS; i++) {
+          const item = row[i];
+          cells.push(
+            <View key={item ? item.key : `empty-${rowIndex}-${i}`} style={styles.cell}>
+              {item ? (
+                <ServiceTile
+                  iconName={item.iconName}
+                  label={item.label}
+                  onPress={item.onPress}
+                />
+              ) : null}
             </View>
-          ))}
-        </View>
-      ))}
+          );
+        }
+        return <View key={rowIndex} style={styles.row}>{cells}</View>;
+      })}
     </View>
   );
 }

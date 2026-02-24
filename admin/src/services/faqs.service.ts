@@ -100,17 +100,10 @@ export const createFAQ = async (data: FAQFormData): Promise<FAQResponse> => {
  * Update existing FAQ
  */
 export const updateFAQ = async (id: string, data: FAQFormData): Promise<FAQResponse> => {
-  // Validate ID before making request
   if (!id || id === 'undefined' || id === 'null') {
     throw new Error('FAQ ID is required for update');
   }
-  
-  const cleanId = id.trim();
-  
-  if (cleanId.length !== 24) {
-    throw new Error('Invalid FAQ ID format');
-  }
-  
+  const cleanId = String(id).trim();
   const response = await apiClient.put<any>(`/faqs/${cleanId}`, data);
   
   // Transform response to ensure _id is present
@@ -131,18 +124,10 @@ export const updateFAQ = async (id: string, data: FAQFormData): Promise<FAQRespo
  * Delete FAQ
  */
 export const deleteFAQ = async (id: string): Promise<{ success: boolean }> => {
-  // Validate ID before making request
   if (!id || id === 'undefined' || id === 'null') {
     throw new Error('FAQ ID is required for deletion');
   }
-  
-  // Ensure ID is properly formatted (trim whitespace)
-  const cleanId = id.trim();
-  
-  if (cleanId.length !== 24) {
-    throw new Error('Invalid FAQ ID format');
-  }
-  
+  const cleanId = String(id).trim();
   const response = await apiClient.delete<{ success: boolean }>(`/faqs/${cleanId}`);
   return response.data;
 };

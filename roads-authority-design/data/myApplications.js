@@ -48,6 +48,12 @@ export const APPLICATION_STATUS_LABELS = {
   under_review: 'Under review',
   approved: 'Approved',
   rejected: 'Rejected',
+  declined: 'Declined',
+  payment_pending: 'Payment pending',
+  paid: 'Paid',
+  plates_ordered: 'Plates ordered',
+  ready_for_collection: 'Ready for collection',
+  expired: 'Expired',
 };
 
 export const APPLICATION_STATUS_COLORS = {
@@ -55,4 +61,10 @@ export const APPLICATION_STATUS_COLORS = {
   under_review: '#CA8A04',
   approved: '#16A34A',
   rejected: '#DC2626',
+  declined: '#DC2626',
+  payment_pending: '#CA8A04',
+  paid: '#16A34A',
+  plates_ordered: '#059669',
+  ready_for_collection: '#16A34A',
+  expired: '#6B7280',
 };

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
@@ -18,11 +19,17 @@ export function NewsDetailScreen({ article, onBack }) {
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
       <View style={styles.imageWrap}>
-        <Image
-          source={{ uri: article.image }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        {article.image ? (
+          <Image
+            source={{ uri: article.image }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.image, styles.imagePlaceholder]}>
+            <Ionicons name="newspaper-outline" size={48} color={NEUTRAL_COLORS.gray400} />
+          </View>
+        )}
       </View>
       <View style={styles.meta}>
         <Text style={styles.category}>{article.category}</Text>
@@ -41,7 +48,7 @@ const styles = StyleSheet.create({
   imageWrap: {
     width: '100%',
     height: 200,
-    borderRadius: 12,
+    borderRadius: 0,
     overflow: 'hidden',
     backgroundColor: NEUTRAL_COLORS.gray200,
     marginBottom: spacing.lg,
@@ -49,6 +56,11 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  imagePlaceholder: {
+    backgroundColor: NEUTRAL_COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   meta: {
     flexDirection: 'row',

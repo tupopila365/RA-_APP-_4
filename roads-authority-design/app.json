@@ -20,8 +20,11 @@
       }
     },
     "android": {
-      "adaptiveIcon": { "backgroundColor": "#00B4E6" },
+      "adaptiveIcon": {
+        "backgroundColor": "#00B4E6"
+      },
       "package": "com.roadsauthority.design",
+      "softwareKeyboardLayoutMode": "pan",
       "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     },
     "web": {}

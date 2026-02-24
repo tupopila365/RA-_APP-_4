@@ -48,14 +48,21 @@ export const MY_REPORTS = [
   },
 ];
 
+/** Status labels matching backend: pending | assigned | in-progress | fixed | duplicate | invalid */
 export const REPORT_STATUS_LABELS = {
-  submitted: 'Submitted',
-  under_review: 'Under review',
-  resolved: 'Resolved',
+  pending: 'Pending',
+  assigned: 'Assigned',
+  'in-progress': 'In progress',
+  fixed: 'Fixed',
+  duplicate: 'Duplicate',
+  invalid: 'Invalid',
 };
 
 export const REPORT_STATUS_COLORS = {
-  submitted: '#2563EB',
-  under_review: '#CA8A04',
-  resolved: '#16A34A',
+  pending: '#64748B',
+  assigned: '#2563EB',
+  'in-progress': '#CA8A04',
+  fixed: '#16A34A',
+  duplicate: '#94A3B8',
+  invalid: '#DC2626',
 };

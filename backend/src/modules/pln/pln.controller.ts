@@ -527,6 +527,50 @@ export class PLNController {
   }
 
   /**
+   * Confirm payment received (user – after online payment)
+   * PUT /api/pln/applications/:id/confirm-payment
+   */
+  async confirmPayment(req: AppAuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const userEmail = (req as AppAuthRequest).user?.email;
+      if (!userEmail) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: ERROR_CODES.AUTH_MISSING_TOKEN,
+            message: 'Authentication required to confirm payment',
+          },
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+      const paymentReference = (req.body && typeof req.body === 'object' && (req.body as { paymentReference?: string }).paymentReference) || undefined;
+      const application = await plnService.markPaymentReceivedByUser(id, userEmail, paymentReference);
+
+      logger.info(`Payment confirmed by user for application ${id}`);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          application: {
+            id: application.id,
+            status: application.status,
+            paymentReceivedAt: application.paymentReceivedAt,
+            statusHistory: application.statusHistory,
+            updatedAt: application.updatedAt,
+          },
+          message: 'Payment received and recorded',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error('Confirm payment error:', error);
+      next(error);
+    }
+  }
+
+  /**
    * Order plates (admin)
    * PUT /api/pln/applications/:id/order-plates
    */

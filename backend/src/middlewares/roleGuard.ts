@@ -40,6 +40,44 @@ export const requirePermission = (permission: string) => {
   };
 };
 
+/** Allow if user has any of the given permissions (e.g. road-status:manage or roadworks:manage). */
+export const requireAnyPermission = (permissions: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: ERROR_CODES.AUTH_UNAUTHORIZED,
+          message: 'Authentication required',
+        },
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    if (req.user.role === 'super-admin') {
+      next();
+      return;
+    }
+
+    const hasAny = permissions.some((p) => req.user!.permissions.includes(p));
+    if (!hasAny) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: ERROR_CODES.AUTH_INSUFFICIENT_PERMISSIONS,
+          message: 'Insufficient permissions',
+          details: { required: permissions },
+        },
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    next();
+  };
+};
+
 export const requireRole = (role: string) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {

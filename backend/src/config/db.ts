@@ -50,7 +50,7 @@ import { Banner } from '../modules/banners/banners.entity';
 import { ChatbotInteraction } from '../modules/chatbot/interactions.entity';
 import { Document } from '../modules/documents/documents.entity';
 import { FAQ } from '../modules/faqs/faqs.entity';
-import { Form } from '../modules/forms/forms.entity';
+import { FormDownload } from '../modules/forms/forms.entity';
 import { Incident } from '../modules/incidents/incidents.entity';
 import { Location } from '../modules/locations/locations.entity';
 import { News } from '../modules/news/news.entity';
@@ -62,6 +62,7 @@ import { ProcurementLegislation } from '../modules/procurement-legislation/procu
 import { ProcurementOpeningRegister } from '../modules/procurement-opening-register/procurement-opening-register.entity';
 import { ProcurementPlan } from '../modules/procurement-plan/procurement-plan.entity';
 import { Roadwork } from '../modules/roadworks/roadworks.entity';
+import { RoadStatus } from '../modules/roadworks/road-status.entity';
 import { Tender } from '../modules/tenders/tenders.entity';
 import { Vacancy } from '../modules/vacancies/vacancies.entity';
 import { VehicleReg } from '../modules/vehicle-reg/vehicle-reg.entity';
@@ -76,7 +77,7 @@ const entities = [
   ChatbotInteraction,
   Document,
   FAQ,
-  Form,
+  FormDownload,
   Incident,
   Location,
   News,
@@ -89,6 +90,7 @@ const entities = [
   ProcurementOpeningRegister,
   ProcurementPlan,
   Roadwork,
+  RoadStatus,
   Tender,
   Vacancy,
   VehicleReg,

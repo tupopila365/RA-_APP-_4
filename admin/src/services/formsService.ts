@@ -1,21 +1,25 @@
 import apiClient from './api';
 
-export interface FormDocument {
+/** Single form/download as shown in app and admin (same structure). */
+export interface FormDownload {
+  id: number;
   title: string;
-  url: string;
-  fileName: string;
+  description: string;
+  category: string;
+  pdfUrl: string;
+  published: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface Form {
-  id: string;
-  name: string;
-  category: 'Procurement' | 'Roads & Infrastructure' | 'Plans & Strategies' | 'Conferences & Events' | 'Legislation & Policy';
-  documents: FormDocument[];
-  published: boolean;
-  publishedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export const FORM_CATEGORIES = [
+  'Permits',
+  'Procurement',
+  'Reports',
+  'Manuals',
+  'Plans',
+  'Legislation',
+] as const;
 
 export const formsService = {
   list: async (params: {
@@ -35,30 +39,23 @@ export const formsService = {
   },
 
   create: async (data: {
-    name: string;
+    title: string;
+    description?: string;
     category: string;
-    documents: FormDocument[];
+    pdfUrl: string;
     published?: boolean;
   }) => {
     const response = await apiClient.post('/forms', data);
     return response.data;
   },
 
-  update: async (id: string, data: Partial<Form>) => {
+  update: async (id: string, data: Partial<FormDownload>) => {
     const response = await apiClient.put(`/forms/${id}`, data);
     return response.data;
   },
 
   delete: async (id: string) => {
     const response = await apiClient.delete(`/forms/${id}`);
-    return response.data;
-  },
-
-  // Get forms for mobile app (published only)
-  getPublished: async (params?: { category?: string }) => {
-    const response = await apiClient.get('/forms', { 
-      params: { ...params, published: true } 
-    });
     return response.data;
   },
 };

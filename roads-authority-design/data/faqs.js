@@ -1,46 +1,67 @@
 /**
- * Fake data for Frequently Asked Questions — Roads Authority
+ * Frequently Asked Questions — Roads Authority, with categories for Help page.
  */
+
+export const HELP_CATEGORIES = [
+  'Getting Started',
+  'Permits & Applications',
+  'Road & Reporting',
+  'Contact & Support',
+];
 
 export const FAQS = [
   {
     id: '1',
-    question: 'How do I report road damage or potholes?',
-    answer: 'Use the "Report Road Damage" option on the home screen. Take a photo of the damage and allow the app to use your location. Your report will be sent to the Roads Authority for inspection and repair scheduling.',
+    category: 'Getting Started',
+    question: 'How do I get started with the app?',
+    answer: 'Use the home screen tiles to access services: report road damage, check road status, apply for permits, find offices, or open FAQs. Sign in for applications and saved reports.',
   },
   {
     id: '2',
-    question: 'Where can I check current road status or closures?',
-    answer: 'Open "Road Status" from the home menu to see active roadworks, closures, and traffic advisories. You can filter by region and view details such as expected completion dates.',
+    category: 'Getting Started',
+    question: 'Where are the Roads Authority offices?',
+    answer: 'Use "Find Offices" on the home screen to see all RA offices and service points. Search by town or region, view opening hours, contact details, and get directions.',
   },
   {
     id: '3',
+    category: 'Permits & Applications',
     question: 'How do I apply for a permit or licence?',
-    answer: 'Go to "Applications" and select the type of permit or licence you need (e.g. overload permit, special vehicle permit). Complete the form and upload any required documents. You can track the status under "My Applications".',
+    answer: 'Go to Services and choose "PLN Application" or use NATIS Online for licences. Complete the form and upload required documents. Track status under "My Applications".',
   },
   {
     id: '4',
-    question: 'Where are the Roads Authority offices?',
-    answer: 'Use "Find Offices" to see all RA offices and service points. You can search by town or region, view opening hours, contact details, and get directions.',
+    category: 'Permits & Applications',
+    question: 'Can I download forms to fill in offline?',
+    answer: 'Yes. Open "Downloads" to browse and download PDF forms (e.g. permit applications, appeals). You can print and submit in person or upload completed forms via the app where applicable.',
   },
   {
     id: '5',
-    question: 'How long does a road damage report take to be addressed?',
-    answer: 'Reports are triaged by severity and location. Critical issues are prioritised. You can check the status of your report under "My Reports". Typical response times are communicated when you submit.',
+    category: 'Road & Reporting',
+    question: 'How do I report road damage or potholes?',
+    answer: 'Use "Report Road Damage" on the home screen. Take a photo and allow the app to use your location. Your report is sent to the Roads Authority for inspection and repair scheduling.',
   },
   {
     id: '6',
-    question: 'Can I download forms to fill in offline?',
-    answer: 'Yes. Open "Forms" to browse and download PDF forms (e.g. permit applications, appeals). You can print and submit them in person or upload completed forms via the app where applicable.',
+    category: 'Road & Reporting',
+    question: 'Where can I check road status or closures?',
+    answer: 'Open "Road Status" from the home menu to see active roadworks, closures, and traffic advisories. Filter by region and view expected completion dates.',
   },
   {
     id: '7',
-    question: 'How do I get help with the app?',
-    answer: 'Use "FAQs" for common questions, or go to "Contact" in the menu to call or email the Roads Authority. For technical issues with the app, use the feedback option in Settings.',
+    category: 'Road & Reporting',
+    question: 'How long does a road damage report take to be addressed?',
+    answer: 'Reports are triaged by severity and location. Critical issues are prioritised. Check status under "My Reports". Typical response times are shown when you submit.',
   },
   {
     id: '8',
+    category: 'Contact & Support',
+    question: 'How do I get help with the app?',
+    answer: 'Search or browse the FAQs above, or use the Contact tab to call or email the Roads Authority. For app feedback, use "Send feedback" on the home screen.',
+  },
+  {
+    id: '9',
+    category: 'Contact & Support',
     question: 'Is my personal information secure when I submit a report?',
-    answer: 'Yes. The Roads Authority collects only what is needed to process your report (e.g. photo, location, contact if you provide it). Data is handled in line with our privacy policy and applicable laws.',
+    answer: 'Yes. The Roads Authority collects only what is needed to process your report. Data is handled in line with our privacy policy and applicable laws.',
   },
 ];

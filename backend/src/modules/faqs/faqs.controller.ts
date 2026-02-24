@@ -184,7 +184,6 @@ export class FAQsController {
     try {
       const { id } = req.params;
 
-      // Validate ID exists
       if (!id || id === 'undefined' || id === 'null') {
         logger.warn('Delete attempt with missing or invalid ID', {
           id,
@@ -192,30 +191,11 @@ export class FAQsController {
           url: req.url,
           user: req.user?.email,
         });
-        
         res.status(400).json({
           success: false,
           error: {
             code: ERROR_CODES.VALIDATION_ERROR,
             message: 'FAQ ID is required',
-          },
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
-
-      // Validate ID format (MongoDB ObjectId is 24 hex characters)
-      if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-        logger.warn('Delete attempt with invalid ID format', {
-          id,
-          user: req.user?.email,
-        });
-        
-        res.status(400).json({
-          success: false,
-          error: {
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'Invalid FAQ ID format',
           },
           timestamp: new Date().toISOString(),
         });

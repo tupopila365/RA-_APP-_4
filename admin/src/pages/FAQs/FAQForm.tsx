@@ -166,6 +166,9 @@ const FAQForm = () => {
             <Typography variant="h6" gutterBottom>
               FAQ Information
             </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Question and answer appear on the app Help page. Category controls which section they appear under (same order as in the app).
+            </Typography>
 
             <Controller
               name="question"
@@ -211,12 +214,11 @@ const FAQForm = () => {
                   <FormControl fullWidth error={!!errors.category}>
                     <InputLabel>Category</InputLabel>
                     <Select {...field} label="Category">
-                      <MenuItem value="">None</MenuItem>
-                      <MenuItem value="Licensing">Licensing</MenuItem>
-                      <MenuItem value="Registration">Registration</MenuItem>
-                      <MenuItem value="General">General</MenuItem>
-                      <MenuItem value="Maintenance">Maintenance</MenuItem>
-                      <MenuItem value="Payments">Payments</MenuItem>
+                      <MenuItem value="">None (shown under Contact & Support)</MenuItem>
+                      <MenuItem value="Getting Started">Getting Started</MenuItem>
+                      <MenuItem value="Permits & Applications">Permits & Applications</MenuItem>
+                      <MenuItem value="Road & Reporting">Road & Reporting</MenuItem>
+                      <MenuItem value="Contact & Support">Contact & Support</MenuItem>
                     </Select>
                     {errors.category && (
                       <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>

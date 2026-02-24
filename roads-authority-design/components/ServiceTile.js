@@ -10,36 +10,45 @@ import { DESIGN_V2_HEADER } from '../designTokens';
 const PRIMARY = DESIGN_V2_HEADER.primary;
 const ICON_BG_OPACITY = '20';
 
-export function ServiceTile({ iconName, label, onPress }) {
+export function ServiceTile({ iconName, label, onPress, blueOutline }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <View style={styles.iconWrap}>
-        <Ionicons name={iconName} size={28} color={PRIMARY} />
-      </View>
-      <Text style={styles.label} numberOfLines={2}>
+    <View style={styles.wrapper}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.tile,
+          blueOutline && styles.tileBlueOutline,
+          pressed && styles.pressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <View style={styles.iconWrap}>
+          <Ionicons name={iconName} size={28} color={PRIMARY} />
+        </View>
+      </Pressable>
+      <Text style={styles.labelOutside} numberOfLines={2}>
         {label}
       </Text>
-    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tile: {
+  wrapper: {
     flex: 1,
+    alignItems: 'center',
+    minWidth: 0,
+  },
+  tile: {
     alignSelf: 'stretch',
+    aspectRatio: 1,
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
     borderTopWidth: 3,
     borderTopColor: PRIMARY,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
@@ -51,6 +60,11 @@ const styles = StyleSheet.create({
       },
       android: { elevation: 2 },
     }),
+  },
+  tileBlueOutline: {
+    borderWidth: 2,
+    borderColor: PRIMARY,
+    borderTopWidth: 2,
   },
   pressed: {
     opacity: 0.92,
@@ -66,14 +80,14 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY + ICON_BG_OPACITY,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
   },
-  label: {
+  labelOutside: {
     ...typography.bodySmall,
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '400',
     color: NEUTRAL_COLORS.gray800,
     textAlign: 'center',
+    marginTop: spacing.xs,
     letterSpacing: 0.2,
   },
 });

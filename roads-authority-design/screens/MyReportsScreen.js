@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer, SearchBar } from '../components';
-import { MY_REPORTS, REPORT_STATUS_LABELS, REPORT_STATUS_COLORS } from '../data/myReports';
+import { REPORT_STATUS_LABELS, REPORT_STATUS_COLORS } from '../data/myReports';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
 import { PRIMARY } from '../theme/colors';
+import { getMyReports, mapReportFromApi } from '../services/potholeReportsService';
 
 function formatDate(iso) {
   if (!iso) return '';
@@ -19,7 +20,7 @@ function filterReports(reports, query) {
   const q = query.trim().toLowerCase();
   return reports.filter(
     (r) =>
-      r.location.toLowerCase().includes(q) ||
+      (r.location && r.location.toLowerCase().includes(q)) ||
       (r.description && r.description.toLowerCase().includes(q)) ||
       (REPORT_STATUS_LABELS[r.status] || '').toLowerCase().includes(q)
   );
@@ -37,11 +38,44 @@ function StatusBadge({ status }) {
 
 export function MyReportsScreen({ onBack, onSelectReport }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const filteredReports = useMemo(() => filterReports(MY_REPORTS, searchQuery), [searchQuery]);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setError(null);
+        const list = await getMyReports();
+        if (!cancelled) setReports((list || []).map(mapReportFromApi));
+      } catch (e) {
+        if (!cancelled) {
+          setError(e.message);
+          setReports([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const filteredReports = useMemo(() => filterReports(reports, searchQuery), [reports, searchQuery]);
+
+  if (loading) {
+    return (
+      <ScreenContainer contentContainerStyle={styles.content}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={PRIMARY} />
+          <Text style={styles.loadingText}>Loading your reports…</Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <Text style={styles.title}>My reports</Text>
       <Text style={styles.subtitle}>
         Road damage reports you have submitted. Tap to view details.
       </Text>
@@ -50,11 +84,19 @@ export function MyReportsScreen({ onBack, onSelectReport }) {
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
+      {error ? (
+        <View style={styles.empty}>
+          <Ionicons name="warning-outline" size={48} color={NEUTRAL_COLORS.gray500} />
+          <Text style={styles.emptyText}>{error}</Text>
+        </View>
+      ) : null}
       <View style={styles.list}>
         {filteredReports.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="document-text-outline" size={48} color={NEUTRAL_COLORS.gray400} />
-            <Text style={styles.emptyText}>No reports match your search.</Text>
+            <Text style={styles.emptyText}>
+              {reports.length === 0 ? 'No reports yet. Submit one from Report Road Damage.' : 'No reports match your search.'}
+            </Text>
           </View>
         ) : (
           filteredReports.map((report) => (
@@ -89,10 +131,16 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
     flexGrow: 1,
   },
-  title: {
-    ...typography.h5,
-    color: NEUTRAL_COLORS.gray900,
-    marginBottom: spacing.sm,
+  loadingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.xxxl,
+  },
+  loadingText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray600,
+    marginTop: spacing.md,
   },
   subtitle: {
     ...typography.bodySmall,
@@ -113,7 +161,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
     marginBottom: spacing.md,
@@ -160,7 +208,7 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 0,
   },
   badgeText: {
     ...typography.caption,

@@ -15,3 +15,6 @@ export const NEUTRAL_COLORS = {
 
 export const PRIMARY = '#00B4E6';
 export const HEADER_BLUE = '#00B4E6';
+
+/** Roads Authority Namibia brand yellow/gold (e.g. for bullets, accents) */
+export const RA_YELLOW = '#F4B800';

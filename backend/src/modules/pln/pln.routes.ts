@@ -117,6 +117,17 @@ router.put(
 );
 
 /**
+ * @route   PUT /api/pln/applications/:id/confirm-payment
+ * @desc    Confirm payment received (user – after online payment)
+ * @access  Private (app user, must own the application)
+ */
+router.put(
+  '/applications/:id/confirm-payment',
+  authenticateAppUser,
+  plnController.confirmPayment.bind(plnController)
+);
+
+/**
  * @route   PUT /api/pln/applications/:id/order-plates
  * @desc    Order plates (admin)
  * @access  Private (requires pln:manage permission)

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
-import { HeaderSvgBackground } from './HeaderSvgBackground';
+import { PRIMARY } from '../theme/colors';
 
 export function AppHeader({
   title = 'Roads Authority',
@@ -21,8 +21,6 @@ export function AppHeader({
 
   return (
     <View style={[styles.container, { paddingTop }]}>
-      <HeaderSvgBackground />
-
       <View style={styles.row}>
         {/* Left Icon */}
         {showBack ? (
@@ -77,8 +75,6 @@ export function AppHeader({
           <View style={styles.iconButton} />
         )}
       </View>
-
-      <View style={styles.bottomGlow} />
     </View>
   );
 }
@@ -89,7 +85,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     minHeight: 150,
     justifyContent: 'flex-end',
-    overflow: 'hidden',
+    backgroundColor: PRIMARY,
   },
 
   row: {
@@ -146,14 +142,5 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     letterSpacing: 0.3,
-  },
-
-  bottomGlow: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
   },
 });

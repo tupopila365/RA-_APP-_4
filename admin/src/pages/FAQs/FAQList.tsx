@@ -172,15 +172,14 @@ const FAQList = () => {
               }}
               sx={{ flexGrow: 1, minWidth: 200 }}
             />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
+            <FormControl size="small" sx={{ minWidth: 220 }}>
               <InputLabel>Category</InputLabel>
               <Select value={categoryFilter} onChange={handleCategoryFilterChange} label="Category">
                 <MenuItem value="">All Categories</MenuItem>
-                <MenuItem value="Licensing">Licensing</MenuItem>
-                <MenuItem value="Registration">Registration</MenuItem>
-                <MenuItem value="General">General</MenuItem>
-                <MenuItem value="Maintenance">Maintenance</MenuItem>
-                <MenuItem value="Payments">Payments</MenuItem>
+                <MenuItem value="Getting Started">Getting Started</MenuItem>
+                <MenuItem value="Permits & Applications">Permits & Applications</MenuItem>
+                <MenuItem value="Road & Reporting">Road & Reporting</MenuItem>
+                <MenuItem value="Contact & Support">Contact & Support</MenuItem>
               </Select>
             </FormControl>
           </Box>

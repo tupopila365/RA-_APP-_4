@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, Platform } from 'react-native';
+import { View, TextInput, Pressable, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing } from '../theme/spacing';
-import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
+import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
 
 const MIN_HEIGHT = 48;
+const SEARCH_BUTTON_WIDTH = 52;
+const INPUT_BORDER_COLOR = RA_YELLOW;
 
 export function SearchBar({
   placeholder = 'Search the RA app',
   value,
   onChangeText,
   onSubmitEditing,
+  onSearchPress,
   onFocus,
   onBlur,
   editable = true,
@@ -28,28 +31,37 @@ export function SearchBar({
     onBlur?.(e);
   };
 
+  const handleSearchButtonPress = () => {
+    onSearchPress?.();
+    onSubmitEditing?.();
+  };
+
   return (
-    <View style={[styles.wrapper, focused && styles.wrapperFocused]}>
-      <Ionicons
-        name="search"
-        size={22}
-        color={focused ? PRIMARY : NEUTRAL_COLORS.gray500}
-        style={styles.icon}
-      />
-      <TextInput
-        style={[styles.input, !editable && styles.inputDisabled]}
-        placeholder={placeholder}
-        placeholderTextColor={NEUTRAL_COLORS.gray400}
-        value={value}
-        onChangeText={onChangeText}
-        onSubmitEditing={onSubmitEditing}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        editable={editable}
-        returnKeyType="search"
-        accessibilityLabel={accessibilityLabel}
-        accessibilityRole="search"
-      />
+    <View style={styles.wrapper}>
+      <View style={[styles.inputWrap, focused && styles.inputWrapFocused]}>
+        <TextInput
+          style={[styles.input, !editable && styles.inputDisabled]}
+          placeholder={placeholder}
+          placeholderTextColor={NEUTRAL_COLORS.gray400}
+          value={value}
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmitEditing}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          editable={editable}
+          returnKeyType="search"
+          accessibilityLabel={accessibilityLabel}
+          accessibilityRole="search"
+        />
+      </View>
+      <Pressable
+        style={({ pressed }) => [styles.searchButton, pressed && styles.searchButtonPressed]}
+        onPress={handleSearchButtonPress}
+        accessibilityRole="button"
+        accessibilityLabel="Search"
+      >
+        <Ionicons name="search" size={22} color={NEUTRAL_COLORS.white} />
+      </Pressable>
     </View>
   );
 }
@@ -57,41 +69,51 @@ export function SearchBar({
 const styles = StyleSheet.create({
   wrapper: {
     flexDirection: 'row',
+    alignItems: 'stretch',
+    minHeight: MIN_HEIGHT,
+  },
+  inputWrap: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 0,
-    paddingHorizontal: spacing.lg,
-    minHeight: MIN_HEIGHT,
     borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 3,
-      },
-      android: { elevation: 2 },
-    }),
+    borderRightWidth: 0,
+    borderColor: INPUT_BORDER_COLOR,
+    borderRadius: 0,
+    paddingHorizontal: spacing.md,
   },
-  wrapperFocused: {
-    borderColor: PRIMARY,
+  inputWrapFocused: {
+    borderWidth: 2,
+    borderRightWidth: 0,
+    borderColor: RA_YELLOW,
     backgroundColor: NEUTRAL_COLORS.gray50,
     ...Platform.select({
       ios: {
-        shadowColor: PRIMARY,
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
+        shadowColor: RA_YELLOW,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
       },
       android: { elevation: 3 },
     }),
   },
-  icon: { marginRight: spacing.sm },
   input: {
     flex: 1,
     fontSize: 16,
     color: NEUTRAL_COLORS.gray900,
     paddingVertical: spacing.sm,
+    paddingHorizontal: 0,
   },
   inputDisabled: { color: NEUTRAL_COLORS.gray500 },
+  searchButton: {
+    width: SEARCH_BUTTON_WIDTH,
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 0,
+  },
+  searchButtonPressed: {
+    opacity: 0.9,
+  },
 });

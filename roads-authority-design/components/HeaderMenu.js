@@ -7,7 +7,7 @@ import { spacing } from '../theme/spacing';
 import { NEUTRAL_COLORS } from '../theme/colors';
 import { PRIMARY } from '../theme/colors';
 
-export function HeaderMenu({ visible, onClose, onSignIn, onSignUp, onFeedback }) {
+export function HeaderMenu({ visible, onClose, isLoggedIn, onSignIn, onSignUp, onSignOut }) {
   const insets = useSafeAreaInsets();
   const paddingTop = Math.max(insets.top, spacing.sm);
 
@@ -22,29 +22,32 @@ export function HeaderMenu({ visible, onClose, onSignIn, onSignUp, onFeedback })
     >
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.menuContainer, { top: paddingTop + 50 }]} onPress={() => {}}>
-          <Pressable
-            style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
-            onPress={() => { onSignIn(); onClose(); }}
-          >
-            <Ionicons name="log-in-outline" size={22} color={PRIMARY} style={styles.menuIcon} />
-            <Text style={styles.menuItemText}>Sign in</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
-            onPress={() => { onSignUp(); onClose(); }}
-          >
-            <Ionicons name="person-add-outline" size={22} color={PRIMARY} style={styles.menuIcon} />
-            <Text style={styles.menuItemText}>Sign up</Text>
-          </Pressable>
-          {onFeedback ? (
+          {isLoggedIn ? (
             <Pressable
-              style={({ pressed }) => [styles.menuItem, styles.menuItemBorder, pressed && styles.pressed]}
-              onPress={() => { onFeedback(); onClose(); }}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+              onPress={() => { onSignOut?.(); onClose(); }}
             >
-              <Ionicons name="chatbubble-ellipses-outline" size={22} color={PRIMARY} style={styles.menuIcon} />
-              <Text style={styles.menuItemText}>Feedback</Text>
+              <Ionicons name="log-out-outline" size={22} color={PRIMARY} style={styles.menuIcon} />
+              <Text style={styles.menuItemText}>Sign out</Text>
             </Pressable>
-          ) : null}
+          ) : (
+            <>
+              <Pressable
+                style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+                onPress={() => { onSignIn?.(); onClose(); }}
+              >
+                <Ionicons name="log-in-outline" size={22} color={PRIMARY} style={styles.menuIcon} />
+                <Text style={styles.menuItemText}>Sign in</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+                onPress={() => { onSignUp?.(); onClose(); }}
+              >
+                <Ionicons name="person-add-outline" size={22} color={PRIMARY} style={styles.menuIcon} />
+                <Text style={styles.menuItemText}>Sign up</Text>
+              </Pressable>
+            </>
+          )}
         </Pressable>
       </Pressable>
     </Modal>
@@ -54,21 +57,21 @@ export function HeaderMenu({ visible, onClose, onSignIn, onSignUp, onFeedback })
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
     alignItems: 'flex-end',
     paddingHorizontal: spacing.lg,
   },
   menuContainer: {
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
+    borderRadius: 0,
+    borderWidth: 2,
+    borderColor: PRIMARY,
     minWidth: 180,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 12,
     overflow: 'hidden',
   },
   menuItem: {

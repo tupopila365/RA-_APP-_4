@@ -209,11 +209,11 @@ class PLNService {
             message: `Plate choice ${i + 1} text cannot exceed 8 characters`,
           };
         }
-        if (!/^[a-zA-Z0-9]*$/.test(choice.text)) {
+        if (!/^[a-zA-Z0-9 ]*$/.test(choice.text)) {
           throw {
             statusCode: 400,
             code: ERROR_CODES.VALIDATION_ERROR,
-            message: `Plate choice ${i + 1} text must be alphanumeric only`,
+            message: `Plate choice ${i + 1} text must be alphanumeric only (spaces allowed)`,
           };
         }
         if (!choice.meaning || !choice.meaning.trim()) {
@@ -672,7 +672,7 @@ class PLNService {
   }
 
   /**
-   * Mark payment as received
+   * Mark payment as received (admin)
    */
   async markPaymentReceived(id: string, adminId: string): Promise<IPLN> {
     try {
@@ -716,6 +716,83 @@ class PLNService {
         statusCode: 500,
         code: ERROR_CODES.DB_OPERATION_FAILED,
         message: 'Failed to mark payment as received',
+        details: error.message,
+      };
+    }
+  }
+
+  /**
+   * Mark payment as received by the applicant (e.g. after online payment).
+   * Verifies the authenticated user owns the application by email.
+   */
+  async markPaymentReceivedByUser(
+    id: string,
+    userEmail: string,
+    paymentReference?: string
+  ): Promise<IPLN> {
+    try {
+      logger.info(`User confirming payment for application: ${id}`);
+
+      const numId = parseId(id);
+      const repo = AppDataSource.getRepository(PLN);
+      const application = await repo.findOne({ where: { id: numId } });
+      if (!application) {
+        throw {
+          statusCode: 404,
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Application not found',
+        };
+      }
+
+      const normalizedUserEmail = (userEmail || '').trim().toLowerCase();
+      const applicationEmail = (application.email || '').trim().toLowerCase();
+      if (!normalizedUserEmail || applicationEmail !== normalizedUserEmail) {
+        throw {
+          statusCode: 403,
+          code: ERROR_CODES.FORBIDDEN,
+          message: 'You can only confirm payment for your own application',
+        };
+      }
+
+      if (application.status !== 'PAYMENT_PENDING') {
+        throw {
+          statusCode: 400,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'This application is not awaiting payment',
+        };
+      }
+
+      const statusHistoryEntry: IStatusHistory = {
+        status: 'PAID',
+        changedBy: 'Online payment',
+        timestamp: new Date(),
+        comment: paymentReference ? `Payment received (ref: ${paymentReference})` : 'Payment received (online)',
+      };
+
+      application.status = 'PAID';
+      application.paymentReceivedAt = new Date();
+      application.statusHistory = [
+        ...(Array.isArray(application.statusHistory) ? application.statusHistory : []),
+        statusHistoryEntry,
+      ];
+      if (paymentReference) {
+        application.paymentReference = paymentReference;
+      }
+      application.paymentMethod = 'online';
+
+      const updated = await repo.save(application);
+
+      logger.info(`Payment confirmed by user for application ${id}`);
+      return updated as unknown as IPLN;
+    } catch (error: any) {
+      logger.error('Mark payment by user error:', error);
+      if (error.statusCode) {
+        throw error;
+      }
+      throw {
+        statusCode: 500,
+        code: ERROR_CODES.DB_OPERATION_FAILED,
+        message: 'Failed to confirm payment',
         details: error.message,
       };
     }
