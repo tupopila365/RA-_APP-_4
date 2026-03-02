@@ -12,7 +12,6 @@ import {
   BottomNavBar,
 } from './components';
 import { HomeDesignToggle } from './components/HomeDesignToggle';
-import { ImageSlideshow } from './components/ImageSlideshow';
 import { HomeGridLayout, HomeListLayout, HomeCardsLayout, HomeSimpleTilesLayout, HomeTopicsLayout } from './components/HomeScreenLayouts';
 import { HomeSearchWithSuggestions } from './components/HomeSearchWithSuggestions';
 import { searchAppContent } from './data/searchIndex';
@@ -38,6 +37,7 @@ import { ApplicationDetailScreen } from './screens/ApplicationDetailScreen';
 import { PaymentScreen } from './screens/PaymentScreen';
 import { SuccessScreen } from './screens/SuccessScreen';
 import { ReportDamageMapScreen } from './screens/ReportDamageMapScreen';
+import { MyLicencesScreen } from './screens/MyLicencesScreen';
 
 function buildServiceItems(onReportDamage, onServices, onNews, onFindOffices, onForms, onRoadStatus, onMyReports, onFeedback) {
   return [
@@ -154,8 +154,9 @@ export default function App() {
   const isReportDamageSuccess = screen === 'report-damage-success';
   const isPlnApplicationSuccess = screen === 'pln-application-success';
   const isReportDamageMap = screen === 'report-damage-map';
-  const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap;
-  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : 'Roads Authority';
+  const isMyLicences = screen === 'my-licences';
+  const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap || isMyLicences;
+  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : isMyLicences ? 'My licence & vehicle' : 'Roads Authority';
 
   return (
     <SafeAreaProvider>
@@ -173,7 +174,7 @@ export default function App() {
           welcomeMessage={isSubScreen ? null : getWelcomeMessage(currentUser)}
           title={screenTitle}
           showBack={isSubScreen}
-          onBackPress={isSubScreen ? () => { if (isNewsDetail) { setScreen('news'); setSelectedArticle(null); } else if (isMyReportDetail) { setScreen('my-reports'); setSelectedReport(null); } else if (isFeedback) { setScreen('home'); } else if (isChat) { setScreen('home'); } else if (isHelp) { setScreen('home'); } else if (isPlnInfo) { setScreen('services'); } else if (isPlnWizard) { setScreen('pln-info'); } else if (isMyApplications) { setScreen('services'); } else if (isApplicationDetail) { setScreen('my-applications'); setSelectedApplication(null); } else if (isPayment) { setScreen('application-detail'); } else if (isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap) { setScreen('home'); } else { setScreen('home'); } } : undefined}
+          onBackPress={isSubScreen ? () => { if (isNewsDetail) { setScreen('news'); setSelectedArticle(null); } else if (isMyReportDetail) { setScreen('my-reports'); setSelectedReport(null); } else if (isFeedback) { setScreen('home'); } else if (isChat) { setScreen('home'); } else if (isHelp) { setScreen('home'); } else if (isPlnInfo) { setScreen('services'); } else if (isPlnWizard) { setScreen('pln-info'); } else if (isMyApplications) { setScreen('services'); } else if (isApplicationDetail) { setScreen('my-applications'); setSelectedApplication(null); } else if (isPayment) { setScreen('application-detail'); } else if (isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap) { setScreen('home'); } else if (isMyLicences) { setScreen('services'); } else { setScreen('home'); } } : undefined}
           showMenu={!isSubScreen}
           onMenuPress={() => setMenuVisible(true)}
         />
@@ -207,7 +208,10 @@ export default function App() {
             onBack={() => setScreen('home')}
             onPlnApplication={() => setScreen('pln-info')}
             onMyApplications={() => setScreen('my-applications')}
+            onMyLicences={() => setScreen('my-licences')}
           />
+        ) : isMyLicences ? (
+          <MyLicencesScreen onBack={() => setScreen('services')} />
         ) : isNewsDetail ? (
           <NewsDetailScreen
             article={selectedArticle}
@@ -301,15 +305,6 @@ export default function App() {
             {homeDesignOption === 3 && <HomeCardsLayout items={serviceItems} />}
             {homeDesignOption === 4 && <HomeSimpleTilesLayout items={serviceItems} />}
             {homeDesignOption === 5 && <HomeTopicsLayout items={serviceItems} />}
-            <View style={styles.bannerWrap}>
-              <ImageSlideshow
-                images={[
-                  require('./assets/image1.png'),
-                  require('./assets/image2.png'),
-                ]}
-                height={160}
-              />
-            </View>
             <HomeDesignToggle value={homeDesignOption} onChange={setHomeDesignOption} />
           </ScreenContainer>
         )}
@@ -342,15 +337,5 @@ const styles = StyleSheet.create({
   },
   searchSpacer: {
     height: 20,
-  },
-  bannerWrap: {
-    width: '100%',
-    marginTop: spacing.xl,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  bannerImage: {
-    width: '100%',
-    height: 160,
   },
 });

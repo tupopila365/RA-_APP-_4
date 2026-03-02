@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   submitBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: FEEDBACK_BUTTON_GREEN,
+    backgroundColor: PRIMARY,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
     borderRadius: 8,

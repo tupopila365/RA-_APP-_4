@@ -44,15 +44,26 @@ const SERVICE_INFO = [
       'Find where to collect approved items',
     ],
   },
+  {
+    key: 'my-licences',
+    title: 'My licence & vehicle',
+    iconName: 'id-card-outline',
+    points: [
+      'View your driver licence expiry',
+      'View your vehicle licence expiry',
+      'See days left until renewal',
+    ],
+  },
 ];
 
-export function ServicesScreen({ onBack, onPlnApplication, onMyApplications }) {
+export function ServicesScreen({ onBack, onPlnApplication, onMyApplications, onMyLicences }) {
   const openNatisOnline = () => Linking.openURL(NATIS_ONLINE_URL);
 
   const getOnPress = (key) => {
     if (key === 'natis') return openNatisOnline;
     if (key === 'pln') return onPlnApplication || (() => {});
     if (key === 'my-apps') return onMyApplications || (() => {});
+    if (key === 'my-licences') return onMyLicences || (() => {});
     return () => {};
   };
 
