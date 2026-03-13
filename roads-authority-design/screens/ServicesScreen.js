@@ -46,17 +46,27 @@ const SERVICE_INFO = [
   },
   {
     key: 'my-licences',
-    title: 'My licence & vehicle',
+    title: 'My licence',
     iconName: 'id-card-outline',
     points: [
-      'View your driver licence expiry',
-      'View your vehicle licence expiry',
-      'See days left until renewal',
+      'View your driving licence card status',
+      'See card number and expiry date',
+      'Demo view – no login required',
+    ],
+  },
+  {
+    key: 'vehicles-due',
+    title: 'Vehicles due for renewal',
+    iconName: 'car-outline',
+    points: [
+      'See vehicles that are due for renewal',
+      'Shows make, model and licence number',
+      'Demo view based on sample data',
     ],
   },
 ];
 
-export function ServicesScreen({ onBack, onPlnApplication, onMyApplications, onMyLicences }) {
+export function ServicesScreen({ onBack, onPlnApplication, onMyApplications, onMyLicences, onVehiclesDue }) {
   const openNatisOnline = () => Linking.openURL(NATIS_ONLINE_URL);
 
   const getOnPress = (key) => {
@@ -64,6 +74,7 @@ export function ServicesScreen({ onBack, onPlnApplication, onMyApplications, onM
     if (key === 'pln') return onPlnApplication || (() => {});
     if (key === 'my-apps') return onMyApplications || (() => {});
     if (key === 'my-licences') return onMyLicences || (() => {});
+    if (key === 'vehicles-due') return onVehiclesDue || (() => {});
     return () => {};
   };
 

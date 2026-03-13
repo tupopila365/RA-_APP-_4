@@ -38,10 +38,14 @@ import { PaymentScreen } from './screens/PaymentScreen';
 import { SuccessScreen } from './screens/SuccessScreen';
 import { ReportDamageMapScreen } from './screens/ReportDamageMapScreen';
 import { MyLicencesScreen } from './screens/MyLicencesScreen';
+import { VehiclesDueForRenewalScreen } from './screens/VehiclesDueForRenewalScreen';
+import { VehicleDetailScreen } from './screens/VehicleDetailScreen';
 
-function buildServiceItems(onReportDamage, onServices, onNews, onFindOffices, onForms, onRoadStatus, onMyReports, onFeedback) {
+function buildServiceItems(onReportDamage, onServices, onMyLicences, onVehiclesDue, onNews, onFindOffices, onForms, onRoadStatus, onMyReports, onFeedback) {
   return [
     { key: 'services', iconName: 'construct-outline', label: 'Services', onPress: onServices },
+    { key: 'my-licence', iconName: 'id-card-outline', label: 'My licence', onPress: onMyLicences },
+    { key: 'vehicles-due', iconName: 'car-outline', label: 'Vehicles due', onPress: onVehiclesDue },
     { key: 'road-status', iconName: 'trail-sign-outline', label: 'Road Status', onPress: onRoadStatus },
     { key: 'report-damage', iconName: 'warning-outline', label: 'Report Road Damage', onPress: onReportDamage },
     { key: 'reports', iconName: 'document-text-outline', label: 'My Reports', onPress: onMyReports },
@@ -79,6 +83,7 @@ export default function App() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [homeDesignOption, setHomeDesignOption] = useState(1);
   const [currentUser, setCurrentUser] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   useEffect(() => {
     authService.getStoredUser().then(setCurrentUser);
@@ -93,6 +98,8 @@ export default function App() {
   const serviceItems = buildServiceItems(
     () => setScreen('report-damage'),
     () => setScreen('services'),
+    () => setScreen('my-licences'),
+    () => setScreen('vehicles-due'),
     () => setScreen('news'),
     () => setScreen('find-offices'),
     () => setScreen('downloads'),
@@ -155,8 +162,10 @@ export default function App() {
   const isPlnApplicationSuccess = screen === 'pln-application-success';
   const isReportDamageMap = screen === 'report-damage-map';
   const isMyLicences = screen === 'my-licences';
-  const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap || isMyLicences;
-  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : isMyLicences ? 'My licence & vehicle' : 'Roads Authority';
+  const isVehiclesDue = screen === 'vehicles-due';
+  const isVehicleDetail = screen === 'vehicle-detail';
+  const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap || isMyLicences || isVehiclesDue || isVehicleDetail;
+  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : isMyLicences ? 'My licence' : isVehiclesDue ? 'Vehicles due for renewal' : isVehicleDetail ? 'Vehicle details' : 'Roads Authority';
 
   return (
     <SafeAreaProvider>
@@ -174,7 +183,7 @@ export default function App() {
           welcomeMessage={isSubScreen ? null : getWelcomeMessage(currentUser)}
           title={screenTitle}
           showBack={isSubScreen}
-          onBackPress={isSubScreen ? () => { if (isNewsDetail) { setScreen('news'); setSelectedArticle(null); } else if (isMyReportDetail) { setScreen('my-reports'); setSelectedReport(null); } else if (isFeedback) { setScreen('home'); } else if (isChat) { setScreen('home'); } else if (isHelp) { setScreen('home'); } else if (isPlnInfo) { setScreen('services'); } else if (isPlnWizard) { setScreen('pln-info'); } else if (isMyApplications) { setScreen('services'); } else if (isApplicationDetail) { setScreen('my-applications'); setSelectedApplication(null); } else if (isPayment) { setScreen('application-detail'); } else if (isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap) { setScreen('home'); } else if (isMyLicences) { setScreen('services'); } else { setScreen('home'); } } : undefined}
+          onBackPress={isSubScreen ? () => { if (isNewsDetail) { setScreen('news'); setSelectedArticle(null); } else if (isMyReportDetail) { setScreen('my-reports'); setSelectedReport(null); } else if (isFeedback) { setScreen('home'); } else if (isChat) { setScreen('home'); } else if (isHelp) { setScreen('home'); } else if (isPlnInfo) { setScreen('services'); } else if (isPlnWizard) { setScreen('pln-info'); } else if (isMyApplications) { setScreen('services'); } else if (isApplicationDetail) { setScreen('my-applications'); setSelectedApplication(null); } else if (isPayment) { setScreen('application-detail'); } else if (isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap) { setScreen('home'); } else if (isVehicleDetail) { setScreen('vehicles-due'); setSelectedVehicle(null); } else if (isMyLicences || isVehiclesDue) { setScreen('services'); } else { setScreen('home'); } } : undefined}
           showMenu={!isSubScreen}
           onMenuPress={() => setMenuVisible(true)}
         />
@@ -209,9 +218,20 @@ export default function App() {
             onPlnApplication={() => setScreen('pln-info')}
             onMyApplications={() => setScreen('my-applications')}
             onMyLicences={() => setScreen('my-licences')}
+            onVehiclesDue={() => setScreen('vehicles-due')}
           />
         ) : isMyLicences ? (
           <MyLicencesScreen onBack={() => setScreen('services')} />
+        ) : isVehiclesDue ? (
+          <VehiclesDueForRenewalScreen
+            onBack={() => setScreen('services')}
+            onSelectVehicle={(vehicle) => {
+              setSelectedVehicle(vehicle);
+              setScreen('vehicle-detail');
+            }}
+          />
+        ) : isVehicleDetail ? (
+          <VehicleDetailScreen vehicle={selectedVehicle} />
         ) : isNewsDetail ? (
           <NewsDetailScreen
             article={selectedArticle}
