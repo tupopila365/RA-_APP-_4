@@ -3,6 +3,7 @@
     "name": "Roads Authority Design",
     "slug": "roads-authority-design",
     "version": "1.0.0",
+    "icon": "./assets/ra app logo.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
@@ -21,6 +22,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/ra app logo.png",
         "backgroundColor": "#00B4E6"
       },
       "package": "com.roadsauthority.design",

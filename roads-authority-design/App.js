@@ -174,7 +174,7 @@ export default function App() {
         <AppHeader
           logo={
             <Image
-              source={require('./assets/ra logo.png')}
+              source={require('./assets/ra app logo.png')}
               style={styles.headerLogo}
               resizeMode="contain"
               accessibilityLabel="Roads Authority logo"

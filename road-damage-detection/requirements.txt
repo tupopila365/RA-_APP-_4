@@ -1,0 +1,5 @@
+# Standalone road damage detection (no app/backend integration).
+ultralytics>=8.3.0,<9
+opencv-python-headless>=4.8.0,<5
+numpy>=1.24.0,<3
+Pillow>=10.0.0,<12
