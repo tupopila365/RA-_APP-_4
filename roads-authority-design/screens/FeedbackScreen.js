@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ImageBackground,
+  ScrollView,
+  StatusBar,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenContainer, FormInput, DropdownSelector } from '../components';
+import { FormInput, DropdownSelector } from '../components';
 import { useKeyboardScroll } from '../hooks/useKeyboardScroll';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
 import { PRIMARY } from '../theme/colors';
 import { submitFeedback } from '../services/feedbackService';
-
-const FEEDBACK_BUTTON_GREEN = '#3CB371';
 
 const FEEDBACK_TYPE_OPTIONS = [
   { value: 'natis', label: 'NATIS services' },
@@ -48,61 +57,104 @@ export function FeedbackScreen({ onBack }) {
   };
 
   return (
-    <ScreenContainer ref={scrollViewRef} contentContainerStyle={styles.content} keyboardAware>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
-        <View ref={contentRef} collapsable={false}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="chatbubble-ellipses-outline" size={48} color={PRIMARY} />
-          </View>
-          <Text style={styles.subtitle}>
-            Help us improve. Choose a category and share your suggestions or report an issue.
-          </Text>
-          <DropdownSelector
-            label="Feedback about"
-            required
-            placeholder="Select category"
-            options={FEEDBACK_TYPE_OPTIONS}
-            value={feedbackType}
-            onSelect={setFeedbackType}
-          />
-          <FormInput
-            label="Your message"
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Type your feedback here..."
-            multiline
-            numberOfLines={4}
-            onFocusWithRef={onFocusWithRef}
-          />
-        </View>
-        <Pressable
-          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          disabled={submitting}
+    <ImageBackground
+      source={require('../assets/background.png')}
+      style={styles.bg}
+      resizeMode="cover"
+    >
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <View style={styles.overlay} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboard}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.submitBtnText}>{submitting ? 'Sending…' : 'Send feedback'}</Text>
-        </Pressable>
+          <View style={styles.card} ref={contentRef} collapsable={false}>
+            <View style={styles.iconWrap}>
+              <Ionicons name="chatbubble-ellipses-outline" size={48} color={PRIMARY} />
+            </View>
+            <Text style={styles.subtitle}>
+              Help us improve. Choose a category and share your suggestions or report an issue.
+            </Text>
+            <DropdownSelector
+              label="Feedback about"
+              required
+              placeholder="Select category"
+              options={FEEDBACK_TYPE_OPTIONS}
+              value={feedbackType}
+              onSelect={setFeedbackType}
+            />
+            <FormInput
+              label="Your message"
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Type your feedback here..."
+              multiline
+              numberOfLines={4}
+              onFocusWithRef={onFocusWithRef}
+            />
+            <Pressable
+              style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              <Text style={styles.submitBtnText}>{submitting ? 'Sending…' : 'Send feedback'}</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenContainer>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: spacing.xxxl,
+  bg: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   keyboard: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxxl,
+  },
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 16,
+    padding: spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   iconWrap: {
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  cardHeading: {
+    ...typography.h4,
+    color: PRIMARY,
+    marginBottom: spacing.xs,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   subtitle: {
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray600,
     marginBottom: spacing.xl,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   submitBtn: {
     alignItems: 'center',
@@ -111,7 +163,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
     borderRadius: 8,
-    marginTop: spacing.sm,
+    marginTop: spacing.lg,
   },
   submitBtnDisabled: {
     opacity: 0.6,

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Roads Authority Design",
+    "name": "myRA App",
     "slug": "roads-authority-design",
     "version": "1.0.0",
     "icon": "./assets/ra app logo.png",
@@ -10,7 +10,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#00B4E6"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.roadsauthority.design",
@@ -26,9 +28,31 @@
         "backgroundColor": "#00B4E6"
       },
       "package": "com.roadsauthority.design",
-      "softwareKeyboardLayoutMode": "pan",
-      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "softwareKeyboardLayoutMode": "resize",
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
-    "web": {}
+    "plugins": [
+      [
+        "react-native-maps",
+        {
+          "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      ]
+    ],
+    "web": {},
+    "extra": {
+      "eas": {
+        "projectId": "c07c18a6-ea55-48e5-821d-b446767a7b57"
+      }
+    }
   }
 }

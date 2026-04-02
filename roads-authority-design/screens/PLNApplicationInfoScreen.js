@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray600,
     marginBottom: spacing.xl,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   sectionTitle: {
     ...typography.body,

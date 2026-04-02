@@ -23,28 +23,12 @@ import {
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { createUser, updateUser, getUserById } from '../../services/users.service';
 import { Permission, Role } from '../../types';
-import { usePermissions } from '../../hooks/usePermissions';
 
 const AVAILABLE_PERMISSIONS: { value: Permission; label: string; description: string }[] = [
   {
     value: 'news:manage',
     label: 'News Manager',
     description: 'Create, edit, and delete news articles',
-  },
-  {
-    value: 'tenders:manage',
-    label: 'Tenders Manager',
-    description: 'Create, edit, and delete tenders',
-  },
-  {
-    value: 'vacancies:manage',
-    label: 'Vacancies Manager',
-    description: 'Create, edit, and delete job vacancies',
-  },
-  {
-    value: 'documents:upload',
-    label: 'PDF Uploader',
-    description: 'Upload and manage PDF documents',
   },
   {
     value: 'banners:manage',
@@ -57,16 +41,40 @@ const AVAILABLE_PERMISSIONS: { value: Permission; label: string; description: st
     description: 'Create, edit, and delete office locations',
   },
   {
+    value: 'users:manage',
+    label: 'User Manager',
+    description: 'Create, edit, and manage admin users',
+  },
+  {
+    value: 'faqs:manage',
+    label: 'FAQs Manager',
+    description: 'Create, edit, and delete FAQs',
+  },
+  {
+    value: 'pothole-reports:manage',
+    label: 'Pothole Reports Manager',
+    description: 'View and manage pothole reports submitted from the app',
+  },
+  {
+    value: 'road-status:manage',
+    label: 'Road Status Manager',
+    description: 'Create, edit, publish/unpublish road status entries',
+  },
+  {
     value: 'ra-services:manage',
     label: 'RA Services Manager',
     description: 'Create, edit, and delete RA services',
+  },
+  {
+    value: 'feedback:manage',
+    label: 'Feedback Manager',
+    description: 'View and manage feedback submitted from the app',
   },
 ];
 
 const UserForm = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { hasPermission } = usePermissions();
   const isEditMode = Boolean(id);
 
   const [loading, setLoading] = useState(false);
@@ -86,13 +94,6 @@ const UserForm = () => {
     password: '',
   });
 
-  // Check if user has permission to manage users
-  useEffect(() => {
-    if (!hasPermission('users:manage')) {
-      navigate('/');
-    }
-  }, [hasPermission, navigate]);
-
   // Fetch user data if in edit mode
   useEffect(() => {
     if (isEditMode && id) {
@@ -104,15 +105,15 @@ const UserForm = () => {
     try {
       setLoading(true);
       const response = await getUserById(userId);
-      const user = response.data;
+      const user = response.data.user;
       setFormData({
-        email: user.email,
+        email: user.email ?? '',
         password: '',
-        role: user.role,
-        permissions: user.permissions as Permission[],
+        role: user.role ?? 'admin',
+        permissions: (user.permissions ?? []) as Permission[],
       });
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Failed to fetch user');
+      setError(err.response?.data?.error?.message || err.message || 'Failed to fetch user');
     } finally {
       setLoading(false);
     }
@@ -157,12 +158,15 @@ const UserForm = () => {
   };
 
   const handlePermissionToggle = (permission: Permission) => {
-    setFormData((prev) => ({
-      ...prev,
-      permissions: prev.permissions.includes(permission)
-        ? prev.permissions.filter((p) => p !== permission)
-        : [...prev.permissions, permission],
-    }));
+    setFormData((prev) => {
+      const current = prev.permissions ?? [];
+      return {
+        ...prev,
+        permissions: current.includes(permission)
+          ? current.filter((p) => p !== permission)
+          : [...current, permission],
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -338,7 +342,7 @@ const UserForm = () => {
                             <FormControlLabel
                               control={
                                 <Checkbox
-                                  checked={formData.permissions.includes(permission.value)}
+                                  checked={(formData.permissions ?? []).includes(permission.value)}
                                   onChange={() => handlePermissionToggle(permission.value)}
                                   disabled={formData.role === 'super-admin'}
                                 />

@@ -21,7 +21,9 @@ export interface UserListResponse {
 
 export interface UserResponse {
   success: boolean;
-  data: IUser;
+  data: {
+    user: IUser;
+  };
 }
 
 /**

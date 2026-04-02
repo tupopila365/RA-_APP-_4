@@ -6,8 +6,6 @@ import Login from './pages/Login';
 import DashboardPage from './pages/DashboardPage';
 import ChatbotInteractions from './pages/ChatbotInteractions';
 import { NewsList, NewsForm, NewsDetail } from './pages/News';
-import { VacanciesList, VacancyForm } from './pages/Vacancies';
-import { TendersList, TenderForm } from './pages/Tenders';
 import { BannersList, BannerForm } from './pages/Banners';
 import { LocationsList, LocationForm } from './pages/Locations';
 import { FAQList, FAQForm } from './pages/FAQs';
@@ -17,15 +15,6 @@ import { ReportsList, ReportDetail } from './pages/PotholeReports';
 import PLNDashboardPage from './pages/PLN/PLNDashboardPage';
 import PLNListPage from './pages/PLN/PLNListPage';
 import PLNDetailPage from './pages/PLN/PLNDetailPage';
-import VehicleDashboardPage from './pages/Vehicle/VehicleDashboardPage';
-import VehicleListPage from './pages/Vehicle/VehicleListPage';
-import VehicleDetailPage from './pages/Vehicle/VehicleDetailPage';
-import { IncidentsList, IncidentForm } from './pages/Incidents';
-import { ProcurementLegislationPage } from './pages/ProcurementLegislation';
-import { ProcurementPlanPage } from './pages/ProcurementPlan';
-import { ProcurementAwardsPage } from './pages/ProcurementAwards';
-import { ProcurementOpeningRegisterPage } from './pages/ProcurementOpeningRegister';
-import { BidsRFQsPage } from './pages/BidsRFQs';
 import { RoadStatusList, RoadStatusForm } from './pages/RoadStatus';
 import FormsPage from './pages/Forms/FormsPage';
 import { RAServicesPage } from './pages/RAServices';
@@ -549,66 +538,6 @@ function App() {
               }
             />
             <Route
-              path="/vacancies"
-              element={
-                <ProtectedRoute requiredPermission="vacancies:manage">
-                  <Layout>
-                    <VacanciesList />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vacancies/create"
-              element={
-                <ProtectedRoute requiredPermission="vacancies:manage">
-                  <Layout>
-                    <VacancyForm />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vacancies/edit/:id"
-              element={
-                <ProtectedRoute requiredPermission="vacancies:manage">
-                  <Layout>
-                    <VacancyForm />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tenders"
-              element={
-                <ProtectedRoute requiredPermission="tenders:manage">
-                  <Layout>
-                    <TendersList />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tenders/create"
-              element={
-                <ProtectedRoute requiredPermission="tenders:manage">
-                  <Layout>
-                    <TenderForm />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tenders/edit/:id"
-              element={
-                <ProtectedRoute requiredPermission="tenders:manage">
-                  <Layout>
-                    <TenderForm />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/banners"
               element={
                 <ProtectedRoute requiredPermission="banners:manage">
@@ -789,36 +718,6 @@ function App() {
               }
             />
             <Route
-              path="/incidents"
-              element={
-                <ProtectedRoute requiredPermission="incidents:manage">
-                  <Layout>
-                    <IncidentsList />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/incidents/create"
-              element={
-                <ProtectedRoute requiredPermission="incidents:manage">
-                  <Layout>
-                    <IncidentForm />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/incidents/edit/:id"
-              element={
-                <ProtectedRoute requiredPermission="incidents:manage">
-                  <Layout>
-                    <IncidentForm />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/pln"
               element={
                 <ProtectedRoute requiredPermission="pln:manage">
@@ -849,66 +748,6 @@ function App() {
               }
             />
             <Route
-              path="/vehicle-reg"
-              element={
-                <ProtectedRoute requiredPermission="vehicle-reg:manage">
-                  <Layout>
-                    <VehicleDashboardPage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vehicle-reg/applications"
-              element={
-                <ProtectedRoute requiredPermission="vehicle-reg:manage">
-                  <Layout>
-                    <VehicleListPage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vehicle-reg/applications/:id"
-              element={
-                <ProtectedRoute requiredPermission="vehicle-reg:manage">
-                  <Layout>
-                    <VehicleDetailPage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/procurement-legislation"
-              element={
-                <ProtectedRoute requiredPermission="procurement:legislation:manage">
-                  <Layout>
-                    <ProcurementLegislationPage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/procurement-plan"
-              element={
-                <ProtectedRoute requiredPermission="procurement:plan:manage">
-                  <Layout>
-                    <ProcurementPlanPage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/procurement-awards"
-              element={
-                <ProtectedRoute requiredPermission="procurement:awards:manage">
-                  <Layout>
-                    <ProcurementAwardsPage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/forms"
               element={
                 <ProtectedRoute requiredPermission="procurement:awards:manage">
@@ -928,26 +767,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-                <Route
-                  path="/procurement-opening-register"
-                  element={
-                    <ProtectedRoute requiredPermission="procurement:opening-register:manage">
-                      <Layout>
-                        <ProcurementOpeningRegisterPage />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/bids-rfqs"
-                  element={
-                    <ProtectedRoute requiredPermission="procurement:opening-register:manage">
-                      <Layout>
-                        <BidsRFQsPage />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </AuthProvider>

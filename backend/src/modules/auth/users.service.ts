@@ -118,6 +118,9 @@ export class UsersService {
    */
   async getUserById(userId: string): Promise<User> {
     const id = parseInt(userId, 10);
+    if (isNaN(id)) {
+      throw { code: ERROR_CODES.NOT_FOUND, message: 'User not found', statusCode: 404 };
+    }
     const repo = AppDataSource.getRepository(User);
     const user = await repo.findOne({
       where: { id },

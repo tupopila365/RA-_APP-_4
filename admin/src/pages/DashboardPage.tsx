@@ -14,17 +14,13 @@ import {
 import {
   Description,
   Article,
-  Work,
-  Gavel,
   ViewCarousel,
   LocationOn,
   HelpOutline,
   People,
   DirectionsCar,
   Warning as PotholeIcon,
-  ReportProblem as IncidentIcon,
   ChatBubble as ChatbotIcon,
-  ListAlt as RegisterIcon,
 } from '@mui/icons-material';
 
 const DashboardPage: React.FC = () => {
@@ -41,10 +37,6 @@ const DashboardPage: React.FC = () => {
     switch (iconName) {
       case 'news':
         return <Article {...iconProps} />;
-      case 'vacancies':
-        return <Work {...iconProps} />;
-      case 'tenders':
-        return <Gavel {...iconProps} />;
       case 'banners':
         return <ViewCarousel {...iconProps} />;
       case 'locations':
@@ -59,12 +51,8 @@ const DashboardPage: React.FC = () => {
         return <Description {...iconProps} />;
       case 'pothole-reports':
         return <PotholeIcon {...iconProps} />;
-      case 'incidents':
-        return <IncidentIcon {...iconProps} />;
       case 'chatbot':
         return <ChatbotIcon {...iconProps} />;
-      case 'bids-rfqs':
-        return <RegisterIcon {...iconProps} />;
       default:
         return null;
     }
@@ -78,20 +66,6 @@ const DashboardPage: React.FC = () => {
       description: 'Create and manage news articles',
       icon: 'news',
       permission: 'news:manage' as const,
-    },
-    {
-      id: 'vacancies',
-      name: 'Vacancies',
-      description: 'Manage job vacancies and opportunities',
-      icon: 'vacancies',
-      permission: 'vacancies:manage' as const,
-    },
-    {
-      id: 'tenders',
-      name: 'Tenders',
-      description: 'Manage tenders and procurement',
-      icon: 'tenders',
-      permission: 'tenders:manage' as const,
     },
     {
       id: 'banners',
@@ -129,53 +103,11 @@ const DashboardPage: React.FC = () => {
       permission: 'pln:manage' as const,
     },
     {
-      id: 'procurement-legislation',
-      name: 'Procurement Legislation',
-      description: 'Manage procurement legislation documents',
-      icon: 'procurement',
-      permission: 'procurement:legislation:manage' as const,
-    },
-    {
-      id: 'procurement-plan',
-      name: 'Procurement Plan',
-      description: 'Manage annual procurement plans',
-      icon: 'procurement',
-      permission: 'procurement:plan:manage' as const,
-    },
-    {
-      id: 'procurement-awards',
-      name: 'Procurement Awards',
-      description: 'Manage procurement awards and notices',
-      icon: 'procurement',
-      permission: 'procurement:awards:manage' as const,
-    },
-    {
-      id: 'procurement-opening-register',
-      name: 'Opening Register',
-      description: 'Manage procurement opening register items',
-      icon: 'procurement',
-      permission: 'procurement:opening-register:manage' as const,
-    },
-    {
-      id: 'bids-rfqs',
-      name: 'Bids / RFQs',
-      description: 'Manage bids and request for quotations',
-      icon: 'bids-rfqs',
-      permission: 'procurement:opening-register:manage' as const,
-    },
-    {
       id: 'pothole-reports',
       name: 'Pothole Reports',
       description: 'Manage pothole reports from users',
       icon: 'pothole-reports',
       permission: 'pothole-reports:manage' as const,
-    },
-    {
-      id: 'incidents',
-      name: 'Incidents',
-      description: 'Manage road incidents and reports',
-      icon: 'incidents',
-      permission: 'incidents:manage' as const,
     },
     {
       id: 'chatbot-interactions',

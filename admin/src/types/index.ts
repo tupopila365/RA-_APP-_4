@@ -1,6 +1,7 @@
 // User & Authentication Types
 export interface IUser {
-  _id: string;
+  id: string;
+  _id?: string; // legacy alias — use `id`
   email: string;
   role: 'super-admin' | 'admin';
   permissions: string[];

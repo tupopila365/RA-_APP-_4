@@ -119,7 +119,7 @@ const UsersList = () => {
     if (!userToDelete) return;
 
     try {
-      await deleteUser(userToDelete._id);
+      await deleteUser(userToDelete.id ?? userToDelete._id ?? '');
       setDeleteDialogOpen(false);
       setUserToDelete(null);
       fetchUsers();
@@ -218,7 +218,7 @@ const UsersList = () => {
               </TableRow>
             ) : (
               users.map((user) => (
-                <TableRow key={user._id} hover>
+                <TableRow key={user.id ?? user._id} hover>
                   <TableCell>
                     <Typography variant="body2" fontWeight="medium">
                       {user.email}
@@ -258,7 +258,7 @@ const UsersList = () => {
                   </TableCell>
                   <TableCell>{formatDate(user.createdAt)}</TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => handleEdit(user._id)} title="Edit">
+                    <IconButton size="small" onClick={() => handleEdit(user.id ?? user._id ?? '')} title="Edit">
                       <EditIcon fontSize="small" />
                     </IconButton>
                     <IconButton

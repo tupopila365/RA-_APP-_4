@@ -15,8 +15,6 @@ import {
   Dashboard as DashboardIcon,
   ChatBubble as ChatbotIcon,
   Article as NewsIcon,
-  Work as VacancyIcon,
-  Gavel as TenderIcon,
   ViewCarousel as BannerIcon,
   LocationOn as LocationIcon,
   HelpOutline as FAQIcon,
@@ -24,10 +22,7 @@ import {
   People as UsersIcon,
   Warning as PotholeIcon,
   Traffic as RoadStatusIcon,
-  ReportProblem as IncidentIcon,
-  DirectionsCar as VehicleIcon,
   Description as ProcurementIcon,
-  ListAlt as RegisterIcon,
   MiscellaneousServices as RAServicesIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -80,18 +75,6 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         permission: 'news:manage',
       },
       {
-        label: 'Vacancies',
-        path: '/vacancies',
-        icon: <VacancyIcon />,
-        permission: 'vacancies:manage',
-      },
-      {
-        label: 'Tenders',
-        path: '/tenders',
-        icon: <TenderIcon />,
-        permission: 'tenders:manage',
-      },
-      {
         label: 'Banners',
         path: '/banners',
         icon: <BannerIcon />,
@@ -128,36 +111,6 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         permission: 'road-status:manage',
       },
       {
-        label: 'Incidents',
-        path: '/incidents',
-        icon: <IncidentIcon />,
-        permission: 'incidents:manage',
-      },
-      {
-        label: 'Vehicle Registration',
-        path: '/vehicle-reg',
-        icon: <VehicleIcon />,
-        permission: 'vehicle-reg:manage',
-      },
-      {
-        label: 'Procurement Legislation',
-        path: '/procurement-legislation',
-        icon: <ProcurementIcon />,
-        permission: 'procurement:legislation:manage',
-      },
-      {
-        label: 'Procurement Plan',
-        path: '/procurement-plan',
-        icon: <ProcurementIcon />,
-        permission: 'procurement:plan:manage',
-      },
-      {
-        label: 'Procurement Awards',
-        path: '/procurement-awards',
-        icon: <ProcurementIcon />,
-        permission: 'procurement:awards:manage',
-      },
-      {
         label: 'Forms & Documents',
         path: '/forms',
         icon: <ProcurementIcon />,
@@ -168,18 +121,6 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         path: '/ra-services',
         icon: <RAServicesIcon />,
         permission: 'ra-services:manage',
-      },
-      {
-        label: 'Opening Register',
-        path: '/procurement-opening-register',
-        icon: <ProcurementIcon />,
-        permission: 'procurement:opening-register:manage',
-      },
-      {
-        label: 'Bids / RFQs',
-        path: '/bids-rfqs',
-        icon: <RegisterIcon />,
-        permission: 'procurement:opening-register:manage',
       },
       {
         label: 'Users',

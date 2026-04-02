@@ -99,8 +99,13 @@ export function HomeSearchWithSuggestions({
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: 0,
+    zIndex: 10,
   },
   suggestionsCard: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
     marginTop: 4,
     backgroundColor: NEUTRAL_COLORS.white,
     borderRadius: 12,
@@ -109,10 +114,11 @@ const styles = StyleSheet.create({
     maxHeight: 280,
     overflow: 'hidden',
     shadowColor: NEUTRAL_COLORS.gray800,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 12,
+    zIndex: 20,
   },
   suggestionsScroll: {
     maxHeight: 276,

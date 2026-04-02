@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Image, Text, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { authService } from './services/authService';
 import { StatusBar } from 'expo-status-bar';
 import { spacing } from './theme/spacing';
+import { NEUTRAL_COLORS } from './theme/colors';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   AppHeader,
@@ -174,7 +175,7 @@ export default function App() {
         <AppHeader
           logo={
             <Image
-              source={require('./assets/ra app logo.png')}
+              source={require('./assets/ra logo.png')}
               style={styles.headerLogo}
               resizeMode="contain"
               accessibilityLabel="Roads Authority logo"
@@ -252,11 +253,13 @@ export default function App() {
           <SignInScreen
             onBack={() => setScreen('home')}
             onSignInSuccess={(user) => { setCurrentUser(user); }}
+            onGoToSignUp={() => setScreen('sign-up')}
           />
         ) : isSignUp ? (
           <SignUpScreen
             onBack={() => setScreen('home')}
             onSignUpSuccess={(user) => { setCurrentUser(user); }}
+            onGoToSignIn={() => setScreen('sign-in')}
           />
         ) : isRoadStatus ? (
           <RoadStatusScreen onBack={() => setScreen('home')} />
@@ -312,21 +315,28 @@ export default function App() {
         ) : isChat ? (
           <ChatScreen onBack={() => setScreen('home')} />
         ) : (
-          <ScreenContainer>
-            <HomeSearchWithSuggestions
-              value={search}
-              onChangeText={setSearch}
-              getSuggestions={getSearchSuggestions}
-              onSelectSuggestion={handleSearchSelect}
-            />
-            <View style={styles.searchSpacer} />
-            {homeDesignOption === 1 && <HomeGridLayout items={serviceItems} />}
-            {homeDesignOption === 2 && <HomeListLayout items={serviceItems} />}
-            {homeDesignOption === 3 && <HomeCardsLayout items={serviceItems} />}
-            {homeDesignOption === 4 && <HomeSimpleTilesLayout items={serviceItems} />}
-            {homeDesignOption === 5 && <HomeTopicsLayout items={serviceItems} />}
-            <HomeDesignToggle value={homeDesignOption} onChange={setHomeDesignOption} />
-          </ScreenContainer>
+          <KeyboardAvoidingView
+            style={styles.homeWrapper}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={0}
+          >
+            <View style={styles.searchSection}>
+              <HomeSearchWithSuggestions
+                value={search}
+                onChangeText={setSearch}
+                getSuggestions={getSearchSuggestions}
+                onSelectSuggestion={handleSearchSelect}
+              />
+            </View>
+            <ScreenContainer>
+              {homeDesignOption === 1 && <HomeGridLayout items={serviceItems} />}
+              {homeDesignOption === 2 && <HomeListLayout items={serviceItems} />}
+              {homeDesignOption === 3 && <HomeCardsLayout items={serviceItems} />}
+              {homeDesignOption === 4 && <HomeSimpleTilesLayout items={serviceItems} />}
+              {homeDesignOption === 5 && <HomeTopicsLayout items={serviceItems} />}
+              <HomeDesignToggle value={homeDesignOption} onChange={setHomeDesignOption} />
+            </ScreenContainer>
+          </KeyboardAvoidingView>
         )}
         <HeaderMenu
           visible={menuVisible}
@@ -355,7 +365,14 @@ const styles = StyleSheet.create({
     width: 140,
     marginBottom: 4,
   },
-  searchSpacer: {
-    height: 20,
+  homeWrapper: {
+    flex: 1,
+  },
+  searchSection: {
+    backgroundColor: NEUTRAL_COLORS.gray100,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    zIndex: 10,
   },
 });

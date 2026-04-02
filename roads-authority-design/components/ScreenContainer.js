@@ -24,7 +24,7 @@ export const ScreenContainer = React.forwardRef(function ScreenContainer(
       style={styles.scroll}
       contentContainerStyle={[styles.content, contentContainerStyle]}
       showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
+      keyboardShouldPersistTaps="always"
     >
       {children}
     </ScrollView>

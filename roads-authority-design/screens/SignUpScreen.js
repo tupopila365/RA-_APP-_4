@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { ScreenContainer, FormInput, DropdownSelector } from '../components';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ImageBackground,
+  ScrollView,
+  StatusBar,
+} from 'react-native';
+import { FormInput, DropdownSelector } from '../components';
 import { useKeyboardScroll } from '../hooks/useKeyboardScroll';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
@@ -8,7 +19,7 @@ import { NEUTRAL_COLORS } from '../theme/colors';
 import { PRIMARY } from '../theme/colors';
 import { authService } from '../services/authService';
 
-const MIN_PASSWORD_LENGTH = 8; // Backend requires at least 8 characters
+const MIN_PASSWORD_LENGTH = 8;
 
 const VERIFICATION_OPTIONS = [
   { value: 'email', label: 'Verify by email' },
@@ -19,7 +30,7 @@ function isValidEmail(str) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str || '');
 }
 
-export function SignUpScreen({ onBack, onSignUpSuccess }) {
+export function SignUpScreen({ onBack, onSignUpSuccess, onGoToSignIn }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -117,133 +128,201 @@ export function SignUpScreen({ onBack, onSignUpSuccess }) {
 
   if (otpStep && pendingRegistration) {
     return (
-      <ScreenContainer ref={scrollViewRef} contentContainerStyle={styles.content} keyboardAware>
-        <Text style={styles.title}>Verify your phone</Text>
-        <Text style={styles.subtitle}>
-          Enter the 6-digit code sent to your phone to complete registration.
-        </Text>
-        <FormInput
-          label="Verification code"
-          required
-          value={otp}
-          onChangeText={(v) => { setOtp(v); setOtpError(''); }}
-          placeholder="000000"
-          keyboardType="number-pad"
-          maxLength={6}
-          error={otpError}
-        />
-        <Pressable
-          style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
-          onPress={handleVerifyOtp}
-          disabled={submitting}
+      <ImageBackground
+        source={require('../assets/background.png')}
+        style={styles.bg}
+        resizeMode="cover"
+      >
+        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+        <View style={styles.overlay} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboard}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.primaryButtonText}>{submitting ? 'Verifying…' : 'Verify and create account'}</Text>
-        </Pressable>
-        <Pressable style={styles.secondaryButton} onPress={() => { setOtpStep(false); setPendingRegistration(null); setOtp(''); setOtpError(''); }}>
-          <Text style={styles.secondaryButtonText}>Back</Text>
-        </Pressable>
-      </ScreenContainer>
+          <View style={styles.card}>
+            <Text style={styles.cardHeading}>Roads Authority</Text>
+            <Text style={styles.subtitle}>
+              Enter the 6-digit code sent to your phone to complete registration.
+              </Text>
+              <FormInput
+                label="Verification code"
+                required
+                value={otp}
+                onChangeText={(v) => { setOtp(v); setOtpError(''); }}
+                placeholder="000000"
+                keyboardType="number-pad"
+                maxLength={6}
+                error={otpError}
+              />
+              <Pressable
+                style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
+                onPress={handleVerifyOtp}
+                disabled={submitting}
+              >
+                <Text style={styles.primaryButtonText}>{submitting ? 'Verifying…' : 'Verify and create account'}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => { setOtpStep(false); setPendingRegistration(null); setOtp(''); setOtpError(''); }}
+              >
+                <Text style={styles.secondaryButtonText}>Back</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ImageBackground>
     );
   }
 
   return (
-    <ScreenContainer ref={scrollViewRef} contentContainerStyle={styles.content} keyboardAware>
+    <ImageBackground
+      source={require('../assets/background.png')}
+      style={styles.bg}
+      resizeMode="cover"
+    >
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <View style={styles.overlay} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboard}
       >
-        <View ref={contentRef} collapsable={false}>
-          <Text style={styles.title}>Sign up</Text>
-          <Text style={styles.subtitle}>
-            Create a Roads Authority account to submit applications, track reports, and more.
-          </Text>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.card} ref={contentRef} collapsable={false}>
+            <Text style={styles.cardHeading}>Roads Authority</Text>
+            <Text style={styles.subtitle}>
+              Create a Roads Authority account to submit applications, track reports, and more.
+            </Text>
 
-          <FormInput
-            label="Full name"
-            required
-            value={fullName}
-            onChangeText={(v) => { setFullName(v); setErrors((e) => ({ ...e, fullName: undefined })); }}
-            placeholder="Your full name"
-            autoCapitalize="words"
-            error={errors.fullName}
-            onFocusWithRef={onFocusWithRef}
-          />
-          <FormInput
-            label="Email"
-            required
-            value={email}
-            onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
-            placeholder="you@example.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            error={errors.email}
-            onFocusWithRef={onFocusWithRef}
-          />
-          <DropdownSelector
-            label="Verification method"
-            placeholder="Choose how to verify"
-            options={VERIFICATION_OPTIONS}
-            value={verificationMethod}
-            onSelect={(v) => { setVerificationMethod(v); setErrors((e) => ({ ...e, phoneNumber: undefined })); }}
-          />
-          {verificationMethod === 'phone' && (
             <FormInput
-              label="Phone number"
+              label="Full name"
               required
-              value={phoneNumber}
-              onChangeText={(v) => { setPhoneNumber(v); setErrors((e) => ({ ...e, phoneNumber: undefined })); }}
-              placeholder="e.g. +264 81 234 5678"
-              keyboardType="phone-pad"
-              error={errors.phoneNumber}
+              value={fullName}
+              onChangeText={(v) => { setFullName(v); setErrors((e) => ({ ...e, fullName: undefined })); }}
+              placeholder="Your full name"
+              autoCapitalize="words"
+              error={errors.fullName}
               onFocusWithRef={onFocusWithRef}
             />
-          )}
-          <FormInput
-            label="Password"
-            required
-            value={password}
-            onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined, confirmPassword: undefined })); }}
-            placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-            secureTextEntry
-            error={errors.password}
-            onFocusWithRef={onFocusWithRef}
-          />
-          <FormInput
-            label="Confirm password"
-            required
-            value={confirmPassword}
-            onChangeText={(v) => { setConfirmPassword(v); setErrors((e) => ({ ...e, confirmPassword: undefined })); }}
-            placeholder="Re-enter your password"
-            secureTextEntry
-            error={errors.confirmPassword}
-            onFocusWithRef={onFocusWithRef}
-          />
+            <FormInput
+              label="Email"
+              required
+              value={email}
+              onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              error={errors.email}
+              onFocusWithRef={onFocusWithRef}
+            />
+            <DropdownSelector
+              label="Verification method"
+              placeholder="Choose how to verify"
+              options={VERIFICATION_OPTIONS}
+              value={verificationMethod}
+              onSelect={(v) => { setVerificationMethod(v); setErrors((e) => ({ ...e, phoneNumber: undefined })); }}
+            />
+            {verificationMethod === 'phone' && (
+              <FormInput
+                label="Phone number"
+                required
+                value={phoneNumber}
+                onChangeText={(v) => { setPhoneNumber(v); setErrors((e) => ({ ...e, phoneNumber: undefined })); }}
+                placeholder="e.g. +264 81 234 5678"
+                keyboardType="phone-pad"
+                error={errors.phoneNumber}
+                onFocusWithRef={onFocusWithRef}
+              />
+            )}
+            <FormInput
+              label="Password"
+              required
+              value={password}
+              onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined, confirmPassword: undefined })); }}
+              placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+              secureTextEntry
+              error={errors.password}
+              onFocusWithRef={onFocusWithRef}
+            />
+            <FormInput
+              label="Confirm password"
+              required
+              value={confirmPassword}
+              onChangeText={(v) => { setConfirmPassword(v); setErrors((e) => ({ ...e, confirmPassword: undefined })); }}
+              placeholder="Re-enter your password"
+              secureTextEntry
+              error={errors.confirmPassword}
+              onFocusWithRef={onFocusWithRef}
+            />
 
-          <Pressable
-            style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
-            onPress={handleSignUp}
-            disabled={submitting}
-          >
-            <Text style={styles.primaryButtonText}>{submitting ? 'Creating account…' : 'Create account'}</Text>
-          </Pressable>
-        </View>
+            <Pressable
+              style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
+              onPress={handleSignUp}
+              disabled={submitting}
+            >
+              <Text style={styles.primaryButtonText}>{submitting ? 'Creating account…' : 'Create account'}</Text>
+            </Pressable>
+
+            {onGoToSignIn && (
+              <View style={styles.switchRow}>
+                <Text style={styles.switchText}>Already have an account? </Text>
+                <Pressable onPress={onGoToSignIn}>
+                  <Text style={styles.switchLink}>Sign in</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenContainer>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: spacing.xxxl,
+  bg: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   keyboard: {
     flex: 1,
   },
-  title: {
-    ...typography.h5,
-    color: NEUTRAL_COLORS.gray900,
-    marginBottom: spacing.sm,
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxxl,
+    paddingTop: spacing.xxxl,
+  },
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 16,
+    padding: spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  cardHeading: {
+    ...typography.h4,
+    color: PRIMARY,
+    marginBottom: spacing.xs,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   subtitle: {
     ...typography.bodySmall,
@@ -276,5 +355,19 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: PRIMARY,
     fontWeight: '600',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+  },
+  switchText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray600,
+  },
+  switchLink: {
+    ...typography.bodySmall,
+    color: PRIMARY,
+    fontWeight: '700',
   },
 });
