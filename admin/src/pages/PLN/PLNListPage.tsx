@@ -31,7 +31,7 @@ import {
   PLNApplication,
   PLNStatus,
 } from '../../services/pln.service';
-import { DataTable, ConfirmDialog } from '../../components/common';
+import { DataTable, ConfirmDialog, FilterPanel, PageHeader } from '../../components/common';
 
 const PLNListPage = () => {
   const navigate = useNavigate();
@@ -234,21 +234,17 @@ const PLNListPage = () => {
 
   return (
     <Box>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
-            PLN Applications
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Manage Personalized Number Plate applications
-          </Typography>
-        </Box>
-        <Button variant="outlined" onClick={() => navigate('/pln')}>
-          Dashboard
-        </Button>
-      </Box>
+      <PageHeader
+        title="PLN Applications"
+        subtitle="Manage Personalized Number Plate applications"
+        actions={
+          <Button variant="outlined" onClick={() => navigate('/pln')}>
+            Dashboard
+          </Button>
+        }
+      />
 
-      <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <FilterPanel>
         <TextField
           label="Search"
           variant="outlined"
@@ -282,7 +278,7 @@ const PLNListPage = () => {
             <MenuItem value="EXPIRED">Expired</MenuItem>
           </Select>
         </FormControl>
-      </Box>
+      </FilterPanel>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

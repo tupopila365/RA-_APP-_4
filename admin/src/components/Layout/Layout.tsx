@@ -45,7 +45,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             width: '100%',
             maxWidth: '100%',
             minHeight: '100vh',
-            backgroundColor: '#F8FAFC', // Clean light gray background - banking style
+            backgroundColor: 'background.default',
             position: 'relative',
             overflow: 'auto',
           }}

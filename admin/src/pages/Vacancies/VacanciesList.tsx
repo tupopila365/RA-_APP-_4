@@ -37,6 +37,7 @@ import {
   PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import { getVacanciesList, deleteVacancy, Vacancy } from '../../services/vacancies.service';
+import { FilterPanel, PageHeader } from '../../components/common';
 
 const VacanciesList = () => {
   const navigate = useNavigate();
@@ -162,14 +163,14 @@ const VacanciesList = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Vacancies Management
-        </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
-          Create Vacancy
-        </Button>
-      </Box>
+      <PageHeader
+        title="Vacancies Management"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
+            Create Vacancy
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -177,8 +178,7 @@ const VacanciesList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
+      <FilterPanel>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <TextField
               label="Search"
@@ -211,8 +211,7 @@ const VacanciesList = () => {
               </Select>
             </FormControl>
           </Box>
-        </CardContent>
-      </Card>
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         <Table>

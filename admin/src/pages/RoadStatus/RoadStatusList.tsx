@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Card,
-  CardContent,
   Chip,
   IconButton,
   Table,
@@ -49,6 +48,7 @@ import {
   RoadStatus,
   ListRoadStatusParams,
 } from '../../services/roadStatus.service';
+import { FilterPanel, PageHeader } from '../../components/common';
 
 const STATUS_LABELS: Record<string, string> = {
   open: 'Open',
@@ -180,15 +180,15 @@ const RoadStatusList = () => {
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" fontWeight="bold">
-          Road Status
-        </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} size="large">
-          Add road
-        </Button>
-      </Box>
+    <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+      <PageHeader
+        title="Road Status"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
+            Add Road
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
@@ -196,11 +196,7 @@ const RoadStatusList = () => {
         </Alert>
       )}
 
-      <Card elevation={2} sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 2 }}>
-            Filters
-          </Typography>
+      <FilterPanel>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={4}>
               <TextField
@@ -260,8 +256,7 @@ const RoadStatusList = () => {
               />
             </Grid>
           </Grid>
-        </CardContent>
-      </Card>
+      </FilterPanel>
 
       <Card elevation={2}>
         <TableContainer>

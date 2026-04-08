@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   IconButton,
   Paper,
@@ -31,12 +29,9 @@ import {
   Grid,
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
 } from '@mui/icons-material';
 import {
   getReportsList,
@@ -46,6 +41,7 @@ import {
   ListReportsParams,
 } from '../../services/potholeReports.service';
 import { ImageThumbnail, ZoomableImage } from '../../components/common';
+import { FilterPanel, PageHeader } from '../../components/common';
 
 const SEVERITY_COLORS = {
   low: '#4ECDC4',
@@ -216,12 +212,8 @@ const ReportsList = () => {
   console.log('ReportsList rendering:', { loading, reportsCount: reports.length, error, total });
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Pothole Reports
-        </Typography>
-      </Box>
+    <Box>
+      <PageHeader title="Pothole Reports" />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -232,8 +224,7 @@ const ReportsList = () => {
       )}
 
       {/* Filters */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
+      <FilterPanel>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={3}>
               <TextField
@@ -337,8 +328,7 @@ const ReportsList = () => {
               />
             </Grid>
           </Grid>
-        </CardContent>
-      </Card>
+      </FilterPanel>
 
       {/* Table */}
       <TableContainer component={Paper}>

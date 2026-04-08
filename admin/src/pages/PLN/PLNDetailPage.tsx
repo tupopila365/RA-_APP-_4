@@ -9,7 +9,6 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  Divider,
   TextField,
   Dialog,
   DialogTitle,
@@ -60,6 +59,7 @@ import {
   PLNApplication,
   PLNStatus,
 } from '../../services/pln.service';
+import { PageHeader, PageSectionCard } from '../../components/common';
 
 const PLNDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -177,15 +177,15 @@ const PLNDetailPage = () => {
   };
 
   const formatName = () => {
-    const personalName = [application.surname, application.initials].filter(Boolean).join(' ');
-    return application.businessName || personalName || application.fullName || 'Not provided';
+    const personalName = [application?.surname, application?.initials].filter(Boolean).join(' ');
+    return application?.businessName || personalName || application?.fullName || 'Not provided';
   };
 
   const formatIdNumber = () => {
     return (
-      application.trafficRegisterNumber ||
-      application.businessRegNumber ||
-      application.idNumber ||
+      application?.trafficRegisterNumber ||
+      application?.businessRegNumber ||
+      application?.idNumber ||
       'Not provided'
     );
   };
@@ -201,7 +201,7 @@ const PLNDetailPage = () => {
     return combined || 'Not provided';
   };
 
-  const formatEmail = () => application.email || 'Not provided';
+  const formatEmail = () => application?.email || 'Not provided';
 
   if (loading) {
     return (
@@ -235,13 +235,15 @@ const PLNDetailPage = () => {
 
   return (
     <Box>
+      <PageHeader
+        title="Application Details"
+        actions={
+          <Button startIcon={<BackIcon />} onClick={() => navigate('/pln/applications')}>
+            Back
+          </Button>
+        }
+      />
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-        <Button startIcon={<BackIcon />} onClick={() => navigate('/pln/applications')}>
-          Back
-        </Button>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-          Application Details
-        </Typography>
         <Chip
           label={application.status.replace(/_/g, ' ')}
           color={getStatusColor(application.status)}
@@ -529,8 +531,7 @@ const PLNDetailPage = () => {
 
         {/* Document */}
         <Grid item xs={12}>
-          <Card>
-            <CardContent>
+          <PageSectionCard>
               <Typography variant="h6" gutterBottom>
                 Uploaded Document
               </Typography>
@@ -543,8 +544,7 @@ const PLNDetailPage = () => {
               >
                 View Document
               </Button>
-            </CardContent>
-          </Card>
+          </PageSectionCard>
         </Grid>
 
         {/* Admin Comments */}

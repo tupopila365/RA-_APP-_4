@@ -67,9 +67,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
       sx={{
         width: { sm: `calc(100% - ${drawerWidth}px)` },
         ml: { sm: `${drawerWidth}px` },
-        backgroundColor: '#1E3A8A', // Navy blue to match sidebar
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+        backgroundColor: 'primary.dark',
+        borderBottom: '1px solid',
+        borderColor: 'rgba(255, 255, 255, 0.12)',
+        boxShadow: 2,
       }}
     >
       <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
@@ -146,11 +147,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
               sx={{
                 width: 36,
                 height: 36,
-                bgcolor: '#EFF6FF',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
+                bgcolor: 'common.white',
+                border: '2px solid rgba(255, 255, 255, 0.25)',
                 fontWeight: 600,
                 fontSize: '0.875rem',
-                color: '#1E3A8A',
+                color: 'primary.dark',
               }}
             >
               {getUserInitials()}
@@ -175,13 +176,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
               mt: 1.5,
               minWidth: 240,
               borderRadius: 2,
-              border: '1px solid rgba(0, 0, 0, 0.08)',
-              boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: 3,
               overflow: 'hidden',
               '& .MuiMenuItem-root': {
                 transition: 'background-color 0.15s ease',
                 '&:hover': {
-                  backgroundColor: '#F8FAFC',
+                  backgroundColor: 'grey.50',
                 },
               },
             },
@@ -191,8 +193,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, drawerWidth }) => {
             sx={{
               px: 2.5,
               py: 2,
-              background: '#F8FAFC',
-              borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+              background: 'grey.50',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
             }}
           >
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}>

@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   IconButton,
   Paper,
   Table,
@@ -14,7 +12,6 @@ import {
   TableHead,
   TablePagination,
   TableRow,
-  TextField,
   Typography,
   Dialog,
   DialogActions,
@@ -31,10 +28,9 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Search as SearchIcon,
 } from '@mui/icons-material';
 import { getFAQsList, deleteFAQ, FAQ } from '../../services/faqs.service';
-import { UnifiedSkeletonLoader } from '../../components/common';
+import { FilterPanel, PageHeader, SearchToolbar, UnifiedSkeletonLoader } from '../../components/common';
 
 const FAQList = () => {
   const navigate = useNavigate();
@@ -78,11 +74,6 @@ const FAQList = () => {
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(event.target.value);
     setPage(0);
   };
 
@@ -142,14 +133,14 @@ const FAQList = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          FAQ Management
-        </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
-          Create FAQ
-        </Button>
-      </Box>
+      <PageHeader
+        title="FAQ Management"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
+            Create FAQ
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -157,21 +148,15 @@ const FAQList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <TextField
-              label="Search"
-              variant="outlined"
-              size="small"
-              value={search}
-              onChange={handleSearchChange}
-              placeholder="Search by question or answer..."
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />,
-              }}
-              sx={{ flexGrow: 1, minWidth: 200 }}
-            />
+      <FilterPanel>
+        <SearchToolbar
+          value={search}
+          onChange={(value) => {
+            setSearch(value);
+            setPage(0);
+          }}
+          placeholder="Search by question or answer..."
+          rightContent={
             <FormControl size="small" sx={{ minWidth: 220 }}>
               <InputLabel>Category</InputLabel>
               <Select value={categoryFilter} onChange={handleCategoryFilterChange} label="Category">
@@ -182,9 +167,9 @@ const FAQList = () => {
                 <MenuItem value="Contact & Support">Contact & Support</MenuItem>
               </Select>
             </FormControl>
-          </Box>
-        </CardContent>
-      </Card>
+          }
+        />
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         <Table>

@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 import { ThumbUp, ThumbDown, HelpOutline } from '@mui/icons-material';
 import { getInteractions, IChatbotInteraction, IInteractionsListParams } from '../../services/interactions.service';
+import { FilterPanel, PageHeader } from '../../components/common';
 
 const CATEGORIES = ['general', 'policy', 'tender', 'report', 'location', 'contact', 'procedure'];
 
@@ -144,8 +145,9 @@ const InteractionsList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
+      <PageHeader title="Chatbot Interactions" />
+
+      <FilterPanel>
           <Box display="flex" gap={2} flexWrap="wrap">
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <InputLabel>Feedback</InputLabel>
@@ -206,8 +208,7 @@ const InteractionsList = () => {
               sx={{ minWidth: 150 }}
             />
           </Box>
-        </CardContent>
-      </Card>
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         <Table>

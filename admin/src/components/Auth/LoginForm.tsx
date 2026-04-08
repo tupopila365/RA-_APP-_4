@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { Alert, Box, Button, CircularProgress, Stack, TextField } from '@mui/material';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -64,63 +65,46 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="login-form">
-      {error && (
-        <div className="error-message" role="alert">
-          {error}
-        </div>
-      )}
+    <Box component="form" onSubmit={handleSubmit}>
+      <Stack spacing={2}>
+        {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <div className="form-group">
-        <label htmlFor="email" className="form-label">
-          Email Address
-        </label>
-        <input
+        <TextField
+          label="Email Address"
           type="email"
-          id="email"
-          className="form-input"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
           autoComplete="email"
           disabled={isSubmitting}
           required
+          fullWidth
         />
-      </div>
 
-      <div className="form-group">
-        <label htmlFor="password" className="form-label">
-          Password
-        </label>
-        <input
+        <TextField
+          label="Password"
           type="password"
-          id="password"
-          className="form-input"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter your password"
           autoComplete="current-password"
           disabled={isSubmitting}
           required
+          fullWidth
         />
-      </div>
 
-      <button
-        type="submit"
-        className="btn btn-primary"
-        style={{ width: '100%' }}
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? (
-          <>
-            <span className="loading-spinner" style={{ width: '16px', height: '16px' }}></span>
-            Signing In...
-          </>
-        ) : (
-          'Sign In'
-        )}
-      </button>
-    </form>
+        <Button type="submit" variant="contained" size="large" fullWidth disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <CircularProgress size={16} sx={{ mr: 1.2, color: 'inherit' }} />
+              Signing In...
+            </>
+          ) : (
+            'Sign In'
+          )}
+        </Button>
+      </Stack>
+    </Box>
   );
 };
 

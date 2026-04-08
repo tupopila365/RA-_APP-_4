@@ -23,6 +23,7 @@ import {
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { createUser, updateUser, getUserById } from '../../services/users.service';
 import { Permission, Role } from '../../types';
+import { FormActionsBar, FormSection, PageHeader } from '../../components/common';
 
 const AVAILABLE_PERMISSIONS: { value: Permission; label: string; description: string }[] = [
   {
@@ -221,14 +222,14 @@ const UserForm = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Button startIcon={<BackIcon />} onClick={handleCancel} sx={{ mr: 2 }}>
-          Back
-        </Button>
-        <Typography variant="h4" component="h1">
-          {isEditMode ? 'Edit User' : 'Create User'}
-        </Typography>
-      </Box>
+      <PageHeader
+        title={isEditMode ? 'Edit User' : 'Create User'}
+        actions={
+          <Button startIcon={<BackIcon />} onClick={handleCancel}>
+            Back
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -245,13 +246,7 @@ const UserForm = () => {
       <form onSubmit={handleSubmit}>
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  User Information
-                </Typography>
-                <Divider sx={{ mb: 3 }} />
-
+            <FormSection title="User Information">
                 <Grid container spacing={2}>
                   <Grid item xs={12}>
                     <TextField
@@ -293,8 +288,7 @@ const UserForm = () => {
                     </FormControl>
                   </Grid>
                 </Grid>
-              </CardContent>
-            </Card>
+            </FormSection>
           </Grid>
 
           <Grid item xs={12} md={4}>
@@ -303,7 +297,7 @@ const UserForm = () => {
                 Actions
               </Typography>
               <Divider sx={{ mb: 2 }} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <FormActionsBar>
                 <Button
                   type="submit"
                   variant="contained"
@@ -316,16 +310,19 @@ const UserForm = () => {
                 <Button variant="outlined" onClick={handleCancel} fullWidth disabled={submitting}>
                   Cancel
                 </Button>
-              </Box>
+              </FormActionsBar>
             </Paper>
           </Grid>
 
           <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Permissions
-                </Typography>
+            <FormSection
+              title="Permissions"
+              subtitle={
+                formData.role === 'super-admin'
+                  ? 'Super admins have all permissions by default.'
+                  : 'Select the permissions for this admin user.'
+              }
+            >
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   {formData.role === 'super-admin'
                     ? 'Super admins have all permissions by default.'
@@ -364,8 +361,7 @@ const UserForm = () => {
                     ))}
                   </Grid>
                 </FormGroup>
-              </CardContent>
-            </Card>
+            </FormSection>
           </Grid>
         </Grid>
       </form>

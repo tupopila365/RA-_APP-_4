@@ -35,6 +35,7 @@ import {
 import { getDocuments, deleteDocument } from '../../services/documents.service';
 import { IDocument } from '../../types';
 import PDFPreview from '../../components/common/PDFPreview';
+import { FilterPanel, PageHeader } from '../../components/common';
 
 const CATEGORIES = [
   { value: '', label: 'All Categories' },
@@ -186,18 +187,14 @@ const DocumentList: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          PDF Documents
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleUploadClick}
-        >
-          Upload Document
-        </Button>
-      </Box>
+      <PageHeader
+        title="PDF Documents"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleUploadClick}>
+            Upload Document
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
@@ -205,8 +202,8 @@ const DocumentList: React.FC = () => {
         </Alert>
       )}
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <FilterPanel>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', width: '100%' }}>
           <TextField
             placeholder="Search documents..."
             value={searchQuery}
@@ -232,7 +229,7 @@ const DocumentList: React.FC = () => {
             ))}
           </TextField>
         </Box>
-      </Paper>
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         <Table>

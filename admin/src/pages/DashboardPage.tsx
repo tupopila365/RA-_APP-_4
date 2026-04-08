@@ -10,6 +10,8 @@ import {
   Card,
   CardContent,
   CardActionArea,
+  Stack,
+  Chip,
 } from '@mui/material';
 import {
   Description,
@@ -123,218 +125,133 @@ const DashboardPage: React.FC = () => {
     return module.permission === null || hasPermission(module.permission);
   });
 
+  const quickStats = [
+    { label: 'Accessible Modules', value: accessibleModules.length },
+    { label: 'Total Modules', value: modules.length },
+    { label: 'Role', value: user?.role === 'super-admin' ? 'Super Admin' : 'Admin' },
+  ];
+
   return (
     <Layout>
-      <Box sx={{ 
-        width: '100%', 
-        maxWidth: '100%',
-        margin: 0,
-        padding: 0,
-      }}>
-        {/* RA Logo and App Info Section */}
-        <Box
+      <Box sx={{ width: '100%', maxWidth: '100%', m: 0, p: 0 }}>
+        <Card
           sx={{
-            mb: 4,
-            p: 4,
-            borderRadius: 2,
-            background: '#FFFFFF',
-            border: '1px solid rgba(0, 0, 0, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 3,
-            boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
+            mb: 3,
+            borderRadius: 2.5,
+            borderColor: 'divider',
+            background: 'linear-gradient(135deg, rgba(27,41,70,1) 0%, rgba(62,91,149,1) 100%)',
+            color: 'common.white',
           }}
         >
-          <Box
-            component="img"
-            src="/assets/ra-logo.png"
-            alt="Roads Authority Namibia Logo"
-            sx={{
-              width: 100,
-              height: 100,
-              objectFit: 'contain',
-            }}
-          />
-          <Box sx={{ flex: 1 }}>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-                color: 'primary.main',
-                mb: 1,
-              }}
-            >
-              Roads Authority Namibia
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                color: 'text.secondary',
-                fontWeight: 500,
-                mb: 1.5,
-              }}
-            >
-              Admin Dashboard
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: 'text.secondary',
-                lineHeight: 1.7,
-              }}
-            >
-              Welcome to the RA App Administration Portal. Manage news, procurement, vacancies, 
-              tenders, and all Road Authority services. Select a module below to get started.
-            </Typography>
-          </Box>
-        </Box>
+          <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+            <Grid container spacing={3} alignItems="center">
+              <Grid item xs={12} md={8}>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
+                  <Box
+                    component="img"
+                    src="/assets/ra-logo.png"
+                    alt="Roads Authority Namibia Logo"
+                    sx={{ width: 64, height: 64, objectFit: 'contain' }}
+                  />
+                  <Box>
+                    <Typography variant="h4" sx={{ color: 'common.white' }}>
+                      Dashboard
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                      Roads Authority administration overview
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.95)', maxWidth: 760 }}>
+                  Welcome back, {user?.email?.split('@')[0] || 'Admin'}. Manage all operational
+                  modules from one place with a clear, consistent government-grade interface.
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Card sx={{ bgcolor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)' }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1.2 }}>
+                      Active Session
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'common.white', mb: 1 }}>
+                      {user?.email}
+                    </Typography>
+                    <Chip
+                      label={user?.role === 'super-admin' ? 'Super Admin' : 'Admin'}
+                      size="small"
+                      sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: 'common.white' }}
+                    />
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
 
-        {/* Welcome Section */}
-        <Box
-          sx={{
-            mb: 4,
-            p: 3,
-            borderRadius: 2,
-            background: '#FFFFFF',
-            border: '1px solid rgba(0, 0, 0, 0.08)',
-            boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06)',
-          }}
-        >
-          <Typography
-            variant="h5"
-            component="h2"
-            sx={{
-              fontWeight: 600,
-              color: 'text.primary',
-              mb: 1,
-            }}
-          >
-            Welcome back, {user?.email?.split('@')[0] || 'Admin'}! 👋
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'text.secondary',
-            }}
-          >
-            You have access to {accessibleModules.length} module{accessibleModules.length !== 1 ? 's' : ''}. 
-            Select a module below to access its administrative functions.
+        <Grid container spacing={2.5} sx={{ mb: 3 }}>
+          {quickStats.map((stat) => (
+            <Grid item xs={12} sm={4} key={stat.label}>
+              <Card sx={{ borderRadius: 2 }}>
+                <CardContent sx={{ py: 2.2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {stat.label}
+                  </Typography>
+                  <Typography variant="h5" sx={{ mt: 0.8 }}>
+                    {stat.value}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+
+        <Box sx={{ mb: 2.2 }}>
+          <Typography variant="h5">Modules</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
+            Select a module to open its administration workspace.
           </Typography>
         </Box>
 
-        <Grid 
-          container 
-          spacing={3}
-          sx={{ 
-            width: '100%',
-            maxWidth: 'none',
-            margin: 0,
-            paddingLeft: 0,
-            paddingRight: 0,
-          }}
-        >
+        <Grid container spacing={2.5}>
           {accessibleModules.map((module) => (
-            <Grid 
-              item 
-              xs={12} 
-              sm={6} 
-              md={4} 
-              lg={3} 
-              xl={3} 
-              key={module.id}
-            >
+            <Grid item xs={12} sm={6} md={4} lg={3} key={module.id}>
               <Card
                 sx={{
                   height: '100%',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  transition: 'all 0.15s ease',
-                  border: '1px solid rgba(0, 0, 0, 0.08)',
-                  background: '#FFFFFF',
+                  borderRadius: 2,
+                  borderColor: 'divider',
+                  transition: 'all 0.2s ease',
                   '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0px 3px 6px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06)',
+                    transform: 'translateY(-3px)',
                     borderColor: 'primary.main',
-                    '& .module-icon': {
-                      transform: 'scale(1.02)',
-                    },
+                    boxShadow: 3,
                   },
                 }}
               >
-                <CardActionArea
-                  onClick={() => handleModuleClick(module.id)}
-                  sx={{
-                    height: '100%',
-                    p: 3,
-                    '&:hover': {
-                      backgroundColor: 'transparent',
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 0 }}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                        position: 'relative',
-                      }}
-                    >
-                      {/* Icon Background */}
+                <CardActionArea onClick={() => handleModuleClick(module.id)} sx={{ height: '100%' }}>
+                  <CardContent sx={{ p: 2.5 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
                       <Box
                         sx={{
-                          width: 72,
-                          height: 72,
-                          borderRadius: 2,
-                          background: '#EFF6FF',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          mb: 2,
-                          border: '1px solid rgba(30, 58, 138, 0.1)',
-                          transition: 'all 0.2s ease',
+                          width: 44,
+                          height: 44,
+                          borderRadius: 1.5,
+                          bgcolor: 'grey.100',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          display: 'grid',
+                          placeItems: 'center',
                         }}
-                        className="module-icon-container"
                       >
-                        <Box
-                          className="module-icon"
-                          sx={{
-                            transition: 'transform 0.2s ease',
-                            '& svg': {
-                              fontSize: 40,
-                              color: 'primary.main',
-                            },
-                          }}
-                        >
-                          {getModuleIcon(module.icon)}
-                        </Box>
+                        <Box sx={{ '& svg': { fontSize: 24, color: 'primary.main' } }}>{getModuleIcon(module.icon)}</Box>
                       </Box>
-                      <Typography
-                        variant="h6"
-                        component="h3"
-                        sx={{
-                          mt: 1,
-                          mb: 1.5,
-                          fontWeight: 600,
-                          color: 'text.primary',
-                          fontSize: '1.125rem',
-                        }}
-                      >
+                      <Typography variant="h6" sx={{ fontSize: '1rem' }}>
                         {module.name}
                       </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: 'text.secondary',
-                          lineHeight: 1.6,
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        {module.description}
-                      </Typography>
-                    </Box>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                      {module.description}
+                    </Typography>
                   </CardContent>
                 </CardActionArea>
               </Card>
@@ -343,35 +260,16 @@ const DashboardPage: React.FC = () => {
         </Grid>
 
         {accessibleModules.length === 0 && (
-          <Box
-            sx={{
-              textAlign: 'center',
-              py: 10,
-              px: 3,
-              bgcolor: 'background.paper',
-              borderRadius: 3,
-              border: '2px dashed',
-              borderColor: 'grey.300',
-              background: 'linear-gradient(135deg, rgba(0, 180, 230, 0.02) 0%, rgba(255, 215, 0, 0.02) 100%)',
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{
-                color: 'text.primary',
-                fontWeight: 600,
-                mb: 1,
-              }}
-            >
-              No modules accessible
-            </Typography>
-            <Typography variant="body1" sx={{ color: 'text.secondary', mb: 1 }}>
-              No modules accessible with your current permissions.
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              Please contact your administrator for access.
-            </Typography>
-          </Box>
+          <Card sx={{ mt: 2.5, borderStyle: 'dashed', borderWidth: 2 }}>
+            <CardContent sx={{ textAlign: 'center', py: 6 }}>
+              <Typography variant="h6" sx={{ mb: 0.8 }}>
+                No modules accessible
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                No modules are available for your account permissions. Contact a super admin for access.
+              </Typography>
+            </CardContent>
+          </Card>
         )}
       </Box>
     </Layout>

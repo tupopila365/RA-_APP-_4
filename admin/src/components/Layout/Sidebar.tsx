@@ -161,7 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
     <Box
       sx={{
         height: '100%',
-        background: '#1E3A8A', // Navy blue
+        backgroundColor: 'primary.dark',
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
@@ -172,8 +172,8 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
         sx={{
           py: 2,
           px: 2,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          backgroundColor: '#1E40AF', // Slightly lighter navy for header
+          borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+          backgroundColor: 'primary.main',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -201,21 +201,10 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
             >
               Roads Authority
             </Typography>
-            <Typography
-              variant="caption"
-              noWrap
-              sx={{
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: '0.75rem',
-                fontWeight: 400,
-              }}
-            >
-              Admin Portal
-            </Typography>
           </Box>
         </Box>
       </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
       <List
         sx={{
           flexGrow: 1,
@@ -241,10 +230,10 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 },
                 '&.Mui-selected': {
-                  backgroundColor: '#3B82F6', // Lighter blue for selected
+                  backgroundColor: 'primary.main',
                   color: 'white',
                   '&:hover': {
-                    backgroundColor: '#2563EB',
+                    backgroundColor: 'primary.main',
                   },
                   '& .MuiListItemIcon-root': {
                     color: 'white',
@@ -256,7 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
                     top: 0,
                     bottom: 0,
                     width: 3,
-                    backgroundColor: '#EFF6FF',
+                    backgroundColor: 'common.white',
                     borderRadius: '0 2px 2px 0',
                   },
                 },
@@ -294,15 +283,15 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
               mx: 1,
               mb: 1,
               borderRadius: 1,
-              background: 'rgba(14, 165, 233, 0.15)',
-              border: '1px solid rgba(14, 165, 233, 0.25)',
+              background: 'rgba(123, 106, 74, 0.18)',
+              border: '1px solid rgba(123, 106, 74, 0.35)',
             }}
           >
             <Typography
               variant="caption"
               sx={{
                 fontWeight: 600,
-                color: '#0EA5E9',
+                color: '#D9C7A4',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
                 fontSize: '0.6875rem',
@@ -340,8 +329,8 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
-            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: 4,
             display: 'flex',
             flexDirection: 'column',
             height: '100vh',
@@ -361,8 +350,8 @@ const Sidebar: React.FC<SidebarProps> = ({ drawerWidth, mobileOpen, onDrawerTogg
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
-            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: 4,
             display: 'flex',
             flexDirection: 'column',
             height: '100vh',

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import LoginForm from '../components/Auth/LoginForm';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { Box, Card, CardContent, Typography } from '@mui/material';
 
 const Login: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -32,27 +33,40 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="logo-container">
-          <img
-            src="/assets/ra-logo.png"
-            alt="Roads Authority Namibia Logo"
-            className="ra-logo"
-          />
-          <h1 className="app-title">Roads Authority</h1>
-          <p className="app-subtitle">Admin Portal</p>
-        </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        p: 3,
+        backgroundColor: 'background.default',
+      }}
+    >
+      <Card sx={{ width: '100%', maxWidth: 460 }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Box
+              component="img"
+              src="/assets/ra-logo.png"
+              alt="Roads Authority Namibia Logo"
+              sx={{ width: 88, height: 88, objectFit: 'contain', mb: 1.5 }}
+            />
+            <Typography variant="h4" sx={{ mb: 0.75 }}>
+              Roads Authority
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Sign in to continue
+            </Typography>
+          </Box>
 
-        <LoginForm />
+          <LoginForm />
 
-        <div className="login-footer">
-          <p className="login-footer-text">
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 3 }}>
             © {new Date().getFullYear()} Roads Authority Namibia. All rights reserved.
-          </p>
-        </div>
-      </div>
-    </div>
+          </Typography>
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
 

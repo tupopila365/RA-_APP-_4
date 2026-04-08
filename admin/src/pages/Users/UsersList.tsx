@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   IconButton,
   Paper,
@@ -15,7 +13,6 @@ import {
   TableHead,
   TablePagination,
   TableRow,
-  TextField,
   Typography,
   Dialog,
   DialogActions,
@@ -33,11 +30,11 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Search as SearchIcon,
 } from '@mui/icons-material';
 import { getUsersList, deleteUser } from '../../services/users.service';
 import { IUser, Role } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
+import { FilterPanel, PageHeader, SearchToolbar } from '../../components/common';
 
 const UsersList = () => {
   const navigate = useNavigate();
@@ -64,12 +61,14 @@ const UsersList = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getUsersList({
+      const params: { page: number; limit: number; search?: string; role?: Role } = {
         page: page + 1,
         limit: rowsPerPage,
-        search: search || undefined,
-        role: roleFilter as Role | undefined,
-      });
+      };
+      if (search) params.search = search;
+      if (roleFilter) params.role = roleFilter as Role;
+
+      const response = await getUsersList(params);
       setUsers(response.data.users);
       setTotal(response.data.total);
     } catch (err: any) {
@@ -89,11 +88,6 @@ const UsersList = () => {
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(event.target.value);
     setPage(0);
   };
 
@@ -148,14 +142,14 @@ const UsersList = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          User Management
-        </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
-          Create User
-        </Button>
-      </Box>
+      <PageHeader
+        title="User Management"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
+            Create User
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -163,21 +157,15 @@ const UsersList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <TextField
-              label="Search"
-              variant="outlined"
-              size="small"
-              value={search}
-              onChange={handleSearchChange}
-              placeholder="Search by email..."
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />,
-              }}
-              sx={{ flexGrow: 1, minWidth: 200 }}
-            />
+      <FilterPanel>
+        <SearchToolbar
+          value={search}
+          onChange={(value) => {
+            setSearch(value);
+            setPage(0);
+          }}
+          placeholder="Search by email..."
+          rightContent={
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <InputLabel>Role</InputLabel>
               <Select value={roleFilter} onChange={handleRoleFilterChange} label="Role">
@@ -186,9 +174,9 @@ const UsersList = () => {
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>
             </FormControl>
-          </Box>
-        </CardContent>
-      </Card>
+          }
+        />
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         <Table>

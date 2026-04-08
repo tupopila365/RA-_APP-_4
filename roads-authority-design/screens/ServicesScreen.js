@@ -46,7 +46,7 @@ const SERVICE_INFO = [
   },
   {
     key: 'my-licences',
-    title: 'My licence',
+    title: 'My Licence',
     iconName: 'id-card-outline',
     points: [
       'View your driving licence card status',

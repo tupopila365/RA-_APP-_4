@@ -33,10 +33,11 @@ import {
 } from '@mui/icons-material';
 import { formsService, FormDownload, FORM_CATEGORIES } from '../../services/formsService';
 import { PDFUploadField } from '../../components/common';
+import { PageHeader, PageSectionCard } from '../../components/common';
 
 const FormsPage = () => {
   const [items, setItems] = useState<FormDownload[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -58,11 +59,14 @@ const FormsPage = () => {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const response = await formsService.list({
+      const params: { page: number; limit: number; category?: string } = {
         page: page + 1,
         limit: rowsPerPage,
-        category: categoryFilter !== 'all' ? categoryFilter : undefined,
-      });
+      };
+      if (categoryFilter !== 'all') {
+        params.category = categoryFilter;
+      }
+      const response = await formsService.list(params);
       const data = response?.data ?? response;
       const list = data?.items ?? [];
       const pagination = data?.pagination;
@@ -95,21 +99,29 @@ const FormsPage = () => {
       setSubmitting(true);
 
       if (editMode && selectedItem) {
-        await formsService.update(String(selectedItem.id), {
+        const payload: Partial<FormDownload> = {
           title: formData.title.trim(),
-          description: formData.description.trim() || undefined,
           category: formData.category,
           pdfUrl: formData.pdfUrl.trim(),
           published: formData.published,
+        };
+        if (formData.description.trim()) {
+          payload.description = formData.description.trim();
+        }
+        await formsService.update(String(selectedItem.id), {
+          ...payload,
         });
       } else {
-        await formsService.create({
+        const payload: { title: string; category: string; pdfUrl: string; published: boolean; description?: string } = {
           title: formData.title.trim(),
-          description: formData.description.trim() || undefined,
           category: formData.category,
           pdfUrl: formData.pdfUrl.trim(),
           published: formData.published,
-        });
+        };
+        if (formData.description.trim()) {
+          payload.description = formData.description.trim();
+        }
+        await formsService.create(payload);
       }
 
       setDialogOpen(false);
@@ -160,13 +172,15 @@ const FormsPage = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Forms &amp; Documents (Downloads)</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
-          Add form / document
-        </Button>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Forms & Documents (Downloads)"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+            Add form / document
+          </Button>
+        }
+      />
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Same structure as the app: each item has a title, description, category, and one PDF link. Only published items appear on the app Downloads screen.
@@ -178,7 +192,7 @@ const FormsPage = () => {
         </Alert>
       )}
 
-      <Box sx={{ mb: 2 }}>
+      <PageSectionCard>
         <FormControl size="small" sx={{ minWidth: 200 }}>
           <InputLabel>Category</InputLabel>
           <Select
@@ -194,7 +208,7 @@ const FormsPage = () => {
             ))}
           </Select>
         </FormControl>
-      </Box>
+      </PageSectionCard>
 
       <TableContainer component={Paper}>
         <Table>

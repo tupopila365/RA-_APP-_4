@@ -35,6 +35,7 @@ import {
   IncidentType,
   IncidentSeverity,
 } from '../../services/incidents.service';
+import { FilterPanel, PageHeader } from '../../components/common';
 
 const STATUS_COLORS: Record<IncidentStatus, string> = {
   Active: '#F59E0B',
@@ -119,30 +120,28 @@ const IncidentsList = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
-        <Typography variant="h4" component="h1">
-          Incidents
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={loadIncidents}
-            sx={{ borderRadius: 2 }}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleCreate}
-            sx={{ borderRadius: 2 }}
-          >
-            New Incident
-          </Button>
-        </Box>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Incidents"
+        actions={
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={loadIncidents}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleCreate}
+            >
+              New Incident
+            </Button>
+          </Box>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -150,8 +149,7 @@ const IncidentsList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+      <FilterPanel>
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel>Status</InputLabel>
             <Select
@@ -193,8 +191,7 @@ const IncidentsList = () => {
             value={areaFilter}
             onChange={(e) => setAreaFilter(e.target.value)}
           />
-        </CardContent>
-      </Card>
+      </FilterPanel>
 
       <Card>
         <CardContent sx={{ p: 0 }}>

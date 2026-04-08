@@ -41,7 +41,7 @@ import {
   RAServiceCategory,
   RAServicePdf,
 } from '../../services/raServices.service';
-import { PDFUploadField } from '../../components/common';
+import { FilterPanel, PDFUploadField, PageHeader } from '../../components/common';
 
 const getEmptyFormData = () => ({
   name: '',
@@ -219,13 +219,15 @@ const RAServicesPage = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">RA Services</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
-          Add Service
-        </Button>
-      </Box>
+    <Box>
+      <PageHeader
+        title="RA Services"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+            Add Service
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -233,7 +235,7 @@ const RAServicesPage = () => {
         </Alert>
       )}
 
-      <Box sx={{ mb: 2 }}>
+      <FilterPanel>
         <FormControl size="small" sx={{ minWidth: 200 }}>
           <InputLabel>Category</InputLabel>
           <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
@@ -245,7 +247,7 @@ const RAServicesPage = () => {
             ))}
           </Select>
         </FormControl>
-      </Box>
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         <Table>

@@ -14,3 +14,8 @@ export type { ImageThumbnailProps } from './ImageThumbnail';
 export { default as ZoomableImage } from './ZoomableImage';
 export type { ZoomableImageProps } from './ZoomableImage';
 export { default as UnifiedSkeletonLoader } from './UnifiedSkeletonLoader';
+export { default as PageHeader } from './PageHeader';
+export { default as PageSectionCard } from './PageSectionCard';
+export { default as SearchToolbar } from './SearchToolbar';
+export { FormSection, FormActionsBar } from './FormSection';
+export { default as FilterPanel } from './FilterPanel';

@@ -29,7 +29,7 @@ import {
   VehicleRegApplication,
   VehicleRegStatus,
 } from '../../services/vehicle.service';
-import { DataTable, ConfirmDialog } from '../../components/common';
+import { DataTable, ConfirmDialog, FilterPanel, PageHeader } from '../../components/common';
 
 const VehicleListPage = () => {
   const navigate = useNavigate();
@@ -188,21 +188,17 @@ const VehicleListPage = () => {
 
   return (
     <Box>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
-            Vehicle Registration Applications
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Manage Vehicle Registration applications
-          </Typography>
-        </Box>
-        <Button variant="outlined" onClick={() => navigate('/vehicle-reg')}>
-          Dashboard
-        </Button>
-      </Box>
+      <PageHeader
+        title="Vehicle Registration Applications"
+        subtitle="Manage Vehicle Registration applications"
+        actions={
+          <Button variant="outlined" onClick={() => navigate('/vehicle-reg')}>
+            Dashboard
+          </Button>
+        }
+      />
 
-      <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <FilterPanel>
         <TextField
           label="Search"
           variant="outlined"
@@ -235,7 +231,7 @@ const VehicleListPage = () => {
             <MenuItem value="EXPIRED">Expired</MenuItem>
           </Select>
         </FormControl>
-      </Box>
+      </FilterPanel>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Image, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components';
 import { spacing } from '../theme/spacing';
@@ -10,6 +10,8 @@ import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
 const PLN_START_BUTTON_GREEN = '#3CB371';
 
 export function PLNApplicationInfoScreen({ onBack, onStartApplication, isLoggedIn, onSignInRequired }) {
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
+
   const handlePrimaryAction = () => {
     if (isLoggedIn) {
       onStartApplication?.();
@@ -23,6 +25,46 @@ export function PLNApplicationInfoScreen({ onBack, onStartApplication, isLoggedI
       <Text style={styles.subtitle}>
         Apply for a Public Road Transport Permit (PLN) with the Roads Authority.
       </Text>
+
+      {/* PLN Sample Preview */}
+      <Text style={styles.sectionTitle}>Sample PLN Permit</Text>
+      <TouchableOpacity
+        style={styles.imageCard}
+        activeOpacity={0.85}
+        onPress={() => setImagePreviewVisible(true)}
+      >
+        <Image
+          source={require('../assets/PLN.png')}
+          style={styles.previewImage}
+          resizeMode="contain"
+        />
+        <View style={styles.imageTapHint}>
+          <Ionicons name="expand-outline" size={14} color={NEUTRAL_COLORS.gray600} />
+          <Text style={styles.imageTapHintText}>Tap to enlarge</Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* Full-screen image preview modal */}
+      <Modal
+        visible={imagePreviewVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImagePreviewVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity
+            style={styles.modalClose}
+            onPress={() => setImagePreviewVisible(false)}
+          >
+            <Ionicons name="close-circle" size={34} color={NEUTRAL_COLORS.white} />
+          </TouchableOpacity>
+          <Image
+            source={require('../assets/PLN.png')}
+            style={styles.fullImage}
+            resizeMode="contain"
+          />
+        </View>
+      </Modal>
 
       {!isLoggedIn && (
         <View style={styles.signInBanner}>
@@ -143,5 +185,52 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     ...typography.button,
     color: NEUTRAL_COLORS.white,
+  },
+  imageCard: {
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    overflow: 'hidden',
+    marginBottom: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  previewImage: {
+    width: '100%',
+    height: 200,
+  },
+  imageTapHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: NEUTRAL_COLORS.gray100,
+    backgroundColor: NEUTRAL_COLORS.gray50,
+  },
+  imageTapHintText: {
+    ...typography.caption,
+    color: NEUTRAL_COLORS.gray600,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalClose: {
+    position: 'absolute',
+    top: 48,
+    right: 20,
+    zIndex: 10,
+  },
+  fullImage: {
+    width: '95%',
+    height: '80%',
   },
 });

@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   IconButton,
   Paper,
@@ -37,6 +35,7 @@ import {
   Email as EmailIcon,
 } from '@mui/icons-material';
 import { getLocationsList, deleteLocation, Location } from '../../services/locations.service';
+import { FilterPanel, PageHeader } from '../../components/common';
 
 const LocationsList = () => {
   const navigate = useNavigate();
@@ -125,14 +124,14 @@ const LocationsList = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Office Locations
-        </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
-          Add Location
-        </Button>
-      </Box>
+      <PageHeader
+        title="Office Locations"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
+            Add Location
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -140,8 +139,7 @@ const LocationsList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
+      <FilterPanel>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <FormControl sx={{ minWidth: 200 }}>
               <InputLabel>Filter by Region</InputLabel>
@@ -166,8 +164,7 @@ const LocationsList = () => {
               </Typography>
             )}
           </Box>
-        </CardContent>
-      </Card>
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         {loading ? (

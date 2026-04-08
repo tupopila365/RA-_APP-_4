@@ -31,7 +31,7 @@ import {
   FeedbackItem,
   FeedbackListParams,
 } from '../../services/feedback.service';
-import { UnifiedSkeletonLoader } from '../../components/common';
+import { FilterPanel, PageHeader, UnifiedSkeletonLoader } from '../../components/common';
 
 const STATUS_OPTIONS = ['new', 'read', 'in-progress', 'resolved', 'closed'];
 const CATEGORY_OPTIONS = ['General', 'Suggestion', 'Bug report', 'Complaint', 'Other'];
@@ -132,13 +132,11 @@ const FeedbackList = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        App Feedback
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        View and manage feedback submitted from the Roads Authority mobile app.
-      </Typography>
+    <Box>
+      <PageHeader
+        title="App Feedback"
+        subtitle="View and manage feedback submitted from the Roads Authority mobile app."
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
@@ -146,7 +144,7 @@ const FeedbackList = () => {
         </Alert>
       )}
 
-      <Paper sx={{ mb: 2, p: 2 }}>
+      <FilterPanel>
         <form onSubmit={handleSearchSubmit}>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
             <TextField
@@ -200,7 +198,7 @@ const FeedbackList = () => {
             </IconButton>
           </Box>
         </form>
-      </Paper>
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         <Table size="small">

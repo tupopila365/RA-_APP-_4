@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   IconButton,
   Paper,
@@ -37,7 +35,7 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { getNewsList, deleteNews, News } from '../../services/news.service';
-import { ImageThumbnail } from '../../components/common';
+import { FilterPanel, ImageThumbnail, PageHeader } from '../../components/common';
 
 const NewsList = () => {
   const navigate = useNavigate();
@@ -164,44 +162,14 @@ const NewsList = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 4,
-          flexWrap: 'wrap',
-          gap: 2,
-        }}
-      >
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            fontWeight: 700,
-            background: 'linear-gradient(135deg, #00B4E6 0%, #0090C0 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}
-        >
-          News Management
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleCreateNew}
-          sx={{
-            px: 3,
-            py: 1.25,
-            fontSize: '0.9375rem',
-            fontWeight: 600,
-            borderRadius: 2,
-          }}
-        >
-          Create News
-        </Button>
-      </Box>
+      <PageHeader
+        title="News Management"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
+            Create News
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -209,15 +177,7 @@ const NewsList = () => {
         </Alert>
       )}
 
-      <Card
-        sx={{
-          mb: 3,
-          width: '100%',
-          boxSizing: 'border-box',
-          border: '1px solid rgba(0, 0, 0, 0.08)',
-        }}
-      >
-        <CardContent sx={{ width: '100%', boxSizing: 'border-box', p: 3 }}>
+      <FilterPanel>
           <Box
             sx={{
               display: 'flex',
@@ -301,8 +261,7 @@ const NewsList = () => {
               </Select>
             </FormControl>
           </Box>
-        </CardContent>
-      </Card>
+      </FilterPanel>
 
       <TableContainer
         component={Paper}

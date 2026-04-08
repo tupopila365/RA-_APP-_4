@@ -45,7 +45,7 @@ import { VehicleDetailScreen } from './screens/VehicleDetailScreen';
 function buildServiceItems(onReportDamage, onServices, onMyLicences, onVehiclesDue, onNews, onFindOffices, onForms, onRoadStatus, onMyReports, onFeedback) {
   return [
     { key: 'services', iconName: 'construct-outline', label: 'Services', onPress: onServices },
-    { key: 'my-licence', iconName: 'id-card-outline', label: 'My licence', onPress: onMyLicences },
+    { key: 'my-licence', iconName: 'id-card-outline', label: 'My Licence', onPress: onMyLicences },
     { key: 'vehicles-due', iconName: 'car-outline', label: 'Vehicles due', onPress: onVehiclesDue },
     { key: 'road-status', iconName: 'trail-sign-outline', label: 'Road Status', onPress: onRoadStatus },
     { key: 'report-damage', iconName: 'warning-outline', label: 'Report Road Damage', onPress: onReportDamage },
@@ -166,7 +166,7 @@ export default function App() {
   const isVehiclesDue = screen === 'vehicles-due';
   const isVehicleDetail = screen === 'vehicle-detail';
   const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap || isMyLicences || isVehiclesDue || isVehicleDetail;
-  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : isMyLicences ? 'My licence' : isVehiclesDue ? 'Vehicles due for renewal' : isVehicleDetail ? 'Vehicle details' : 'Roads Authority';
+  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : isMyLicences ? 'My Licence' : isVehiclesDue ? 'Vehicles due for renewal' : isVehicleDetail ? 'Vehicle details' : 'Roads Authority';
 
   return (
     <SafeAreaProvider>

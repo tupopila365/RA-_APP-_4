@@ -37,6 +37,7 @@ import {
   PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import { getTendersList, deleteTender, Tender } from '../../services/tenders.service';
+import { FilterPanel, PageHeader } from '../../components/common';
 
 const TendersList = () => {
   const navigate = useNavigate();
@@ -176,14 +177,14 @@ const TendersList = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Tenders Management
-        </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
-          Create Tender
-        </Button>
-      </Box>
+      <PageHeader
+        title="Tenders Management"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
+            Create Tender
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -191,8 +192,7 @@ const TendersList = () => {
         </Alert>
       )}
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
+      <FilterPanel>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <TextField
               label="Search"
@@ -234,8 +234,7 @@ const TendersList = () => {
               </Select>
             </FormControl>
           </Box>
-        </CardContent>
-      </Card>
+      </FilterPanel>
 
       <TableContainer component={Paper}>
         <Table>

@@ -32,7 +32,7 @@ import {
 } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { getBannersList, deleteBanner, updateBannerOrder, updateBanner, Banner } from '../../services/banners.service';
-import { ImageThumbnail } from '../../components/common';
+import { ImageThumbnail, PageHeader } from '../../components/common';
 
 const BannersList = () => {
   const navigate = useNavigate();
@@ -152,14 +152,14 @@ const BannersList = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Banner Management
-        </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
-          Create Banner
-        </Button>
-      </Box>
+      <PageHeader
+        title="Banner Management"
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNew}>
+            Create Banner
+          </Button>
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
