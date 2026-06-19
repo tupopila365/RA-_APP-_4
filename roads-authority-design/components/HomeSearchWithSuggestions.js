@@ -39,11 +39,22 @@ export function HomeSearchWithSuggestions({
     return getSuggestions(q);
   }, [value, getSuggestions]);
 
+  const hasQuery = (value || '').trim().length > 0;
   const showSuggestions = focused && suggestions.length > 0;
+  const showNoResults = focused && hasQuery && suggestions.length === 0;
 
   const handleSelect = (result) => {
     Keyboard.dismiss();
+    setFocused(false);
     onSelectSuggestion?.(result);
+  };
+
+  const handleSubmit = () => {
+    if (suggestions.length > 0) {
+      handleSelect(suggestions[0]);
+      return;
+    }
+    Keyboard.dismiss();
   };
 
   return (
@@ -52,6 +63,8 @@ export function HomeSearchWithSuggestions({
         placeholder="Search the RA app"
         value={value}
         onChangeText={onChangeText}
+        onSubmitEditing={handleSubmit}
+        onSearchPress={handleSubmit}
         onFocus={() => setFocused(true)}
         onBlur={() => setTimeout(() => setFocused(false), 200)}
       />
@@ -92,6 +105,12 @@ export function HomeSearchWithSuggestions({
           </ScrollView>
         </View>
       )}
+      {showNoResults && (
+        <View style={styles.noResultsCard}>
+          <Ionicons name="search-outline" size={18} color={NEUTRAL_COLORS.gray500} />
+          <Text style={styles.noResultsText}>No results found. Try another keyword.</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -119,6 +138,26 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 12,
     zIndex: 20,
+  },
+  noResultsCard: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  noResultsText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray600,
   },
   suggestionsScroll: {
     maxHeight: 276,

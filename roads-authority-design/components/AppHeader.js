@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography } from '../theme/typography';
@@ -12,12 +12,42 @@ export function AppHeader({
   onBackPress,
   showMenu = false,
   onMenuPress,
+  showNotificationBell = false,
+  showExpiredDot = false,
+  showAlmostDueDot = false,
+  onNotificationPress,
   logo,
   subtitle,
   welcomeMessage,
 }) {
   const insets = useSafeAreaInsets();
   const paddingTop = Math.max(insets.top, spacing.md);
+  const dotOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!showExpiredDot && !showAlmostDueDot) {
+      dotOpacity.setValue(1);
+      return undefined;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(dotOpacity, {
+          toValue: 0.25,
+          duration: 550,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(dotOpacity, {
+          toValue: 1,
+          duration: 550,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showExpiredDot, showAlmostDueDot, dotOpacity]);
 
   return (
     <View style={[styles.container, { paddingTop }]}>
@@ -33,6 +63,23 @@ export function AppHeader({
             hitSlop={12}
           >
             <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          </Pressable>
+        ) : showNotificationBell ? (
+          <Pressable
+            onPress={onNotificationPress}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
+            hitSlop={12}
+          >
+            <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+            {showExpiredDot ? (
+              <Animated.View style={[styles.notificationDot, styles.redDot, { opacity: dotOpacity }]} />
+            ) : null}
+            {showAlmostDueDot ? (
+              <Animated.View style={[styles.notificationDot, styles.yellowDot, { opacity: dotOpacity }]} />
+            ) : null}
           </Pressable>
         ) : (
           <View style={styles.iconButton} />
@@ -59,21 +106,23 @@ export function AppHeader({
           </Text>
         </View>
 
-        {/* Right Icon */}
-        {showMenu ? (
-          <Pressable
-            onPress={onMenuPress}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.pressed,
-            ]}
-            hitSlop={12}
-          >
-            <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
-          </Pressable>
-        ) : (
-          <View style={styles.iconButton} />
-        )}
+        {/* Right Actions */}
+        <View style={styles.rightActions}>
+          {showMenu ? (
+            <Pressable
+              onPress={onMenuPress}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.pressed,
+              ]}
+              hitSlop={12}
+            >
+              <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
+            </Pressable>
+          ) : (
+            <View style={styles.iconButton} />
+          )}
+        </View>
       </View>
     </View>
   );
@@ -110,6 +159,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 7,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  redDot: {
+    backgroundColor: '#EF4444',
+  },
+  yellowDot: {
+    top: 17,
+    left: 9,
+    right: 'auto',
+    backgroundColor: '#FACC15',
   },
 
   welcomeMessage: {

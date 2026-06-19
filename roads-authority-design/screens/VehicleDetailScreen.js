@@ -5,14 +5,16 @@ import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
 
+const DEFAULT_MOCK_VEHICLE = {
+  make: 'TOYOTA',
+  model: 'HILUX 2.8 GD-6',
+  licenceNumber: 'N 94821W',
+  chassisNumber: 'AHTBA3CD907441562',
+  licenceExpiryDate: '2026-03-15',
+};
+
 export function VehicleDetailScreen({ vehicle }) {
-  if (!vehicle) {
-    return (
-      <ScreenContainer contentContainerStyle={styles.content}>
-        <Text style={styles.emptyText}>No vehicle selected.</Text>
-      </ScreenContainer>
-    );
-  }
+  const displayVehicle = vehicle || DEFAULT_MOCK_VEHICLE;
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
@@ -21,31 +23,31 @@ export function VehicleDetailScreen({ vehicle }) {
 
         <View style={styles.row}>
           <Text style={styles.label}>Make</Text>
-          <Text style={styles.value}>{vehicle.make}</Text>
+          <Text style={styles.value}>{displayVehicle.make}</Text>
         </View>
         <View style={styles.divider} />
 
         <View style={styles.row}>
           <Text style={styles.label}>Model</Text>
-          <Text style={styles.value}>{vehicle.model}</Text>
+          <Text style={styles.value}>{displayVehicle.model}</Text>
         </View>
         <View style={styles.divider} />
 
         <View style={styles.row}>
           <Text style={styles.label}>Licence number</Text>
-          <Text style={styles.value}>{vehicle.licenceNumber}</Text>
+          <Text style={styles.value}>{displayVehicle.licenceNumber}</Text>
         </View>
         <View style={styles.divider} />
 
         <View style={styles.row}>
           <Text style={styles.label}>Chassis / VIN</Text>
-          <Text style={[styles.value, styles.multiline]}>{vehicle.chassisNumber}</Text>
+          <Text style={[styles.value, styles.multiline]}>{displayVehicle.chassisNumber}</Text>
         </View>
         <View style={styles.divider} />
 
         <View style={styles.row}>
           <Text style={styles.label}>Licence expiry date</Text>
-          <Text style={styles.value}>{vehicle.licenceExpiryDate}</Text>
+          <Text style={styles.value}>{displayVehicle.licenceExpiryDate}</Text>
         </View>
       </View>
     </ScreenContainer>
@@ -55,10 +57,6 @@ export function VehicleDetailScreen({ vehicle }) {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
-  },
-  emptyText: {
-    ...typography.body,
-    color: NEUTRAL_COLORS.gray600,
   },
   card: {
     backgroundColor: NEUTRAL_COLORS.white,

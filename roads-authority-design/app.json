@@ -3,7 +3,7 @@
     "name": "myRA App",
     "slug": "roads-authority-design",
     "version": "1.0.0",
-    "icon": "./assets/ra app logo.png",
+    "icon": "./assets/ChatGPT_Image_Apr_23__2026__02_18_01_PM-removebg-preview.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
@@ -24,7 +24,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/ra app logo.png",
+        "foregroundImage": "./assets/ChatGPT_Image_Apr_23__2026__02_18_01_PM-removebg-preview.png",
         "backgroundColor": "#00B4E6"
       },
       "package": "com.roadsauthority.design",

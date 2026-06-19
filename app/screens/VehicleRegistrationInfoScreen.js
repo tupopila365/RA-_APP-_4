@@ -13,6 +13,7 @@ import {
   typography,
   spacing,
 } from '../components/UnifiedDesignSystem';
+import PremiumLicenseCard from '../components/PremiumLicenseCard';
 
 export default function VehicleRegistrationInfoScreen({ navigation, route }) {
   const { colors } = useTheme();
@@ -144,6 +145,17 @@ export default function VehicleRegistrationInfoScreen({ navigation, route }) {
               </Text>
             </View>
           </View>
+        </UnifiedCard>
+
+        {/* License Card Preview */}
+        <UnifiedCard variant="default" padding="large">
+          <View style={styles.sectionHeader}>
+            <Ionicons name="card-outline" size={20} color={colors.primary} />
+            <Text style={[typography.h4, { color: colors.text, marginLeft: spacing.sm }]}>
+              License Card Design
+            </Text>
+          </View>
+          <PremiumLicenseCard />
         </UnifiedCard>
 
         {/* Action Buttons */}

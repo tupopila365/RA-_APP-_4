@@ -41,6 +41,7 @@ import { ReportDamageMapScreen } from './screens/ReportDamageMapScreen';
 import { MyLicencesScreen } from './screens/MyLicencesScreen';
 import { VehiclesDueForRenewalScreen } from './screens/VehiclesDueForRenewalScreen';
 import { VehicleDetailScreen } from './screens/VehicleDetailScreen';
+import { NotificationsScreen } from './screens/NotificationsScreen';
 
 function buildServiceItems(onReportDamage, onServices, onMyLicences, onVehiclesDue, onNews, onFindOffices, onForms, onRoadStatus, onMyReports, onFeedback) {
   return [
@@ -59,7 +60,7 @@ function buildServiceItems(onReportDamage, onServices, onMyLicences, onVehiclesD
 
 const NAV_ITEMS = [
   { key: 'home', iconName: 'home-outline', iconNameActive: 'home', label: 'Home', onPress: () => {} },
-  { key: 'services', iconName: 'construct-outline', iconNameActive: 'construct', label: 'Services', onPress: () => {} },
+  { key: 'notifications', iconName: 'notifications-outline', iconNameActive: 'notifications', label: 'Notifications', onPress: () => {} },
   { key: 'contact', iconName: 'call-outline', iconNameActive: 'call', label: 'Contact', onPress: () => {} },
   { key: 'help', iconName: 'help-circle-outline', iconNameActive: 'help-circle', label: 'Help', onPress: () => {} },
   { key: 'chat', iconName: 'chatbubble-outline', iconNameActive: 'chatbubble', label: 'Chat', onPress: () => {} },
@@ -71,6 +72,29 @@ function getWelcomeMessage(user) {
   if (name) return `Welcome, ${name.split(/\s+/)[0]}`;
   if (user.email) return `Welcome, ${user.email.split('@')[0]}`;
   return 'Welcome';
+}
+
+const MOCK_RENEWAL_ITEMS = [
+  { id: 'driver', dueDate: '2026-01-20' },
+  { id: 'vehicle-1', dueDate: '2026-06-18' },
+];
+
+function getRenewalAlertFlags(items = []) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const threeMonthsAhead = new Date(today);
+  threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 3);
+
+  const hasExpired = items.some((item) => new Date(item.dueDate) < today);
+  const hasAlmostDue = items.some((item) => {
+    const due = new Date(item.dueDate);
+    return due >= today && due <= threeMonthsAhead;
+  });
+
+  return {
+    hasExpired,
+    hasAlmostDue,
+  };
 }
 
 export default function App() {
@@ -85,6 +109,7 @@ export default function App() {
   const [homeDesignOption, setHomeDesignOption] = useState(1);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const { hasExpired, hasAlmostDue } = getRenewalAlertFlags(MOCK_RENEWAL_ITEMS);
 
   useEffect(() => {
     authService.getStoredUser().then(setCurrentUser);
@@ -131,7 +156,7 @@ export default function App() {
     onPress: () => {
       setActiveTab(item.key);
       if (item.key === 'home') setScreen('home');
-      else if (item.key === 'services') setScreen('services');
+      else if (item.key === 'notifications') setScreen('notifications');
       else if (item.key === 'contact') setScreen('contact');
       else if (item.key === 'help') setScreen('help');
       else if (item.key === 'chat') setScreen('chat');
@@ -165,8 +190,9 @@ export default function App() {
   const isMyLicences = screen === 'my-licences';
   const isVehiclesDue = screen === 'vehicles-due';
   const isVehicleDetail = screen === 'vehicle-detail';
-  const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap || isMyLicences || isVehiclesDue || isVehicleDetail;
-  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : isMyLicences ? 'My Licence' : isVehiclesDue ? 'Vehicles due for renewal' : isVehicleDetail ? 'Vehicle details' : 'Roads Authority';
+  const isNotifications = screen === 'notifications';
+  const isSubScreen = isReportDamage || isFaqs || isServices || isNews || isNewsDetail || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isChat || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap || isMyLicences || isVehiclesDue || isVehicleDetail || isNotifications;
+  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isServices ? 'Services' : isNews ? 'News' : isNewsDetail ? 'Article' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Downloads' : isSignIn ? 'Sign in' : isSignUp ? 'Sign up' : isRoadStatus ? 'Road Status' : isMyReports ? 'My Reports' : isMyReportDetail ? 'Report details' : isFeedback ? 'Feedback' : isChat ? 'Chat' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : isMyLicences ? 'My Licence' : isVehiclesDue ? 'Vehicles due for renewal' : isVehicleDetail ? 'Vehicle details' : isNotifications ? 'Notifications' : 'Roads Authority';
 
   return (
     <SafeAreaProvider>
@@ -184,9 +210,13 @@ export default function App() {
           welcomeMessage={isSubScreen ? null : getWelcomeMessage(currentUser)}
           title={screenTitle}
           showBack={isSubScreen}
-          onBackPress={isSubScreen ? () => { if (isNewsDetail) { setScreen('news'); setSelectedArticle(null); } else if (isMyReportDetail) { setScreen('my-reports'); setSelectedReport(null); } else if (isFeedback) { setScreen('home'); } else if (isChat) { setScreen('home'); } else if (isHelp) { setScreen('home'); } else if (isPlnInfo) { setScreen('services'); } else if (isPlnWizard) { setScreen('pln-info'); } else if (isMyApplications) { setScreen('services'); } else if (isApplicationDetail) { setScreen('my-applications'); setSelectedApplication(null); } else if (isPayment) { setScreen('application-detail'); } else if (isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap) { setScreen('home'); } else if (isVehicleDetail) { setScreen('vehicles-due'); setSelectedVehicle(null); } else if (isMyLicences || isVehiclesDue) { setScreen('services'); } else { setScreen('home'); } } : undefined}
+          onBackPress={isSubScreen ? () => { if (isNewsDetail) { setScreen('news'); setSelectedArticle(null); } else if (isMyReportDetail) { setScreen('my-reports'); setSelectedReport(null); } else if (isFeedback) { setScreen('home'); } else if (isChat) { setScreen('home'); } else if (isHelp) { setScreen('home'); } else if (isPlnInfo) { setScreen('services'); } else if (isPlnWizard) { setScreen('pln-info'); } else if (isMyApplications) { setScreen('services'); } else if (isApplicationDetail) { setScreen('my-applications'); setSelectedApplication(null); } else if (isPayment) { setScreen('application-detail'); } else if (isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap) { setScreen('home'); } else if (isVehicleDetail) { setScreen('vehicles-due'); setSelectedVehicle(null); } else if (isMyLicences || isVehiclesDue || isNotifications) { setScreen('services'); } else { setScreen('home'); } } : undefined}
           showMenu={!isSubScreen}
           onMenuPress={() => setMenuVisible(true)}
+          showNotificationBell={!isSubScreen}
+          showExpiredDot={!isSubScreen && hasExpired}
+          showAlmostDueDot={!isSubScreen && hasAlmostDue}
+          onNotificationPress={() => setScreen('notifications')}
         />
         {isReportDamage ? (
           <ReportRoadDamageScreen
@@ -233,6 +263,8 @@ export default function App() {
           />
         ) : isVehicleDetail ? (
           <VehicleDetailScreen vehicle={selectedVehicle} />
+        ) : isNotifications ? (
+          <NotificationsScreen onBack={() => setScreen('services')} />
         ) : isNewsDetail ? (
           <NewsDetailScreen
             article={selectedArticle}
