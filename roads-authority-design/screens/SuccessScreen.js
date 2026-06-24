@@ -17,8 +17,8 @@ export function SuccessScreen({ title, message, buttonText = 'Done', onDone, sec
       <View style={styles.iconWrap}>
         <Ionicons name="checkmark-circle" size={80} color={PRIMARY} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      {title ? <Text style={styles.title}>{title}</Text> : null}
+      {message ? <Text style={styles.message}>{message}</Text> : null}
       {secondaryButtonText && onSecondary ? (
         <View style={styles.buttonRow}>
           <Pressable

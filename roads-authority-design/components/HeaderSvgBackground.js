@@ -3,21 +3,31 @@ import { View } from 'react-native';
 import Svg, {
   Defs,
   LinearGradient,
-  Stop,
   RadialGradient,
+  Stop,
   Rect,
-  Polygon,
+  Circle,
+  Ellipse,
 } from 'react-native-svg';
 
-const DARK = '#006B8F';
-const DARK_STROKE = '#005A7A';
-
 /**
- * Corporate header: clean geometric shapes – bars, angled panels, chevrons.
+ * Home header backdrop.
+ *
+ * Design intent: one calm, intentional motif rather than a collage of shapes.
+ * A refined brand-blue gradient grounds the header; a soft glow lifts the logo
+ * area; and a single family of concentric "ripple" rings — anchored off the
+ * bottom-right corner — adds quiet movement (a subtle nod to roads radiating
+ * outward). Everything is low-contrast and tonal so foreground content always
+ * stays the hero.
  */
 export function HeaderSvgBackground({ style }) {
-  const [layout, setLayout] = useState({ width: 400, height: 150 });
+  const [layout, setLayout] = useState({ width: 400, height: 320 });
   const { width, height } = layout;
+
+  // Ripple rings anchored just past the bottom-right corner.
+  const ringCx = width * 0.96;
+  const ringCy = height * 1.02;
+  const ringRadii = [width * 0.28, width * 0.46, width * 0.66, width * 0.88];
 
   return (
     <View
@@ -29,70 +39,59 @@ export function HeaderSvgBackground({ style }) {
     >
       <Svg width={width} height={height}>
         <Defs>
-          <LinearGradient id="headerBg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#0099CC" />
-            <Stop offset="50%" stopColor="#00B4E6" />
-            <Stop offset="100%" stopColor="#33C4ED" />
+          {/* Brand gradient — gentle diagonal, deeper at the top-left so the
+              status bar feels anchored, easing into a lighter sky tone. */}
+          <LinearGradient id="hdrBrand" x1="0%" y1="0%" x2="85%" y2="100%">
+            <Stop offset="0%" stopColor="#0094C4" />
+            <Stop offset="48%" stopColor="#00ACDD" />
+            <Stop offset="100%" stopColor="#2DBFEC" />
           </LinearGradient>
-          <RadialGradient id="headerOrb" cx="50%" cy="40%" r="70%">
-            <Stop offset="0%" stopColor={DARK} stopOpacity="0.2" />
-            <Stop offset="100%" stopColor={DARK} stopOpacity="0" />
+
+          {/* Soft glow that sits behind the logo/greeting to draw the eye. */}
+          <RadialGradient id="hdrGlow" cx="50%" cy="34%" r="62%">
+            <Stop offset="0%" stopColor="#BDEBFB" stopOpacity="0.34" />
+            <Stop offset="55%" stopColor="#BDEBFB" stopOpacity="0.08" />
+            <Stop offset="100%" stopColor="#BDEBFB" stopOpacity="0" />
           </RadialGradient>
+
+          {/* Quiet vignette toward the lower edge for depth and grounding. */}
+          <LinearGradient id="hdrShade" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor="#004F69" stopOpacity="0" />
+            <Stop offset="100%" stopColor="#004F69" stopOpacity="0.16" />
+          </LinearGradient>
         </Defs>
 
-        <Rect x={0} y={0} width={width} height={height} fill="url(#headerBg)" />
-        <Rect x={0} y={0} width={width} height={height} fill="url(#headerOrb)" />
+        {/* Base */}
+        <Rect x={0} y={0} width={width} height={height} fill="url(#hdrBrand)" />
 
-        {/* Top accent bar */}
-        <Rect x={0} y={0} width={width} height={height * 0.04} fill={DARK} fillOpacity={0.25} />
-        {/* Bottom accent bar */}
-        <Rect x={0} y={height * 0.96} width={width} height={height * 0.04} fill={DARK} fillOpacity={0.2} />
+        {/* Concentric ripple rings (the single motif). */}
+        {ringRadii.map((r, i) => (
+          <Circle
+            key={`ring-${i}`}
+            cx={ringCx}
+            cy={ringCy}
+            r={r}
+            fill="none"
+            stroke="#FFFFFF"
+            strokeOpacity={0.16 - i * 0.03}
+            strokeWidth={1.5}
+          />
+        ))}
 
-        {/* Left diagonal stripe panel */}
-        <Polygon
-          points={`0,0 ${width * 0.35},0 ${width * 0.22},${height} 0,${height}`}
-          fill={DARK}
-          fillOpacity={0.12}
-        />
-        {/* Right diagonal stripe panel */}
-        <Polygon
-          points={`${width * 0.65},0 ${width},0 ${width},${height} ${width * 0.78},${height}`}
-          fill={DARK}
-          fillOpacity={0.1}
-        />
-
-        {/* Chevron – right side, corporate forward-motion */}
-        <Polygon
-          points={`${width * 0.72},${height * 0.25} ${width * 0.92},${height * 0.5} ${width * 0.72},${height * 0.75}`}
-          fill={DARK}
-          fillOpacity={0.18}
-          stroke={DARK_STROKE}
-          strokeOpacity={0.25}
-          strokeWidth={1}
+        {/* A large, very soft highlight bleeding off the top-left — adds a
+            hand-placed sense of light without any hard edges. */}
+        <Ellipse
+          cx={width * 0.06}
+          cy={height * 0.04}
+          rx={width * 0.5}
+          ry={height * 0.42}
+          fill="#FFFFFF"
+          fillOpacity={0.05}
         />
 
-        {/* Narrow vertical bar – left */}
-        <Rect x={width * 0.06} y={height * 0.2} width={width * 0.02} height={height * 0.6} fill={DARK} fillOpacity={0.2} />
-        {/* Narrow vertical bar – right */}
-        <Rect x={width * 0.92} y={height * 0.15} width={width * 0.02} height={height * 0.7} fill={DARK} fillOpacity={0.15} />
-
-        {/* Horizontal band – mid */}
-        <Rect x={width * 0.15} y={height * 0.42} width={width * 0.7} height={height * 0.06} fill={DARK} fillOpacity={0.14} />
-        {/* Horizontal band – lower */}
-        <Rect x={width * 0.25} y={height * 0.78} width={width * 0.5} height={height * 0.04} fill={DARK} fillOpacity={0.12} />
-
-        {/* Small trapezoid – top right corner */}
-        <Polygon
-          points={`${width * 0.8},0 ${width},0 ${width},${height * 0.2} ${width * 0.85},${height * 0.18}`}
-          fill={DARK}
-          fillOpacity={0.15}
-        />
-        {/* Small trapezoid – bottom left */}
-        <Polygon
-          points={`0,${height * 0.75} 0,${height} ${width * 0.2},${height} ${width * 0.15},${height * 0.78}`}
-          fill={DARK}
-          fillOpacity={0.12}
-        />
+        {/* Glow behind the brand block + grounding shade. */}
+        <Rect x={0} y={0} width={width} height={height} fill="url(#hdrGlow)" />
+        <Rect x={0} y={0} width={width} height={height} fill="url(#hdrShade)" />
       </Svg>
     </View>
   );

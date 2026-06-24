@@ -46,9 +46,6 @@ export function NewsScreen({ onBack, onSelectArticle }) {
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <Text style={styles.subtitle}>
-        Latest from the Roads Authority.
-      </Text>
       <SearchBar
         placeholder="Search news"
         value={searchQuery}
@@ -103,11 +100,6 @@ export function NewsScreen({ onBack, onSelectArticle }) {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
-  },
-  subtitle: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.lg,
   },
   list: {
     marginTop: spacing.md,

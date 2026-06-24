@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer, SearchBar } from '../components';
-import { getOffices } from '../services/officesService';
+import { OFFICES } from '../data/offices';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
+import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
 
 function filterOffices(offices, query) {
   if (!query || !query.trim()) return offices;
@@ -24,24 +24,10 @@ function formatPhoneForTel(phone) {
 
 export function FindOfficesScreen({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [offices, setOffices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    getOffices()
-      .then((list) => { if (!cancelled) setOffices(list || []); })
-      .catch((err) => { if (!cancelled) setError(err.message || 'Failed to load offices'); setOffices([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
 
   const filteredOffices = useMemo(
-    () => filterOffices(offices, searchQuery),
-    [offices, searchQuery]
+    () => filterOffices(OFFICES, searchQuery),
+    [searchQuery]
   );
 
   const handleCall = (phone) => {
@@ -61,26 +47,13 @@ export function FindOfficesScreen({ onBack }) {
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <Text style={styles.subtitle}>
-        Roads Authority offices and service points across Namibia.
-      </Text>
       <SearchBar
         placeholder="Search by name, region or address"
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
       <View style={styles.list}>
-        {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={PRIMARY} />
-            <Text style={styles.loadingText}>Loading offices…</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.empty}>
-            <Ionicons name="cloud-offline-outline" size={48} color={NEUTRAL_COLORS.gray400} />
-            <Text style={styles.emptyText}>{error}</Text>
-          </View>
-        ) : filteredOffices.length === 0 ? (
+        {filteredOffices.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="location-outline" size={48} color={NEUTRAL_COLORS.gray400} />
             <Text style={styles.emptyText}>No offices match your search.</Text>
@@ -153,7 +126,7 @@ export function FindOfficesScreen({ onBack }) {
                 style={styles.navigateButton}
                 onPress={() => handleNavigate(office.address)}
               >
-                <Ionicons name="navigate-outline" size={20} color={NEUTRAL_COLORS.gray900} style={styles.navBtnIcon} />
+                <Ionicons name="navigate-outline" size={20} color={NEUTRAL_COLORS.white} style={styles.navBtnIcon} />
                 <Text style={styles.navigateButtonText}>Navigate</Text>
               </Pressable>
             </View>
@@ -168,21 +141,7 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
   },
-  subtitle: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.lg,
-  },
   list: {
-    marginTop: spacing.md,
-  },
-  loadingWrap: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxxl,
-  },
-  loadingText: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
     marginTop: spacing.md,
   },
   empty: {
@@ -196,13 +155,20 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 0,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: PRIMARY,
+    ...Platform.select({
+      ios: {
+        shadowColor: NEUTRAL_COLORS.gray800,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
   },
   cardHeader: {
     flexDirection: 'row',
@@ -210,10 +176,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 0,
-    backgroundColor: PRIMARY + '20',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: PRIMARY + '1A',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
@@ -229,7 +195,7 @@ const styles = StyleSheet.create({
   region: {
     ...typography.caption,
     color: PRIMARY,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     marginTop: 2,
   },
   row: {
@@ -269,13 +235,13 @@ const styles = StyleSheet.create({
   phone: {
     ...typography.bodySmall,
     color: PRIMARY,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     flex: 1,
   },
   email: {
     ...typography.bodySmall,
     color: PRIMARY,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     flex: 1,
   },
   servicesSection: {
@@ -284,7 +250,7 @@ const styles = StyleSheet.create({
   },
   servicesLabel: {
     ...typography.caption,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: NEUTRAL_COLORS.gray600,
     marginBottom: spacing.sm,
   },
@@ -297,7 +263,7 @@ const styles = StyleSheet.create({
     backgroundColor: NEUTRAL_COLORS.gray100,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: 0,
+    borderRadius: 999,
   },
   serviceChipText: {
     ...typography.caption,
@@ -307,10 +273,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: RA_YELLOW,
+    backgroundColor: PRIMARY,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
-    borderRadius: 8,
+    borderRadius: 999,
     marginTop: spacing.xs,
   },
   navBtnIcon: {
@@ -318,7 +284,7 @@ const styles = StyleSheet.create({
   },
   navigateButtonText: {
     ...typography.bodySmall,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray900,
+    fontFamily: 'Poppins_600SemiBold',
+    color: NEUTRAL_COLORS.white,
   },
 });

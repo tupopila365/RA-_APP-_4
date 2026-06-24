@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Pressable,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
@@ -11,7 +10,7 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { FormInput } from '../components';
+import { FormInput, BoldMainHeader, InteractiveLink, FormActionButton } from '../components';
 import { useKeyboardScroll } from '../hooks/useKeyboardScroll';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
@@ -23,12 +22,13 @@ function isValidEmail(str) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str || '');
 }
 
-export function SignInScreen({ onBack, onSignInSuccess, onGoToSignUp }) {
+export function SignInScreen({ onBack, onSignInSuccess, onGoToSignUp, onGoToForgotPassword, onGoToForgotUsername }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const { scrollViewRef, contentRef, onFocusWithRef } = useKeyboardScroll();
+  const canSubmit = !!email.trim() && !!password && isValidEmail(email.trim());
 
   const validate = () => {
     const next = {};
@@ -57,7 +57,13 @@ export function SignInScreen({ onBack, onSignInSuccess, onGoToSignUp }) {
   };
 
   const handleForgotPassword = () => {
-    Alert.alert('Forgot password', 'Reset password can be added here (e.g. open reset link or screen).');
+    onGoToForgotPassword?.();
+  };
+  const handleForgotUsername = () => {
+    onGoToForgotUsername?.();
+  };
+  const handleTerms = () => {
+    Alert.alert('Terms & Conditions', 'Open Terms & Conditions content or screen here.');
   };
 
   return (
@@ -78,12 +84,8 @@ export function SignInScreen({ onBack, onSignInSuccess, onGoToSignUp }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <BoldMainHeader title="Login" />
           <View style={styles.card} ref={contentRef} collapsable={false}>
-            <Text style={styles.cardHeading}>Roads Authority</Text>
-            <Text style={styles.subtitle}>
-              Sign in to your Roads Authority account to access applications and reports.
-            </Text>
-
             <FormInput
               label="Email"
               required
@@ -107,26 +109,42 @@ export function SignInScreen({ onBack, onSignInSuccess, onGoToSignUp }) {
               onFocusWithRef={onFocusWithRef}
             />
 
-            <Pressable style={styles.forgotWrap} onPress={handleForgotPassword}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </Pressable>
+            <View style={styles.forgotRow}>
+              <InteractiveLink
+                label="Forgot Username?"
+                onPress={handleForgotUsername}
+                highlightOnInteract
+              />
+              <InteractiveLink
+                label="Forgot password?"
+                onPress={handleForgotPassword}
+                style={styles.forgotPasswordLink}
+              />
+            </View>
 
-            <Pressable
-              style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
+            <FormActionButton
+              label="Log in"
               onPress={handleSignIn}
-              disabled={submitting}
-            >
-              <Text style={styles.primaryButtonText}>{submitting ? 'Signing in…' : 'Sign in'}</Text>
-            </Pressable>
+              enabled={canSubmit}
+              loading={submitting}
+            />
 
             {onGoToSignUp && (
               <View style={styles.switchRow}>
                 <Text style={styles.switchText}>Don't have an account? </Text>
-                <Pressable onPress={onGoToSignUp}>
-                  <Text style={styles.switchLink}>Sign up</Text>
-                </Pressable>
+                <InteractiveLink
+                  label="Register"
+                  onPress={onGoToSignUp}
+                />
               </View>
             )}
+            <Text style={styles.termsText}>
+              By logging in to the Roads Authority website, you are confirming that you have read and agreed to the{' '}
+              <Text style={styles.termsLink} onPress={handleTerms}>
+                Terms & Conditions
+              </Text>{' '}
+              for Online Services provided by the Roads Authority.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -154,7 +172,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: 'rgba(255,255,255,0.96)',
-    borderRadius: 0,
+    borderRadius: 12,
     padding: spacing.xl,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -162,42 +180,14 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  cardHeading: {
-    ...typography.h4,
-    color: PRIMARY,
-    marginBottom: spacing.xs,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.xl,
-  },
-  forgotWrap: {
-    alignSelf: 'flex-start',
+  forgotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.lg,
   },
-  forgotText: {
-    ...typography.bodySmall,
-    color: PRIMARY,
-    fontWeight: '600',
-  },
-  primaryButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: PRIMARY,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderRadius: 8,
-    marginTop: spacing.lg,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    ...typography.button,
-    color: NEUTRAL_COLORS.white,
+  forgotPasswordLink: {
+    marginLeft: spacing.md,
   },
   switchRow: {
     flexDirection: 'row',
@@ -208,9 +198,15 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray600,
   },
-  switchLink: {
+  termsText: {
     ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray600,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    lineHeight: 32,
+  },
+  termsLink: {
     color: PRIMARY,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

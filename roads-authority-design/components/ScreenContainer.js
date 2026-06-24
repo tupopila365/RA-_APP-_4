@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { spacing } from '../theme/spacing';
 import { borderRadius } from '../theme/borderRadius';
-import { NEUTRAL_COLORS } from '../theme/colors';
+import { CONTENT_BACKGROUND } from '../theme/colors';
 
 export const ScreenContainer = React.forwardRef(function ScreenContainer(
   {
@@ -57,18 +57,18 @@ export const ScreenContainer = React.forwardRef(function ScreenContainer(
 const styles = StyleSheet.create({
   outer: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: CONTENT_BACKGROUND,
   },
   body: {
     flex: 1,
-    backgroundColor: NEUTRAL_COLORS.gray100,
+    backgroundColor: CONTENT_BACKGROUND,
   },
   bodyRoundedTop: {
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     overflow: 'hidden',
   },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: CONTENT_BACKGROUND },
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,

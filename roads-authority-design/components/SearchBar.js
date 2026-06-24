@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing } from '../theme/spacing';
-import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
+import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
 
-const MIN_HEIGHT = 48;
-const SEARCH_BUTTON_WIDTH = 52;
-const INPUT_BORDER_COLOR = RA_YELLOW;
+const MIN_HEIGHT = 50;
+const SEARCH_BUTTON_WIDTH = 46;
 
 export function SearchBar({
   placeholder = 'Search the RA app',
@@ -37,12 +36,12 @@ export function SearchBar({
   };
 
   return (
-    <View style={styles.wrapper}>
-      <View style={[styles.inputWrap, focused && styles.inputWrapFocused]}>
+    <View style={[styles.wrapper, focused && styles.wrapperFocused]}>
+      <View style={styles.inputWrap}>
         <TextInput
           style={[styles.input, !editable && styles.inputDisabled]}
           placeholder={placeholder}
-          placeholderTextColor={NEUTRAL_COLORS.gray400}
+          placeholderTextColor={NEUTRAL_COLORS.gray500}
           value={value}
           onChangeText={onChangeText}
           onSubmitEditing={onSubmitEditing}
@@ -69,50 +68,50 @@ export function SearchBar({
 const styles = StyleSheet.create({
   wrapper: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
     minHeight: MIN_HEIGHT,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray300,
+    borderRadius: 14,
+    backgroundColor: NEUTRAL_COLORS.white,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs,
+    ...Platform.select({
+      ios: {
+        shadowColor: NEUTRAL_COLORS.gray800,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+      },
+      android: { elevation: 1 },
+    }),
+  },
+  wrapperFocused: {
+    borderWidth: 2,
+    borderColor: PRIMARY,
   },
   inputWrap: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: NEUTRAL_COLORS.white,
-    borderWidth: 1,
-    borderRightWidth: 0,
-    borderColor: INPUT_BORDER_COLOR,
-    borderRadius: 0,
-    paddingHorizontal: spacing.md,
-  },
-  inputWrapFocused: {
-    borderWidth: 2,
-    borderRightWidth: 0,
-    borderColor: RA_YELLOW,
-    backgroundColor: NEUTRAL_COLORS.gray50,
-    ...Platform.select({
-      ios: {
-        shadowColor: RA_YELLOW,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.25,
-        shadowRadius: 6,
-      },
-    }),
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: NEUTRAL_COLORS.gray900,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     paddingHorizontal: 0,
   },
   inputDisabled: { color: NEUTRAL_COLORS.gray500 },
   searchButton: {
     width: SEARCH_BUTTON_WIDTH,
+    height: SEARCH_BUTTON_WIDTH,
     backgroundColor: PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 0,
+    borderRadius: 10,
   },
   searchButtonPressed: {
-    opacity: 0.9,
+    opacity: 0.88,
   },
 });

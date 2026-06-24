@@ -16,5 +16,8 @@ export const NEUTRAL_COLORS = {
 export const PRIMARY = '#00B4E6';
 export const HEADER_BLUE = '#00B4E6';
 
+/** Main content area behind cards, lists, and forms */
+export const CONTENT_BACKGROUND = '#EBEEF3';
+
 /** Roads Authority Namibia brand yellow/gold (e.g. for bullets, accents) */
 export const RA_YELLOW = '#F4B800';

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Pressable,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
@@ -11,174 +10,62 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { FormInput, DropdownSelector } from '../components';
+import { FormInput, BoldMainHeader, FormDropdown, FormCancelButton, FormNextButton } from '../components';
 import { useKeyboardScroll } from '../hooks/useKeyboardScroll';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
 import { PRIMARY } from '../theme/colors';
-import { authService } from '../services/authService';
 
-const MIN_PASSWORD_LENGTH = 8;
-
-const VERIFICATION_OPTIONS = [
-  { value: 'email', label: 'Verify by email' },
-  { value: 'phone', label: 'Verify by phone (SMS)' },
+const CAPACITY_OPTIONS = [
+  { value: 'individual', label: 'INDIVIDUAL' },
+  { value: 'company', label: 'COMPANY' },
 ];
 
-function isValidEmail(str) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str || '');
-}
+const IDENTIFICATION_TYPE_OPTIONS = [
+  { value: 'traffic-register-number', label: 'TRAFFIC REGISTER NUMBER' },
+  { value: 'namibian-id-document', label: 'NAMIBIAN ID DOCUMENT' },
+];
 
-export function SignUpScreen({ onBack, onSignUpSuccess, onGoToSignIn }) {
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationMethod, setVerificationMethod] = useState('email');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+export function SignUpScreen({ onGoToSignIn }) {
+  const [capacity, setCapacity] = useState('individual');
+  const [initials, setInitials] = useState('');
+  const [surname, setSurname] = useState('');
+  const [identificationType, setIdentificationType] = useState('traffic-register-number');
+  const [identificationNumber, setIdentificationNumber] = useState('');
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [otpStep, setOtpStep] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [pendingRegistration, setPendingRegistration] = useState(null);
   const { scrollViewRef, contentRef, onFocusWithRef } = useKeyboardScroll();
 
   const validate = () => {
     const next = {};
-    if (!fullName.trim()) next.fullName = 'Full name is required';
-    if (!email.trim()) next.email = 'Email is required';
-    else if (!isValidEmail(email.trim())) next.email = 'Enter a valid email address';
-    if (verificationMethod === 'phone' && !phoneNumber.trim()) {
-      next.phoneNumber = 'Phone number is required for phone verification';
-    }
-    if (!password) next.password = 'Password is required';
-    else if (password.length < MIN_PASSWORD_LENGTH) next.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
-    if (password !== confirmPassword) next.confirmPassword = 'Passwords do not match';
-    else if (!confirmPassword) next.confirmPassword = 'Confirm your password';
+    if (!initials.trim()) next.initials = 'Initials are required';
+    if (!surname.trim()) next.surname = 'Surname is required';
+    if (!identificationType) next.identificationType = 'Identification type is required';
+    if (!identificationNumber.trim()) next.identificationNumber = 'Identification number is required';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
+  const canSubmit =
+    !!initials.trim() &&
+    !!surname.trim() &&
+    !!identificationType &&
+    !!identificationNumber.trim();
+
   const handleSignUp = async () => {
     if (!validate()) return;
     setSubmitting(true);
-    setErrors({});
     try {
-      const result = await authService.register(
-        email.trim(),
-        password,
-        fullName.trim(),
-        phoneNumber.trim() || null,
-        verificationMethod
-      );
-      if (result.needPhoneVerification) {
-        setPendingRegistration({ email: email.trim(), phone: phoneNumber.trim(), password });
-        setOtpStep(true);
-        setOtp('');
-        setOtpError('');
-      } else if (result.needEmailVerification) {
-        Alert.alert(
-          'Verify your email',
-          'Please check your email and follow the link to verify your account. Then you can sign in.',
-          [{ text: 'OK', onPress: onBack }]
-        );
-      } else if (result.user) {
-        const user = await authService.getStoredUser();
-        onSignUpSuccess?.(user);
-        Alert.alert('Account created', 'You can now sign in with your email and password.', [
-          { text: 'OK', onPress: onBack },
-        ]);
-      }
-    } catch (err) {
-      Alert.alert('Registration failed', err.message || 'Please try again.');
+      Alert.alert('Details captured', 'Personal details captured successfully.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleVerifyOtp = async () => {
-    const trimmed = otp.trim();
-    if (!trimmed || trimmed.length < 4) {
-      setOtpError('Enter the verification code sent to your phone');
-      return;
-    }
-    if (!pendingRegistration) return;
-    setOtpError('');
-    setSubmitting(true);
-    try {
-      await authService.registerVerifyOtp(
-        pendingRegistration.email,
-        pendingRegistration.phone,
-        trimmed,
-        pendingRegistration.password
-      );
-      const user = await authService.getStoredUser();
-      onSignUpSuccess?.(user);
-      Alert.alert('Account created', 'You can now sign in with your email and password.', [
-        { text: 'OK', onPress: onBack },
-      ]);
-    } catch (err) {
-      setOtpError(err.message || 'Invalid or expired code. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+  const handleCancel = () => {
+    onGoToSignIn?.();
   };
-
-  if (otpStep && pendingRegistration) {
-    return (
-      <ImageBackground
-        source={require('../assets/background.png')}
-        style={styles.bg}
-        resizeMode="cover"
-      >
-        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-        <View style={styles.overlay} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboard}
-      >
-        <ScrollView
-          ref={scrollViewRef}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.card}>
-            <Text style={styles.cardHeading}>Roads Authority</Text>
-            <Text style={styles.subtitle}>
-              Enter the 6-digit code sent to your phone to complete registration.
-              </Text>
-              <FormInput
-                label="Verification code"
-                required
-                value={otp}
-                onChangeText={(v) => { setOtp(v); setOtpError(''); }}
-                placeholder="000000"
-                keyboardType="number-pad"
-                maxLength={6}
-                error={otpError}
-              />
-              <Pressable
-                style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
-                onPress={handleVerifyOtp}
-                disabled={submitting}
-              >
-                <Text style={styles.primaryButtonText}>{submitting ? 'Verifying…' : 'Verify and create account'}</Text>
-              </Pressable>
-              <Pressable
-                style={styles.secondaryButton}
-                onPress={() => { setOtpStep(false); setPendingRegistration(null); setOtp(''); setOtpError(''); }}
-              >
-                <Text style={styles.secondaryButtonText}>Back</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </ImageBackground>
-    );
-  }
 
   return (
     <ImageBackground
@@ -198,90 +85,63 @@ export function SignUpScreen({ onBack, onSignUpSuccess, onGoToSignIn }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <BoldMainHeader title="Identify Applicant" />
           <View style={styles.card} ref={contentRef} collapsable={false}>
-            <Text style={styles.cardHeading}>Roads Authority</Text>
-            <Text style={styles.subtitle}>
-              Create a Roads Authority account to submit applications, track reports, and more.
-            </Text>
-
-            <FormInput
-              label="Full name"
+            <FormDropdown
+              label="In which capacity are you?"
               required
-              value={fullName}
-              onChangeText={(v) => { setFullName(v); setErrors((e) => ({ ...e, fullName: undefined })); }}
-              placeholder="Your full name"
+              options={CAPACITY_OPTIONS}
+              value={capacity}
+              onSelect={setCapacity}
+            />
+            <Text style={styles.sectionTitle}>Personal Details</Text>
+            <FormInput
+              label="Initials"
+              required
+              value={initials}
+              onChangeText={(v) => { setInitials(v); setErrors((e) => ({ ...e, initials: undefined })); }}
+              placeholder="Enter initials"
+              autoCapitalize="characters"
+              error={errors.initials}
+              onFocusWithRef={onFocusWithRef}
+            />
+            <FormInput
+              label="Surname"
+              required
+              value={surname}
+              onChangeText={(v) => { setSurname(v); setErrors((e) => ({ ...e, surname: undefined })); }}
+              placeholder="Enter surname"
               autoCapitalize="words"
-              error={errors.fullName}
+              error={errors.surname}
               onFocusWithRef={onFocusWithRef}
+            />
+            <FormDropdown
+              label="Identification Type"
+              required
+              options={IDENTIFICATION_TYPE_OPTIONS}
+              value={identificationType}
+              onSelect={(v) => { setIdentificationType(v); setErrors((e) => ({ ...e, identificationType: undefined })); }}
+              error={errors.identificationType}
             />
             <FormInput
-              label="Email"
+              label="Identification Number"
               required
-              value={email}
-              onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              error={errors.email}
+              value={identificationNumber}
+              onChangeText={(v) => { setIdentificationNumber(v); setErrors((e) => ({ ...e, identificationNumber: undefined })); }}
+              placeholder="Enter identification number"
+              autoCapitalize="characters"
+              error={errors.identificationNumber}
               onFocusWithRef={onFocusWithRef}
             />
-            <DropdownSelector
-              label="Verification method"
-              placeholder="Choose how to verify"
-              options={VERIFICATION_OPTIONS}
-              value={verificationMethod}
-              onSelect={(v) => { setVerificationMethod(v); setErrors((e) => ({ ...e, phoneNumber: undefined })); }}
-            />
-            {verificationMethod === 'phone' && (
-              <FormInput
-                label="Phone number"
-                required
-                value={phoneNumber}
-                onChangeText={(v) => { setPhoneNumber(v); setErrors((e) => ({ ...e, phoneNumber: undefined })); }}
-                placeholder="e.g. +264 81 234 5678"
-                keyboardType="phone-pad"
-                error={errors.phoneNumber}
-                onFocusWithRef={onFocusWithRef}
+            <View style={styles.actionRow}>
+              <FormCancelButton onPress={handleCancel} />
+              <FormNextButton
+                label="Next"
+                onPress={handleSignUp}
+                enabled={canSubmit}
+                loading={submitting}
               />
-            )}
-            <FormInput
-              label="Password"
-              required
-              value={password}
-              onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined, confirmPassword: undefined })); }}
-              placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-              secureTextEntry
-              error={errors.password}
-              onFocusWithRef={onFocusWithRef}
-            />
-            <FormInput
-              label="Confirm password"
-              required
-              value={confirmPassword}
-              onChangeText={(v) => { setConfirmPassword(v); setErrors((e) => ({ ...e, confirmPassword: undefined })); }}
-              placeholder="Re-enter your password"
-              secureTextEntry
-              error={errors.confirmPassword}
-              onFocusWithRef={onFocusWithRef}
-            />
-
-            <Pressable
-              style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
-              onPress={handleSignUp}
-              disabled={submitting}
-            >
-              <Text style={styles.primaryButtonText}>{submitting ? 'Creating account…' : 'Create account'}</Text>
-            </Pressable>
-
-            {onGoToSignIn && (
-              <View style={styles.switchRow}>
-                <Text style={styles.switchText}>Already have an account? </Text>
-                <Pressable onPress={onGoToSignIn}>
-                  <Text style={styles.switchLink}>Sign in</Text>
-                </Pressable>
-              </View>
-            )}
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -309,7 +169,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: 'rgba(255,255,255,0.96)',
-    borderRadius: 0,
+    borderRadius: 12,
     padding: spacing.xl,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -329,45 +189,16 @@ const styles = StyleSheet.create({
     color: NEUTRAL_COLORS.gray600,
     marginBottom: spacing.xl,
   },
-  primaryButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: PRIMARY,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderRadius: 8,
-    marginTop: spacing.lg,
+  sectionTitle: {
+    ...typography.sectionTitle,
+    color: NEUTRAL_COLORS.gray700,
+    marginBottom: spacing.md,
   },
-  primaryButtonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    ...typography.button,
-    color: NEUTRAL_COLORS.white,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-  },
-  secondaryButtonText: {
-    ...typography.bodySmall,
-    color: PRIMARY,
-    fontWeight: '600',
-  },
-  switchRow: {
+  actionRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
     marginTop: spacing.lg,
-  },
-  switchText: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-  },
-  switchLink: {
-    ...typography.bodySmall,
-    color: PRIMARY,
-    fontWeight: '700',
+    gap: spacing.sm,
   },
 });

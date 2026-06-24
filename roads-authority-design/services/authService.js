@@ -7,6 +7,32 @@ const ACCESS_TOKEN_KEY = 'ra_design_access_token';
 const REFRESH_TOKEN_KEY = 'ra_design_refresh_token';
 const USER_KEY = 'ra_design_user';
 
+function buildMockUser(email) {
+  const namePart = email.split('@')[0] || 'User';
+  return {
+    id: `mock-${namePart}`,
+    email: email.trim(),
+    fullName: namePart.charAt(0).toUpperCase() + namePart.slice(1),
+  };
+}
+
+async function mockLogin(email, password) {
+  if (!password) {
+    throw new Error('Password is required');
+  }
+
+  const user = buildMockUser(email);
+  await storage.setItem(ACCESS_TOKEN_KEY, `mock-access-token-${user.id}`);
+  await storage.setItem(REFRESH_TOKEN_KEY, `mock-refresh-token-${user.id}`);
+  await storage.setItem(USER_KEY, JSON.stringify(user));
+
+  return {
+    accessToken: `mock-access-token-${user.id}`,
+    refreshToken: `mock-refresh-token-${user.id}`,
+    user,
+  };
+}
+
 class AuthService {
   async register(email, password, fullName = null, phoneNumber = null, verificationMethod = 'email') {
     try {
@@ -74,6 +100,10 @@ class AuthService {
   }
 
   async login(email, password) {
+    if (ENV.USE_MOCK_AUTH) {
+      return mockLogin(email, password);
+    }
+
     try {
       const response = await ApiClient.requestWithTimeout(
         '/app-users/login',
@@ -101,23 +131,22 @@ class AuthService {
   }
 
   async logout() {
-    try {
-      const token = await this.getAccessToken();
-      if (token) {
-        try {
-          await ApiClient.post('/app-users/logout', {}, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        } catch (_) {}
-      }
-      await storage.removeItem(ACCESS_TOKEN_KEY);
-      await storage.removeItem(REFRESH_TOKEN_KEY);
-      await storage.removeItem(USER_KEY);
-    } catch (e) {
-      await storage.removeItem(ACCESS_TOKEN_KEY);
-      await storage.removeItem(REFRESH_TOKEN_KEY);
-      await storage.removeItem(USER_KEY);
+    if (!ENV.USE_MOCK_AUTH) {
+      try {
+        const token = await this.getAccessToken();
+        if (token) {
+          try {
+            await ApiClient.post('/app-users/logout', {}, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          } catch (_) {}
+        }
+      } catch (_) {}
     }
+
+    await storage.removeItem(ACCESS_TOKEN_KEY);
+    await storage.removeItem(REFRESH_TOKEN_KEY);
+    await storage.removeItem(USER_KEY);
   }
 
   async getAccessToken() {

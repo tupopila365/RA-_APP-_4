@@ -82,12 +82,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   labelOutside: {
-    ...typography.bodySmall,
-    fontSize: 12,
-    fontWeight: '400',
-    color: NEUTRAL_COLORS.gray800,
+    ...typography.menuItemTitle,
+    fontSize: 13,
+    lineHeight: 18,
+    color: NEUTRAL_COLORS.gray900,
     textAlign: 'center',
     marginTop: spacing.xs,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
 });

@@ -16,6 +16,8 @@ export const ROAD_STATUS = [
   { id: '10', name: 'D2515 Oshakati–Ruacana', region: 'Oshana / Kunene', status: 'caution', lat: -17.4333, lng: 14.9833, notes: 'Gravel – drive to conditions' },
 ];
 
+export const ROAD_STATUS_LAST_UPDATED = '2026-06-24T12:04:14.571Z';
+
 export const STATUS_LABELS = {
   open: 'Open',
   caution: 'Caution',

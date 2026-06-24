@@ -1,23 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Modal } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { ScreenContainer, SearchBar } from '../components';
-import { STATUS_LABELS, STATUS_COLORS } from '../data/roadStatus';
-import { getRoadStatus } from '../services/roadStatusService';
+import { ROAD_STATUS, ROAD_STATUS_LAST_UPDATED, STATUS_LABELS, STATUS_COLORS } from '../data/roadStatus';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
-
-const VIEW_LIST = 'list';
-const VIEW_MAP = 'map';
-
-const NAMIBIA_REGION = {
-  latitude: -22.0,
-  longitude: 17.0,
-  latitudeDelta: 8,
-  longitudeDelta: 8,
-};
+import { NEUTRAL_COLORS } from '../theme/colors';
 
 function filterRoads(roads, query) {
   if (!query || !query.trim()) return roads;
@@ -41,222 +28,62 @@ function StatusBadge({ status }) {
   );
 }
 
-export function RoadStatusScreen({ onBack }) {
-  const [viewMode, setViewMode] = useState(VIEW_LIST);
+function SummaryPill({ label, count, color }) {
+  return (
+    <View style={[styles.pill, { borderColor: color + '40', backgroundColor: color + '14' }]}>
+      <Text style={[styles.pillCount, { color }]}>{count}</Text>
+      <Text style={styles.pillLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function formatLastUpdated(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Last updated: --';
+  return `Last updated: ${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+export function RoadStatusScreen() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRoadForMap, setSelectedRoadForMap] = useState(null);
-  const [showFullMap, setShowFullMap] = useState(false);
-  const [roads, setRoads] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
-  const mapRef = useRef(null);
-  const fullMapRef = useRef(null);
+  const filteredRoads = useMemo(() => filterRoads(ROAD_STATUS, searchQuery), [searchQuery]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
-    getRoadStatus()
-      .then((data) => { if (!cancelled) setRoads(Array.isArray(data) ? data : []); })
-      .catch((err) => { if (!cancelled) setLoadError(err.message || 'Failed to load'); setRoads([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
-
-  const filteredRoads = useMemo(() => filterRoads(roads, searchQuery), [roads, searchQuery]);
-
-  useEffect(() => {
-    if (viewMode === VIEW_MAP && selectedRoadForMap && mapRef.current) {
-      const region = {
-        latitude: selectedRoadForMap.lat,
-        longitude: selectedRoadForMap.lng,
-        latitudeDelta: 0.4,
-        longitudeDelta: 0.4,
-      };
-      mapRef.current.animateToRegion(region, 400);
-    }
-  }, [viewMode, selectedRoadForMap]);
-
-  useEffect(() => {
-    if (showFullMap && selectedRoadForMap && fullMapRef.current) {
-      const region = {
-        latitude: selectedRoadForMap.lat,
-        longitude: selectedRoadForMap.lng,
-        latitudeDelta: 0.4,
-        longitudeDelta: 0.4,
-      };
-      const t = setTimeout(() => {
-        fullMapRef.current?.animateToRegion?.(region, 400);
-      }, 100);
-      return () => clearTimeout(t);
-    }
-  }, [showFullMap, selectedRoadForMap]);
-
-  const handleNavigateToMap = (road) => {
-    setSelectedRoadForMap(road);
-    setViewMode(VIEW_MAP);
-  };
+  const openCount = ROAD_STATUS.filter((r) => r.status === 'open').length;
+  const cautionCount = ROAD_STATUS.filter((r) => r.status === 'caution').length;
+  const maintenanceCount = ROAD_STATUS.filter((r) => r.status === 'maintenance').length;
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <Text style={styles.subtitle}>
-        Check status of national roads. Tap List or Map to switch view.
-      </Text>
-
-      <View style={styles.toggleRow}>
-        <Pressable
-          style={[styles.toggleBtn, viewMode === VIEW_LIST && styles.toggleBtnActive]}
-          onPress={() => setViewMode(VIEW_LIST)}
-        >
-          <Ionicons name="list-outline" size={20} color={viewMode === VIEW_LIST ? NEUTRAL_COLORS.white : NEUTRAL_COLORS.gray600} />
-          <Text style={[styles.toggleText, viewMode === VIEW_LIST && styles.toggleTextActive]}>List</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.toggleBtn, viewMode === VIEW_MAP && styles.toggleBtnActive]}
-          onPress={() => { setSelectedRoadForMap(null); setViewMode(VIEW_MAP); }}
-        >
-          <Ionicons name="map-outline" size={20} color={viewMode === VIEW_MAP ? NEUTRAL_COLORS.white : NEUTRAL_COLORS.gray600} />
-          <Text style={[styles.toggleText, viewMode === VIEW_MAP && styles.toggleTextActive]}>Map</Text>
-        </Pressable>
+      <View style={styles.summaryRow}>
+        <SummaryPill label="Open" count={openCount} color={STATUS_COLORS.open} />
+        <SummaryPill label="Caution" count={cautionCount} color={STATUS_COLORS.caution} />
+        <SummaryPill label="Maintenance" count={maintenanceCount} color={STATUS_COLORS.maintenance} />
       </View>
 
       <SearchBar
-        placeholder="Search by road name or region"
+        placeholder="Search road or region"
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
+      <Text style={styles.lastUpdated}>{formatLastUpdated(ROAD_STATUS_LAST_UPDATED)}</Text>
 
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={styles.loadingText}>Loading road status…</Text>
-        </View>
-      ) : loadError ? (
-        <View style={styles.empty}>
-          <Ionicons name="cloud-offline-outline" size={48} color={NEUTRAL_COLORS.gray400} />
-          <Text style={styles.emptyText}>{loadError}</Text>
-        </View>
-      ) : viewMode === VIEW_LIST ? (
-        <View style={styles.list}>
-          {filteredRoads.length === 0 ? (
-            <View style={styles.empty}>
-              <Ionicons name="trail-sign-outline" size={48} color={NEUTRAL_COLORS.gray400} />
-              <Text style={styles.emptyText}>No roads match your search.</Text>
-            </View>
-          ) : (
-            filteredRoads.map((road) => (
-              <View key={road.id} style={[styles.card, { borderLeftColor: STATUS_COLORS[road.status] || PRIMARY }]}>
-                <Text style={styles.roadName} numberOfLines={2}>{road.name}</Text>
-                <Text style={styles.regionLabel}>Region</Text>
-                <Text style={styles.region}>{road.region}</Text>
-                <Text style={styles.statusLabel}>Status</Text>
+      <View style={styles.list}>
+        {filteredRoads.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No roads match your search.</Text>
+          </View>
+        ) : (
+          filteredRoads.map((road) => (
+            <View key={road.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.roadName}>{road.name}</Text>
                 <StatusBadge status={road.status} />
-                {road.notes ? (
-                  <View style={styles.notesWrap}>
-                    <Text style={styles.notesLabel}>Note</Text>
-                    <Text style={styles.notes}>{road.notes}</Text>
-                  </View>
-                ) : null}
-                <Pressable
-                  style={({ pressed }) => [styles.navigateButton, pressed && styles.navigateButtonPressed]}
-                  onPress={() => handleNavigateToMap(road)}
-                >
-                  <Ionicons name="navigate-outline" size={18} color={NEUTRAL_COLORS.gray900} />
-                  <Text style={styles.navigateButtonText}>Show on map</Text>
-                </Pressable>
               </View>
-            ))
-          )}
-        </View>
-      ) : (
-        <View style={styles.mapWrap}>
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            initialRegion={NAMIBIA_REGION}
-            showsUserLocation={false}
-          >
-            {filteredRoads.map((road) => (
-              <Marker
-                key={road.id}
-                coordinate={{ latitude: road.lat, longitude: road.lng }}
-                title={road.name}
-                description={`${STATUS_LABELS[road.status] || road.status} • ${road.notes || ''}`}
-                pinColor={STATUS_COLORS[road.status] || PRIMARY}
-              />
-            ))}
-          </MapView>
-          <Pressable
-            style={({ pressed }) => [styles.fullViewButton, pressed && styles.fullViewButtonPressed]}
-            onPress={() => setShowFullMap(true)}
-          >
-            <Ionicons name="expand-outline" size={22} color={NEUTRAL_COLORS.gray800} />
-            <Text style={styles.fullViewButtonText}>Full view</Text>
-          </Pressable>
-          <View style={styles.mapLegend}>
-            <Text style={styles.legendTitle}>Status</Text>
-            {Object.entries(STATUS_LABELS).map(([key, label]) => (
-              <View key={key} style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: STATUS_COLORS[key] || NEUTRAL_COLORS.gray500 }]} />
-                <Text style={styles.legendText}>{label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      <Modal
-        visible={showFullMap}
-        animationType="slide"
-        onRequestClose={() => setShowFullMap(false)}
-      >
-        <View style={styles.fullMapContainer}>
-          <View style={styles.fullMapHeader}>
-            <Text style={styles.fullMapTitle}>Road status map</Text>
-            <Pressable
-              style={({ pressed }) => [styles.fullMapCloseButton, pressed && styles.fullMapCloseButtonPressed]}
-              onPress={() => setShowFullMap(false)}
-            >
-              <Ionicons name="close" size={24} color={NEUTRAL_COLORS.gray800} />
-              <Text style={styles.fullMapCloseText}>Close</Text>
-            </Pressable>
-          </View>
-          <View style={styles.fullMapSearchWrap}>
-            <SearchBar
-              placeholder="Search by road name or region"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-          <View style={styles.fullMapWrap}>
-            <MapView
-              ref={fullMapRef}
-              style={styles.fullMap}
-              initialRegion={NAMIBIA_REGION}
-              showsUserLocation={false}
-            >
-              {filteredRoads.map((road) => (
-                <Marker
-                  key={road.id}
-                  coordinate={{ latitude: road.lat, longitude: road.lng }}
-                  title={road.name}
-                  description={`${STATUS_LABELS[road.status] || road.status} • ${road.notes || ''}`}
-                  pinColor={STATUS_COLORS[road.status] || PRIMARY}
-                />
-              ))}
-            </MapView>
-            <View style={styles.mapLegend}>
-              <Text style={styles.legendTitle}>Status</Text>
-              {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                <View key={key} style={styles.legendRow}>
-                  <View style={[styles.legendDot, { backgroundColor: STATUS_COLORS[key] || NEUTRAL_COLORS.gray500 }]} />
-                  <Text style={styles.legendText}>{label}</Text>
-                </View>
-              ))}
+              <Text style={styles.region}>{road.region}</Text>
+              {road.notes ? <Text style={styles.note}>{road.notes}</Text> : null}
             </View>
-          </View>
-        </View>
-      </Modal>
+          ))
+        )}
+      </View>
     </ScreenContainer>
   );
 }
@@ -264,265 +91,94 @@ export function RoadStatusScreen({ onBack }) {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
-    flexGrow: 1,
   },
-  subtitle: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.lg,
-  },
-  toggleRow: {
+  summaryRow: {
     flexDirection: 'row',
+    gap: spacing.sm,
     marginBottom: spacing.md,
-    gap: spacing.sm,
   },
-  toggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  pill: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 999,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 0,
-    backgroundColor: NEUTRAL_COLORS.gray100,
-    gap: spacing.sm,
-  },
-  toggleBtnActive: {
-    backgroundColor: PRIMARY,
-  },
-  toggleText: {
-    ...typography.bodySmall,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray600,
-  },
-  toggleTextActive: {
-    color: NEUTRAL_COLORS.white,
-  },
-  loadingWrap: {
-    marginTop: spacing.xl,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
-    paddingVertical: spacing.xxxl,
+    justifyContent: 'center',
   },
-  loadingText: {
+  pillCount: {
     ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginTop: spacing.md,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  pillLabel: {
+    ...typography.caption,
+    color: NEUTRAL_COLORS.gray700,
   },
   list: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     gap: spacing.md,
   },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxxl,
-  },
-  emptyText: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray500,
-    marginTop: spacing.sm,
+  lastUpdated: {
+    ...typography.caption,
+    color: NEUTRAL_COLORS.gray600,
+    marginTop: spacing.xs,
   },
   card: {
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 0,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
-    borderLeftWidth: 4,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    marginBottom: 0,
+    padding: spacing.lg,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   roadName: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...typography.body,
     color: NEUTRAL_COLORS.gray900,
-    marginBottom: spacing.sm,
-  },
-  regionLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray500,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 2,
+    fontFamily: 'Poppins_600SemiBold',
+    flex: 1,
   },
   region: {
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray700,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  statusLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray500,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 4,
+  note: {
+    ...typography.caption,
+    color: NEUTRAL_COLORS.gray600,
   },
   badge: {
     flexDirection: 'row',
-    alignSelf: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 0,
+    borderRadius: 999,
     gap: 6,
   },
   badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 0,
+    width: 7,
+    height: 7,
+    borderRadius: 999,
   },
   badgeText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.caption,
+    fontFamily: 'Poppins_600SemiBold',
   },
-  notesWrap: {
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: NEUTRAL_COLORS.gray100,
+  emptyCard: {
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    padding: spacing.xl,
+    alignItems: 'center',
   },
-  notesLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray500,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 2,
-  },
-  notes: {
+  emptyText: {
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray600,
-  },
-  navigateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: RA_YELLOW,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  navigateButtonPressed: {
-    opacity: 0.9,
-  },
-  navigateButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray900,
-  },
-  mapWrap: {
-    marginTop: spacing.md,
-    height: 320,
-    borderRadius: 0,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
-  },
-  map: {
-    width: '100%',
-    height: '100%',
-  },
-  mapLegend: {
-    position: 'absolute',
-    bottom: spacing.md,
-    left: spacing.md,
-    backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 0,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
-  },
-  legendTitle: {
-    ...typography.caption,
-    fontWeight: '700',
-    color: NEUTRAL_COLORS.gray800,
-    marginBottom: spacing.sm,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 0,
-    marginRight: spacing.sm,
-  },
-  legendText: {
-    ...typography.caption,
-    color: NEUTRAL_COLORS.gray700,
-  },
-  fullViewButton: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: NEUTRAL_COLORS.white,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
-    borderRadius: 0,
-    gap: spacing.xs,
-  },
-  fullViewButtonPressed: {
-    opacity: 0.9,
-  },
-  fullViewButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray800,
-  },
-  fullMapContainer: {
-    flex: 1,
-    backgroundColor: NEUTRAL_COLORS.gray100,
-  },
-  fullMapHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingTop: spacing.xl + 8,
-    backgroundColor: NEUTRAL_COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: NEUTRAL_COLORS.gray200,
-  },
-  fullMapTitle: {
-    ...typography.h6,
-    color: NEUTRAL_COLORS.gray900,
-  },
-  fullMapCloseButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
-  },
-  fullMapCloseButtonPressed: {
-    opacity: 0.8,
-  },
-  fullMapCloseText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray800,
-  },
-  fullMapSearchWrap: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: NEUTRAL_COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: NEUTRAL_COLORS.gray200,
-  },
-  fullMapWrap: {
-    flex: 1,
-    position: 'relative',
-  },
-  fullMap: {
-    width: '100%',
-    height: '100%',
   },
 });

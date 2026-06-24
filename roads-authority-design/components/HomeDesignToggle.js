@@ -11,6 +11,7 @@ const OPTIONS = [
   { key: 3, label: 'Cards' },
   { key: 4, label: 'Tiles' },
   { key: 5, label: 'Topics' },
+  { key: 6, label: 'Extra' },
 ];
 
 export function HomeDesignToggle({ value, onChange }) {

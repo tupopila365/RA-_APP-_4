@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Pressable,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
@@ -11,42 +10,49 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { FormInput, DropdownSelector } from '../components';
+import {
+  FormInput,
+  BoldMainHeader,
+  FormCancelButton,
+  FormNextButton,
+} from '../components';
+import { FormDropdown } from '../components/FormDropdown';
 import { useKeyboardScroll } from '../hooks/useKeyboardScroll';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
-import { PRIMARY } from '../theme/colors';
-import { submitFeedback } from '../services/feedbackService';
 
 const FEEDBACK_TYPE_OPTIONS = [
-  { value: 'natis', label: 'NATIS services' },
-  { value: 'mobile-app', label: 'Mobile application' },
-  { value: 'roads-authority', label: 'Roads Authority service' },
-  { value: 'other', label: 'Other' },
+  { value: 'natis', label: 'NATIS SERVICES' },
+  { value: 'mobile-app', label: 'MOBILE APPLICATION' },
+  { value: 'roads-authority', label: 'ROADS AUTHORITY SERVICE' },
+  { value: 'other', label: 'OTHER' },
 ];
 
-export function FeedbackScreen({ onBack }) {
+export function FeedbackScreen({ onBack, onSubmit }) {
   const [feedbackType, setFeedbackType] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { scrollViewRef, contentRef, onFocusWithRef } = useKeyboardScroll();
 
+  const canSubmit = !!feedbackType && message.trim().length > 0;
+
   const handleSubmit = async () => {
     if (!feedbackType) {
-      Alert.alert('Feedback', 'Please select a feedback category.');
+      Alert.alert('Feedback', 'Please select a category.');
       return;
     }
+
     const trimmed = message.trim();
     if (!trimmed) {
       Alert.alert('Feedback', 'Please enter your message.');
       return;
     }
+
     setSubmitting(true);
     try {
-      await submitFeedback({ category: feedbackType, message: trimmed });
-      Alert.alert('Thank you', 'Your feedback has been received. We will review it shortly.', [{ text: 'OK', onPress: onBack }]);
+      // Backend integration is paused for now; submit locally only.
+      onSubmit?.({ category: feedbackType, message: trimmed });
       setFeedbackType('');
       setMessage('');
     } catch (err) {
@@ -74,37 +80,41 @@ export function FeedbackScreen({ onBack }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <BoldMainHeader title="Feedback" />
           <View style={styles.card} ref={contentRef} collapsable={false}>
-            <View style={styles.iconWrap}>
-              <Ionicons name="chatbubble-ellipses-outline" size={48} color={PRIMARY} />
-            </View>
-            <Text style={styles.subtitle}>
-              Help us improve. Choose a category and share your suggestions or report an issue.
-            </Text>
-            <DropdownSelector
-              label="Feedback about"
+            <Text style={styles.sectionTitle}>Share your feedback</Text>
+
+            <FormDropdown
+              label="Feedback Category"
               required
-              placeholder="Select category"
               options={FEEDBACK_TYPE_OPTIONS}
               value={feedbackType}
               onSelect={setFeedbackType}
             />
+
             <FormInput
-              label="Your message"
+              label="Message"
+              required
               value={message}
               onChangeText={setMessage}
               placeholder="Type your feedback here..."
               multiline
-              numberOfLines={4}
+              numberOfLines={5}
+              maxLength={800}
               onFocusWithRef={onFocusWithRef}
             />
-            <Pressable
-              style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
-              onPress={handleSubmit}
-              disabled={submitting}
-            >
-              <Text style={styles.submitBtnText}>{submitting ? 'Sending…' : 'Send feedback'}</Text>
-            </Pressable>
+
+            <Text style={styles.helperText}>{message.length}/800</Text>
+
+            <View style={styles.actionRow}>
+              <FormCancelButton label="Cancel" onPress={onBack} />
+              <FormNextButton
+                label="Send"
+                onPress={handleSubmit}
+                enabled={canSubmit}
+                loading={submitting}
+              />
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -125,13 +135,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxxl,
+    paddingBottom: spacing.xxxl,
+    paddingTop: spacing.xxxl,
   },
   card: {
     backgroundColor: 'rgba(255,255,255,0.96)',
-    borderRadius: 0,
+    borderRadius: 12,
     padding: spacing.xl,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -139,37 +150,23 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  iconWrap: {
+  sectionTitle: {
+    ...typography.sectionTitle,
+    color: NEUTRAL_COLORS.gray700,
+    marginBottom: spacing.md,
+  },
+  helperText: {
+    ...typography.caption,
+    color: NEUTRAL_COLORS.gray500,
+    textAlign: 'right',
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  cardHeading: {
-    ...typography.h4,
-    color: PRIMARY,
-    marginBottom: spacing.xs,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.xl,
-    textAlign: 'left',
-  },
-  submitBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: PRIMARY,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderRadius: 8,
     marginTop: spacing.lg,
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  submitBtnText: {
-    ...typography.button,
-    color: NEUTRAL_COLORS.white,
+    gap: spacing.sm,
   },
 });

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
+import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
 
 const MOCK_NOTIFICATIONS = [
   {
@@ -52,22 +52,8 @@ function NotificationCard({ item, onMoveToMessages }) {
 
   return (
     <View style={styles.notificationCard}>
-      <View style={styles.notificationTopRow}>
-        <View style={styles.notificationTypeWrap}>
-          <Ionicons name={getTypeIcon(item.type)} size={16} color={PRIMARY} />
-          <Text style={styles.notificationTypeText}>
-            {item.type === 'driver' ? 'Driver licence' : 'Vehicle licence'}
-          </Text>
-        </View>
-        <View style={[styles.expiryPill, isExpired && styles.expiredPill]}>
-          <Text style={[styles.expiryPillText, isExpired && styles.expiredPillText]}>
-            {isExpired ? 'Expired' : '3 months'}
-          </Text>
-        </View>
-      </View>
       <Text style={styles.notificationTitle}>{item.title}</Text>
       <Text style={styles.notificationMessage}>{item.message}</Text>
-      <Text style={styles.notificationDate}>Expiry date: {item.dueDate}</Text>
       {isExpired ? (
         <View style={styles.expiredAction}>
           <Ionicons name="alert-circle-outline" size={16} color="#B91C1C" />
@@ -102,16 +88,6 @@ export function NotificationsScreen() {
 
   const hasNotifications = notifications.length > 0;
   const hasMessages = messages.length > 0;
-  const hasExpiredLicences = useMemo(
-    () => notifications.some((item) => isExpiredDate(item.dueDate)),
-    [notifications]
-  );
-
-  const introText = useMemo(
-    () =>
-      'You will be notified 3 months before your driver or vehicle licence expires. Cleared notifications are stored under messages.',
-    []
-  );
 
   const handleMoveToMessages = (notification) => {
     setNotifications((prev) => prev.filter((item) => item.id !== notification.id));
@@ -120,20 +96,6 @@ export function NotificationsScreen() {
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <View style={styles.introCard}>
-        <Ionicons name="notifications-outline" size={18} color={PRIMARY} />
-        <Text style={styles.introText}>{introText}</Text>
-      </View>
-      {hasExpiredLicences ? (
-        <View style={styles.expiredAlertCard}>
-          <Ionicons name="warning-outline" size={18} color="#B91C1C" />
-          <Text style={styles.expiredAlertText}>
-            Your licence has expired. This alert remains until the licence is renewed.
-          </Text>
-        </View>
-      ) : null}
-
-      <Text style={styles.sectionTitle}>Notifications</Text>
       {hasNotifications ? (
         notifications.map((item) => (
           <NotificationCard key={item.id} item={item} onMoveToMessages={handleMoveToMessages} />
@@ -144,7 +106,6 @@ export function NotificationsScreen() {
         </View>
       )}
 
-      <Text style={[styles.sectionTitle, styles.messagesTitle]}>Messages</Text>
       {hasMessages ? (
         messages.map((item) => <MessageCard key={`m-${item.id}`} item={item} />)
       ) : (
@@ -158,88 +119,27 @@ export function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    padding: spacing.lg,
-    backgroundColor: NEUTRAL_COLORS.gray50,
     paddingBottom: spacing.xxxl,
-  },
-  introCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: NEUTRAL_COLORS.white,
-    borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  introText: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray700,
-    flex: 1,
-    lineHeight: 20,
-  },
-  sectionTitle: {
-    ...typography.h5,
-    color: NEUTRAL_COLORS.gray900,
-    marginBottom: spacing.sm,
-  },
-  messagesTitle: {
-    marginTop: spacing.lg,
+    paddingTop: spacing.md,
   },
   notificationCard: {
     backgroundColor: NEUTRAL_COLORS.white,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
-    padding: spacing.md,
+    borderRadius: 12,
+    padding: spacing.lg,
     marginBottom: spacing.md,
-  },
-  notificationTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  notificationTypeWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  notificationTypeText: {
-    ...typography.caption,
-    color: NEUTRAL_COLORS.gray700,
-    fontWeight: '600',
-  },
-  expiryPill: {
-    backgroundColor: RA_YELLOW,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  expiredPill: {
-    backgroundColor: '#FEE2E2',
-  },
-  expiryPillText: {
-    ...typography.caption,
-    color: NEUTRAL_COLORS.gray900,
-    fontWeight: '700',
-  },
-  expiredPillText: {
-    color: '#B91C1C',
   },
   notificationTitle: {
     ...typography.body,
     color: NEUTRAL_COLORS.gray900,
-    fontWeight: '700',
+    fontFamily: 'Poppins_600SemiBold',
     marginBottom: spacing.xs,
   },
   notificationMessage: {
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray700,
     lineHeight: 20,
-  },
-  notificationDate: {
-    ...typography.caption,
-    color: NEUTRAL_COLORS.gray600,
-    marginTop: spacing.sm,
   },
   archiveButton: {
     marginTop: spacing.md,
@@ -251,11 +151,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    borderRadius: 999,
   },
   archiveButtonText: {
     ...typography.caption,
     color: NEUTRAL_COLORS.gray700,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   expiredAction: {
     marginTop: spacing.md,
@@ -268,33 +169,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    borderRadius: 999,
   },
   expiredActionText: {
     ...typography.caption,
     color: '#B91C1C',
-    fontWeight: '700',
-  },
-  expiredAlertCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  expiredAlertText: {
-    ...typography.bodySmall,
-    color: '#991B1B',
-    flex: 1,
-    lineHeight: 20,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   messageCard: {
     backgroundColor: NEUTRAL_COLORS.white,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
+    borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -307,12 +193,12 @@ const styles = StyleSheet.create({
   messageHeaderText: {
     ...typography.caption,
     color: NEUTRAL_COLORS.gray600,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   messageTitle: {
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray900,
-    fontWeight: '700',
+    fontFamily: 'Poppins_600SemiBold',
     marginBottom: 2,
   },
   messageBody: {
@@ -324,6 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: NEUTRAL_COLORS.white,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
+    borderRadius: 12,
     padding: spacing.md,
   },
   emptyStateText: {

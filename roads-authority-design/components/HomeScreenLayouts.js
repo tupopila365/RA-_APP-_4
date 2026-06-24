@@ -2,16 +2,31 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ServiceGrid } from './ServiceGrid';
+import { ServiceTilesGrid } from './ServiceTilesGrid';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
 import { PRIMARY } from '../theme/colors';
 
+function ServicesHeader() {
+  return (
+    <View style={servicesHeaderStyles.container}>
+      <Text style={servicesHeaderStyles.title}>Services</Text>
+      <View style={servicesHeaderStyles.underline} />
+    </View>
+  );
+}
+
 /**
  * Design 1: 3-column grid of tiles (current default).
  */
 export function HomeGridLayout({ items }) {
-  return <ServiceGrid items={items} />;
+  return (
+    <View>
+      <ServicesHeader />
+      <ServiceGrid items={items} />
+    </View>
+  );
 }
 
 /**
@@ -20,22 +35,25 @@ export function HomeGridLayout({ items }) {
  */
 export function HomeListLayout({ items }) {
   return (
-    <View style={listStyles.container}>
-      {items.map((item) => (
-        <Pressable
-          key={item.key}
-          onPress={item.onPress}
-          style={({ pressed }) => [listStyles.row, pressed && listStyles.rowPressed]}
-        >
-          <View style={listStyles.iconWrap}>
-            <Ionicons name={item.iconName} size={24} color={PRIMARY} />
-          </View>
-          <Text style={listStyles.label} numberOfLines={1}>
-            {item.label}
-          </Text>
-          <Ionicons name="chevron-forward" size={20} color={NEUTRAL_COLORS.gray400} />
-        </Pressable>
-      ))}
+    <View>
+      <ServicesHeader />
+      <View style={listStyles.container}>
+        {items.map((item) => (
+          <Pressable
+            key={item.key}
+            onPress={item.onPress}
+            style={({ pressed }) => [listStyles.row, pressed && listStyles.rowPressed]}
+          >
+            <View style={listStyles.iconWrap}>
+              <Ionicons name={item.iconName} size={24} color={PRIMARY} />
+            </View>
+            <Text style={listStyles.label} numberOfLines={1}>
+              {item.label}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={NEUTRAL_COLORS.gray400} />
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
@@ -68,8 +86,9 @@ const listStyles = StyleSheet.create({
   },
   label: {
     flex: 1,
-    ...typography.body,
-    fontWeight: '400',
+    ...typography.menuItemTitle,
+    fontSize: 16,
+    lineHeight: 24,
     color: NEUTRAL_COLORS.gray900,
   },
 });
@@ -84,27 +103,30 @@ export function HomeCardsLayout({ items }) {
     rows.push(items.slice(i, i + 2));
   }
   return (
-    <View style={cardsStyles.container}>
-      {rows.map((row, rowIndex) => (
-        <View key={rowIndex} style={cardsStyles.row}>
-          {row.map((item) => (
-            <View key={item.key} style={cardsStyles.cardWrap}>
-              <Pressable
-                onPress={item.onPress}
-                style={({ pressed }) => [cardsStyles.card, pressed && cardsStyles.cardPressed]}
-              >
-                <View style={cardsStyles.iconWrap}>
-                  <Ionicons name={item.iconName} size={26} color={PRIMARY} />
-                </View>
-              </Pressable>
-              <Text style={cardsStyles.label} numberOfLines={2}>
-                {item.label}
-              </Text>
-            </View>
-          ))}
-          {row.length === 1 && <View style={cardsStyles.cardPlaceholder} />}
-        </View>
-      ))}
+    <View>
+      <ServicesHeader />
+      <View style={cardsStyles.container}>
+        {rows.map((row, rowIndex) => (
+          <View key={rowIndex} style={cardsStyles.row}>
+            {row.map((item) => (
+              <View key={item.key} style={cardsStyles.cardWrap}>
+                <Pressable
+                  onPress={item.onPress}
+                  style={({ pressed }) => [cardsStyles.card, pressed && cardsStyles.cardPressed]}
+                >
+                  <View style={cardsStyles.iconWrap}>
+                    <Ionicons name={item.iconName} size={26} color={PRIMARY} />
+                  </View>
+                </Pressable>
+                <Text style={cardsStyles.label} numberOfLines={2}>
+                  {item.label}
+                </Text>
+              </View>
+            ))}
+            {row.length === 1 && <View style={cardsStyles.cardPlaceholder} />}
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -147,101 +169,30 @@ const cardsStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    ...typography.bodySmall,
-    fontSize: 12,
-    fontWeight: '400',
-    color: NEUTRAL_COLORS.gray800,
+    ...typography.menuItemTitle,
+    fontSize: 13,
+    lineHeight: 18,
+    color: NEUTRAL_COLORS.gray900,
     textAlign: 'center',
     marginTop: spacing.xs,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
 });
 
 /**
  * Design 4: CoW-style tiles – white rounded card, icon on top (single colour), label centered below.
- * No top border, no icon circle; clean and uncluttered like City of Windhoek home.
  */
-const COLS = 4;
-const TILE_GAP = spacing.md;
-
-function chunk(arr, size) {
-  const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
-
 export function HomeSimpleTilesLayout({ items }) {
-  const rows = chunk(items, COLS);
   return (
-    <View style={simpleStyles.container}>
-      {rows.map((row, rowIndex) => (
-        <View key={rowIndex} style={simpleStyles.row}>
-          {row.map((item) => (
-            <View key={item.key} style={simpleStyles.tileWrap}>
-              <Pressable
-                onPress={item.onPress}
-                style={({ pressed }) => [simpleStyles.tile, pressed && simpleStyles.tilePressed]}
-              >
-                <Ionicons name={item.iconName} size={32} color={PRIMARY} />
-              </Pressable>
-              <Text style={simpleStyles.label} numberOfLines={2}>
-                {item.label}
-              </Text>
-            </View>
-          ))}
-          {Array.from({ length: COLS - row.length }, (_, i) => (
-            <View key={`ph-${rowIndex}-${i}`} style={simpleStyles.tilePlaceholder} />
-          ))}
-        </View>
-      ))}
+    <View>
+      <ServicesHeader />
+      <ServiceTilesGrid
+        items={items}
+        onItemPress={(key) => items.find((item) => item.key === key)?.onPress?.()}
+      />
     </View>
   );
 }
-
-const simpleStyles = StyleSheet.create({
-  container: {},
-  row: {
-    flexDirection: 'row',
-    marginBottom: TILE_GAP,
-    gap: TILE_GAP,
-  },
-  tileWrap: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'center',
-  },
-  tile: {
-    aspectRatio: 1,
-    alignSelf: 'stretch',
-    backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 12,
-    padding: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: PRIMARY,
-    shadowColor: NEUTRAL_COLORS.gray800,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tilePlaceholder: {
-    flex: 1,
-    minWidth: 0,
-    aspectRatio: 1,
-  },
-  tilePressed: { opacity: 0.92 },
-  label: {
-    ...typography.bodySmall,
-    fontSize: 12,
-    fontWeight: '400',
-    color: NEUTRAL_COLORS.gray800,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-    letterSpacing: 0.2,
-  },
-});
 
 /**
  * Design 5: Topics-style layout – section title, 2-col grid of rounded cards.
@@ -254,9 +205,7 @@ export function HomeTopicsLayout({ items }) {
   }
   return (
     <View style={topicsStyles.container}>
-      <View style={topicsStyles.header}>
-        <Text style={topicsStyles.sectionTitle}>Quick access</Text>
-      </View>
+      <ServicesHeader />
       <View style={topicsStyles.grid}>
         {rows.map((row, rowIndex) => (
           <View key={rowIndex} style={topicsStyles.row}>
@@ -285,20 +234,34 @@ export function HomeTopicsLayout({ items }) {
   );
 }
 
+/**
+ * Design 6: Empty starter layout.
+ * Keeps the same home page structure but leaves content area blank for custom grid design.
+ */
+export function HomeEmptyLayout({ onMenuItemPress }) {
+  const quickItems = [
+    { key: 'view-driving-licence', iconName: 'id-card-outline', label: 'Driving Licence' },
+    { key: 'natis-services', iconName: 'apps-outline', label: 'NaTIS Services' },
+    { key: 'report-road-damage', iconName: 'warning-outline', label: 'Report Road Damage' },
+    { key: 'view-report', iconName: 'document-text-outline', label: 'View Reports' },
+    { key: 'road-status', iconName: 'trail-sign-outline', label: 'Road Status' },
+    { key: 'offices', iconName: 'location-outline', label: 'Offices' },
+    { key: 'feed-back', iconName: 'chatbox-ellipses-outline', label: 'Feed Back' },
+    { key: 'settings', iconName: 'settings-outline', label: 'Settings' },
+  ];
+
+  return (
+    <ServiceTilesGrid
+      items={quickItems}
+      headerTitle="Services"
+      onItemPress={onMenuItemPress}
+    />
+  );
+}
+
 const topicsStyles = StyleSheet.create({
   container: {
     marginBottom: spacing.lg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    ...typography.body,
-    fontWeight: '700',
-    color: NEUTRAL_COLORS.gray900,
   },
   grid: {},
   row: {
@@ -329,10 +292,10 @@ const topicsStyles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   cardLabel: {
-    ...typography.bodySmall,
-    fontWeight: '500',
-    color: NEUTRAL_COLORS.gray900,
+    ...typography.menuItemTitle,
+    fontSize: 14,
     lineHeight: 20,
+    color: NEUTRAL_COLORS.gray900,
   },
   chevron: {
     marginLeft: spacing.sm,
@@ -340,5 +303,26 @@ const topicsStyles = StyleSheet.create({
   cardPlaceholder: {
     flex: 1,
     marginLeft: spacing.md,
+  },
+});
+
+const servicesHeaderStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  title: {
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 20,
+    lineHeight: 28,
+    color: NEUTRAL_COLORS.gray900,
+    textAlign: 'center',
+  },
+  underline: {
+    width: 62,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: PRIMARY,
+    marginTop: spacing.sm,
   },
 });

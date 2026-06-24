@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS } from '../theme/colors';
+import { NEUTRAL_COLORS, CONTENT_BACKGROUND } from '../theme/colors';
 import { PRIMARY } from '../theme/colors';
 
 const NAV_HEIGHT = 56;
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: spacing.sm,
     minHeight: NAV_HEIGHT,
-    backgroundColor: NEUTRAL_COLORS.gray100,
+    backgroundColor: CONTENT_BACKGROUND,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: NEUTRAL_COLORS.gray200,
     borderRadius: 0,

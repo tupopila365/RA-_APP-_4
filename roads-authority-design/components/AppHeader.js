@@ -130,10 +130,10 @@ export function AppHeader({
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.md,
     paddingHorizontal: spacing.lg,
-    minHeight: 150,
-    justifyContent: 'flex-end',
+    minHeight: 128,
+    justifyContent: 'center',
     backgroundColor: PRIMARY,
   },
 
@@ -210,7 +210,6 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: '#FFFFFF',
     fontSize: 22,
-    fontWeight: '700',
     letterSpacing: 0.3,
   },
 });

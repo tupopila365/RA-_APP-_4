@@ -3,10 +3,11 @@
     "name": "myRA App",
     "slug": "roads-authority-design",
     "version": "1.0.0",
-    "icon": "./assets/ChatGPT_Image_Apr_23__2026__02_18_01_PM-removebg-preview.png",
+    "icon": "./assets/applauncher.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
+      "image": "./assets/ra_logo_v1.png",
       "resizeMode": "contain",
       "backgroundColor": "#00B4E6"
     },
@@ -19,12 +20,14 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Take a photo of road damage",
         "NSPhotoLibraryUsageDescription": "Choose a photo of road damage",
-        "NSLocationWhenInUseUsageDescription": "Report location of road damage"
+        "NSLocationWhenInUseUsageDescription": "Report location of road damage",
+        "NSFaceIDUsageDescription": "Unlock your driving licence securely with Face ID."
       }
     },
     "android": {
+      "icon": "./assets/applauncher.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/ChatGPT_Image_Apr_23__2026__02_18_01_PM-removebg-preview.png",
+        "foregroundImage": "./assets/applauncher.png",
         "backgroundColor": "#00B4E6"
       },
       "package": "com.roadsauthority.design",
@@ -37,10 +40,21 @@
       "permissions": [
         "CAMERA",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ]
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/ra_logo_v1.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#00B4E6",
+          "imageWidth": 240
+        }
+      ],
       [
         "react-native-maps",
         {

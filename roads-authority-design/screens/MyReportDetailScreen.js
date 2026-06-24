@@ -1,63 +1,61 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components';
-import { REPORT_STATUS_LABELS, REPORT_STATUS_COLORS } from '../data/myReports';
+import { MY_REPORTS, REPORT_STATUS_LABELS, REPORT_STATUS_COLORS } from '../data/myReports';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS } from '../theme/colors';
-import { PRIMARY } from '../theme/colors';
-import { getReportById } from '../services/potholeReportsService';
+import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
 
 function formatDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
-const SEVERITY_LABELS = { low: 'Low', medium: 'Medium', high: 'High' };
+function StatusPill({ status }) {
+  const label = REPORT_STATUS_LABELS[status] || status;
+  const color = REPORT_STATUS_COLORS[status] || NEUTRAL_COLORS.gray500;
+  return (
+    <View style={[styles.statusPill, { backgroundColor: color + '18' }]}>
+      <View style={[styles.statusDot, { backgroundColor: color }]} />
+      <Text style={[styles.statusText, { color }]}>{label}</Text>
+    </View>
+  );
+}
 
-export function MyReportDetailScreen({ report: initialReport, onBack }) {
-  const [report, setReport] = useState(initialReport);
-  const [loading, setLoading] = useState(!!initialReport?.id);
-  const [error, setError] = useState(null);
+function DetailRow({ iconName, label, value }) {
+  if (!value) return null;
+  return (
+    <View style={styles.detailRow}>
+      <Ionicons name={iconName} size={18} color={PRIMARY} style={styles.detailIcon} />
+      <View style={styles.detailBody}>
+        <Text style={styles.detailLabel}>{label}</Text>
+        <Text style={styles.detailValue}>{value}</Text>
+      </View>
+    </View>
+  );
+}
 
-  useEffect(() => {
-    if (!initialReport?.id) {
-      setReport(initialReport);
-      setLoading(false);
-      return;
+export function MyReportDetailScreen({ report }) {
+  const resolved = useMemo(() => {
+    if (report?.id) {
+      return MY_REPORTS.find((r) => r.id === report.id) || report;
     }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    getReportById(initialReport.id)
-      .then((data) => {
-        if (!cancelled && data) setReport(data);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err.message || 'Failed to load report');
-          setReport(initialReport);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [initialReport?.id]);
+    return report || null;
+  }, [report]);
 
-  if (!report && !loading) return null;
-
-  const statusLabel = report ? (REPORT_STATUS_LABELS[report.status] || report.status) : '';
-  const statusColor = report ? (REPORT_STATUS_COLORS[report.status] || NEUTRAL_COLORS.gray500) : NEUTRAL_COLORS.gray500;
-
-  if (loading && !report) {
+  if (!resolved) {
     return (
       <ScreenContainer contentContainerStyle={styles.content}>
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={styles.loadingText}>Loading report…</Text>
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>Report not found.</Text>
         </View>
       </ScreenContainer>
     );
@@ -66,87 +64,31 @@ export function MyReportDetailScreen({ report: initialReport, onBack }) {
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
       <View style={styles.imageWrap}>
-        <Image source={{ uri: report.image }} style={styles.image} resizeMode="cover" />
-        <View style={[styles.statusBadge, { backgroundColor: statusColor + 'EE' }]}>
-          <Text style={styles.statusBadgeText}>{statusLabel}</Text>
-        </View>
+        <Image source={{ uri: resolved.image }} style={styles.image} resizeMode="cover" />
       </View>
 
-      {report.referenceCode ? (
-        <Text style={styles.reference}>Reference: {report.referenceCode}</Text>
-      ) : (
-        <Text style={styles.reference}>Report #{report.id}</Text>
-      )}
-      <Text style={styles.date}>{formatDate(report.submittedAt)}</Text>
-
-      {report.severity ? (
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <Ionicons name="alert-circle-outline" size={20} color={PRIMARY} style={styles.sectionIcon} />
-            <Text style={styles.sectionLabel}>Severity</Text>
-          </View>
-          <Text style={styles.sectionValue}>{SEVERITY_LABELS[report.severity] || report.severity}</Text>
+      <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <StatusPill status={resolved.status} />
+          <Text style={styles.reference}>Report #{resolved.id}</Text>
         </View>
-      ) : null}
 
-      <View style={styles.section}>
-        <View style={styles.sectionRow}>
-          <Ionicons name="location-outline" size={20} color={PRIMARY} style={styles.sectionIcon} />
-          <Text style={styles.sectionLabel}>Location</Text>
-        </View>
-        <Text style={styles.sectionValue}>{report.location}</Text>
+        <DetailRow
+          iconName="time-outline"
+          label="Submitted"
+          value={formatDate(resolved.submittedAt)}
+        />
+        <DetailRow
+          iconName="location-outline"
+          label="Location"
+          value={resolved.location}
+        />
+        <DetailRow
+          iconName="document-text-outline"
+          label="Description"
+          value={resolved.description}
+        />
       </View>
-
-      {report.description ? (
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <Ionicons name="document-text-outline" size={20} color={PRIMARY} style={styles.sectionIcon} />
-            <Text style={styles.sectionLabel}>Description</Text>
-          </View>
-          <Text style={styles.sectionValue}>{report.description}</Text>
-        </View>
-      ) : null}
-
-      {report.assignedTo ? (
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <Ionicons name="person-outline" size={20} color={PRIMARY} style={styles.sectionIcon} />
-            <Text style={styles.sectionLabel}>Assigned to</Text>
-          </View>
-          <Text style={styles.sectionValue}>{report.assignedTo}</Text>
-        </View>
-      ) : null}
-
-      {report.adminNotes ? (
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <Ionicons name="chatbubble-ellipses-outline" size={20} color={PRIMARY} style={styles.sectionIcon} />
-            <Text style={styles.sectionLabel}>Admin notes</Text>
-          </View>
-          <Text style={styles.sectionValue}>{report.adminNotes}</Text>
-        </View>
-      ) : null}
-
-      {report.fixedAt ? (
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <Ionicons name="checkmark-circle-outline" size={20} color={PRIMARY} style={styles.sectionIcon} />
-            <Text style={styles.sectionLabel}>Fixed on</Text>
-          </View>
-          <Text style={styles.sectionValue}>{formatDate(report.fixedAt)}</Text>
-        </View>
-      ) : null}
-
-      {report.repairPhotoUrl ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Repair photo</Text>
-          <Image source={{ uri: report.repairPhotoUrl }} style={styles.repairImage} resizeMode="cover" />
-        </View>
-      ) : null}
-
-      {error ? (
-        <Text style={styles.errorText}>{error}</Text>
-      ) : null}
     </ScreenContainer>
   );
 }
@@ -155,83 +97,85 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
   },
-  loadingWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  emptyCard: {
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
     paddingVertical: spacing.xxxl,
+    alignItems: 'center',
   },
-  loadingText: {
+  emptyText: {
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray600,
-    marginTop: spacing.md,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: '#DC2626',
-    marginTop: spacing.sm,
   },
   imageWrap: {
     width: '100%',
     height: 220,
-    borderRadius: 0,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: NEUTRAL_COLORS.gray200,
-    marginBottom: spacing.lg,
-    position: 'relative',
+    marginBottom: spacing.md,
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  statusBadge: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 0,
+  card: {
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    padding: spacing.lg,
   },
-  statusBadgeText: {
-    ...typography.caption,
-    fontWeight: '700',
-    color: NEUTRAL_COLORS.white,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   reference: {
     ...typography.caption,
     color: NEUTRAL_COLORS.gray500,
-    marginBottom: spacing.xs,
   },
-  date: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.xl,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionRow: {
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    gap: spacing.xs,
   },
-  sectionIcon: {
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+  },
+  statusText: {
+    ...typography.caption,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  detailIcon: {
+    marginTop: 2,
     marginRight: spacing.sm,
   },
-  sectionLabel: {
-    ...typography.label,
-    color: NEUTRAL_COLORS.gray700,
+  detailBody: {
+    flex: 1,
   },
-  sectionValue: {
-    ...typography.body,
+  detailLabel: {
+    ...typography.caption,
+    color: NEUTRAL_COLORS.gray600,
+    marginBottom: 2,
+  },
+  detailValue: {
+    ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray900,
-    lineHeight: 24,
-    marginLeft: 28,
-  },
-  repairImage: {
-    width: '100%',
-    aspectRatio: 16 / 10,
-    backgroundColor: NEUTRAL_COLORS.gray200,
-    marginTop: spacing.sm,
+    lineHeight: 20,
   },
 });

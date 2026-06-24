@@ -1,53 +1,40 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   Pressable,
   Image,
   ActivityIndicator,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { ScreenContainer, FormInput } from '../components';
+import MapView, { Marker } from 'react-native-maps';
+import { ScreenContainer } from '../components';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
-import { createReport } from '../services/potholeReportsService';
+import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
 
-const STEP_PHOTO = 1;
-const STEP_LOCATION = 2;
-
-const MAP_DELTA = 0.01;
-const SUBMIT_BUTTON_GREEN = '#3CB371';
+const DEFAULT_REGION = {
+  latitude: -22.5609,
+  longitude: 17.0658,
+  latitudeDelta: 0.08,
+  longitudeDelta: 0.08,
+};
 
 export function ReportRoadDamageScreen({ onBack, onSubmit }) {
-  const [step, setStep] = useState(STEP_PHOTO);
   const [photo, setPhoto] = useState(null);
+  const [locationChoice, setLocationChoice] = useState(null);
   const [location, setLocation] = useState(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [locationError, setLocationError] = useState(null);
-  const [locationSearchQuery, setLocationSearchQuery] = useState('');
-  const [locationSearchLoading, setLocationSearchLoading] = useState(false);
-  const [manualLat, setManualLat] = useState('');
-  const [manualLng, setManualLng] = useState('');
-  const mapRef = useRef(null);
-
-  useEffect(() => {
-    if (location && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: MAP_DELTA,
-        longitudeDelta: MAP_DELTA,
-      }, 350);
-    }
-  }, [location?.latitude, location?.longitude]);
+  const [searchText, setSearchText] = useState('');
+  const [detecting, setDetecting] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const canSubmit = !!photo && !!location;
 
   const requestCameraPermission = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -68,8 +55,12 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
         aspect: [4, 3],
         quality: 0.8,
       });
-      if (!result.canceled) setPhoto(result.assets[0].uri);
-    } catch (e) {
+      if (!result.canceled) {
+        setPhoto(result.assets[0].uri);
+        setLocationChoice(null);
+        setLocation(null);
+      }
+    } catch (error) {
       Alert.alert('Error', 'Could not open camera.');
     }
   };
@@ -87,86 +78,64 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
         aspect: [4, 3],
         quality: 0.8,
       });
-      if (!result.canceled) setPhoto(result.assets[0].uri);
-    } catch (e) {
+      if (!result.canceled) {
+        setPhoto(result.assets[0].uri);
+        setLocationChoice(null);
+        setLocation(null);
+      }
+    } catch (error) {
       Alert.alert('Error', 'Could not open photo library.');
     }
   };
 
   const handleAutoDetectLocation = async () => {
-    setLocationError(null);
-    setLocationLoading(true);
+    setDetecting(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setLocationError('Location permission denied.');
+        Alert.alert('Permission needed', 'Enable location to auto detect.');
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setLocation({
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
       });
-      const { latitude, longitude } = pos.coords;
-      setLocation({ latitude, longitude });
-    } catch (e) {
-      setLocationError('Could not get location. Please try again.');
+    } catch (error) {
+      Alert.alert('Location error', 'Could not auto detect location.');
     } finally {
-      setLocationLoading(false);
+      setDetecting(false);
     }
   };
 
   const handleSearchLocation = async () => {
-    const query = (locationSearchQuery || '').trim();
-    if (!query) {
-      setLocationError('Enter an address or place name to search.');
-      return;
-    }
-    setLocationError(null);
-    setLocationSearchLoading(true);
+    const query = searchText.trim();
+    if (!query) return;
+    setSearching(true);
     try {
-      const results = await Location.geocodeAsync(query);
-      if (results && results.length > 0) {
-        const { latitude, longitude } = results[0];
-        setLocation({ latitude, longitude });
-      } else {
-        setLocationError('No location found. Try a different search or enter coordinates below.');
+      const matches = await Location.geocodeAsync(query);
+      if (!matches.length) {
+        Alert.alert('Not found', 'Try another place name.');
+        return;
       }
-    } catch (e) {
-      setLocationError('Search failed. Try entering coordinates manually below.');
+      setLocation({
+        latitude: matches[0].latitude,
+        longitude: matches[0].longitude,
+      });
+    } catch (error) {
+      Alert.alert('Search error', 'Could not search location.');
     } finally {
-      setLocationSearchLoading(false);
+      setSearching(false);
     }
-  };
-
-  const handleUseManualCoordinates = () => {
-    const lat = parseFloat(manualLat.replace(',', '.'));
-    const lng = parseFloat(manualLng.replace(',', '.'));
-    if (Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-      setLocationError(null);
-      setLocation({ latitude: lat, longitude: lng });
-    } else {
-      setLocationError('Enter valid latitude (-90 to 90) and longitude (-180 to 180).');
-    }
-  };
-
-  const [submitting, setSubmitting] = useState(false);
-  const canProceedFromStep1 = !!photo;
-  const canSubmit = photo && location;
-
-  const handleNext = () => {
-    if (step === STEP_PHOTO && canProceedFromStep1) setStep(STEP_LOCATION);
   };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await createReport(
-        { location, severity: 'medium' },
-        photo
-      );
       onSubmit?.({ photo, location });
     } catch (err) {
-      Alert.alert('Submission failed', err.message || 'Could not submit report. Please try again.');
+      Alert.alert('Submission failed', err.message || 'Could not submit report.');
     } finally {
       setSubmitting(false);
     }
@@ -174,171 +143,169 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <View style={styles.stepIndicator}>
-        <View style={[styles.stepDot, step >= STEP_PHOTO && styles.stepDotActive]} />
-        <View style={[styles.stepLine, step >= STEP_LOCATION && styles.stepLineActive]} />
-        <View style={[styles.stepDot, step >= STEP_LOCATION && styles.stepDotActive]} />
-      </View>
-      <Text style={styles.stepLabel}>
-        Step {step} of 2
-      </Text>
-
-      {step === STEP_PHOTO && (
-        <>
-          <Text style={styles.title}>Add photo of damage</Text>
-          <Text style={styles.hint}>Take or choose a picture of the road damage.</Text>
-          <Pressable
-            style={styles.photoBox}
-            onPress={handleTakePhoto}
-          >
-            {photo ? (
-              <Image source={{ uri: photo }} style={styles.photoImage} resizeMode="cover" />
-            ) : (
-              <View style={styles.photoPlaceholder}>
-                <Ionicons name="camera-outline" size={48} color={PRIMARY} />
-                <Text style={styles.photoPlaceholderText}>Tap to take photo</Text>
-              </View>
-            )}
-          </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={handlePickPhoto}>
-            <Ionicons name="images-outline" size={20} color={PRIMARY} />
-            <Text style={styles.secondaryButtonText}>Choose from library</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.nextButton, !canProceedFromStep1 && styles.primaryButtonDisabled]}
-            onPress={handleNext}
-            disabled={!canProceedFromStep1}
-          >
-            <Text style={styles.nextButtonText}>Next: Location</Text>
-            <Ionicons name="arrow-forward" size={20} color={NEUTRAL_COLORS.gray900} />
-          </Pressable>
-        </>
-      )}
-
-      {step === STEP_LOCATION && (
-        <>
-          <Text style={styles.title}>Set report location</Text>
-          <Text style={styles.hint}>Choose auto-detect (if you're at the site) or enter / search for a location.</Text>
-
-          <Text style={styles.optionLabel}>Auto-detect my location</Text>
-          <Pressable
-            style={styles.locationBox}
-            onPress={handleAutoDetectLocation}
-            disabled={locationLoading}
-          >
-            {locationLoading ? (
-              <ActivityIndicator size="large" color={PRIMARY} />
-            ) : location ? (
-              <View style={styles.locationResult}>
-                <Ionicons name="location" size={32} color={PRIMARY} />
-                <Text style={styles.locationText}>
-                  {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
-                </Text>
-                <Text style={styles.locationSubtext}>Location set</Text>
-              </View>
-            ) : (
-              <View style={styles.locationPlaceholder}>
-                <Ionicons name="locate-outline" size={48} color={PRIMARY} />
-                <Text style={styles.locationPlaceholderText}>Tap to auto-detect location</Text>
-              </View>
-            )}
-          </Pressable>
-
-          <Text style={styles.optionLabel}>Or enter / search location</Text>
-          <View style={styles.searchRow}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Address or place name"
-              placeholderTextColor={NEUTRAL_COLORS.gray500}
-              value={locationSearchQuery}
-              onChangeText={(t) => { setLocationSearchQuery(t); setLocationError(null); }}
-              editable={!locationSearchLoading}
-            />
-            <Pressable
-              style={[styles.searchButton, locationSearchLoading && styles.primaryButtonDisabled]}
-              onPress={handleSearchLocation}
-              disabled={locationSearchLoading}
-            >
-              {locationSearchLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="search" size={18} color="#FFFFFF" />
-                  <Text style={styles.searchButtonText}>Search</Text>
-                </>
-              )}
-            </Pressable>
+      <View style={styles.card}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="camera-outline" size={20} color={PRIMARY} />
+          <Text style={styles.sectionTitle}>Add photo</Text>
+          <View style={[styles.statusChip, photo ? styles.statusChipDone : styles.statusChipPending]}>
+            <Text style={[styles.statusText, photo ? styles.statusTextDone : styles.statusTextPending]}>
+              {photo ? 'Added' : 'Required'}
+            </Text>
           </View>
-          <View style={styles.manualCoordsRow}>
-            <FormInput
-              label="Latitude"
-              value={manualLat}
-              onChangeText={setManualLat}
-              placeholder="e.g. -22.5609"
-              keyboardType="decimal-pad"
-            />
-            <FormInput
-              label="Longitude"
-              value={manualLng}
-              onChangeText={setManualLng}
-              placeholder="e.g. 17.0658"
-              keyboardType="decimal-pad"
-            />
-            <Pressable style={styles.secondaryButton} onPress={handleUseManualCoordinates}>
-              <Ionicons name="navigate-outline" size={18} color={PRIMARY} />
-              <Text style={styles.secondaryButtonText}>Use these coordinates</Text>
-            </Pressable>
-          </View>
-
-          {locationError ? (
-            <Text style={styles.errorText}>{locationError}</Text>
-          ) : null}
-          {location ? (
-            <View style={styles.mapPreviewWrap}>
-              <Text style={styles.mapPreviewLabel}>Preview your report location</Text>
-              <View style={styles.mapPreview}>
-                <MapView
-                  ref={mapRef}
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                    latitudeDelta: MAP_DELTA,
-                    longitudeDelta: MAP_DELTA,
-                  }}
-                  scrollEnabled={true}
-                  zoomEnabled={true}
-                  showsUserLocation={true}
-                >
-                  <Marker
-                    coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-                    title="Report location"
-                    description="Road damage will be reported here"
-                    pinColor={PRIMARY}
-                  />
-                </MapView>
-              </View>
-              <Text style={styles.mapPreviewHint}>The blue pin is where the report will be sent. If you're at the damage site, your position and the pin should be close together. Confirm, then submit.</Text>
+        </View>
+        <Pressable style={styles.photoBox} onPress={handleTakePhoto}>
+          {photo ? (
+            <Image source={{ uri: photo }} style={styles.photoImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Ionicons name="camera-outline" size={40} color={PRIMARY} />
+              <Text style={styles.photoPlaceholderText}>Tap to take photo</Text>
             </View>
-          ) : null}
-          <View style={styles.rowButtons}>
-            <Pressable style={styles.secondaryButton} onPress={() => setStep(STEP_PHOTO)}>
-              <Text style={styles.secondaryButtonText}>Back</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.submitButton, (!canSubmit || submitting) && styles.primaryButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={!canSubmit || submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.submitButtonText}>Submit report</Text>
-              )}
-            </Pressable>
+          )}
+        </Pressable>
+        <Pressable style={styles.outlineAction} onPress={handlePickPhoto}>
+          <Ionicons name="images-outline" size={18} color={PRIMARY} />
+          <Text style={styles.outlineActionText}>Choose from gallery</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="location-outline" size={20} color={PRIMARY} />
+          <Text style={styles.sectionTitle}>Location</Text>
+          <View style={[styles.statusChip, location ? styles.statusChipDone : styles.statusChipPending]}>
+            <Text style={[styles.statusText, location ? styles.statusTextDone : styles.statusTextPending]}>
+              {location ? 'Set' : 'Needed'}
+            </Text>
           </View>
-        </>
-      )}
+        </View>
+
+        {photo ? (
+          <>
+            <Text style={styles.promptText}>Are you at the road damage site?</Text>
+            <View style={styles.choiceRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.choiceButton,
+                  locationChoice === 'yes' && styles.choiceButtonActive,
+                  pressed && styles.choiceButtonPressed,
+                ]}
+                onPress={() => {
+                  setLocationChoice('yes');
+                  setSearchText('');
+                }}
+              >
+                <Text style={[styles.choiceText, locationChoice === 'yes' && styles.choiceTextActive]}>Yes</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.choiceButton,
+                  locationChoice === 'no' && styles.choiceButtonActive,
+                  pressed && styles.choiceButtonPressed,
+                ]}
+                onPress={() => setLocationChoice('no')}
+              >
+                <Text style={[styles.choiceText, locationChoice === 'no' && styles.choiceTextActive]}>No</Text>
+              </Pressable>
+            </View>
+
+            {locationChoice === 'yes' ? (
+              <Pressable
+                style={({ pressed }) => [styles.primaryAction, pressed && !detecting && styles.primaryActionPressed]}
+                onPress={handleAutoDetectLocation}
+                disabled={detecting}
+              >
+                {detecting ? (
+                  <ActivityIndicator size="small" color={NEUTRAL_COLORS.white} />
+                ) : (
+                  <>
+                    <Ionicons name="locate-outline" size={18} color={NEUTRAL_COLORS.white} />
+                    <Text style={styles.primaryActionText}>Auto detect location</Text>
+                  </>
+                )}
+              </Pressable>
+            ) : null}
+
+            {locationChoice === 'no' ? (
+              <>
+                <View style={styles.searchRow}>
+                  <TextInput
+                    value={searchText}
+                    onChangeText={setSearchText}
+                    placeholder="Search place"
+                    placeholderTextColor={NEUTRAL_COLORS.gray500}
+                    style={styles.searchInput}
+                    returnKeyType="search"
+                    onSubmitEditing={handleSearchLocation}
+                  />
+                  <Pressable
+                    style={({ pressed }) => [styles.searchButton, pressed && !searching && styles.searchButtonPressed]}
+                    onPress={handleSearchLocation}
+                    disabled={searching}
+                  >
+                    {searching ? (
+                      <ActivityIndicator size="small" color={NEUTRAL_COLORS.white} />
+                    ) : (
+                      <Ionicons name="search-outline" size={18} color={NEUTRAL_COLORS.white} />
+                    )}
+                  </Pressable>
+                </View>
+
+                <View style={styles.mapWrap}>
+                  <MapView
+                    style={styles.map}
+                    initialRegion={DEFAULT_REGION}
+                    region={
+                      location
+                        ? {
+                            latitude: location.latitude,
+                            longitude: location.longitude,
+                            latitudeDelta: 0.02,
+                            longitudeDelta: 0.02,
+                          }
+                        : undefined
+                    }
+                    onLongPress={(event) =>
+                      setLocation({
+                        latitude: event.nativeEvent.coordinate.latitude,
+                        longitude: event.nativeEvent.coordinate.longitude,
+                      })
+                    }
+                  >
+                    {location ? <Marker coordinate={location} /> : null}
+                  </MapView>
+                </View>
+                <Text style={styles.pinHint}>Hold map to pin</Text>
+              </>
+            ) : null}
+          </>
+        ) : (
+          <View style={styles.infoBox}>
+            <Ionicons name="camera-outline" size={18} color={NEUTRAL_COLORS.gray500} />
+            <Text style={styles.infoText}>Add photo first</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.footerActions}>
+        <Pressable style={styles.cancelButton} onPress={onBack}>
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.submitButton, (!canSubmit || submitting) && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={!canSubmit || submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color={NEUTRAL_COLORS.white} />
+          ) : (
+            <>
+              <Ionicons name="send-outline" size={18} color={NEUTRAL_COLORS.white} />
+              <Text style={styles.submitButtonText}>Submit report</Text>
+            </>
+          )}
+        </Pressable>
+      </View>
     </ScreenContainer>
   );
 }
@@ -347,53 +314,65 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
   },
-  stepIndicator: {
+  card: {
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: NEUTRAL_COLORS.gray800,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
-  stepDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: NEUTRAL_COLORS.gray300,
-  },
-  stepDotActive: {
-    backgroundColor: RA_YELLOW,
-  },
-  stepLine: {
-    width: 40,
-    height: 2,
-    backgroundColor: NEUTRAL_COLORS.gray300,
-    marginHorizontal: spacing.xs,
-  },
-  stepLineActive: {
-    backgroundColor: RA_YELLOW,
-  },
-  stepLabel: {
-    ...typography.caption,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.xl,
-  },
-  title: {
-    ...typography.h5,
+  sectionTitle: {
+    ...typography.body,
+    fontFamily: 'Poppins_600SemiBold',
     color: NEUTRAL_COLORS.gray900,
-    marginBottom: spacing.sm,
+    flex: 1,
   },
-  hint: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.lg,
+  statusChip: {
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  statusChipDone: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusChipPending: {
+    backgroundColor: '#FEE2E2',
+  },
+  statusText: {
+    ...typography.caption,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  statusTextDone: {
+    color: '#166534',
+  },
+  statusTextPending: {
+    color: '#991B1B',
   },
   photoBox: {
     width: '100%',
     aspectRatio: 4 / 3,
     backgroundColor: NEUTRAL_COLORS.gray100,
-    borderRadius: 0,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
   },
   photoImage: {
     width: '100%',
@@ -409,174 +388,170 @@ const styles = StyleSheet.create({
     color: NEUTRAL_COLORS.gray600,
     marginTop: spacing.sm,
   },
-  optionLabel: {
-    ...typography.label,
-    color: NEUTRAL_COLORS.gray700,
+  outlineAction: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: PRIMARY,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  outlineActionText: {
+    ...typography.bodySmall,
+    color: PRIMARY,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  promptText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray800,
+    fontFamily: 'Poppins_600SemiBold',
     marginBottom: spacing.sm,
-    marginTop: spacing.lg,
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  choiceButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray300,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: NEUTRAL_COLORS.white,
+  },
+  choiceButtonActive: {
+    borderColor: PRIMARY,
+    backgroundColor: '#E6F7FC',
+  },
+  choiceButtonPressed: {
+    opacity: 0.9,
+  },
+  choiceText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray700,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  choiceTextActive: {
+    color: PRIMARY,
+  },
+  primaryAction: {
+    minHeight: 44,
+    borderRadius: 999,
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  primaryActionPressed: {
+    opacity: 0.9,
+  },
+  primaryActionText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.white,
+    fontFamily: 'Poppins_600SemiBold',
   },
   searchRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   searchInput: {
     flex: 1,
-    height: 48,
+    minHeight: 44,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
-    borderRadius: 0,
+    borderColor: NEUTRAL_COLORS.gray300,
+    backgroundColor: NEUTRAL_COLORS.white,
     paddingHorizontal: spacing.md,
-    ...typography.body,
-    color: NEUTRAL_COLORS.gray900,
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray800,
   },
   searchButton: {
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
     backgroundColor: PRIMARY,
-    paddingHorizontal: spacing.lg,
-    height: 48,
-    borderRadius: 0,
   },
-  searchButtonText: {
-    ...typography.button,
-    color: '#FFFFFF',
-    fontSize: 14,
+  searchButtonPressed: {
+    opacity: 0.9,
   },
-  manualCoordsRow: {
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  locationBox: {
-    width: '100%',
-    minHeight: 140,
-    backgroundColor: NEUTRAL_COLORS.gray50,
-    borderRadius: 0,
+  mapWrap: {
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    padding: spacing.xl,
-  },
-  locationPlaceholder: {
-    alignItems: 'center',
-  },
-  locationPlaceholderText: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginTop: spacing.sm,
-  },
-  locationResult: {
-    alignItems: 'center',
-  },
-  locationText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: NEUTRAL_COLORS.gray900,
-    marginTop: spacing.sm,
-  },
-  locationSubtext: {
-    ...typography.caption,
-    color: PRIMARY,
-    marginTop: spacing.xs,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: '#DC2626',
-    marginBottom: spacing.md,
-  },
-  mapPreviewWrap: {
-    marginBottom: spacing.lg,
-  },
-  mapPreviewLabel: {
-    ...typography.label,
-    color: NEUTRAL_COLORS.gray700,
-    marginBottom: spacing.sm,
-  },
-  mapPreview: {
-    height: 200,
-    borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
   },
   map: {
     width: '100%',
-    height: '100%',
+    height: 180,
   },
-  mapPreviewHint: {
+  pinHint: {
     ...typography.caption,
-    color: NEUTRAL_COLORS.gray600,
+    color: NEUTRAL_COLORS.gray500,
+    marginTop: spacing.xs,
+  },
+  infoBox: {
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    borderRadius: 10,
+    backgroundColor: NEUTRAL_COLORS.gray50,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  infoText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray700,
+  },
+  footerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
     marginTop: spacing.sm,
   },
-  nextButton: {
-    flexDirection: 'row',
+  cancelButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray300,
+    backgroundColor: NEUTRAL_COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: RA_YELLOW,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderRadius: 8,
-    gap: spacing.sm,
-    marginTop: spacing.lg,
   },
-  nextButtonText: {
-    ...typography.button,
-    color: NEUTRAL_COLORS.gray900,
+  cancelButtonText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray700,
+    fontFamily: 'Poppins_600SemiBold',
   },
   submitButton: {
-    flexDirection: 'row',
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 999,
+    backgroundColor: PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: SUBMIT_BUTTON_GREEN,
-    paddingVertical: spacing.lg,
+    flexDirection: 'row',
     paddingHorizontal: spacing.xl,
-    borderRadius: 8,
     gap: spacing.sm,
-    marginTop: spacing.lg,
+  },
+  buttonDisabled: {
+    opacity: 0.55,
   },
   submitButtonText: {
-    ...typography.button,
-    color: '#FFFFFF',
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: PRIMARY,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderRadius: 8,
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.5,
-  },
-  primaryButtonText: {
-    ...typography.button,
-    color: '#FFFFFF',
-  },
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-  },
-  secondaryButtonText: {
-    ...typography.button,
-    color: PRIMARY,
-  },
-  rowButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.lg,
-    gap: spacing.lg,
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.white,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

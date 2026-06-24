@@ -14,12 +14,14 @@ const ENV = {
     API_TIMEOUT: 15000,
     API_TIMEOUT_LONG: 60000,
     DEBUG_MODE: true,
+    USE_MOCK_AUTH: true,
   },
   production: {
     API_BASE_URL: 'https://api.roadsauthority.na/api',
     API_TIMEOUT: 15000,
     API_TIMEOUT_LONG: 60000,
     DEBUG_MODE: false,
+    USE_MOCK_AUTH: false,
   },
 };
 

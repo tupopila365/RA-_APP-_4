@@ -1,12 +1,23 @@
 export const typography = {
-  h1: { fontSize: 32, fontWeight: '700', lineHeight: 40 },
-  h2: { fontSize: 28, fontWeight: '700', lineHeight: 36 },
-  h3: { fontSize: 24, fontWeight: '700', lineHeight: 32 },
-  h4: { fontSize: 20, fontWeight: '700', lineHeight: 28 },
-  h5: { fontSize: 18, fontWeight: '600', lineHeight: 24 },
+  h1: { fontSize: 32, fontFamily: 'Poppins_600SemiBold', lineHeight: 40 },
+  h2: { fontSize: 28, fontFamily: 'Poppins_600SemiBold', lineHeight: 36 },
+  h3: { fontSize: 24, fontFamily: 'Poppins_600SemiBold', lineHeight: 32 },
+  h4: { fontSize: 20, fontFamily: 'Poppins_600SemiBold', lineHeight: 28 },
+  h5: { fontSize: 18, fontFamily: 'Poppins_600SemiBold', lineHeight: 24 },
+  sectionTitle: { fontSize: 22, fontFamily: 'Poppins_400Regular', lineHeight: 30 },
   body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
   bodySmall: { fontSize: 14, fontWeight: '400', lineHeight: 20 },
   button: { fontSize: 16, fontWeight: '600', lineHeight: 20 },
   label: { fontSize: 12, fontWeight: '600', lineHeight: 16 },
   caption: { fontSize: 12, fontWeight: '400', lineHeight: 16 },
+  menuItemTitle: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    lineHeight: 22,
+  },
+  menuItemAction: {
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    lineHeight: 18,
+  },
 };

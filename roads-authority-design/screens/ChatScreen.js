@@ -69,7 +69,7 @@ export function ChatScreen({ onBack }) {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { paddingBottom: insets.bottom }]}
+      style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.xs) }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
       keyboardVerticalOffset={0}
     >
@@ -118,7 +118,7 @@ export function ChatScreen({ onBack }) {
           onPress={sendMessage}
           disabled={!inputText.trim() || loading}
         >
-          <Ionicons name="send" size={22} color={NEUTRAL_COLORS.white} />
+          <Ionicons name="send" size={20} color={NEUTRAL_COLORS.white} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -128,18 +128,15 @@ export function ChatScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: NEUTRAL_COLORS.gray100,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    overflow: 'hidden',
+    backgroundColor: '#F4F8FC',
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
   bubbleWrap: {
     marginBottom: spacing.md,
@@ -151,20 +148,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   bubble: {
-    maxWidth: '80%',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 16,
-    borderBottomLeftRadius: 4,
+    maxWidth: '84%',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: 14,
+    borderBottomLeftRadius: 6,
     backgroundColor: NEUTRAL_COLORS.white,
     borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
+    borderColor: '#DCE4EC',
   },
   bubbleUser: {
     backgroundColor: PRIMARY,
     borderColor: PRIMARY,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 4,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 6,
   },
   bubbleText: {
     ...typography.bodySmall,
@@ -176,7 +173,7 @@ const styles = StyleSheet.create({
   time: {
     ...typography.caption,
     color: NEUTRAL_COLORS.gray500,
-    marginTop: spacing.xs,
+    marginTop: 6,
     fontSize: 10,
   },
   timeUser: {
@@ -184,10 +181,10 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
     backgroundColor: NEUTRAL_COLORS.white,
     borderTopWidth: 1,
     borderTopColor: NEUTRAL_COLORS.gray200,
@@ -195,13 +192,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 46,
     maxHeight: 100,
-    backgroundColor: NEUTRAL_COLORS.gray100,
-    borderRadius: 0,
-    borderWidth: 1.5,
-    borderColor: NEUTRAL_COLORS.gray200,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: '#F6FAFE',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DCE4EC',
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: 16,
     color: NEUTRAL_COLORS.gray900,
@@ -220,9 +217,9 @@ const styles = StyleSheet.create({
     }),
   },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 0,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer, SearchBar } from '../components';
+import { ChatScreen } from './ChatScreen';
 import { getFaqs, HELP_CATEGORIES } from '../services/faqService';
 import { RA_CONTACTS } from '../data/contacts';
 import { spacing } from '../theme/spacing';
@@ -37,12 +38,40 @@ function formatPhoneForTel(phone) {
   return (phone || '').replace(/\s/g, '');
 }
 
+function ContactRow({ icon, label, value, onPress, href }) {
+  const handlePress = () => {
+    if (onPress) onPress();
+    else if (href) Linking.openURL(href);
+  };
+  if (!value && !href) return null;
+  return (
+    <Pressable style={styles.contactRow} onPress={handlePress} disabled={!onPress && !href}>
+      <Ionicons name={icon} size={22} color={PRIMARY} style={styles.contactIcon} />
+      <View style={styles.contactText}>
+        <Text style={styles.contactLabel}>{label}</Text>
+        {value ? <Text style={styles.contactValue}>{value}</Text> : null}
+      </View>
+      <Ionicons name="open-outline" size={18} color={NEUTRAL_COLORS.gray400} />
+    </Pressable>
+  );
+}
+
+function ContactCard({ title, children }) {
+  return (
+    <View style={styles.contactCard}>
+      <Text style={styles.contactCardTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
 export function HelpScreen({ onBack, onOpenChat }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [chatVisible, setChatVisible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,12 +97,24 @@ export function HelpScreen({ onBack, onOpenChat }) {
   const handleEmail = (email) => {
     if (email) Linking.openURL(`mailto:${email}`);
   };
+  const handleOpenChat = () => {
+    if (onOpenChat) onOpenChat();
+    else setChatVisible(true);
+  };
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
-      <Text style={styles.subtitle}>
-        Find answers, browse by topic, or contact support.
-      </Text>
+      <Pressable style={styles.chatbotEntry} onPress={handleOpenChat}>
+        <View style={styles.chatbotIconWrap}>
+          <Ionicons name="chatbubble-ellipses-outline" size={20} color={PRIMARY} />
+        </View>
+        <View style={styles.chatbotTextWrap}>
+          <Text style={styles.chatbotTitle}>Ask our chatbot</Text>
+          <Text style={styles.chatbotHint}>Tap to chat instantly</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={NEUTRAL_COLORS.gray400} />
+      </Pressable>
+      <View style={styles.chatbotSpacer} />
 
       <SearchBar
         placeholder="Search help topics..."
@@ -137,57 +178,126 @@ export function HelpScreen({ onBack, onOpenChat }) {
 
       <View style={styles.contactSection}>
         <Text style={styles.sectionTitle}>Contact & support</Text>
-        <Text style={styles.contactIntro}>
-          Need to speak to someone? Use one of the options below.
-        </Text>
+        <ContactCard title={RA_CONTACTS.headOffice.name}>
+          <ContactRow
+            icon="location-outline"
+            label="Address"
+            value={RA_CONTACTS.headOffice.address}
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(RA_CONTACTS.headOffice.address + ', Namibia')}`}
+          />
+          <ContactRow
+            icon="call-outline"
+            label="Telephone"
+            value={RA_CONTACTS.headOffice.phone}
+            onPress={() => handleCall(RA_CONTACTS.headOffice.phone)}
+          />
+          <ContactRow
+            icon="mail-outline"
+            label="Email"
+            value={RA_CONTACTS.headOffice.email}
+            onPress={() => handleEmail(RA_CONTACTS.headOffice.email)}
+          />
+          <ContactRow
+            icon="globe-outline"
+            label="Website"
+            value="www.ra.org.na"
+            href={RA_CONTACTS.headOffice.website}
+          />
+        </ContactCard>
 
-        <Pressable
-          style={styles.contactRow}
-          onPress={() => handleCall(RA_CONTACTS.headOffice.phone)}
-        >
-          <Ionicons name="call-outline" size={22} color={PRIMARY} style={styles.contactIcon} />
-          <View style={styles.contactText}>
-            <Text style={styles.contactLabel}>Phone</Text>
-            <Text style={styles.contactValue}>{RA_CONTACTS.headOffice.phone}</Text>
-          </View>
-          <Ionicons name="open-outline" size={18} color={NEUTRAL_COLORS.gray400} />
-        </Pressable>
+        <ContactCard title={RA_CONTACTS.permits.name}>
+          <ContactRow
+            icon="call-outline"
+            label="Telephone"
+            value={RA_CONTACTS.permits.phone}
+            onPress={() => handleCall(RA_CONTACTS.permits.phone)}
+          />
+          <ContactRow
+            icon="mail-outline"
+            label="Email"
+            value={RA_CONTACTS.permits.email}
+            onPress={() => handleEmail(RA_CONTACTS.permits.email)}
+          />
+        </ContactCard>
 
-        <Pressable
-          style={styles.contactRow}
-          onPress={() => handleEmail(RA_CONTACTS.headOffice.email)}
-        >
-          <Ionicons name="mail-outline" size={22} color={PRIMARY} style={styles.contactIcon} />
-          <View style={styles.contactText}>
-            <Text style={styles.contactLabel}>Email</Text>
-            <Text style={styles.contactValue}>{RA_CONTACTS.headOffice.email}</Text>
-          </View>
-          <Ionicons name="open-outline" size={18} color={NEUTRAL_COLORS.gray400} />
-        </Pressable>
-
-        {onOpenChat ? (
-          <Pressable style={styles.contactRow} onPress={onOpenChat}>
-            <Ionicons name="chatbubble-outline" size={22} color={PRIMARY} style={styles.contactIcon} />
-            <View style={styles.contactText}>
-              <Text style={styles.contactLabel}>Live chat</Text>
-              <Text style={styles.contactValue}>Chat with us in the app</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={NEUTRAL_COLORS.gray400} />
-          </Pressable>
-        ) : null}
+        <ContactCard title={RA_CONTACTS.fraudHotline.name}>
+          <ContactRow
+            icon="call-outline"
+            label="Hotline"
+            value={RA_CONTACTS.fraudHotline.phone}
+            onPress={() => handleCall(RA_CONTACTS.fraudHotline.phone)}
+          />
+          <ContactRow
+            icon="mail-outline"
+            label="Email"
+            value={RA_CONTACTS.fraudHotline.email}
+            onPress={() => handleEmail(RA_CONTACTS.fraudHotline.email)}
+          />
+          {RA_CONTACTS.fraudHotline.note ? (
+            <Text style={styles.note}>{RA_CONTACTS.fraudHotline.note}</Text>
+          ) : null}
+        </ContactCard>
       </View>
+      <Modal
+        visible={chatVisible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setChatVisible(false)}
+      >
+        <View style={styles.chatModal}>
+          <View style={styles.chatModalHeader}>
+            <Text style={styles.chatModalTitle}>Chatbot</Text>
+            <Pressable onPress={() => setChatVisible(false)} hitSlop={10}>
+              <Ionicons name="close" size={24} color={NEUTRAL_COLORS.white} />
+            </Pressable>
+          </View>
+          <View style={styles.chatModalBody}>
+            <ChatScreen />
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxxl,
   },
-  subtitle: {
+  chatbotEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    padding: spacing.lg,
+  },
+  chatbotIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: PRIMARY + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  chatbotTextWrap: {
+    flex: 1,
+  },
+  chatbotTitle: {
     ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray900,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  chatbotHint: {
+    ...typography.caption,
     color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.lg,
+    marginTop: 2,
+  },
+  chatbotSpacer: {
+    height: spacing.md,
   },
   searchSpacer: {
     height: spacing.md,
@@ -206,13 +316,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.body,
-    fontWeight: '700',
+    fontFamily: 'Poppins_600SemiBold',
     color: NEUTRAL_COLORS.gray900,
     marginBottom: spacing.md,
   },
   card: {
     backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 0,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: NEUTRAL_COLORS.gray200,
     padding: spacing.lg,
@@ -220,8 +330,7 @@ const styles = StyleSheet.create({
   },
   cardExpanded: {
     borderColor: PRIMARY,
-    borderTopWidth: 3,
-    borderTopColor: PRIMARY,
+    backgroundColor: PRIMARY + '06',
   },
   questionRow: {
     flexDirection: 'row',
@@ -230,7 +339,7 @@ const styles = StyleSheet.create({
   },
   question: {
     ...typography.body,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: NEUTRAL_COLORS.gray900,
     flex: 1,
     marginRight: spacing.sm,
@@ -265,25 +374,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   contactSection: {
-    marginTop: spacing.lg,
-    paddingTop: spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: NEUTRAL_COLORS.gray200,
+    marginTop: spacing.md,
   },
-  contactIntro: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.lg,
+  contactCard: {
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  contactCardTitle: {
+    ...typography.body,
+    fontFamily: 'Poppins_600SemiBold',
+    color: NEUTRAL_COLORS.gray900,
+    marginBottom: spacing.md,
   },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: NEUTRAL_COLORS.white,
-    borderRadius: 0,
-    borderWidth: 1,
-    borderColor: NEUTRAL_COLORS.gray200,
-    padding: spacing.lg,
+    paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: NEUTRAL_COLORS.gray200,
   },
   contactIcon: {
     marginRight: spacing.md,
@@ -297,8 +410,36 @@ const styles = StyleSheet.create({
   },
   contactValue: {
     ...typography.bodySmall,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: NEUTRAL_COLORS.gray900,
     marginTop: 2,
+  },
+  note: {
+    ...typography.caption,
+    color: NEUTRAL_COLORS.gray500,
+    marginTop: spacing.sm,
+    fontStyle: 'italic',
+  },
+  chatModal: {
+    flex: 1,
+    backgroundColor: NEUTRAL_COLORS.gray100,
+  },
+  chatModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: PRIMARY,
+  },
+  chatModalTitle: {
+    ...typography.h5,
+    fontFamily: 'Poppins_600SemiBold',
+    color: NEUTRAL_COLORS.white,
+  },
+  chatModalBody: {
+    flex: 1,
   },
 });
