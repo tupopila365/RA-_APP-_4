@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-console-border;
+  }
+
+  body {
+    @apply min-h-screen bg-console-bg text-console-text;
+  }
+
+  ::selection {
+    @apply bg-console-accent/30 text-white;
+  }
+}
+
+@layer components {
+  .console-grid-bg {
+    background-image:
+      linear-gradient(rgba(36, 48, 68, 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(36, 48, 68, 0.35) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .scan-line {
+    animation: scan 3s linear infinite;
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(400%);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.live-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}

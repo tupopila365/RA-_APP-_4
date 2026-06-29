@@ -1,8 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { ScreenContainer } from '../components';
+import { ScreenContainer, MachinePressable } from '../components';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS } from '../theme/colors';
@@ -116,12 +116,13 @@ export function ReportDamageMapScreen({ location: storedLocation, onBack }) {
             ? 'Your road damage report has been submitted. This marker shows where you reported the issue.'
             : 'Location is used to show your report on the map.'}
         </Text>
-        <Pressable
+        <MachinePressable
           style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
           onPress={onBack}
+          heavy
         >
           <Text style={styles.buttonText}>Back to Home</Text>
-        </Pressable>
+        </MachinePressable>
       </View>
     </ScreenContainer>
   );

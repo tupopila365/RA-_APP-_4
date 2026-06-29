@@ -21,10 +21,13 @@ export function HomeHeader({
   welcomeMessage = 'Welcome',
   showMenu = false,
   onMenuPress,
+  showBack = false,
+  onBackPress,
   showNotificationBell = true,
   showExpiredDot = false,
   showAlmostDueDot = false,
   onNotificationPress,
+  showSearch = true,
   searchValue,
   onSearchChangeText,
   onSearchSubmit,
@@ -64,16 +67,28 @@ export function HomeHeader({
 
       <View style={styles.content}>
         <View style={styles.topRow}>
-          {showNotificationBell ? (
+          {showBack ? (
+            <Pressable
+              onPress={onBackPress}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <View style={styles.iconBubble}>
+                <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+              </View>
+            </Pressable>
+          ) : showNotificationBell ? (
             <Pressable
               onPress={onNotificationPress}
               style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Notifications"
+              accessibilityLabel="Messages"
             >
               <View style={styles.iconBubble}>
-                <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
+                <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
               </View>
               {showExpiredDot ? (
                 <Animated.View style={[styles.notificationDot, styles.redDot, { opacity: dotOpacity }]} />
@@ -120,13 +135,15 @@ export function HomeHeader({
         </View>
 
         <View style={styles.searchWrap}>
-          <SearchBar
-            placeholder="Search services, forms & more"
-            value={searchValue}
-            onChangeText={onSearchChangeText}
-            onSubmitEditing={onSearchSubmit}
-            onSearchPress={onSearchSubmit}
-          />
+          {showSearch ? (
+            <SearchBar
+              placeholder="Search services, forms & more"
+              value={searchValue}
+              onChangeText={onSearchChangeText}
+              onSubmitEditing={onSearchSubmit}
+              onSearchPress={onSearchSubmit}
+            />
+          ) : null}
         </View>
       </View>
     </View>
@@ -136,7 +153,7 @@ export function HomeHeader({
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
     backgroundColor: '#00B4E6',
     ...Platform.select({
       ios: {
@@ -155,7 +172,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   iconButton: {
     width: 44,
@@ -197,16 +214,16 @@ const styles = StyleSheet.create({
   },
   brandBlock: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   logoRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     backgroundColor: NEUTRAL_COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     ...Platform.select({
       ios: {
         shadowColor: '#003D52',
@@ -218,14 +235,14 @@ const styles = StyleSheet.create({
     }),
   },
   logo: {
-    width: 78,
-    height: 78,
+    width: 68,
+    height: 68,
   },
   welcomeMessage: {
     ...typography.h4,
     fontFamily: 'Poppins_600SemiBold',
-    fontSize: 22,
-    lineHeight: 30,
+    fontSize: 20,
+    lineHeight: 26,
     color: NEUTRAL_COLORS.white,
     textAlign: 'center',
     letterSpacing: 0.2,
@@ -233,14 +250,12 @@ const styles = StyleSheet.create({
   tagline: {
     ...typography.bodySmall,
     fontFamily: 'Poppins_500Medium',
-    fontSize: 13,
+    fontSize: 12,
     color: RA_YELLOW,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 2,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
-  searchWrap: {
-    marginTop: spacing.xs,
-  },
+  searchWrap: {},
 });

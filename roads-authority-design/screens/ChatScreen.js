@@ -6,16 +6,16 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
-import { borderRadius } from '../theme/borderRadius';
 import { queryChatbot } from '../services/chatbotService';
 
 const INITIAL_MESSAGES = [
@@ -23,13 +23,16 @@ const INITIAL_MESSAGES = [
   { id: '2', text: 'You can ask about road status, permits, or report an issue.', fromUser: false, time: '09:01' },
 ];
 
+const INPUT_BAR_HEIGHT = 64;
+
 const now = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-export function ChatScreen({ onBack }) {
+export function ChatScreen() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const scrollRef = useRef(null);
   const insets = useSafeAreaInsets();
 
@@ -51,34 +54,65 @@ export function ChatScreen({ onBack }) {
         ...prev,
         { id: `bot-${Date.now()}`, text: answer, fromUser: false, time: now() },
       ]);
-    } catch (err) {
+    } catch {
       setMessages((prev) => [
         ...prev,
-        { id: `bot-${Date.now()}`, text: 'Sorry, I couldn’t get a response. Please check your connection and try again.', fromUser: false, time: now() },
+        {
+          id: `bot-${Date.now()}`,
+          text: 'Sorry, I couldn’t get a response. Please check your connection and try again.',
+          fromUser: false,
+          time: now(),
+        },
       ]);
     } finally {
       setLoading(false);
     }
   };
 
+  const scrollToEnd = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+  };
+
   useEffect(() => {
-    if (scrollRef.current && messages.length > 0) {
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    if (messages.length > 0) {
+      scrollToEnd();
     }
   }, [messages.length]);
 
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = (event) => {
+      const { screenY } = event.endCoordinates;
+      const windowHeight = Dimensions.get('window').height;
+      const offset = Math.max(windowHeight - screenY, 0);
+      setKeyboardOffset(offset);
+      scrollToEnd();
+    };
+
+    const onHide = () => setKeyboardOffset(0);
+
+    const showSub = Keyboard.addListener(showEvent, onShow);
+    const hideSub = Keyboard.addListener(hideEvent, onHide);
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const inputBottom = keyboardOffset > 0 ? keyboardOffset : Math.max(insets.bottom, spacing.xs);
+  const scrollBottomPad = INPUT_BAR_HEIGHT + inputBottom + spacing.sm;
+
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.xs) }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-      keyboardVerticalOffset={0}
-    >
+    <View style={styles.container}>
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
         {messages.map((msg) => (
           <View
@@ -91,23 +125,27 @@ export function ChatScreen({ onBack }) {
             </View>
           </View>
         ))}
-        {loading && (
+        {loading ? (
           <View style={[styles.bubbleWrap, styles.bubbleWrapLeft]}>
             <View style={[styles.bubble, styles.bubbleSupport]}>
               <ActivityIndicator size="small" color={PRIMARY} />
               <Text style={styles.time}>...</Text>
             </View>
           </View>
-        )}
+        ) : null}
       </ScrollView>
-      <View style={styles.inputRow}>
+
+      <View style={[styles.inputRow, { bottom: inputBottom }]}>
         <TextInput
           style={[styles.input, inputFocused && styles.inputFocused]}
           placeholder="Type a message..."
           placeholderTextColor={NEUTRAL_COLORS.gray400}
           value={inputText}
           onChangeText={setInputText}
-          onFocus={() => setInputFocused(true)}
+          onFocus={() => {
+            setInputFocused(true);
+            scrollToEnd();
+          }}
           onBlur={() => setInputFocused(false)}
           multiline
           maxLength={500}
@@ -121,7 +159,7 @@ export function ChatScreen({ onBack }) {
           <Ionicons name="send" size={20} color={NEUTRAL_COLORS.white} />
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -136,7 +174,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
-    paddingBottom: spacing.md,
   },
   bubbleWrap: {
     marginBottom: spacing.md,
@@ -180,11 +217,15 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
   inputRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
+    minHeight: INPUT_BAR_HEIGHT,
     backgroundColor: NEUTRAL_COLORS.white,
     borderTopWidth: 1,
     borderTopColor: NEUTRAL_COLORS.gray200,

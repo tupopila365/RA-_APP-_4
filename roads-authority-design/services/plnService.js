@@ -1,5 +1,6 @@
 import ENV from '../config/env';
 import { authService } from './authService';
+import { MY_APPLICATIONS } from '../data/myApplications';
 
 const API_BASE_URL = ENV.API_BASE_URL;
 
@@ -130,6 +131,19 @@ export async function submitApplication(wizardPayload, documentUri) {
     throw new Error('Invalid document. Please select a photo or PDF of your certified ID.');
   }
 
+  if (ENV.USE_MOCK_DATA) {
+    const applicationData = mapWizardPayloadToBackend(wizardPayload);
+    const suffix = String(Math.floor(10000 + Math.random() * 90000));
+    return {
+      id: `mock-${Date.now()}`,
+      referenceId: `PLN-2025-${suffix}`,
+      trackingPin: String(Math.floor(100000 + Math.random() * 900000)),
+      fullName: [applicationData.initials, applicationData.surname].filter(Boolean).join(' ').trim() || 'Applicant',
+      status: 'submitted',
+      createdAt: new Date().toISOString(),
+    };
+  }
+
   const applicationData = mapWizardPayloadToBackend(wizardPayload);
 
   const formData = new FormData();
@@ -257,6 +271,18 @@ export async function getMyApplications() {
   if (!token) {
     throw new Error('Please sign in to view your applications.');
   }
+
+  if (ENV.USE_MOCK_DATA) {
+    return MY_APPLICATIONS.map((app) => ({
+      id: app.id,
+      referenceId: app.referenceNumber,
+      status: app.status,
+      createdAt: app.submittedAt,
+      statusHistory: app.statusHistory,
+      adminComments: app.nextSteps,
+    }));
+  }
+
   const response = await fetch(`${API_BASE_URL}/pln/my-applications`, {
     method: 'GET',
     headers: {
@@ -286,6 +312,18 @@ export async function confirmPayment(applicationId, paymentReference) {
   if (!token) {
     throw new Error('Please sign in to confirm payment.');
   }
+
+  if (ENV.USE_MOCK_DATA) {
+    const app = MY_APPLICATIONS.find((a) => String(a.id) === String(applicationId));
+    return {
+      id: applicationId,
+      referenceId: app?.referenceNumber || `PLN-2025-${applicationId}`,
+      status: 'paid',
+      paymentReceivedAt: new Date().toISOString(),
+      paymentReference: paymentReference || `MOCK-PAY-${Date.now()}`,
+    };
+  }
+
   const response = await fetch(
     `${API_BASE_URL}/pln/applications/${encodeURIComponent(applicationId)}/confirm-payment`,
     {

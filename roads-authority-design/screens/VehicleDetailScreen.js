@@ -1,9 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components';
+import { VehicleStatusBadge } from '../components/ProfileShared';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS } from '../theme/colors';
+import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
 
 const DEFAULT_MOCK_VEHICLE = {
   make: 'TOYOTA',
@@ -13,13 +15,17 @@ const DEFAULT_MOCK_VEHICLE = {
   licenceExpiryDate: '2026-03-15',
 };
 
-export function VehicleDetailScreen({ vehicle }) {
+export function VehicleDetailScreen({ vehicle, onRenew }) {
   const displayVehicle = vehicle || DEFAULT_MOCK_VEHICLE;
+  const showRenew = onRenew && (vehicle?.status === 'due-soon' || vehicle?.status === 'expired');
 
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.title}>Vehicle details</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Vehicle details</Text>
+          {vehicle?.status ? <VehicleStatusBadge status={vehicle.status} /> : null}
+        </View>
 
         <View style={styles.row}>
           <Text style={styles.label}>Make</Text>
@@ -50,6 +56,13 @@ export function VehicleDetailScreen({ vehicle }) {
           <Text style={styles.value}>{displayVehicle.licenceExpiryDate}</Text>
         </View>
       </View>
+
+      {showRenew ? (
+        <Pressable style={styles.renewButton} onPress={onRenew}>
+          <Ionicons name="refresh-circle-outline" size={18} color={NEUTRAL_COLORS.white} />
+          <Text style={styles.renewButtonText}>Renew licence disc</Text>
+        </Pressable>
+      ) : null}
     </ScreenContainer>
   );
 }
@@ -69,7 +82,13 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '700',
     color: NEUTRAL_COLORS.gray900,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.lg,
+    gap: spacing.sm,
   },
   row: {
     flexDirection: 'row',
@@ -95,6 +114,21 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: NEUTRAL_COLORS.gray100,
+  },
+  renewButton: {
+    marginTop: spacing.md,
+    minHeight: 46,
+    borderRadius: 999,
+    backgroundColor: PRIMARY,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  renewButtonText: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.white,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });
 

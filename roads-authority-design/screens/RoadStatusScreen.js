@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer, SearchBar } from '../components';
 import { ROAD_STATUS, ROAD_STATUS_LAST_UPDATED, STATUS_LABELS, STATUS_COLORS } from '../data/roadStatus';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS } from '../theme/colors';
+import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
 
 function filterRoads(roads, query) {
   if (!query || !query.trim()) return roads;
@@ -47,6 +48,15 @@ export function RoadStatusScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const filteredRoads = useMemo(() => filterRoads(ROAD_STATUS, searchQuery), [searchQuery]);
 
+  const handleNavigate = (road) => {
+    const destination =
+      road.lat != null && road.lng != null
+        ? `${road.lat},${road.lng}`
+        : encodeURIComponent(`${road.name}, ${road.region}, Namibia`);
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+    Linking.openURL(url);
+  };
+
   const openCount = ROAD_STATUS.filter((r) => r.status === 'open').length;
   const cautionCount = ROAD_STATUS.filter((r) => r.status === 'caution').length;
   const maintenanceCount = ROAD_STATUS.filter((r) => r.status === 'maintenance').length;
@@ -80,6 +90,13 @@ export function RoadStatusScreen() {
               </View>
               <Text style={styles.region}>{road.region}</Text>
               {road.notes ? <Text style={styles.note}>{road.notes}</Text> : null}
+              <Pressable
+                style={styles.navigateButton}
+                onPress={() => handleNavigate(road)}
+              >
+                <Ionicons name="navigate-outline" size={20} color={NEUTRAL_COLORS.white} style={styles.navBtnIcon} />
+                <Text style={styles.navigateButtonText}>Navigate</Text>
+              </Pressable>
             </View>
           ))
         )}
@@ -180,5 +197,23 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.bodySmall,
     color: NEUTRAL_COLORS.gray600,
+  },
+  navigateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: PRIMARY,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 999,
+    marginTop: spacing.md,
+  },
+  navBtnIcon: {
+    marginRight: spacing.sm,
+  },
+  navigateButtonText: {
+    ...typography.bodySmall,
+    fontFamily: 'Poppins_600SemiBold',
+    color: NEUTRAL_COLORS.white,
   },
 });

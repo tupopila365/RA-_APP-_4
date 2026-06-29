@@ -247,7 +247,7 @@ export function HomeEmptyLayout({ onMenuItemPress }) {
     { key: 'road-status', iconName: 'trail-sign-outline', label: 'Road Status' },
     { key: 'offices', iconName: 'location-outline', label: 'Offices' },
     { key: 'feed-back', iconName: 'chatbox-ellipses-outline', label: 'Feed Back' },
-    { key: 'settings', iconName: 'settings-outline', label: 'Settings' },
+    { key: 'settings', iconName: 'person-outline', label: 'My Profile' },
   ];
 
   return (

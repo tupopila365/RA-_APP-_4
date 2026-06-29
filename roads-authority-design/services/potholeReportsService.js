@@ -1,6 +1,7 @@
 import ENV from '../config/env';
 import { getOrCreateDeviceId } from './deviceIdService';
 import { authService } from './authService';
+import { MY_REPORTS } from '../data/myReports';
 
 const API_BASE_URL = ENV.API_BASE_URL;
 
@@ -31,6 +32,19 @@ export async function createReport(reportData, photoUri) {
     throw new Error('Location is required');
   }
   if (!photoUri) throw new Error('Photo is required');
+
+  if (ENV.USE_MOCK_DATA) {
+    const id = String(Date.now());
+    return {
+      id,
+      referenceCode: `RPT-${id.slice(-6)}`,
+      status: 'submitted',
+      createdAt: new Date().toISOString(),
+      location: reportData.location,
+      description: reportData.description || null,
+      photoUrl: photoUri,
+    };
+  }
 
   const formData = new FormData();
   const photoFile = {
@@ -121,6 +135,18 @@ export function mapReportFromApi(r) {
  * Fetch current user's reports (uses device ID or auth token). For My Reports screen.
  */
 export async function getMyReports() {
+  if (ENV.USE_MOCK_DATA) {
+    return MY_REPORTS.map((r) => ({
+      id: r.id,
+      createdAt: r.submittedAt,
+      description: r.description,
+      status: r.status,
+      photoUrl: r.image,
+      location: r.locationCoords || { latitude: -22.5609, longitude: 17.0658 },
+      referenceCode: `RPT-${r.id}`,
+    }));
+  }
+
   const headers = await getHeaders();
   const res = await fetch(`${API_BASE_URL}/pothole-reports/my-reports`, { headers });
   if (!res.ok) {
@@ -136,6 +162,20 @@ export async function getMyReports() {
  * Fetch a single report by ID. For report detail screen.
  */
 export async function getReportById(reportId) {
+  if (ENV.USE_MOCK_DATA) {
+    const report = MY_REPORTS.find((r) => String(r.id) === String(reportId));
+    if (!report) return null;
+    return mapReportFromApi({
+      id: report.id,
+      createdAt: report.submittedAt,
+      description: report.description,
+      status: report.status,
+      photoUrl: report.image,
+      location: report.locationCoords || { latitude: -22.5609, longitude: 17.0658 },
+      referenceCode: `RPT-${report.id}`,
+    });
+  }
+
   const headers = await getHeaders();
   const res = await fetch(`${API_BASE_URL}/pothole-reports/${encodeURIComponent(reportId)}`, { headers });
   if (!res.ok) {

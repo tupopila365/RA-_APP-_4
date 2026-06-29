@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   Image,
   ActivityIndicator,
   Alert,
@@ -14,7 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
-import { ScreenContainer } from '../components';
+import { ScreenContainer, MachinePressable } from '../components';
+import { triggerMachineSubmitFeedback, triggerMachinePressFeedback } from '../utils/machinePressFeedback';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
@@ -111,6 +111,7 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
   const handleSearchLocation = async () => {
     const query = searchText.trim();
     if (!query) return;
+    triggerMachinePressFeedback();
     setSearching(true);
     try {
       const matches = await Location.geocodeAsync(query);
@@ -131,6 +132,7 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    triggerMachineSubmitFeedback();
     setSubmitting(true);
     try {
       onSubmit?.({ photo, location });
@@ -153,7 +155,7 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
             </Text>
           </View>
         </View>
-        <Pressable style={styles.photoBox} onPress={handleTakePhoto}>
+        <MachinePressable style={styles.photoBox} onPress={handleTakePhoto}>
           {photo ? (
             <Image source={{ uri: photo }} style={styles.photoImage} resizeMode="cover" />
           ) : (
@@ -162,11 +164,11 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
               <Text style={styles.photoPlaceholderText}>Tap to take photo</Text>
             </View>
           )}
-        </Pressable>
-        <Pressable style={styles.outlineAction} onPress={handlePickPhoto}>
+        </MachinePressable>
+        <MachinePressable style={styles.outlineAction} onPress={handlePickPhoto}>
           <Ionicons name="images-outline" size={18} color={PRIMARY} />
           <Text style={styles.outlineActionText}>Choose from gallery</Text>
-        </Pressable>
+        </MachinePressable>
       </View>
 
       <View style={styles.card}>
@@ -184,7 +186,7 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
           <>
             <Text style={styles.promptText}>Are you at the road damage site?</Text>
             <View style={styles.choiceRow}>
-              <Pressable
+              <MachinePressable
                 style={({ pressed }) => [
                   styles.choiceButton,
                   locationChoice === 'yes' && styles.choiceButtonActive,
@@ -196,8 +198,8 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
                 }}
               >
                 <Text style={[styles.choiceText, locationChoice === 'yes' && styles.choiceTextActive]}>Yes</Text>
-              </Pressable>
-              <Pressable
+              </MachinePressable>
+              <MachinePressable
                 style={({ pressed }) => [
                   styles.choiceButton,
                   locationChoice === 'no' && styles.choiceButtonActive,
@@ -206,14 +208,15 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
                 onPress={() => setLocationChoice('no')}
               >
                 <Text style={[styles.choiceText, locationChoice === 'no' && styles.choiceTextActive]}>No</Text>
-              </Pressable>
+              </MachinePressable>
             </View>
 
             {locationChoice === 'yes' ? (
-              <Pressable
+              <MachinePressable
                 style={({ pressed }) => [styles.primaryAction, pressed && !detecting && styles.primaryActionPressed]}
                 onPress={handleAutoDetectLocation}
                 disabled={detecting}
+                heavy
               >
                 {detecting ? (
                   <ActivityIndicator size="small" color={NEUTRAL_COLORS.white} />
@@ -223,7 +226,7 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
                     <Text style={styles.primaryActionText}>Auto detect location</Text>
                   </>
                 )}
-              </Pressable>
+              </MachinePressable>
             ) : null}
 
             {locationChoice === 'no' ? (
@@ -238,7 +241,7 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
                     returnKeyType="search"
                     onSubmitEditing={handleSearchLocation}
                   />
-                  <Pressable
+                  <MachinePressable
                     style={({ pressed }) => [styles.searchButton, pressed && !searching && styles.searchButtonPressed]}
                     onPress={handleSearchLocation}
                     disabled={searching}
@@ -248,7 +251,7 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
                     ) : (
                       <Ionicons name="search-outline" size={18} color={NEUTRAL_COLORS.white} />
                     )}
-                  </Pressable>
+                  </MachinePressable>
                 </View>
 
                 <View style={styles.mapWrap}>
@@ -288,13 +291,14 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
       </View>
 
       <View style={styles.footerActions}>
-        <Pressable style={styles.cancelButton} onPress={onBack}>
+        <MachinePressable style={styles.cancelButton} onPress={onBack}>
           <Text style={styles.cancelButtonText}>Cancel</Text>
-        </Pressable>
-        <Pressable
+        </MachinePressable>
+        <MachinePressable
           style={[styles.submitButton, (!canSubmit || submitting) && styles.buttonDisabled]}
           onPress={handleSubmit}
           disabled={!canSubmit || submitting}
+          heavy
         >
           {submitting ? (
             <ActivityIndicator size="small" color={NEUTRAL_COLORS.white} />
@@ -304,7 +308,7 @@ export function ReportRoadDamageScreen({ onBack, onSubmit }) {
               <Text style={styles.submitButtonText}>Submit report</Text>
             </>
           )}
-        </Pressable>
+        </MachinePressable>
       </View>
     </ScreenContainer>
   );

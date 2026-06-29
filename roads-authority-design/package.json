@@ -7,7 +7,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:launcher-icon": "node scripts/build-launcher-icon.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",
@@ -17,6 +18,7 @@
     "expo-dev-client": "~55.0.19",
     "expo-image-picker": "~55.0.14",
     "expo-linear-gradient": "~55.0.9",
+    "expo-local-authentication": "~55.0.14",
     "expo-location": "~55.1.4",
     "expo-secure-store": "~55.0.9",
     "expo-splash-screen": "~55.0.21",

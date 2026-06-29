@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenContainer, SearchBar } from '../components';
 import { ChatScreen } from './ChatScreen';
 import { getFaqs, HELP_CATEGORIES } from '../services/faqService';
@@ -72,6 +73,7 @@ export function HelpScreen({ onBack, onOpenChat }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chatVisible, setChatVisible] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +81,7 @@ export function HelpScreen({ onBack, onOpenChat }) {
     setError(null);
     getFaqs()
       .then((list) => { if (!cancelled) setFaqs(list || []); })
-      .catch((err) => { if (!cancelled) setError(err.message || 'Failed to load help topics'); setFaqs([]); })
+      .catch((err) => { if (!cancelled) setError(err.message || 'Failed to load info topics'); setFaqs([]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
@@ -117,17 +119,17 @@ export function HelpScreen({ onBack, onOpenChat }) {
       <View style={styles.chatbotSpacer} />
 
       <SearchBar
-        placeholder="Search help topics..."
+        placeholder="Search info topics..."
         value={searchQuery}
         onChangeText={setSearchQuery}
-        accessibilityLabel="Search help"
+        accessibilityLabel="Search info"
       />
       <View style={styles.searchSpacer} />
 
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={styles.loadingText}>Loading help topics…</Text>
+          <Text style={styles.loadingText}>Loading info topics…</Text>
         </View>
       ) : error ? (
         <View style={styles.empty}>
@@ -139,7 +141,7 @@ export function HelpScreen({ onBack, onOpenChat }) {
         <View style={styles.empty}>
           <Ionicons name="search-outline" size={48} color={NEUTRAL_COLORS.gray400} />
           <Text style={styles.emptyText}>
-            {searchQuery.trim() ? 'No topics match your search.' : 'No help topics available.'}
+            {searchQuery.trim() ? 'No topics match your search.' : 'No info topics available.'}
           </Text>
           <Text style={styles.emptyHint}>Use the contact options below to reach support.</Text>
         </View>
@@ -243,9 +245,10 @@ export function HelpScreen({ onBack, onOpenChat }) {
         animationType="slide"
         presentationStyle="fullScreen"
         onRequestClose={() => setChatVisible(false)}
+        statusBarTranslucent
       >
         <View style={styles.chatModal}>
-          <View style={styles.chatModalHeader}>
+          <View style={[styles.chatModalHeader, { paddingTop: insets.top + spacing.md }]}>
             <Text style={styles.chatModalTitle}>Chatbot</Text>
             <Pressable onPress={() => setChatVisible(false)} hitSlop={10}>
               <Ionicons name="close" size={24} color={NEUTRAL_COLORS.white} />

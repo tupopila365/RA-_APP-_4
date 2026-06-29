@@ -1,4 +1,5 @@
 import ENV from '../config/env';
+import { FAQS as MOCK_FAQS } from '../data/faqs';
 
 const API_BASE_URL = ENV.API_BASE_URL;
 
@@ -31,12 +32,16 @@ function mapFaq(faq) {
  * @returns {Promise<Array<{ id, question, answer, category }>>}
  */
 export async function getFaqs() {
+  if (ENV.USE_MOCK_DATA) {
+    return MOCK_FAQS.map((faq) => mapFaq(faq)).filter(Boolean);
+  }
+
   const url = new URL(`${API_BASE_URL}/faqs`);
   url.searchParams.set('limit', '100');
   const response = await fetch(url.toString());
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error?.message || errData.message || 'Failed to load help topics');
+    throw new Error(errData.error?.message || errData.message || 'Failed to load info topics');
   }
   const data = await response.json();
   const raw = data.data?.faqs ?? data.faqs ?? [];

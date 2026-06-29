@@ -3,7 +3,7 @@
     "name": "myRA App",
     "slug": "roads-authority-design",
     "version": "1.0.0",
-    "icon": "./assets/applauncher.png",
+    "icon": "./assets/launcher-icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
@@ -25,9 +25,9 @@
       }
     },
     "android": {
-      "icon": "./assets/applauncher.png",
+      "icon": "./assets/launcher-icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/applauncher.png",
+        "foregroundImage": "./assets/launcher-icon.png",
         "backgroundColor": "#00B4E6"
       },
       "package": "com.roadsauthority.design",
@@ -46,6 +46,7 @@
       ]
     },
     "plugins": [
+      "expo-local-authentication",
       [
         "expo-splash-screen",
         {
@@ -67,6 +68,7 @@
       "eas": {
         "projectId": "c07c18a6-ea55-48e5-821d-b446767a7b57"
       }
-    }
+    },
+    "owner": "ra_dev"
   }
 }

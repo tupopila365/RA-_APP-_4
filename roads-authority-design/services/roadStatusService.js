@@ -1,4 +1,5 @@
 import ENV from '../config/env';
+import { ROAD_STATUS as MOCK_ROAD_STATUS } from '../data/roadStatus';
 
 const API_BASE_URL = ENV.API_BASE_URL;
 
@@ -8,6 +9,27 @@ const API_BASE_URL = ENV.API_BASE_URL;
  * @returns {Promise<Array<{ id: string, name: string, region: string, status: string, lat: number, lng: number, notes?: string }>>}
  */
 export async function getRoadStatus(query = '') {
+  if (ENV.USE_MOCK_DATA) {
+    const q = query?.trim().toLowerCase();
+    const list = !q
+      ? MOCK_ROAD_STATUS
+      : MOCK_ROAD_STATUS.filter(
+          (r) =>
+            (r.name && r.name.toLowerCase().includes(q)) ||
+            (r.region && r.region.toLowerCase().includes(q)) ||
+            (r.notes && r.notes.toLowerCase().includes(q))
+        );
+    return list.map((r) => ({
+      id: String(r.id),
+      name: r.name ?? '',
+      region: r.region ?? '',
+      status: (r.status ?? 'open').toLowerCase(),
+      lat: typeof r.lat === 'number' ? r.lat : parseFloat(r.lat) || 0,
+      lng: typeof r.lng === 'number' ? r.lng : parseFloat(r.lng) || 0,
+      notes: r.notes ?? null,
+    }));
+  }
+
   const url = new URL(`${API_BASE_URL}/road-status/public`);
   if (query && query.trim()) url.searchParams.set('q', query.trim());
   const response = await fetch(url.toString());

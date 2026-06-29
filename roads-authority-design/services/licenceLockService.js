@@ -1,4 +1,22 @@
+import { Platform } from 'react-native';
 import * as memoryStorage from './storage';
+
+let localAuthModule;
+
+function getLocalAuthentication() {
+  if (localAuthModule !== undefined) {
+    return localAuthModule;
+  }
+
+  try {
+    // Lazy-load so the app still runs when the native module is not in the build yet.
+    localAuthModule = require('expo-local-authentication');
+  } catch {
+    localAuthModule = null;
+  }
+
+  return localAuthModule;
+}
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MS = 60 * 1000;
@@ -65,6 +83,12 @@ export async function setLicencePin(user, pin) {
   await clearFailedAttempts(user);
 }
 
+export async function clearLicencePin(user) {
+  const userId = getUserScope(user);
+  await removeItem(pinHashKey(userId));
+  await clearFailedAttempts(user);
+}
+
 export async function verifyLicencePin(user, pin) {
   const userId = getUserScope(user);
   const lockout = await getLockoutRemainingMs(user);
@@ -100,15 +124,64 @@ export async function setBiometricsEnabled(user, enabled) {
 }
 
 export async function canUseBiometrics() {
-  return false;
+  try {
+    const LocalAuthentication = getLocalAuthentication();
+    if (!LocalAuthentication) return false;
+
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    return hasHardware && isEnrolled;
+  } catch {
+    return false;
+  }
 }
 
+export const BIOMETRIC_UNLOCK_PROMPT = 'Confirm it\'s you';
+
 export async function getBiometricLabel() {
+  try {
+    const LocalAuthentication = getLocalAuthentication();
+    if (!LocalAuthentication) return 'Biometrics';
+
+    const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+    const hasFingerprint = types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT);
+    const hasFace = types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION);
+    const hasIris = types.includes(LocalAuthentication.AuthenticationType.IRIS);
+
+    if (Platform.OS === 'ios') {
+      if (hasFace) return 'Face ID';
+      if (hasFingerprint) return 'Touch ID';
+      if (hasIris) return 'Iris scan';
+      return 'Biometrics';
+    }
+
+    // Android often reports face + fingerprint even when only fingerprint is enrolled.
+    if (hasFingerprint) return 'Fingerprint';
+    if (hasFace) return 'Face unlock';
+    if (hasIris) return 'Iris scan';
+  } catch {
+    // Fall through to default label.
+  }
   return 'Biometrics';
 }
 
-export async function unlockWithBiometrics() {
-  return false;
+export async function unlockWithBiometrics(promptMessage = BIOMETRIC_UNLOCK_PROMPT) {
+  try {
+    const LocalAuthentication = getLocalAuthentication();
+    if (!LocalAuthentication) return false;
+
+    const available = await canUseBiometrics();
+    if (!available) return false;
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage,
+      cancelLabel: 'Use PIN',
+      disableDeviceFallback: true,
+    });
+    return result.success;
+  } catch {
+    return false;
+  }
 }
 
 async function recordFailedAttempt(user) {
@@ -146,6 +219,8 @@ async function getRemainingAttempts(user) {
   return Math.max(0, MAX_FAILED_ATTEMPTS - count);
 }
 
+export const PIN_LENGTH = 5;
+
 export function isValidPin(pin) {
-  return /^\d{4,6}$/.test(pin || '');
+  return new RegExp(`^\\d{${PIN_LENGTH}}$`).test(pin || '');
 }

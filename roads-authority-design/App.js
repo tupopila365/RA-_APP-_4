@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, Text, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import {
   useFonts,
   Poppins_400Regular,
@@ -19,7 +19,10 @@ import {
   ScreenContainer,
   BottomNavBar,
   HomeCarousel,
+  ScreenTransitionOverlay,
+  RaLogoRing,
 } from './components';
+import { useScreenTransition } from './hooks/useScreenTransition';
 import { HomeDesignToggle } from './components/HomeDesignToggle';
 import { HomeGridLayout, HomeListLayout, HomeCardsLayout, HomeSimpleTilesLayout, HomeTopicsLayout, HomeEmptyLayout } from './components/HomeScreenLayouts';
 import { ReportRoadDamageScreen } from './screens/ReportRoadDamageScreen';
@@ -48,7 +51,11 @@ import { VehicleDetailScreen } from './screens/VehicleDetailScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
 import { NatisServicesScreen } from './screens/NatisServicesScreen';
 import { NatisFaqsScreen } from './screens/NatisFaqsScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
+import { MyProfileHubScreen } from './screens/MyProfileHubScreen';
+import { AccountDetailsScreen } from './screens/AccountDetailsScreen';
+import { RegisteredVehiclesScreen } from './screens/RegisteredVehiclesScreen';
+import { AppSettingsScreen } from './screens/AppSettingsScreen';
+import { PreferencesScreen } from './screens/PreferencesScreen';
 import { LearnersLicenceTestScreen } from './screens/LearnersLicenceTestScreen';
 import { LicenceUnlockScreen } from './screens/LicenceUnlockScreen';
 
@@ -61,14 +68,14 @@ function buildServiceItems(onViewDrivingLicence, onNatisServices, onReportDamage
     { key: 'road-status', iconName: 'trail-sign-outline', label: 'Road Status', onPress: onRoadStatus },
     { key: 'offices', iconName: 'location-outline', label: 'Offices', onPress: onOffices },
     { key: 'feed-back', iconName: 'chatbox-ellipses-outline', label: 'Feed Back', onPress: onFeedback },
-    { key: 'settings', iconName: 'settings-outline', label: 'Settings', onPress: onSettings },
+    { key: 'settings', iconName: 'person-outline', label: 'My Profile', onPress: onSettings },
   ];
 }
 
 const NAV_ITEMS = [
   { key: 'home', iconName: 'home-outline', iconNameActive: 'home', label: 'Home', onPress: () => {} },
-  { key: 'notifications', iconName: 'notifications-outline', iconNameActive: 'notifications', label: 'Notifications', onPress: () => {} },
-  { key: 'help', iconName: 'help-circle-outline', iconNameActive: 'help-circle', label: 'Help', onPress: () => {} },
+  { key: 'notifications', iconName: 'chatbubble-outline', iconNameActive: 'chatbubble', label: 'Messages', onPress: () => {} },
+  { key: 'help', iconName: 'information-circle-outline', iconNameActive: 'information-circle', label: 'Info', onPress: () => {} },
 ];
 
 function getWelcomeMessage(user) {
@@ -120,8 +127,13 @@ export default function App() {
   const [authReturnScreen, setAuthReturnScreen] = useState('settings');
   const [homeSearchQuery, setHomeSearchQuery] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [vehicleDetailReturnScreen, setVehicleDetailReturnScreen] = useState('vehicles-due');
   const [licenceUnlocked, setLicenceUnlocked] = useState(false);
+  const [settingsUnlocked, setSettingsUnlocked] = useState(false);
+  const [notificationsUnlocked, setNotificationsUnlocked] = useState(false);
+  const [pinUnlockTarget, setPinUnlockTarget] = useState('my-licences');
   const [licenceUnlockChangePin, setLicenceUnlockChangePin] = useState(false);
+  const { transitionVisible, transitionTo } = useScreenTransition();
   const { hasExpired, hasAlmostDue } = getRenewalAlertFlags(MOCK_RENEWAL_ITEMS);
 
   useEffect(() => {
@@ -145,59 +157,166 @@ export default function App() {
 
   useEffect(() => {
     if (screen === 'my-licences' && !licenceUnlocked) {
+      setPinUnlockTarget('my-licences');
       setScreen('licence-unlock');
     }
   }, [screen, licenceUnlocked]);
 
+  useEffect(() => {
+    if (screen === 'settings' && currentUser && !settingsUnlocked && !licenceUnlockChangePin) {
+      setPinUnlockTarget('settings');
+      setScreen('licence-unlock');
+    }
+  }, [screen, currentUser, settingsUnlocked, licenceUnlockChangePin]);
+
+  useEffect(() => {
+    if (screen === 'notifications' && currentUser && !notificationsUnlocked && !licenceUnlockChangePin) {
+      setPinUnlockTarget('notifications');
+      setScreen('licence-unlock');
+    }
+  }, [screen, currentUser, notificationsUnlocked, licenceUnlockChangePin]);
+
+  // Forward navigation: show the transparent loader, mount the next screen
+  // behind it, then reveal it. Use plain setScreen for back/auth/success.
+  const go = (action) => {
+    const navigate = typeof action === 'function' ? action : () => setScreen(action);
+    transitionTo(navigate);
+  };
+
   const openDrivingLicence = () => {
     if (!currentUser) {
-      setAuthReturnScreen('licence-unlock');
-      setScreen('sign-in');
+      go(() => {
+        setAuthReturnScreen('licence-unlock');
+        setPinUnlockTarget('my-licences');
+        setScreen('sign-in');
+      });
       return;
     }
-    setLicenceUnlocked(false);
+    go(() => {
+      setLicenceUnlocked(false);
+      setLicenceUnlockChangePin(false);
+      setPinUnlockTarget('my-licences');
+      setScreen('licence-unlock');
+    });
+  };
+
+  const openSettings = () => {
+    if (!currentUser) {
+      go(() => {
+        setAuthReturnScreen('licence-unlock');
+        setPinUnlockTarget('settings');
+        setScreen('sign-in');
+      });
+      return;
+    }
+    go(() => {
+      setSettingsUnlocked(false);
+      setLicenceUnlockChangePin(false);
+      setPinUnlockTarget('settings');
+      setScreen('licence-unlock');
+    });
+  };
+
+  const openNotifications = () => {
+    if (!currentUser) {
+      go(() => {
+        setAuthReturnScreen('licence-unlock');
+        setPinUnlockTarget('notifications');
+        setScreen('sign-in');
+      });
+      return;
+    }
+    go(() => {
+      setNotificationsUnlocked(false);
+      setLicenceUnlockChangePin(false);
+      setPinUnlockTarget('notifications');
+      setScreen('licence-unlock');
+    });
+  };
+
+  const handlePinUnlockSuccess = () => {
+    go(() => {
+      setLicenceUnlockChangePin(false);
+      if (pinUnlockTarget === 'settings') {
+        setSettingsUnlocked(true);
+        setScreen('settings');
+      } else if (pinUnlockTarget === 'notifications') {
+        setNotificationsUnlocked(true);
+        setActiveTab('notifications');
+        setScreen('notifications');
+      } else {
+        setLicenceUnlocked(true);
+        setScreen('my-licences');
+      }
+    });
+  };
+
+  const cancelPinUnlock = () => {
+    const returnToSettings = licenceUnlockChangePin;
+    const wasNotifications = pinUnlockTarget === 'notifications';
     setLicenceUnlockChangePin(false);
-    setScreen('licence-unlock');
+    if (wasNotifications) setActiveTab('home');
+    setScreen(returnToSettings ? 'settings' : 'home');
+  };
+
+  const openLicencePinSettings = () => {
+    if (!currentUser) {
+      go(() => {
+        setAuthReturnScreen('licence-unlock');
+        setPinUnlockTarget('settings');
+        setScreen('sign-in');
+      });
+      return;
+    }
+    go(() => {
+      setLicenceUnlockChangePin(true);
+      setScreen('licence-unlock');
+    });
   };
 
   const serviceItems = buildServiceItems(
     openDrivingLicence,
-    () => setScreen('natis-services'),
-    () => setScreen('report-damage'),
-    () => setScreen('my-reports'),
-    () => setScreen('road-status'),
-    () => setScreen('find-offices'),
-    () => setScreen('feedback'),
-    () => setScreen('settings')
+    () => go('natis-services'),
+    () => go('report-damage'),
+    () => go('my-reports'),
+    () => go('road-status'),
+    () => go('find-offices'),
+    () => go('feedback'),
+    openSettings
   );
   const navItems = NAV_ITEMS.map((item) => ({
     ...item,
     onPress: () => {
-      setActiveTab(item.key);
-      if (item.key === 'home') setScreen('home');
-      else if (item.key === 'notifications') setScreen('notifications');
-      else if (item.key === 'help') setScreen('help');
+      if (item.key === 'home') {
+        setActiveTab(item.key);
+        setScreen('home');
+      } else if (item.key === 'notifications') {
+        openNotifications();
+      } else if (item.key === 'help') {
+        setActiveTab(item.key);
+        go('help');
+      }
     },
   }));
 
   const handleExtraHomeMenuPress = (key) => {
-    if (key === 'natis-services') setScreen('natis-services');
+    if (key === 'natis-services') go('natis-services');
     else if (key === 'view-driving-licence') openDrivingLicence();
-    else if (key === 'report-road-damage') setScreen('report-damage');
-    else if (key === 'view-report') setScreen('my-reports');
-    else if (key === 'road-status') setScreen('road-status');
-    else if (key === 'offices') setScreen('find-offices');
-    else if (key === 'downloads') setScreen('downloads');
-    else if (key === 'feed-back') setScreen('feedback');
-    else if (key === 'settings') setScreen('settings');
+    else if (key === 'report-road-damage') go('report-damage');
+    else if (key === 'view-report') go('my-reports');
+    else if (key === 'road-status') go('road-status');
+    else if (key === 'offices') go('find-offices');
+    else if (key === 'downloads') go('downloads');
+    else if (key === 'feed-back') go('feedback');
+    else if (key === 'settings') openSettings();
   };
 
   const handleNatisServicesMenuPress = (key) => {
     if (key === 'view-driving-licence') openDrivingLicence();
-    else if (key === 'faqs') setScreen('natis-faqs');
-    else if (key === 'renew-vehicle') setScreen('vehicles-due');
-    else if (key === 'learner-test') setScreen('learners-licence-test');
-    else if (key === 'driving-test' || key === 'forms') setScreen('downloads');
+    else if (key === 'faqs') go('natis-faqs');
+    else if (key === 'renew-vehicle') go('vehicles-due');
+    else if (key === 'learner-test') go('learners-licence-test');
+    else if (key === 'driving-test' || key === 'forms') go('downloads');
   };
 
   const isReportDamage = screen === 'report-damage';
@@ -231,9 +350,15 @@ export default function App() {
   const isNatisServices = screen === 'natis-services';
   const isNatisFaqs = screen === 'natis-faqs';
   const isSettings = screen === 'settings';
+  const isProfileAccount = screen === 'profile-account';
+  const isProfileVehicles = screen === 'profile-vehicles';
+  const isProfileAppSettings = screen === 'profile-app-settings';
+  const isProfilePreferences = screen === 'profile-preferences';
   const isLearnersLicenceTest = screen === 'learners-licence-test';
-  const isSubScreen = isReportDamage || isFaqs || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isForgotPassword || isForgotUsername || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isFeedbackSuccess || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageSuccess || isPlnApplicationSuccess || isReportDamageMap || isLicenceUnlock || isMyLicences || isVehiclesDue || isVehicleDetail || isNotifications || isNatisServices || isNatisFaqs || isSettings || isLearnersLicenceTest;
-  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isFindOffices ? 'Find Offices' : isHelp ? 'Help' : isContact ? 'Contact' : isForms ? 'Forms' : isSignIn ? '' : isSignUp ? '' : isForgotPassword ? '' : isForgotUsername ? '' : isRoadStatus ? 'Road Status' : isMyReports ? 'View Report' : isMyReportDetail ? 'Report details' : isFeedback ? '' : isFeedbackSuccess ? 'Submission successful' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageSuccess ? 'Submission successful' : isPlnApplicationSuccess ? 'Application submitted' : isReportDamageMap ? 'Report on map' : isLicenceUnlock ? (licenceUnlockChangePin ? 'Change licence PIN' : 'Driving Licence') : isMyLicences ? 'Driving Licence' : isVehiclesDue ? 'Vehicle Disk Renewal' : isVehicleDetail ? 'Vehicle details' : isNotifications ? 'Notifications' : isNatisServices ? 'NaTIS Services' : isNatisFaqs ? '' : isSettings ? 'Settings' : isLearnersLicenceTest ? 'Bookings' : '';
+  const isProfileScreen = isSettings || isProfileAccount || isProfileVehicles || isProfileAppSettings || isProfilePreferences;
+  const isSuccessScreen = isFeedbackSuccess || isReportDamageSuccess || isPlnApplicationSuccess;
+  const isSubScreen = isReportDamage || isFaqs || isFindOffices || isHelp || isContact || isForms || isSignIn || isSignUp || isForgotPassword || isForgotUsername || isRoadStatus || isMyReports || isMyReportDetail || isFeedback || isPlnInfo || isPlnWizard || isMyApplications || isApplicationDetail || isPayment || isReportDamageMap || isMyLicences || isVehiclesDue || isVehicleDetail || isNotifications || isNatisServices || isNatisFaqs || isProfileScreen || isLearnersLicenceTest;
+  const screenTitle = isReportDamage ? 'Report Road Damage' : isFaqs ? 'FAQs' : isFindOffices ? 'Find Offices' : isHelp ? 'Info' : isContact ? 'Contact' : isForms ? 'Forms' : isSignIn ? '' : isSignUp ? '' : isForgotPassword ? '' : isForgotUsername ? '' : isRoadStatus ? 'Road Status' : isMyReports ? 'View Report' : isMyReportDetail ? 'Report details' : isFeedback ? '' : isPlnInfo ? 'PLN Application' : isPlnWizard ? 'PLN Application' : isMyApplications ? 'My Applications' : isApplicationDetail ? 'Application details' : isPayment ? 'Pay online' : isReportDamageMap ? 'Report on map' : isMyLicences ? 'Driving Licence' : isVehiclesDue ? 'Vehicle Disk Renewal' : isVehicleDetail ? 'Vehicle details' : isNotifications ? 'Messages' : isNatisServices ? 'NaTIS Services' : isNatisFaqs ? '' : isSettings ? 'My Profile' : isProfileAccount ? 'Account details' : isProfileVehicles ? 'Registered vehicles' : isProfileAppSettings ? 'Settings' : isProfilePreferences ? 'Preferences' : isLearnersLicenceTest ? 'Bookings' : '';
 
   const handleBackPress = () => {
     if (isMyReportDetail) {
@@ -255,8 +380,16 @@ export default function App() {
       return;
     }
     if (isVehicleDetail) {
-      setScreen('vehicles-due');
+      setScreen(vehicleDetailReturnScreen);
       setSelectedVehicle(null);
+      return;
+    }
+    if (isProfilePreferences) {
+      setScreen('profile-app-settings');
+      return;
+    }
+    if (isProfileAccount || isProfileVehicles || isProfileAppSettings) {
+      setScreen('settings');
       return;
     }
     if (isForgotPassword || isForgotUsername) {
@@ -271,7 +404,24 @@ export default function App() {
       setScreen('natis-services');
       return;
     }
-    if (isLicenceUnlock || isMyLicences) {
+    if (isLicenceUnlock) {
+      const returnToSettings = licenceUnlockChangePin;
+      const wasNotifications = pinUnlockTarget === 'notifications';
+      setLicenceUnlocked(false);
+      setSettingsUnlocked(false);
+      setNotificationsUnlocked(false);
+      if (wasNotifications) setActiveTab('home');
+      setScreen(returnToSettings ? 'settings' : 'home');
+      setLicenceUnlockChangePin(false);
+      return;
+    }
+    if (isNotifications) {
+      setNotificationsUnlocked(false);
+    }
+    if (isSettings) {
+      setSettingsUnlocked(false);
+    }
+    if (isMyLicences) {
       setLicenceUnlocked(false);
       setLicenceUnlockChangePin(false);
     }
@@ -280,40 +430,44 @@ export default function App() {
 
   if (!fontsLoaded) return null;
 
+  const useCircleHeaderLogo =
+    isSignIn || isSignUp || isFeedback || isForgotPassword || isForgotUsername;
+
   return (
     <SafeAreaProvider>
       <View style={styles.screen}>
-        <StatusBar style="light" />
+        <StatusBar style={isLicenceUnlock || isSuccessScreen ? 'dark' : 'light'} />
         {screen === 'home' ? (
           <HomeHeader
             welcomeMessage={getWelcomeMessage(currentUser)}
-            showMenu={!!currentUser}
-            onMenuPress={() => setMenuVisible(true)}
             showNotificationBell
             showExpiredDot={hasExpired}
             showAlmostDueDot={hasAlmostDue}
             onNotificationPress={() => {
-              setActiveTab('notifications');
-              setScreen('notifications');
+              openNotifications();
             }}
             searchValue={homeSearchQuery}
             onSearchChangeText={setHomeSearchQuery}
             onSearchSubmit={() => {
               setActiveTab('help');
-              setScreen('help');
+              go('help');
             }}
           />
-        ) : (
+        ) : screen === 'natis-services' ? (
+          <HomeHeader
+            welcomeMessage="NaTIS Services"
+            showBack
+            onBackPress={handleBackPress}
+            showNotificationBell={false}
+            showSearch={false}
+          />
+        ) : isLicenceUnlock || isSuccessScreen ? null : (
           <AppHeader
             logo={
-              <View style={styles.headerLogoRow}>
-                <Image
-                  source={require('./assets/ra logo.png')}
-                  style={styles.headerRaLogo}
-                  resizeMode="contain"
-                  accessibilityLabel="Roads Authority logo"
-                />
-              </View>
+              <RaLogoRing
+                size={useCircleHeaderLogo ? 68 : 72}
+                logoSize={useCircleHeaderLogo ? 54 : 58}
+              />
             }
             welcomeMessage={!isSubScreen ? getWelcomeMessage(currentUser) : null}
             title={screenTitle}
@@ -325,6 +479,7 @@ export default function App() {
             showExpiredDot={false}
             showAlmostDueDot={false}
             onNotificationPress={undefined}
+            compact={useCircleHeaderLogo}
           />
         )}
         {isReportDamage ? (
@@ -354,15 +509,8 @@ export default function App() {
           <LicenceUnlockScreen
             user={currentUser}
             changePin={licenceUnlockChangePin}
-            onUnlocked={() => {
-              setLicenceUnlocked(true);
-              setLicenceUnlockChangePin(false);
-              setScreen('my-licences');
-            }}
-            onCancel={() => {
-              setLicenceUnlockChangePin(false);
-              setScreen(licenceUnlockChangePin ? 'settings' : 'home');
-            }}
+            onUnlocked={handlePinUnlockSuccess}
+            onCancel={cancelPinUnlock}
           />
         ) : isMyLicences ? (
           <MyLicencesScreen
@@ -375,14 +523,30 @@ export default function App() {
           <VehiclesDueForRenewalScreen
             onBack={() => setScreen('home')}
             onSelectVehicle={(vehicle) => {
-              setSelectedVehicle(vehicle);
-              setScreen('vehicle-detail');
+              go(() => {
+                setVehicleDetailReturnScreen('vehicles-due');
+                setSelectedVehicle(vehicle);
+                setScreen('vehicle-detail');
+              });
             }}
           />
         ) : isVehicleDetail ? (
-          <VehicleDetailScreen vehicle={selectedVehicle} />
+          <VehicleDetailScreen
+            vehicle={selectedVehicle}
+            onRenew={
+              vehicleDetailReturnScreen === 'profile-vehicles'
+                ? () => go('vehicles-due')
+                : undefined
+            }
+          />
         ) : isNotifications ? (
-          <NotificationsScreen onBack={() => setScreen('home')} />
+          <NotificationsScreen
+            onBack={() => {
+              setNotificationsUnlocked(false);
+              setActiveTab('home');
+              setScreen('home');
+            }}
+          />
         ) : isFindOffices ? (
           <FindOfficesScreen onBack={() => setScreen('home')} />
         ) : isContact ? (
@@ -419,7 +583,7 @@ export default function App() {
         ) : isMyReports ? (
           <MyReportsScreen
             onBack={() => setScreen('home')}
-            onSelectReport={(report) => { setSelectedReport(report); setScreen('my-report-detail'); }}
+            onSelectReport={(report) => { go(() => { setSelectedReport(report); setScreen('my-report-detail'); }); }}
           />
         ) : isFeedback ? (
           <FeedbackScreen
@@ -439,6 +603,7 @@ export default function App() {
           />
         ) : isPlnApplicationSuccess ? (
           <SuccessScreen
+            title="Application submitted"
             message="Your PLN application was submitted."
             buttonText="Back to Home"
             onDone={() => setScreen('home')}
@@ -446,7 +611,7 @@ export default function App() {
         ) : isPlnInfo ? (
           <PLNApplicationInfoScreen
             onBack={() => setScreen('home')}
-            onStartApplication={() => setScreen('pln-wizard')}
+            onStartApplication={() => go('pln-wizard')}
             isLoggedIn={!!currentUser}
             onSignInRequired={() => {
               setAuthReturnScreen('pln-info');
@@ -457,8 +622,8 @@ export default function App() {
           <ApplicationDetailScreen
             application={selectedApplication}
             onBack={() => { setScreen('my-applications'); setSelectedApplication(null); }}
-            onFindOffices={() => setScreen('find-offices')}
-            onPayOnline={() => setScreen('payment')}
+            onFindOffices={() => go('find-offices')}
+            onPayOnline={() => go('payment')}
           />
         ) : isPayment ? (
           <PaymentScreen
@@ -469,37 +634,67 @@ export default function App() {
         ) : isMyApplications ? (
           <MyApplicationsScreen
             onBack={() => setScreen('home')}
-            onSelectApplication={(app) => { setSelectedApplication(app); setScreen('application-detail'); }}
+            onSelectApplication={(app) => { go(() => { setSelectedApplication(app); setScreen('application-detail'); }); }}
           />
         ) : isNatisServices ? (
-          <NatisServicesScreen onMenuItemPress={handleNatisServicesMenuPress} />
-        ) : isNatisFaqs ? (
-          <NatisFaqsScreen />
-        ) : isSettings ? (
-          <SettingsScreen
+          <NatisServicesScreen
             user={currentUser}
+            onMenuItemPress={handleNatisServicesMenuPress}
             onSignIn={() => {
-              setAuthReturnScreen('settings');
+              setAuthReturnScreen('natis-services');
               setScreen('sign-in');
             }}
             onSignUp={() => {
-              setAuthReturnScreen('settings');
+              setAuthReturnScreen('natis-services');
               setScreen('sign-up');
             }}
-            onChangeLicencePin={() => {
-              if (!currentUser) {
-                setAuthReturnScreen('settings');
-                setScreen('sign-in');
-                return;
-              }
-              setLicenceUnlockChangePin(true);
-              setLicenceUnlocked(false);
-              setScreen('licence-unlock');
+            onOpenProfile={openSettings}
+          />
+        ) : isNatisFaqs ? (
+          <NatisFaqsScreen />
+        ) : isProfileAccount ? (
+          <AccountDetailsScreen user={currentUser} />
+        ) : isProfileVehicles ? (
+          <RegisteredVehiclesScreen
+            onSelectVehicle={(vehicle) => {
+              go(() => {
+                setVehicleDetailReturnScreen('profile-vehicles');
+                setSelectedVehicle(vehicle);
+                setScreen('vehicle-detail');
+              });
             }}
+            onRenewVehicle={() => go('vehicles-due')}
+          />
+        ) : isProfileAppSettings ? (
+          <AppSettingsScreen
+            user={currentUser}
+            onChangeLicencePin={openLicencePinSettings}
+            onOpenPreferences={() => go('profile-preferences')}
+          />
+        ) : isProfilePreferences ? (
+          <PreferencesScreen />
+        ) : isSettings ? (
+          <MyProfileHubScreen
+            user={currentUser}
+            onSignIn={() => {
+              setAuthReturnScreen('licence-unlock');
+              setPinUnlockTarget('settings');
+              setScreen('sign-in');
+            }}
+            onSignUp={() => {
+              setAuthReturnScreen('licence-unlock');
+              setPinUnlockTarget('settings');
+              setScreen('sign-up');
+            }}
+            onOpenAccountDetails={() => go('profile-account')}
+            onOpenRegisteredVehicles={() => go('profile-vehicles')}
+            onOpenAppSettings={() => go('profile-app-settings')}
             onLogout={async () => {
               await authService.logout();
               setCurrentUser(null);
               setLicenceUnlocked(false);
+              setSettingsUnlocked(false);
+              setNotificationsUnlocked(false);
               setScreen('home');
             }}
           />
@@ -530,7 +725,8 @@ export default function App() {
           }}
         />
         {(screen === 'home' || screen === 'natis-services') && <HomeCarousel />}
-        <BottomNavBar items={navItems} activeKey={activeTab} />
+        {screen !== 'licence-unlock' && !isSuccessScreen ? <BottomNavBar items={navItems} activeKey={activeTab} /> : null}
+        <ScreenTransitionOverlay visible={transitionVisible} />
       </View>
     </SafeAreaProvider>
   );
@@ -540,17 +736,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: CONTENT_BACKGROUND,
-  },
-  headerLogoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-    gap: spacing.md,
-  },
-  headerRaLogo: {
-    width: 88,
-    height: 88,
   },
   homeWrapper: {
     flex: 1,

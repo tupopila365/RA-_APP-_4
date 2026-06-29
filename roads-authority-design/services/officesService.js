@@ -1,4 +1,5 @@
 import ENV from '../config/env';
+import { OFFICES as MOCK_OFFICES } from '../data/offices';
 
 const API_BASE_URL = ENV.API_BASE_URL;
 
@@ -86,6 +87,26 @@ function mapLocation(loc) {
  * @returns {Promise<Array<{ id, name, region, address, phone, hours, services }>>}
  */
 export async function getOffices(params = {}) {
+  if (ENV.USE_MOCK_DATA) {
+    let list = MOCK_OFFICES;
+    if (params.region?.trim()) {
+      const region = params.region.trim().toLowerCase();
+      list = list.filter((o) => (o.region || '').toLowerCase() === region);
+    }
+    return list.map((office) => ({
+      id: String(office.id),
+      name: office.name ?? '',
+      region: office.region ?? '',
+      address: office.address ?? '',
+      phone: office.phone ?? null,
+      email: office.email ?? null,
+      hours: office.hours ?? null,
+      closedDays: office.closedDays ?? null,
+      specialHours: office.specialHours ?? null,
+      services: Array.isArray(office.services) ? office.services : [],
+    }));
+  }
+
   const url = new URL(`${API_BASE_URL}/locations`);
   if (params.region && params.region.trim()) {
     url.searchParams.set('region', params.region.trim());
@@ -107,6 +128,24 @@ export async function getOffices(params = {}) {
  */
 export async function getOfficeById(id) {
   if (!id) throw new Error('Office ID is required');
+
+  if (ENV.USE_MOCK_DATA) {
+    const office = MOCK_OFFICES.find((o) => String(o.id) === String(id));
+    if (!office) throw new Error('Office not found');
+    return {
+      id: String(office.id),
+      name: office.name ?? '',
+      region: office.region ?? '',
+      address: office.address ?? '',
+      phone: office.phone ?? null,
+      email: office.email ?? null,
+      hours: office.hours ?? null,
+      closedDays: office.closedDays ?? null,
+      specialHours: office.specialHours ?? null,
+      services: Array.isArray(office.services) ? office.services : [],
+    };
+  }
+
   const response = await fetch(`${API_BASE_URL}/locations/${encodeURIComponent(id)}`);
   if (response.status === 404) throw new Error('Office not found');
   if (!response.ok) {

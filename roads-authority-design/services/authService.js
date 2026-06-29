@@ -35,6 +35,19 @@ async function mockLogin(email, password) {
 
 class AuthService {
   async register(email, password, fullName = null, phoneNumber = null, verificationMethod = 'email') {
+    if (ENV.USE_MOCK_AUTH) {
+      const user = buildMockUser(email);
+      if (fullName?.trim()) user.fullName = fullName.trim();
+      await storage.setItem(ACCESS_TOKEN_KEY, `mock-access-token-${user.id}`);
+      await storage.setItem(REFRESH_TOKEN_KEY, `mock-refresh-token-${user.id}`);
+      await storage.setItem(USER_KEY, JSON.stringify(user));
+      return {
+        accessToken: `mock-access-token-${user.id}`,
+        refreshToken: `mock-refresh-token-${user.id}`,
+        user,
+      };
+    }
+
     try {
       const response = await ApiClient.requestWithTimeout(
         '/app-users/register',
@@ -76,6 +89,10 @@ class AuthService {
   }
 
   async registerVerifyOtp(email, phone, otp, password) {
+    if (ENV.USE_MOCK_AUTH) {
+      return mockLogin(email, password);
+    }
+
     try {
       const response = await ApiClient.post('/app-users/register/verify-otp', {
         email: email.trim(),

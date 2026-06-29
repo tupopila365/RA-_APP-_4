@@ -1,4 +1,5 @@
 import ENV from '../config/env';
+import { NEWS as MOCK_NEWS } from '../data/news';
 
 const API_BASE_URL = ENV.API_BASE_URL;
 
@@ -26,7 +27,31 @@ function mapArticle(article) {
  * @param {Object} params - { page, limit, category, search }
  * @returns {Promise<{ items: Array, total: number, page: number, totalPages: number }>}
  */
+function filterMockNews(items, params = {}) {
+  let list = [...items];
+  if (params.category) {
+    const cat = params.category.toLowerCase();
+    list = list.filter((n) => (n.category || '').toLowerCase() === cat);
+  }
+  if (params.search?.trim()) {
+    const q = params.search.trim().toLowerCase();
+    list = list.filter(
+      (n) =>
+        (n.title && n.title.toLowerCase().includes(q)) ||
+        (n.summary && n.summary.toLowerCase().includes(q)) ||
+        (n.category && n.category.toLowerCase().includes(q))
+    );
+  }
+  return list;
+}
+
 export async function getNewsList(params = {}) {
+  if (ENV.USE_MOCK_DATA) {
+    const filtered = filterMockNews(MOCK_NEWS, params);
+    const items = filtered.map((article) => mapArticle(article)).filter(Boolean);
+    return { items, total: items.length, page: 1, totalPages: 1 };
+  }
+
   const url = new URL(`${API_BASE_URL}/news`);
   url.searchParams.set('published', 'true');
   if (params.page != null) url.searchParams.set('page', String(params.page));
@@ -57,6 +82,13 @@ export async function getNewsList(params = {}) {
  */
 export async function getNewsById(id) {
   if (!id) throw new Error('News ID is required');
+
+  if (ENV.USE_MOCK_DATA) {
+    const article = MOCK_NEWS.find((n) => String(n.id) === String(id));
+    if (!article) throw new Error('Article not found');
+    return mapArticle(article);
+  }
+
   const response = await fetch(`${API_BASE_URL}/news/${encodeURIComponent(id)}`);
   if (response.status === 404) {
     throw new Error('Article not found');

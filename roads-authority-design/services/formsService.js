@@ -2,6 +2,8 @@
  * Forms and documents (Downloads) – fetches from backend, shape matches app UI.
  */
 import { ApiClient, API_ENDPOINTS } from './api';
+import ENV from '../config/env';
+import { FORMS as MOCK_FORMS } from '../data/forms';
 
 /**
  * @param {Object} item – API form item
@@ -24,6 +26,23 @@ export function mapFormFromApi(item) {
  * @returns {Promise<{ items: Array<{ id, title, description, category, pdfUrl }> }>}
  */
 export async function getForms(params = {}) {
+  if (ENV.USE_MOCK_DATA) {
+    let items = MOCK_FORMS.map((form) => mapFormFromApi(form)).filter(Boolean);
+    if (params.category) {
+      const cat = params.category.toLowerCase();
+      items = items.filter((f) => (f.category || '').toLowerCase() === cat);
+    }
+    if (params.search?.trim()) {
+      const q = params.search.trim().toLowerCase();
+      items = items.filter(
+        (f) =>
+          (f.title && f.title.toLowerCase().includes(q)) ||
+          (f.description && f.description.toLowerCase().includes(q))
+      );
+    }
+    return { items };
+  }
+
   const query = new URLSearchParams();
   query.set('published', 'true');
   query.set('limit', '100');

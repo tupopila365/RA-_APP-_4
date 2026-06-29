@@ -1,11 +1,10 @@
 /**
  * Environment configuration for Roads Authority design app.
- * Points to the same backend as the main app and admin panel.
+ * This build is offline-first: mock data and mock auth are used by default
+ * so the APK works without a backend connection.
  *
- * Backend: run from repo root: cd backend && npm run dev (default port 5000)
- * Admin: run from repo root: cd admin && npm run dev
- *
- * For physical device: use your machine's IP instead of localhost, e.g. http://192.168.1.x:5000/api
+ * Set USE_MOCK_DATA / USE_MOCK_AUTH to false and point API_BASE_URL at a
+ * running backend when you want to test live API integration.
  */
 
 const ENV = {
@@ -14,6 +13,7 @@ const ENV = {
     API_TIMEOUT: 15000,
     API_TIMEOUT_LONG: 60000,
     DEBUG_MODE: true,
+    USE_MOCK_DATA: true,
     USE_MOCK_AUTH: true,
   },
   production: {
@@ -21,7 +21,8 @@ const ENV = {
     API_TIMEOUT: 15000,
     API_TIMEOUT_LONG: 60000,
     DEBUG_MODE: false,
-    USE_MOCK_AUTH: false,
+    USE_MOCK_DATA: true,
+    USE_MOCK_AUTH: true,
   },
 };
 

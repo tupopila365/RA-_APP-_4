@@ -19,6 +19,7 @@ export function AppHeader({
   logo,
   subtitle,
   welcomeMessage,
+  compact = false,
 }) {
   const insets = useSafeAreaInsets();
   const paddingTop = Math.max(insets.top, spacing.md);
@@ -50,7 +51,7 @@ export function AppHeader({
   }, [showExpiredDot, showAlmostDueDot, dotOpacity]);
 
   return (
-    <View style={[styles.container, { paddingTop }]}>
+    <View style={[styles.container, compact && styles.containerCompact, { paddingTop }]}>
       <View style={styles.row}>
         {/* Left Icon */}
         {showBack ? (
@@ -73,7 +74,7 @@ export function AppHeader({
             ]}
             hitSlop={12}
           >
-            <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="chatbubble-outline" size={22} color="#FFFFFF" />
             {showExpiredDot ? (
               <Animated.View style={[styles.notificationDot, styles.redDot, { opacity: dotOpacity }]} />
             ) : null}
@@ -101,9 +102,11 @@ export function AppHeader({
             </View>
           ) : null}
 
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
+          {title ? (
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+          ) : null}
         </View>
 
         {/* Right Actions */}
@@ -135,6 +138,10 @@ const styles = StyleSheet.create({
     minHeight: 128,
     justifyContent: 'center',
     backgroundColor: PRIMARY,
+  },
+  containerCompact: {
+    minHeight: 108,
+    paddingBottom: spacing.sm,
   },
 
   row: {

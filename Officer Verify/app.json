@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "RA Verifier",
+    "slug": "ra-officer-verify",
+    "version": "1.0.0",
+    "icon": "./assets/applauncher.png",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/ra_logo_v1.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#00B4E6"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.roadsauthority.verifier",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scan driving licence verification QR codes"
+      }
+    },
+    "android": {
+      "icon": "./assets/applauncher.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/applauncher.png",
+        "backgroundColor": "#00B4E6"
+      },
+      "package": "com.roadsauthority.verifier",
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/ra_logo_v1.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#00B4E6",
+          "imageWidth": 240
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow RA Verifier to scan licence QR codes"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a4e837d1-7de1-481b-97ef-733b5243157a"
+      }
+    },
+    "owner": "ra_dev"
+  }
+}

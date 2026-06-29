@@ -32,6 +32,24 @@ function ToggleRow({ iconName, label, value, onToggle, disabled = false }) {
   );
 }
 
+const ACCOUNT_METRICS = [
+  { key: 'licences', iconName: 'id-card-outline', value: '1', label: 'Licences' },
+  { key: 'vehicles', iconName: 'car-outline', value: '2', label: 'Vehicles' },
+  { key: 'renewals', iconName: 'time-outline', value: '1', label: 'Due soon' },
+];
+
+function MetricCard({ iconName, value, label }) {
+  return (
+    <View style={styles.metricCard}>
+      <View style={styles.metricIconWrap}>
+        <Ionicons name={iconName} size={16} color={PRIMARY} />
+      </View>
+      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
 export function SettingsScreen({ user, onSignIn, onSignUp, onLogout, onChangeLicencePin }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
@@ -44,6 +62,14 @@ export function SettingsScreen({ user, onSignIn, onSignUp, onLogout, onChangeLic
     if (user?.fullName?.trim()) return user.fullName.trim();
     if (user?.email?.trim()) return user.email.trim();
     return 'Guest User';
+  }, [user]);
+
+  const initials = useMemo(() => {
+    const base = user?.fullName?.trim() || user?.email?.trim() || '';
+    if (!base) return 'RA';
+    const parts = base.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return base.slice(0, 2).toUpperCase();
   }, [user]);
 
   const loadLicenceSecurity = useCallback(async () => {
@@ -75,8 +101,8 @@ export function SettingsScreen({ user, onSignIn, onSignUp, onLogout, onChangeLic
 
     if (!hasPin) {
       Alert.alert(
-        'Licence PIN required',
-        'Set up a licence PIN first before enabling biometrics.',
+        'PIN required',
+        'Set up your PIN first before enabling biometrics.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Set up PIN', onPress: () => onChangeLicencePin?.() },
@@ -93,13 +119,44 @@ export function SettingsScreen({ user, onSignIn, onSignUp, onLogout, onChangeLic
   return (
     <ScreenContainer contentContainerStyle={styles.content}>
       <View style={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>User name</Text>
-            <Text style={styles.infoValue}>{displayName}</Text>
+        <View style={styles.profileCard}>
+          <View style={[styles.avatar, !isLoggedIn && styles.avatarGuest]}>
+            {isLoggedIn ? (
+              <Text style={styles.avatarText}>{initials}</Text>
+            ) : (
+              <Ionicons name="person-outline" size={24} color={PRIMARY} />
+            )}
           </View>
+          <View style={styles.profileMeta}>
+            <Text style={styles.profileName} numberOfLines={1}>
+              {isLoggedIn ? displayName : 'Guest'}
+            </Text>
+            <Text style={styles.profileSub} numberOfLines={1}>
+              {isLoggedIn
+                ? user?.email?.trim() || 'Signed in'
+                : 'Sign in to access your services'}
+            </Text>
+          </View>
+          {isLoggedIn ? (
+            <View style={styles.statusPill}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusPillText}>Active</Text>
+            </View>
+          ) : null}
         </View>
+
+        {isLoggedIn ? (
+          <View style={styles.metricsRow}>
+            {ACCOUNT_METRICS.map((metric) => (
+              <MetricCard
+                key={metric.key}
+                iconName={metric.iconName}
+                value={metric.value}
+                label={metric.label}
+              />
+            ))}
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Preferences</Text>
@@ -113,9 +170,9 @@ export function SettingsScreen({ user, onSignIn, onSignUp, onLogout, onChangeLic
 
         {isLoggedIn ? (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Driving licence security</Text>
+            <Text style={styles.sectionTitle}>Security</Text>
             <Text style={styles.sectionHint}>
-              Protect your digital licence with a PIN and optional biometrics.
+              Your PIN unlocks Settings, Notifications, and your driving licence.
             </Text>
             {biometricsAvailable ? (
               <ToggleRow
@@ -132,7 +189,7 @@ export function SettingsScreen({ user, onSignIn, onSignUp, onLogout, onChangeLic
             <Pressable style={styles.changePinButton} onPress={() => onChangeLicencePin?.()}>
               <Ionicons name="key-outline" size={18} color={PRIMARY} />
               <Text style={styles.changePinButtonText}>
-                {hasPin ? 'Change licence PIN' : 'Set up licence PIN'}
+                {hasPin ? 'Change PIN' : 'Set up PIN'}
               </Text>
             </Pressable>
           </View>
@@ -190,22 +247,108 @@ const styles = StyleSheet.create({
     color: NEUTRAL_COLORS.gray500,
     marginBottom: spacing.sm,
   },
-  infoRow: {
+  profileCard: {
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    padding: spacing.lg,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.md,
+  },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarGuest: {
+    backgroundColor: PRIMARY + '14',
+    borderWidth: 1,
+    borderColor: PRIMARY + '33',
+  },
+  avatarText: {
+    ...typography.body,
+    fontFamily: 'Poppins_700Bold',
+    color: NEUTRAL_COLORS.white,
+    fontSize: 18,
+    letterSpacing: 0.5,
+  },
+  profileMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  profileName: {
+    ...typography.body,
+    fontFamily: 'Poppins_600SemiBold',
+    color: NEUTRAL_COLORS.gray900,
+    fontSize: 16,
+  },
+  profileSub: {
+    ...typography.bodySmall,
+    color: NEUTRAL_COLORS.gray500,
+    marginTop: 2,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#16A34A14',
+    borderWidth: 1,
+    borderColor: '#16A34A33',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#16A34A',
+  },
+  statusPillText: {
+    ...typography.caption,
+    fontSize: 11,
+    fontFamily: 'Poppins_600SemiBold',
+    color: '#15803D',
+  },
+  metricsRow: {
+    flexDirection: 'row',
     gap: spacing.sm,
   },
-  infoLabel: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
+  metricCard: {
+    flex: 1,
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NEUTRAL_COLORS.gray200,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
   },
-  infoValue: {
-    ...typography.bodySmall,
+  metricIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: PRIMARY + '14',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  metricValue: {
+    ...typography.body,
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 18,
     color: NEUTRAL_COLORS.gray900,
-    fontFamily: 'Poppins_600SemiBold',
-    flexShrink: 1,
-    textAlign: 'right',
+  },
+  metricLabel: {
+    ...typography.caption,
+    fontSize: 11,
+    color: NEUTRAL_COLORS.gray500,
+    marginTop: 1,
   },
   toggleRow: {
     minHeight: 52,

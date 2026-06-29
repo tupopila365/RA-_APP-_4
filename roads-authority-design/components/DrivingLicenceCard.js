@@ -1,16 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Image, Pressable, StyleSheet, Platform, Modal } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Defs, Line, Pattern, Rect } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
-import { CoatOfArms } from './CoatOfArms';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { NEUTRAL_COLORS, PRIMARY, RA_YELLOW } from '../theme/colors';
+import { NEUTRAL_COLORS, PRIMARY } from '../theme/colors';
+import { CoatOfArms } from './CoatOfArms';
 import {
   buildVerificationPayload,
-  formatVerificationTime,
   getRemainingSeconds,
   serializeVerificationPayload,
 } from '../services/licenceVerificationService';
@@ -32,16 +29,14 @@ const DETAIL_FIELDS = [
   { label: 'Licence Code', value: 'B' },
 ];
 
-function SecurityPattern() {
+function RaLogo({ size = 44, style }) {
   return (
-    <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
-      <Defs>
-        <Pattern id="diagonalLines" patternUnits="userSpaceOnUse" width={12} height={12} patternTransform="rotate(35)">
-          <Line x1={0} y1={0} x2={0} y2={12} stroke={PRIMARY} strokeWidth={1} strokeOpacity={0.06} />
-        </Pattern>
-      </Defs>
-      <Rect width="100%" height="100%" fill="url(#diagonalLines)" />
-    </Svg>
+    <Image
+      source={require('../assets/ra logo.png')}
+      style={[{ width: size, height: size }, style]}
+      resizeMode="contain"
+      accessibilityLabel="Roads Authority logo"
+    />
   );
 }
 
@@ -92,14 +87,11 @@ export function DrivingLicenceCard() {
   return (
     <View style={styles.card}>
 
-      <LinearGradient
-        colors={['#007EA4', PRIMARY, '#33C4ED']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.cardHeader}
-      >
+      <View style={styles.cardHeader}>
         <View style={styles.headerRow}>
-          <CoatOfArms size={42} style={styles.headerCoatOfArms} />
+          <View style={styles.headerCoatOfArms}>
+            <CoatOfArms size={38} />
+          </View>
           <View style={styles.headerTextBlock}>
             <Text style={styles.cardHeaderEyebrow}>Republic of Namibia</Text>
             <Text style={styles.cardHeaderText}>Namibian driving licence</Text>
@@ -111,12 +103,9 @@ export function DrivingLicenceCard() {
             accessibilityLabel="Namibia flag"
           />
         </View>
-      </LinearGradient>
+      </View>
 
       <View style={styles.cardBody}>
-        <SecurityPattern />
-        <View style={styles.decorOrb} />
-
         <View style={styles.licencePlate}>
           <View style={styles.licenceNumberBlock}>
             <Text style={styles.fieldLabel}>Licence number</Text>
@@ -156,19 +145,6 @@ export function DrivingLicenceCard() {
           </View>
         </View>
 
-        <Pressable
-          style={styles.generateQrButton}
-          onPress={generateQr}
-          accessibilityRole="button"
-          accessibilityLabel="Generate QR code for officer verification"
-        >
-          <Ionicons name="qr-code-outline" size={18} color={PRIMARY} />
-          <Text style={styles.generateQrButtonText}>Generate QR code</Text>
-        </Pressable>
-        <Text style={styles.generateQrHint}>
-          For official verification by traffic officers only.
-        </Text>
-
         <View style={styles.divider} />
 
         <Pressable
@@ -207,16 +183,27 @@ export function DrivingLicenceCard() {
 
         <View style={styles.footer}>
           <View style={styles.footerLeft}>
-            <CoatOfArms size={44} />
+            <RaLogo size={44} />
             <View style={styles.footerMeta}>
               <Text style={styles.footerTitle}>NaTIS</Text>
               <Text style={styles.footerSubtitle}>Roads Authority Namibia</Text>
             </View>
           </View>
           <View style={styles.hologram}>
-            <CoatOfArms size={26} />
+            <CoatOfArms size={30} />
           </View>
         </View>
+
+        <Pressable
+          style={({ pressed }) => [styles.officerLink, pressed && styles.officerLinkPressed]}
+          onPress={generateQr}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Generate QR code for official traffic officer verification"
+        >
+          <Ionicons name="lock-closed" size={12} color={NEUTRAL_COLORS.gray500} />
+          <Text style={styles.officerLinkText}>Officer verification only</Text>
+        </Pressable>
       </View>
 
       <Modal
@@ -228,9 +215,6 @@ export function DrivingLicenceCard() {
         <View style={styles.qrModalBackdrop}>
           <View style={styles.qrModalCard}>
             <Text style={styles.qrModalTitle}>Officer verification</Text>
-            <Text style={styles.qrModalSubtitle}>
-              Ask the officer to scan this code with the NaTIS Verify app.
-            </Text>
 
             <View style={[styles.qrFrame, qrExpired && styles.qrFrameExpired]}>
               {qrValue && !qrExpired ? (
@@ -245,25 +229,15 @@ export function DrivingLicenceCard() {
 
             <Text style={styles.qrLicenceNumber}>{LICENCE.licenceNumber}</Text>
 
-            {verificationPayload ? (
-              <Text style={styles.qrMetaText}>
-                Generated at {formatVerificationTime(verificationPayload.iat)}
-              </Text>
-            ) : null}
-
             <Text style={[styles.qrCountdown, qrExpired && styles.qrCountdownExpired]}>
               {qrExpired ? 'Expired' : `Expires in 0:${String(remainingSeconds).padStart(2, '0')}`}
             </Text>
 
-            <Pressable
-              style={[styles.qrPrimaryButton, !qrExpired && styles.qrPrimaryButtonDisabled]}
-              onPress={qrExpired ? generateQr : undefined}
-              disabled={!qrExpired}
-            >
-              <Text style={[styles.qrPrimaryButtonText, !qrExpired && styles.qrPrimaryButtonTextDisabled]}>
-                {qrExpired ? 'Generate new QR code' : 'QR active'}
-              </Text>
-            </Pressable>
+            {qrExpired ? (
+              <Pressable style={styles.qrPrimaryButton} onPress={generateQr}>
+                <Text style={styles.qrPrimaryButtonText}>Generate new QR code</Text>
+              </Pressable>
+            ) : null}
 
             <Pressable style={styles.qrCloseButton} onPress={() => setQrVisible(false)}>
               <Text style={styles.qrCloseButtonText}>Close</Text>
@@ -293,6 +267,7 @@ const styles = StyleSheet.create({
     }),
   },
   cardHeader: {
+    backgroundColor: PRIMARY,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
   },
@@ -302,8 +277,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  headerRaLogo: {
+    flexShrink: 0,
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 8,
+    padding: 4,
+  },
   headerCoatOfArms: {
     flexShrink: 0,
+    backgroundColor: NEUTRAL_COLORS.white,
+    borderRadius: 8,
+    padding: 5,
   },
   headerTextBlock: {
     flex: 1,
@@ -335,15 +319,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F6FC',
     padding: spacing.lg,
     overflow: 'hidden',
-  },
-  decorOrb: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: RA_YELLOW + '18',
-    top: -30,
-    right: -35,
   },
   licencePlate: {
     flexDirection: 'row',
@@ -411,28 +386,23 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
-  generateQrButton: {
+  officerLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    minHeight: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: PRIMARY,
-    backgroundColor: NEUTRAL_COLORS.white,
-    marginBottom: spacing.xs,
+    alignSelf: 'center',
+    gap: 5,
+    marginTop: spacing.md,
+    paddingVertical: 4,
   },
-  generateQrButtonText: {
-    ...typography.bodySmall,
-    fontFamily: 'Poppins_600SemiBold',
-    color: PRIMARY,
+  officerLinkPressed: {
+    opacity: 0.55,
   },
-  generateQrHint: {
+  officerLinkText: {
     ...typography.caption,
-    color: NEUTRAL_COLORS.gray600,
-    textAlign: 'center',
-    marginBottom: spacing.md,
+    fontSize: 11,
+    fontFamily: 'Poppins_500Medium',
+    color: NEUTRAL_COLORS.gray500,
+    letterSpacing: 0.3,
   },
   halfField: {
     flex: 1,
@@ -585,12 +555,6 @@ const styles = StyleSheet.create({
     color: NEUTRAL_COLORS.gray900,
     marginBottom: spacing.xs,
   },
-  qrModalSubtitle: {
-    ...typography.bodySmall,
-    color: NEUTRAL_COLORS.gray600,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
   qrFrame: {
     padding: spacing.md,
     borderRadius: 12,
@@ -622,11 +586,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: spacing.xs,
   },
-  qrMetaText: {
-    ...typography.caption,
-    color: NEUTRAL_COLORS.gray600,
-    marginBottom: spacing.xs,
-  },
   qrCountdown: {
     ...typography.bodySmall,
     fontFamily: 'Poppins_600SemiBold',
@@ -645,16 +604,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm,
   },
-  qrPrimaryButtonDisabled: {
-    backgroundColor: NEUTRAL_COLORS.gray200,
-  },
   qrPrimaryButtonText: {
     ...typography.bodySmall,
     fontFamily: 'Poppins_600SemiBold',
     color: NEUTRAL_COLORS.white,
-  },
-  qrPrimaryButtonTextDisabled: {
-    color: NEUTRAL_COLORS.gray600,
   },
   qrCloseButton: {
     paddingVertical: spacing.sm,
